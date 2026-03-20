@@ -77,6 +77,7 @@ async function dismissWelcomeOverlayIfVisible(page, { restorePrompt = 'skip' } =
       Boolean(button) &&
       !button.disabled
   })
+  await page.locator('#closeWelcomeButton').scrollIntoViewIfNeeded()
   await page.locator('#closeWelcomeButton').click()
   await waitForHidden(page, '#welcomeOverlay')
 }
@@ -193,16 +194,21 @@ test('Electron smoke: main shell, tabs and modals load normally', { timeout: 120
   assert.equal(await isVisible(page, '#previewPanelBody'), false)
 
   await page.locator('#aboutButton').click()
-  await waitForVisible(page, '#feedbackModal')
-  await page.waitForFunction(expectedName => document.getElementById('feedbackTitle').textContent.includes(`关于 ${expectedName}`), APP_NAME)
-  const aboutText = (await page.locator('#feedbackMessage').textContent()) || ''
-  assert.match(aboutText, new RegExp(`当前版本：${escapeRegExp(APP_VERSION)}`))
-  assert.match(aboutText, /作者：邹羽轩/)
-  assert.match(aboutText, /自动更新：GitHub Releases/)
-  assert.match(aboutText, /帮助/)
-  assert.match(aboutText, /发布说明/)
-  await page.locator('#feedbackConfirmButton').click()
-  await waitForHidden(page, '#feedbackModal')
+  await waitForVisible(page, '#helpCenterModal')
+  await page.waitForFunction(expectedName => document.getElementById('helpCenterTitle').textContent.includes(expectedName), APP_NAME)
+  const helpCenterText = (await page.locator('#helpCenterModal').textContent()) || ''
+  assert.match(helpCenterText, new RegExp(`当前版本 v${escapeRegExp(APP_VERSION)}`))
+  assert.match(helpCenterText, /作者：邹羽轩/)
+  assert.match(helpCenterText, /https:\/\/github\.com\/zzwdh\/WordZ/)
+  assert.match(helpCenterText, /重新查看首次教程/)
+  assert.match(helpCenterText, /使用说明/)
+  assert.match(helpCenterText, /发布说明/)
+  await page.locator('#reopenTutorialButton').click()
+  await waitForHidden(page, '#helpCenterModal')
+  await waitForVisible(page, '#welcomeOverlay')
+  assert.equal(await isVisible(page, '#welcomeTutorialBlock'), true)
+  await page.locator('#closeWelcomeButton').click()
+  await waitForHidden(page, '#welcomeOverlay')
 
   await page.locator('#checkUpdateButton').click()
   await waitForVisible(page, '#feedbackModal')

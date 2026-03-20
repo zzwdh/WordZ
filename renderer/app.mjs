@@ -14,19 +14,28 @@ import {
 } from '../analysisCore.mjs'
 import {
   ANALYSIS_TASK_TYPES,
+  DEFAULT_APP_INFO,
   BUTTON_ICONS,
   DEFAULT_THEME,
   DEFAULT_UI_SETTINGS,
   DEFAULT_WINDOW_SIZE,
   LARGE_TABLE_THRESHOLD,
   LIBRARY_FOLDER_STORAGE_KEY,
+  ONBOARDING_STORAGE_KEY,
   PREVIEW_CHAR_LIMIT,
+  RECENT_OPEN_LIMIT,
   RECENT_OPEN_STORAGE_KEY,
   TABLE_RENDER_CHUNK_SIZE,
   UI_FONT_FAMILIES,
   UI_SETTINGS_STORAGE_KEY,
+  WORKSPACE_SNAPSHOT_VERSION,
   WORKSPACE_STATE_STORAGE_KEY
 } from './constants.mjs'
+import {
+  applyAppInfoToShell as applyAppInfoToShellView,
+  normalizeAppInfo,
+  renderHelpCenter as renderHelpCenterView
+} from './appInfo.mjs'
 import { dom } from './domRefs.mjs'
 import { createAnalysisBridge } from './analysisBridge.mjs'
 import {
@@ -81,15 +90,29 @@ import {
   saveTableFile,
   setButtonsBusy
 } from './utils.mjs'
+import {
+  buildRecentOpenEntryFromResult,
+  loadRecentOpenEntries as loadRecentOpenEntriesFromStorage,
+  normalizeRecentOpenEntry,
+  persistRecentOpenEntries as persistRecentOpenEntriesToStorage,
+  renderRecentOpenList as renderRecentOpenListView
+} from './recentOpen.mjs'
+import {
+  getRestorableTabFromSnapshot,
+  getWorkspaceSnapshotSummary,
+  hasMeaningfulWorkspaceSnapshot,
+  loadOnboardingState,
+  loadStoredWorkspaceSnapshot as loadStoredWorkspaceSnapshotFromStorage,
+  markOnboardingTutorialCompleted,
+  shouldShowFirstRunTutorial
+} from './sessionState.mjs'
+import { createTaskCenterController } from './taskCenter.mjs'
 
 const {
   welcomeRestorePrompt,
   welcomeRestoreSummary,
   restoreWorkspaceButton,
   skipWorkspaceRestoreButton,
-  appTitleHeading,
-  appSubtitle,
-  settingsPreviewText,
   openCorpusMenuButton,
   openCorpusMenuPanel,
   quickOpenButton,
@@ -207,6 +230,10 @@ const {
   recycleMeta,
   recycleTableWrapper,
   closeRecycleButton,
+  helpCenterModal,
+  reopenTutorialButton,
+  openGitHubRepoButton,
+  closeHelpCenterButton,
   uiSettingsModal,
   uiZoomRange,
   uiFontSizeRange,
@@ -222,24 +249,6 @@ const {
   closeUiSettingsButton,
   feedbackModal
 } = dom
-
-const DEFAULT_APP_INFO = Object.freeze({
-  name: 'WordZ',
-  version: '',
-  description: '',
-  author: '',
-  releaseChannel: 'stable',
-  releaseChannelLabel: '稳定版',
-  autoUpdateConfigured: false,
-  autoUpdateProvider: '',
-  autoUpdateProviderLabel: '',
-  autoUpdateTarget: '',
-  help: [],
-  releaseNotes: []
-})
-
-const APP_FEATURE_SUMMARY = '支持 txt / docx / pdf 导入、词频统计、多语料对比分析、跨语料库 KWIC、Collocate、原文定位，以及本地语料库分类、备份、恢复、修复与自动更新。'
-const APP_SUBTITLE_TEXT = '本地语料工作台 · 打开、统计、检索与导出'
 
 const {
   beginBusyState,
@@ -341,29 +350,21 @@ let pendingLocatorScrollSentenceId = null
 let activeCancelableAnalysis = null
 let cancellingAnalysis = null
 let isCorpusLoading = false
-let taskCenterOpen = false
 let openCorpusMenuOpen = false
-let taskCenterEntrySeq = 0
-let taskCenterEntries = []
 let currentAutoUpdateState = null
 let announcedAvailableVersion = ''
 let promptedDownloadedVersion = ''
 let welcomeOverlayVisible = false
 let welcomeReady = false
+let welcomeTutorialVisible = false
+let manualTutorialOpen = false
 let pendingWorkspaceRestoreSnapshot = null
 let startupRestoreDecisionResolver = null
 let workspaceSnapshotTimer = null
 let workspaceSnapshotReady = false
 let workspaceRestoreInProgress = false
 let recentOpenEntries = []
-const activeTaskCenterEntryIds = new Map()
-const TASK_CENTER_LIMIT = 8
-const WORKSPACE_SNAPSHOT_VERSION = 1
-const RECENT_OPEN_LIMIT = 8
-const taskCenterTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
-  hour: '2-digit',
-  minute: '2-digit'
-})
+let onboardingState = loadOnboardingState(localStorage, ONBOARDING_STORAGE_KEY)
 
 function invalidateKWICSortCache() {
   currentKWICSortCache = { source: null, mode: 'original', rows: [] }
@@ -396,97 +397,19 @@ function getTabLabel(tabName) {
   return '统计结果'
 }
 
-function normalizeRecentOpenEntry(rawEntry) {
-  if (!rawEntry || typeof rawEntry !== 'object') return null
-  const type = ['quick', 'saved', 'saved-multi'].includes(rawEntry.type) ? rawEntry.type : ''
-  if (!type) return null
-
-  const label = String(rawEntry.label || '').trim()
-  if (!label) return null
-
-  const corpusIds = Array.isArray(rawEntry.corpusIds)
-    ? rawEntry.corpusIds.map(item => String(item || '').trim()).filter(Boolean)
-    : []
-  const filePath = String(rawEntry.filePath || '').trim()
-  const corpusId = String(rawEntry.corpusId || '').trim()
-  const entryKey = String(rawEntry.key || '').trim() || (
-    type === 'quick'
-      ? `quick:${filePath}`
-      : type === 'saved'
-        ? `saved:${corpusId}`
-        : `saved-multi:${[...corpusIds].sort().join(',')}`
-  )
-
-  if (!entryKey) return null
-  if (type === 'quick' && !filePath) return null
-  if (type === 'saved' && !corpusId) return null
-  if (type === 'saved-multi' && corpusIds.length === 0) return null
-
-  return {
-    key: entryKey,
-    type,
-    label,
-    detail: String(rawEntry.detail || '').trim(),
-    filePath,
-    corpusId,
-    corpusIds,
-    sourceType: String(rawEntry.sourceType || '').trim(),
-    openedAt: String(rawEntry.openedAt || '').trim() || new Date().toISOString()
-  }
-}
-
-function loadRecentOpenEntries() {
-  try {
-    const rawValue = localStorage.getItem(RECENT_OPEN_STORAGE_KEY)
-    if (!rawValue) return []
-    const parsedValue = JSON.parse(rawValue)
-    if (!Array.isArray(parsedValue)) return []
-    return parsedValue
-      .map(normalizeRecentOpenEntry)
-      .filter(Boolean)
-      .slice(0, RECENT_OPEN_LIMIT)
-  } catch (error) {
-    console.warn('[recent-open.load]', error)
-    return []
-  }
-}
-
 function persistRecentOpenEntries() {
-  try {
-    localStorage.setItem(RECENT_OPEN_STORAGE_KEY, JSON.stringify(recentOpenEntries.slice(0, RECENT_OPEN_LIMIT)))
-  } catch (error) {
-    console.warn('[recent-open.save]', error)
-  }
-}
-
-function getRecentOpenTypeLabel(type) {
-  if (type === 'quick') return '外部文件'
-  if (type === 'saved-multi') return '多语料'
-  return '本地语料'
+  persistRecentOpenEntriesToStorage(localStorage, RECENT_OPEN_STORAGE_KEY, recentOpenEntries)
 }
 
 function renderRecentOpenList() {
-  if (!recentOpenSection || !recentOpenList) return
-
-  recentOpenSection.classList.toggle('hidden', recentOpenEntries.length === 0)
-  if (clearRecentOpenButton) clearRecentOpenButton.disabled = recentOpenEntries.length === 0
-
-  if (recentOpenEntries.length === 0) {
-    recentOpenList.innerHTML = '<div class="recent-open-empty">最近打开的语料会显示在这里。</div>'
-    return
-  }
-
-  recentOpenList.innerHTML = recentOpenEntries
-    .map((entry, index) => `
-      <button class="recent-open-item" type="button" data-recent-open-index="${index}">
-        <span class="recent-open-item-head">
-          <span class="recent-open-item-title">${escapeHtml(entry.label)}</span>
-          <span class="recent-open-badge">${escapeHtml(getRecentOpenTypeLabel(entry.type))}</span>
-        </span>
-        <span class="recent-open-item-detail">${escapeHtml(entry.detail || '点击后重新载入该语料')}</span>
-      </button>
-    `)
-    .join('')
+  renderRecentOpenListView(
+    {
+      section: recentOpenSection,
+      list: recentOpenList,
+      clearButton: clearRecentOpenButton
+    },
+    recentOpenEntries
+  )
 }
 
 function addRecentOpenEntry(entry) {
@@ -506,93 +429,12 @@ function clearRecentOpenEntries() {
   renderRecentOpenList()
 }
 
-function buildRecentOpenEntryFromResult(result) {
-  if (!result?.success) return null
-
-  if (result.mode === 'quick') {
-    const filePath = String(result.filePath || '').trim()
-    if (!filePath) return null
-    const sourceLabel = String(result.sourceEncoding || '').trim()
-    return {
-      key: `quick:${filePath}`,
-      type: 'quick',
-      label: String(result.displayName || result.fileName || '外部文件').trim(),
-      detail: sourceLabel ? `${String(result.fileName || filePath).trim()} · ${sourceLabel}` : String(result.fileName || filePath).trim(),
-      filePath,
-      sourceType: String(result.sourceType || '').trim(),
-      openedAt: new Date().toISOString()
-    }
-  }
-
-  if (result.mode === 'saved-multi') {
-    const corpusIds = Array.isArray(result.corpusIds)
-      ? result.corpusIds.map(item => String(item || '').trim()).filter(Boolean)
-      : []
-    if (corpusIds.length === 0) return null
-    const selectedItems = Array.isArray(result.selectedItems) ? result.selectedItems : []
-    const itemNames = selectedItems.map(item => String(item?.name || '').trim()).filter(Boolean)
-    const previewNames = itemNames.slice(0, 2).join('、')
-    const remainingCount = Math.max(itemNames.length - 2, 0)
-    const detailParts = []
-    if (previewNames) detailParts.push(remainingCount > 0 ? `${previewNames} 等 ${itemNames.length} 条语料` : previewNames)
-    if (result.folderName) detailParts.push(String(result.folderName).trim())
-    return {
-      key: `saved-multi:${[...corpusIds].sort().join(',')}`,
-      type: 'saved-multi',
-      label: String(result.displayName || `已选 ${corpusIds.length} 条语料`).trim(),
-      detail: detailParts.join(' · ') || `共 ${corpusIds.length} 条已保存语料`,
-      corpusIds,
-      openedAt: new Date().toISOString()
-    }
-  }
-
-  const corpusId = String(result.corpusId || '').trim()
-  if (!corpusId) return null
-  const detailParts = []
-  if (result.folderName) detailParts.push(String(result.folderName).trim())
-  if (result.sourceEncoding) detailParts.push(String(result.sourceEncoding).trim())
-  return {
-    key: `saved:${corpusId}`,
-    type: 'saved',
-    label: String(result.displayName || result.fileName || '已保存语料').trim(),
-    detail: detailParts.join(' · ') || '本地语料库',
-    corpusId,
-    openedAt: new Date().toISOString()
-  }
-}
-
-function getWorkspaceSnapshotSummary(snapshot) {
-  const corpusNames = Array.isArray(snapshot?.workspace?.corpusNames)
-    ? snapshot.workspace.corpusNames.map(item => String(item || '').trim()).filter(Boolean)
-    : []
-  const summaryParts = []
-  if (corpusNames.length > 0) {
-    const namesPreview = corpusNames.slice(0, 2).join('、')
-    summaryParts.push(corpusNames.length > 2 ? `${namesPreview} 等 ${corpusNames.length} 条语料` : namesPreview)
-  } else if (snapshot?.workspace?.corpusIds?.length > 0) {
-    summaryParts.push(`已保存语料 ${snapshot.workspace.corpusIds.length} 条`)
-  }
-
-  summaryParts.push(getTabLabel(getRestorableTabFromSnapshot(snapshot)))
-
-  if (snapshot?.search?.query) {
-    summaryParts.push(`搜索词：${snapshot.search.query}`)
-  }
-
-  return summaryParts.join(' · ') || '上次工作区包含已保存语料与检索状态。'
-}
-
 function setWelcomeRestorePromptSnapshot(snapshot) {
   pendingWorkspaceRestoreSnapshot = snapshot || null
   if (welcomeRestorePrompt) welcomeRestorePrompt.classList.toggle('hidden', !snapshot)
   if (welcomeRestoreSummary) {
-    welcomeRestoreSummary.textContent = snapshot ? getWorkspaceSnapshotSummary(snapshot) : ''
+    welcomeRestoreSummary.textContent = snapshot ? getWorkspaceSnapshotSummary(snapshot, { getTabLabel }) : ''
   }
-}
-
-function hasMeaningfulWorkspaceSnapshot(snapshot) {
-  if (!snapshot) return false
-  return Array.isArray(snapshot.workspace?.corpusIds) && snapshot.workspace.corpusIds.length > 0
 }
 
 function resolveStartupRestoreDecision(shouldRestore) {
@@ -605,7 +447,7 @@ function resolveStartupRestoreDecision(shouldRestore) {
 async function requestWorkspaceRestoreDecision(snapshot) {
   if (!snapshot || !hasMeaningfulWorkspaceSnapshot(snapshot)) return false
   const title = '检测到上次会话'
-  const message = `${getWorkspaceSnapshotSummary(snapshot)}\n\n是否恢复上次工作区？`
+  const message = `${getWorkspaceSnapshotSummary(snapshot, { getTabLabel })}\n\n是否恢复上次工作区？`
 
   if (getCurrentUISettings().showWelcomeScreen !== false && welcomeOverlayVisible && welcomeRestorePrompt) {
     setWelcomeProgress(74, '检测到上次工作区，请选择是否恢复。', title)
@@ -866,40 +708,6 @@ function setPreviewCollapsed(collapsed) {
   scheduleWorkspaceSnapshotSave()
 }
 
-function formatTaskCenterTime(timestamp) {
-  return taskCenterTimeFormatter.format(new Date(timestamp))
-}
-
-function formatTaskCenterDuration(durationMs) {
-  const normalizedDuration = Math.max(0, Number(durationMs) || 0)
-  if (normalizedDuration < 1000) return `${normalizedDuration}ms`
-  if (normalizedDuration < 10000) return `${(normalizedDuration / 1000).toFixed(1)}s`
-  if (normalizedDuration < 60000) return `${Math.round(normalizedDuration / 1000)}s`
-  const minutes = Math.floor(normalizedDuration / 60000)
-  const seconds = Math.round((normalizedDuration % 60000) / 1000)
-  return `${minutes}m ${seconds}s`
-}
-
-function getTaskCenterStatusLabel(status) {
-  if (status === 'running') return '进行中'
-  if (status === 'success') return '已完成'
-  if (status === 'cancelled') return '已取消'
-  return '失败'
-}
-
-function updateTaskCenterButtonLabel() {
-  if (!taskCenterButton) return
-  const activeCount = taskCenterEntries.filter(entry => entry.status === 'running').length
-  setButtonLabel(taskCenterButton, activeCount > 0 ? `任务（${activeCount}）` : '任务')
-}
-
-function setTaskCenterOpen(open) {
-  if (!taskCenterPanel || !taskCenterButton) return
-  taskCenterOpen = Boolean(open)
-  taskCenterPanel.classList.toggle('hidden', !taskCenterOpen)
-  taskCenterButton.setAttribute('aria-expanded', String(taskCenterOpen))
-}
-
 function setOpenCorpusMenuOpen(open) {
   if (!openCorpusMenuButton || !openCorpusMenuPanel) return
   openCorpusMenuOpen = Boolean(open)
@@ -908,106 +716,14 @@ function setOpenCorpusMenuOpen(open) {
   openCorpusMenuButton.setAttribute('aria-expanded', String(openCorpusMenuOpen))
 }
 
-function renderTaskCenter() {
-  if (!taskCenterList || !taskCenterMeta) return
-
-  const activeCount = taskCenterEntries.filter(entry => entry.status === 'running').length
-  if (activeCount > 0) {
-    taskCenterMeta.textContent = `运行中 ${activeCount} 项，已保留最近 ${taskCenterEntries.length} 条记录。`
-  } else if (taskCenterEntries.length > 0) {
-    taskCenterMeta.textContent = `最近 ${taskCenterEntries.length} 条分析任务记录。`
-  } else {
-    taskCenterMeta.textContent = '最近的分析任务会显示在这里。'
-  }
-
-  if (taskCenterEntries.length === 0) {
-    taskCenterList.innerHTML = '<div class="task-center-empty">最近的统计、KWIC 和 Collocate 任务会显示在这里。</div>'
-    updateTaskCenterButtonLabel()
-    return
-  }
-
-  taskCenterList.innerHTML = taskCenterEntries
-    .map(entry => {
-      const metaText = entry.status === 'running'
-        ? `开始于 ${formatTaskCenterTime(entry.startedAt)}`
-        : `${formatTaskCenterTime(entry.finishedAt || entry.startedAt)} · 用时 ${formatTaskCenterDuration(entry.durationMs)}`
-
-      return `
-        <article class="task-center-item">
-          <div class="task-center-item-head">
-            <div class="task-center-title">${escapeHtml(entry.title)}</div>
-            <span class="task-center-status is-${escapeHtml(entry.status)}">${escapeHtml(getTaskCenterStatusLabel(entry.status))}</span>
-          </div>
-          <div class="task-center-detail">${escapeHtml(entry.detail)}</div>
-          <div class="task-center-item-meta">${escapeHtml(metaText)}</div>
-        </article>
-      `
-    })
-    .join('')
-
-  updateTaskCenterButtonLabel()
-}
-
-function startTaskCenterEntry(taskKey, title, detail) {
-  const entryId = `task-${++taskCenterEntrySeq}`
-  const entry = {
-    id: entryId,
-    taskKey,
-    title,
-    detail,
-    status: 'running',
-    startedAt: Date.now(),
-    finishedAt: null,
-    durationMs: 0
-  }
-
-  taskCenterEntries = [entry, ...taskCenterEntries].slice(0, TASK_CENTER_LIMIT)
-  activeTaskCenterEntryIds.set(taskKey, entryId)
-  renderTaskCenter()
-  return entryId
-}
-
-function updateTaskCenterEntry(entryId, patch) {
-  let hasUpdated = false
-  taskCenterEntries = taskCenterEntries.map(entry => {
-    if (entry.id !== entryId) return entry
-    hasUpdated = true
-    return { ...entry, ...patch }
-  })
-  if (hasUpdated) renderTaskCenter()
-}
-
-function updateActiveTaskCenterEntry(taskKey, patch) {
-  const entryId = activeTaskCenterEntryIds.get(taskKey)
-  if (!entryId) return
-  updateTaskCenterEntry(entryId, patch)
-}
-
-function finishTaskCenterEntry(taskKey, status, detail) {
-  const entryId = activeTaskCenterEntryIds.get(taskKey)
-  if (!entryId) return
-
-  const entry = taskCenterEntries.find(item => item.id === entryId)
-  if (!entry) {
-    activeTaskCenterEntryIds.delete(taskKey)
-    return
-  }
-
-  updateTaskCenterEntry(entryId, {
-    status,
-    detail,
-    finishedAt: Date.now(),
-    durationMs: Date.now() - entry.startedAt
-  })
-  activeTaskCenterEntryIds.delete(taskKey)
-}
-
 function setButtonLabel(button, label) {
   if (!button) return
   const labelNode = button.querySelector('.button-content span:last-child')
   if (labelNode) labelNode.textContent = label
   else button.textContent = label
 }
+
+const taskCenter = createTaskCenterController({ dom, setButtonLabel })
 
 function syncWelcomePreferenceCheckboxes() {
   const enabled = getCurrentUISettings().showWelcomeScreen !== false
@@ -1018,20 +734,15 @@ function syncWelcomePreferenceCheckboxes() {
 function syncWelcomeStartButton() {
   if (!dom.closeWelcomeButton) return
   dom.closeWelcomeButton.disabled = !welcomeReady
-  setButtonLabel(dom.closeWelcomeButton, welcomeReady ? '开始使用' : '正在准备...')
+  setButtonLabel(dom.closeWelcomeButton, welcomeReady ? (manualTutorialOpen ? '返回工作台' : '开始使用') : '正在准备...')
 }
 
-function updateWelcomeContent() {
-  if (dom.welcomeTitle) dom.welcomeTitle.textContent = `欢迎使用 ${currentAppInfo.name}`
-  if (dom.welcomeSubtitle) {
-    dom.welcomeSubtitle.textContent = getAppAboutDescription()
+function setWelcomeTutorialVisible(visible, { manual = false } = {}) {
+  welcomeTutorialVisible = Boolean(visible)
+  manualTutorialOpen = welcomeTutorialVisible && manual
+  if (dom.welcomeTutorialBlock) {
+    dom.welcomeTutorialBlock.classList.toggle('hidden', !welcomeTutorialVisible)
   }
-  if (dom.welcomeFeatureSummary) {
-    dom.welcomeFeatureSummary.textContent = APP_FEATURE_SUMMARY
-  }
-  const versionText = currentAppInfo.version ? `当前版本 v${currentAppInfo.version}` : '正在读取版本...'
-  if (dom.topbarVersionBadge) dom.topbarVersionBadge.textContent = versionText
-  if (dom.welcomeVersionBadge) dom.welcomeVersionBadge.textContent = versionText
 }
 
 function setWelcomeProgress(progress, text, title = text) {
@@ -1042,13 +753,17 @@ function setWelcomeProgress(progress, text, title = text) {
   if (dom.welcomeProgressTitle) dom.welcomeProgressTitle.textContent = title
 }
 
-function showWelcomeOverlay() {
-  if (!dom.welcomeOverlay || getCurrentUISettings().showWelcomeScreen === false) return
+function showWelcomeOverlay({ force = false, tutorialMode = false, manualTutorial = false } = {}) {
+  if (!dom.welcomeOverlay || (!force && getCurrentUISettings().showWelcomeScreen === false)) return
   welcomeOverlayVisible = true
-  welcomeReady = false
+  welcomeReady = manualTutorial ? true : false
+  setWelcomeTutorialVisible(tutorialMode, { manual: manualTutorial })
   setWelcomeRestorePromptSnapshot(null)
   dom.welcomeOverlay.classList.remove('hidden')
   document.body.classList.add('welcome-open')
+  if (manualTutorial) {
+    setWelcomeProgress(100, `教程已准备好，点击“返回工作台”继续使用 ${currentAppInfo.name}。`, '首次使用教程')
+  }
   syncWelcomePreferenceCheckboxes()
   syncWelcomeStartButton()
 }
@@ -1059,6 +774,7 @@ function hideWelcomeOverlay({ immediate = false } = {}) {
   dom.welcomeOverlay.classList.add('hidden')
   document.body.classList.remove('welcome-open')
   welcomeOverlayVisible = false
+  setWelcomeTutorialVisible(false)
   setWelcomeRestorePromptSnapshot(null)
 }
 
@@ -1209,7 +925,7 @@ function requestCancelAnalysis(taskName, busyMessage, cancelMessage) {
   cancellingAnalysis = taskName
   updateAnalysisActionButtons()
   if (systemStatusText) systemStatusText.textContent = busyMessage
-  updateActiveTaskCenterEntry(taskName, { detail: busyMessage })
+  taskCenter.updateActiveEntry(taskName, { detail: busyMessage })
   return cancelAnalysisTask(taskName, cancelMessage)
 }
 
@@ -1281,44 +997,11 @@ function buildRepairSummaryMessage(result) {
   return lines.join('\n')
 }
 
-function normalizeAppInfo(rawInfo = {}) {
-  const normalizedName = String(rawInfo.name || '').trim() || DEFAULT_APP_INFO.name
-  return {
-    name: normalizedName,
-    version: String(rawInfo.version || '').trim(),
-    description: String(rawInfo.description || '').trim(),
-    author: String(rawInfo.author || '').trim(),
-    releaseChannel: String(rawInfo.releaseChannel || 'stable').trim() || 'stable',
-    releaseChannelLabel: String(rawInfo.releaseChannelLabel || '稳定版').trim() || '稳定版',
-    autoUpdateConfigured: Boolean(rawInfo.autoUpdateConfigured),
-    autoUpdateProvider: String(rawInfo.autoUpdateProvider || '').trim(),
-    autoUpdateProviderLabel: String(rawInfo.autoUpdateProviderLabel || '').trim(),
-    autoUpdateTarget: String(rawInfo.autoUpdateTarget || '').trim(),
-    help: Array.isArray(rawInfo.help)
-      ? rawInfo.help.map(item => String(item).trim()).filter(Boolean)
-      : [],
-    releaseNotes: Array.isArray(rawInfo.releaseNotes)
-      ? rawInfo.releaseNotes.map(item => String(item).trim()).filter(Boolean)
-      : []
-  }
-}
-
-function getAppAboutDescription() {
-  const description = String(currentAppInfo.description || '').trim()
-  if (!description || description === currentAppInfo.name) {
-    return '一个本地桌面语料分析工具。'
-  }
-  return description
-}
-
 function applyAppInfoToShell() {
-  document.title = currentAppInfo.name
-  if (appTitleHeading) appTitleHeading.textContent = currentAppInfo.name
-  if (appSubtitle) appSubtitle.textContent = APP_SUBTITLE_TEXT
-  if (settingsPreviewText) {
-    settingsPreviewText.textContent = `${currentAppInfo.name} Corpus Helper 123 ABC。这里会实时预览你当前选择的字体和字号效果。`
+  applyAppInfoToShellView(currentAppInfo, dom)
+  if (helpCenterModal && !helpCenterModal.classList.contains('hidden')) {
+    renderHelpCenterView(currentAppInfo, dom)
   }
-  updateWelcomeContent()
 }
 
 async function ensureAppInfoLoaded() {
@@ -1349,46 +1032,17 @@ async function ensureAppInfoLoaded() {
   }
 }
 
-function buildAboutMessage() {
-  const autoUpdateLabel =
-    currentAppInfo.autoUpdateProviderLabel ||
-    (currentAppInfo.autoUpdateProvider === 'github'
-      ? 'GitHub Releases'
-      : currentAppInfo.autoUpdateProvider === 'generic'
-        ? '通用更新源'
-        : '自动更新')
-  const autoUpdateTarget = currentAppInfo.autoUpdateTarget ? `（${currentAppInfo.autoUpdateTarget}）` : ''
-  const lines = [
-    currentAppInfo.name,
-    '',
-    getAppAboutDescription(),
-    APP_FEATURE_SUMMARY
-  ]
+function renderHelpCenter() {
+  renderHelpCenterView(currentAppInfo, dom)
+}
 
-  if (currentAppInfo.author) {
-    lines.push(`作者：${currentAppInfo.author}`)
-  }
+function openHelpCenterModal() {
+  renderHelpCenter()
+  helpCenterModal?.classList.remove('hidden')
+}
 
-  lines.push('', `当前版本：${currentAppInfo.version || '未知版本'}`)
-  lines.push(`发布渠道：${currentAppInfo.releaseChannelLabel || '稳定版'}`)
-  lines.push(`自动更新：${autoUpdateLabel}${autoUpdateTarget}`)
-  lines.push(`更新源状态：${currentAppInfo.autoUpdateConfigured ? '已配置' : '尚未配置'}`)
-
-  if (currentAppInfo.help.length > 0) {
-    lines.push('', '帮助')
-    for (const item of currentAppInfo.help) {
-      lines.push(`- ${item}`)
-    }
-  }
-
-  if (currentAppInfo.releaseNotes.length > 0) {
-    lines.push('', '发布说明')
-    for (const item of currentAppInfo.releaseNotes) {
-      lines.push(`- ${item}`)
-    }
-  }
-
-  return lines.join('\n')
+function closeHelpCenterModal() {
+  helpCenterModal?.classList.add('hidden')
 }
 
 async function promptForName({ title, message, defaultValue = '', placeholder = '', confirmText = '保存', label }) {
@@ -1451,6 +1105,9 @@ function decorateStaticButtons() {
   decorateButton(restoreLibraryButton, 'restore')
   decorateButton(repairLibraryButton, 'repair')
   decorateButton(loadSelectedCorporaButton, 'open')
+  decorateButton(reopenTutorialButton, 'about')
+  decorateButton(openGitHubRepoButton, 'open')
+  decorateButton(closeHelpCenterButton, 'close')
   decorateButton(resetUiSettingsButton, 'reset')
   decorateButton(closeUiSettingsButton, 'close')
   decorateButton(closeLibraryButton, 'close')
@@ -1628,8 +1285,8 @@ function getDiagnosticRendererState() {
     collocateKeyword: currentCollocateKeyword,
     collocateResultCount: currentCollocateRows.length,
     locatorSentenceCount: currentSentenceObjects.length,
-    taskCenter: taskCenterEntries.slice(0, 5).map(entry => ({
-      type: entry.type,
+    taskCenter: taskCenter.getEntries().slice(0, 5).map(entry => ({
+      taskKey: entry.taskKey,
       status: entry.status,
       detail: entry.detail,
       durationMs: entry.durationMs || 0
@@ -1666,72 +1323,8 @@ async function refreshDiagnosticsStatusText() {
   }
 }
 
-function normalizeWorkspaceSnapshot(rawSnapshot) {
-  if (!rawSnapshot || typeof rawSnapshot !== 'object') return null
-  if (Number(rawSnapshot.version) !== WORKSPACE_SNAPSHOT_VERSION) return null
-
-  const corpusIds = Array.isArray(rawSnapshot.workspace?.corpusIds)
-    ? rawSnapshot.workspace.corpusIds.map(item => String(item || '').trim()).filter(Boolean)
-    : []
-  const corpusNames = Array.isArray(rawSnapshot.workspace?.corpusNames)
-    ? rawSnapshot.workspace.corpusNames.map(item => String(item || '').trim()).filter(Boolean)
-    : []
-
-  return {
-    version: WORKSPACE_SNAPSHOT_VERSION,
-    savedAt: String(rawSnapshot.savedAt || '').trim(),
-    currentTab: ['stats', 'compare', 'word-cloud', 'kwic', 'collocate', 'locator'].includes(rawSnapshot.currentTab)
-      ? rawSnapshot.currentTab
-      : 'stats',
-    currentLibraryFolderId: String(rawSnapshot.currentLibraryFolderId || 'all').trim() || 'all',
-    previewCollapsed: rawSnapshot.previewCollapsed !== false,
-    workspace: {
-      corpusIds,
-      corpusNames
-    },
-    search: {
-      query: String(rawSnapshot.search?.query || ''),
-      options: normalizeSearchOptions(rawSnapshot.search?.options || {})
-    },
-    stats: {
-      pageSize: String(rawSnapshot.stats?.pageSize || '10')
-    },
-    compare: {
-      pageSize: String(rawSnapshot.compare?.pageSize || '10')
-    },
-    kwic: {
-      pageSize: String(rawSnapshot.kwic?.pageSize || '10'),
-      scope: String(rawSnapshot.kwic?.scope || 'current'),
-      sortMode: String(rawSnapshot.kwic?.sortMode || 'original'),
-      leftWindow: String(rawSnapshot.kwic?.leftWindow || '5'),
-      rightWindow: String(rawSnapshot.kwic?.rightWindow || '5')
-    },
-    collocate: {
-      pageSize: String(rawSnapshot.collocate?.pageSize || '10'),
-      leftWindow: String(rawSnapshot.collocate?.leftWindow || '5'),
-      rightWindow: String(rawSnapshot.collocate?.rightWindow || '5'),
-      minFreq: String(rawSnapshot.collocate?.minFreq || '1')
-    }
-  }
-}
-
 function loadStoredWorkspaceSnapshot() {
-  try {
-    const rawValue = localStorage.getItem(WORKSPACE_STATE_STORAGE_KEY)
-    if (!rawValue) return null
-    return normalizeWorkspaceSnapshot(JSON.parse(rawValue))
-  } catch (error) {
-    console.warn('[workspace.snapshot.load]', error)
-    return null
-  }
-}
-
-function getRestorableTabFromSnapshot(snapshot) {
-  if (!snapshot) return 'stats'
-  if (snapshot.currentTab === 'locator') {
-    return snapshot.search?.query ? 'kwic' : 'stats'
-  }
-  return snapshot.currentTab || 'stats'
+  return loadStoredWorkspaceSnapshotFromStorage(localStorage, WORKSPACE_STATE_STORAGE_KEY)
 }
 
 function applySelectControlValue(control, value, fallbackValue) {
@@ -2422,10 +2015,10 @@ async function openRecentOpenEntry(entry) {
 decorateStaticButtons()
 updateAnalysisActionButtons()
 setPreviewCollapsed(true)
-renderTaskCenter()
+taskCenter.render()
 setOpenCorpusMenuOpen(false)
 const initialUISettings = initUISettings()
-recentOpenEntries = loadRecentOpenEntries()
+recentOpenEntries = loadRecentOpenEntriesFromStorage(localStorage, RECENT_OPEN_STORAGE_KEY)
 renderWorkspaceOverview()
 renderSelectedCorporaTable()
 updateLoadSelectedCorporaButton()
@@ -2438,9 +2031,17 @@ applyAppInfoToShell()
 applyAutoUpdateButtonState(null)
 syncWelcomePreferenceCheckboxes()
 void refreshDiagnosticsStatusText()
-if (initialUISettings.showWelcomeScreen !== false) {
-  showWelcomeOverlay()
-  setWelcomeProgress(12, '正在载入界面设置...', '正在准备欢迎界面')
+const showFirstRunTutorial = shouldShowFirstRunTutorial(onboardingState)
+if (initialUISettings.showWelcomeScreen !== false || showFirstRunTutorial) {
+  showWelcomeOverlay({
+    force: showFirstRunTutorial,
+    tutorialMode: showFirstRunTutorial
+  })
+  setWelcomeProgress(
+    12,
+    '正在载入界面设置...',
+    showFirstRunTutorial ? '正在准备首次使用教程' : '正在准备欢迎界面'
+  )
 }
 void recordDiagnostic('info', 'app', 'Renderer 已完成初始化。', {
   tab: currentTab,
@@ -2499,6 +2100,9 @@ previewToggleButton?.addEventListener('click', () => {
 dom.closeWelcomeButton?.addEventListener('click', () => {
   if (!welcomeReady) return
   const shouldShowWelcome = !(dom.welcomeDisableCheckbox?.checked)
+  if (welcomeTutorialVisible) {
+    onboardingState = markOnboardingTutorialCompleted(localStorage, ONBOARDING_STORAGE_KEY, onboardingState)
+  }
   applyUISettings({
     ...getCurrentUISettings(),
     showWelcomeScreen: shouldShowWelcome
@@ -2595,19 +2199,53 @@ checkUpdateButton?.addEventListener('click', async () => {
 
 aboutButton?.addEventListener('click', async () => {
   await ensureAppInfoLoaded()
-  await showAlert({
-    title: `关于 ${currentAppInfo.name}`,
-    message: buildAboutMessage(),
-    confirmText: '知道了'
+  openHelpCenterModal()
+})
+
+reopenTutorialButton?.addEventListener('click', () => {
+  closeHelpCenterModal()
+  showWelcomeOverlay({ force: true, tutorialMode: true, manualTutorial: true })
+})
+
+openGitHubRepoButton?.addEventListener('click', async () => {
+  if (!currentAppInfo.repositoryUrl) {
+    await showAlert({
+      title: 'GitHub 地址未配置',
+      message: '当前版本没有可打开的 GitHub 仓库地址。'
+    })
+    return
+  }
+
+  if (!window.electronAPI?.openExternalUrl) {
+    await showMissingBridge('openExternalUrl')
+    return
+  }
+
+  const result = await window.electronAPI.openExternalUrl(currentAppInfo.repositoryUrl)
+  if (!result?.success) {
+    await showAlert({
+      title: '打开 GitHub 失败',
+      message: result?.message || '暂时无法打开 GitHub 仓库地址。'
+    })
+    return
+  }
+
+  showToast('已打开 GitHub 仓库页面。', {
+    title: '帮助中心',
+    type: 'success'
   })
 })
 
+closeHelpCenterButton?.addEventListener('click', () => {
+  closeHelpCenterModal()
+})
+
 taskCenterButton?.addEventListener('click', () => {
-  setTaskCenterOpen(!taskCenterOpen)
+  taskCenter.setOpen(!taskCenter.isOpen())
 })
 
 closeTaskCenterButton?.addEventListener('click', () => {
-  setTaskCenterOpen(false)
+  taskCenter.setOpen(false)
 })
 
 document.addEventListener('click', event => {
@@ -2618,9 +2256,9 @@ document.addEventListener('click', event => {
       setOpenCorpusMenuOpen(false)
     }
   }
-  if (taskCenterOpen && taskCenterPanel && taskCenterButton) {
+  if (taskCenter.isOpen() && taskCenterPanel && taskCenterButton) {
     if (!taskCenterPanel.contains(target) && !taskCenterButton.contains(target)) {
-      setTaskCenterOpen(false)
+      taskCenter.setOpen(false)
     }
   }
 })
@@ -2639,9 +2277,17 @@ document.addEventListener('keydown', event => {
     closeRecycleModal()
     return
   }
-  if (event.key === 'Escape' && taskCenterOpen) {
-    setTaskCenterOpen(false)
+  if (event.key === 'Escape' && helpCenterModal && !helpCenterModal.classList.contains('hidden')) {
+    closeHelpCenterModal()
+    return
   }
+  if (event.key === 'Escape' && taskCenter.isOpen()) {
+    taskCenter.setOpen(false)
+  }
+})
+
+helpCenterModal?.addEventListener('click', (event) => {
+  if (event.target === helpCenterModal) closeHelpCenterModal()
 })
 
 uiSettingsButton.addEventListener('click', () => {
@@ -3285,7 +2931,7 @@ countButton.addEventListener('click', async () => {
   const runId = nextAnalysisRun('stats')
   const endBusyState = beginBusyState('正在统计词频与词汇指标...')
   beginCancelableAnalysis('stats')
-  startTaskCenterEntry('stats', '统计结果', '正在统计词频与词汇指标...')
+  taskCenter.startEntry('stats', '统计结果', '正在统计词频与词汇指标...')
   try {
     const shouldCompareAcrossCorpora = currentComparisonEntries.length >= 2
     const statsResult = await runAnalysisTask(
@@ -3329,14 +2975,14 @@ countButton.addEventListener('click', async () => {
     renderCompareTable()
     renderWordCloud()
     switchTab('stats')
-    finishTaskCenterEntry('stats', 'success', `Token ${formatCount(currentTokenCount)} / Type ${formatCount(currentTypeCount)}`)
+    taskCenter.finishEntry('stats', 'success', `Token ${formatCount(currentTokenCount)} / Type ${formatCount(currentTypeCount)}`)
     void recordDiagnostic('info', 'analysis.stats', '统计任务完成。', {
       tokenCount: currentTokenCount,
       typeCount: currentTypeCount
     })
   } catch (error) {
     if (isAbortError(error)) {
-      finishTaskCenterEntry('stats', 'cancelled', error.message || '统计任务已取消')
+      taskCenter.finishEntry('stats', 'cancelled', error.message || '统计任务已取消')
       void recordDiagnostic('warn', 'analysis.stats', error.message || '统计任务已取消')
       showToast(error.message || '已取消统计任务', {
         title: '统计已取消',
@@ -3344,7 +2990,7 @@ countButton.addEventListener('click', async () => {
       })
       return
     }
-    finishTaskCenterEntry('stats', 'failed', getErrorMessage(error, '统计失败'))
+    taskCenter.finishEntry('stats', 'failed', getErrorMessage(error, '统计失败'))
     console.error('[countButton]', error)
     recordDiagnosticError('analysis.stats', error, {
       tokenCount: currentTokens.length
@@ -3491,7 +3137,7 @@ kwicButton.addEventListener('click', async () => {
   const runId = nextAnalysisRun('kwic')
   const endBusyState = beginBusyState('正在执行 KWIC 检索...')
   beginCancelableAnalysis('kwic')
-  startTaskCenterEntry('kwic', 'KWIC 检索', `${kwicScopeLabel} · 关键词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`)
+  taskCenter.startEntry('kwic', 'KWIC 检索', `${kwicScopeLabel} · 关键词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`)
   try {
     currentKWICKeyword = keyword
     currentKWICLeftWindow = leftWindowSize
@@ -3512,7 +3158,7 @@ kwicButton.addEventListener('click', async () => {
     currentKWICPage = 1
     renderKWICTable()
     switchTab('kwic')
-    finishTaskCenterEntry('kwic', 'success', `${kwicScopeLabel} · 关键词：${keyword} · ${formatCount(currentKWICResults.length)} 条结果`)
+    taskCenter.finishEntry('kwic', 'success', `${kwicScopeLabel} · 关键词：${keyword} · ${formatCount(currentKWICResults.length)} 条结果`)
     void recordDiagnostic('info', 'analysis.kwic', 'KWIC 检索完成。', {
       keyword,
       scope: kwicScopeLabel,
@@ -3520,7 +3166,7 @@ kwicButton.addEventListener('click', async () => {
     })
   } catch (error) {
     if (isAbortError(error)) {
-      finishTaskCenterEntry('kwic', 'cancelled', error.message || 'KWIC 检索已取消')
+      taskCenter.finishEntry('kwic', 'cancelled', error.message || 'KWIC 检索已取消')
       void recordDiagnostic('warn', 'analysis.kwic', error.message || 'KWIC 检索已取消', {
         keyword
       })
@@ -3530,7 +3176,7 @@ kwicButton.addEventListener('click', async () => {
       })
       return
     }
-    finishTaskCenterEntry('kwic', 'failed', getErrorMessage(error, 'KWIC 检索失败'))
+    taskCenter.finishEntry('kwic', 'failed', getErrorMessage(error, 'KWIC 检索失败'))
     console.error('[kwicButton]', error)
     recordDiagnosticError('analysis.kwic', error, {
       keyword,
@@ -3621,7 +3267,7 @@ collocateButton.addEventListener('click', async () => {
   const runId = nextAnalysisRun('collocate')
   const endBusyState = beginBusyState('正在计算搭配词结果...')
   beginCancelableAnalysis('collocate')
-  startTaskCenterEntry('collocate', 'Collocate 统计', `节点词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`)
+  taskCenter.startEntry('collocate', 'Collocate 统计', `节点词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`)
   try {
     currentCollocateKeyword = keyword
     currentCollocateLeftWindow = leftWindowSize
@@ -3639,7 +3285,7 @@ collocateButton.addEventListener('click', async () => {
     collocateMeta.innerHTML = `节点词：${escapeHtml(keyword)} ｜ 范围：${leftWindowSize}L ${rightWindowSize}R ｜ 最低共现次数：${minFreq} ｜ SearchQuery：${escapeHtml(getSearchOptionsSummary())}<br />结果按共现次数降序排列。`
     renderCollocateTable()
     switchTab('collocate')
-    finishTaskCenterEntry('collocate', 'success', `节点词：${keyword} · ${formatCount(currentCollocateRows.length)} 条结果`)
+    taskCenter.finishEntry('collocate', 'success', `节点词：${keyword} · ${formatCount(currentCollocateRows.length)} 条结果`)
     void recordDiagnostic('info', 'analysis.collocate', 'Collocate 统计完成。', {
       keyword,
       resultCount: currentCollocateRows.length,
@@ -3647,7 +3293,7 @@ collocateButton.addEventListener('click', async () => {
     })
   } catch (error) {
     if (isAbortError(error)) {
-      finishTaskCenterEntry('collocate', 'cancelled', error.message || 'Collocate 统计已取消')
+      taskCenter.finishEntry('collocate', 'cancelled', error.message || 'Collocate 统计已取消')
       void recordDiagnostic('warn', 'analysis.collocate', error.message || 'Collocate 统计已取消', {
         keyword
       })
@@ -3657,7 +3303,7 @@ collocateButton.addEventListener('click', async () => {
       })
       return
     }
-    finishTaskCenterEntry('collocate', 'failed', getErrorMessage(error, 'Collocate 统计失败'))
+    taskCenter.finishEntry('collocate', 'failed', getErrorMessage(error, 'Collocate 统计失败'))
     console.error('[collocateButton]', error)
     recordDiagnosticError('analysis.collocate', error, {
       keyword,

@@ -2,9 +2,31 @@ export const UI_SETTINGS_STORAGE_KEY = 'corpus-ui-settings'
 export const LIBRARY_FOLDER_STORAGE_KEY = 'corpus-library-folder'
 export const WORKSPACE_STATE_STORAGE_KEY = 'wordz-workspace-state'
 export const RECENT_OPEN_STORAGE_KEY = 'wordz-recent-open'
+export const ONBOARDING_STORAGE_KEY = 'wordz-onboarding'
+export const DEFAULT_APP_INFO = Object.freeze({
+  name: 'WordZ',
+  version: '',
+  description: '',
+  author: '',
+  repositoryUrl: '',
+  releaseChannel: 'stable',
+  releaseChannelLabel: '稳定版',
+  autoUpdateConfigured: false,
+  autoUpdateProvider: '',
+  autoUpdateProviderLabel: '',
+  autoUpdateTarget: '',
+  help: [],
+  releaseNotes: []
+})
+export const APP_FEATURE_SUMMARY = '支持 txt / docx / pdf 导入、词频统计、多语料对比分析、跨语料库 KWIC、Collocate、原文定位，以及本地语料库分类、备份、恢复、修复与自动更新。'
+export const APP_SUBTITLE_TEXT = '本地语料工作台 · 打开、统计、检索与导出'
+export const HELP_CENTER_QUICK_LINK_NOTE = '帮助中心会集中展示当前版本说明、常见入口和项目地址。'
 export const DEFAULT_THEME = 'light'
 export const PREVIEW_CHAR_LIMIT = 20000
 export const DEFAULT_WINDOW_SIZE = 5
+export const WORKSPACE_SNAPSHOT_VERSION = 1
+export const RECENT_OPEN_LIMIT = 8
+export const TASK_CENTER_LIMIT = 8
 export const DEFAULT_UI_SETTINGS = {
   zoom: 100,
   fontScale: 100,

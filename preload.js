@@ -87,6 +87,9 @@ const electronAPI = Object.freeze({
       rendererState: rendererState ?? {}
     }),
 
+  openExternalUrl: (url) =>
+    ipcRenderer.invoke('open-external-url', normalizeTextInput(url, 4096)),
+
   getAutoUpdateState: () =>
     ipcRenderer.invoke('get-auto-update-state'),
 

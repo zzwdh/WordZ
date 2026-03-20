@@ -36,6 +36,29 @@
           <p class="welcome-card-note">欢迎使用 WordZ。你可以直接开始快速打开语料、导入并保存，或者进入本地语料库继续工作。</p>
         </section>
       </div>
+      <section class="welcome-tutorial hidden" id="welcomeTutorialBlock" aria-live="polite">
+        <div class="welcome-card-label">首次使用教程</div>
+        <div class="welcome-tutorial-title">建议按这个顺序上手 WordZ</div>
+        <ol class="welcome-tutorial-list">
+          <li>
+            <strong>打开语料</strong>
+            <span>从“打开语料”里快速打开 txt / docx / pdf，或先导入并保存到本地语料库。</span>
+          </li>
+          <li>
+            <strong>先点统计</strong>
+            <span>点击“统计”生成词频、词云和多语料对比所需的基础结果。</span>
+          </li>
+          <li>
+            <strong>继续做检索</strong>
+            <span>在 KWIC、Collocate 和原文定位里沿用同一个 SearchQuery，更容易连贯分析。</span>
+          </li>
+          <li>
+            <strong>养成备份习惯</strong>
+            <span>在“本地语料库”里定期备份；如果数据异常，可使用恢复、修复和回收站功能。</span>
+          </li>
+        </ol>
+        <p class="welcome-tutorial-note">以后你可以在“关于”里再次打开这份教程。</p>
+      </section>
       <div class="welcome-progress-block">
         <div class="welcome-progress-meta">
           <span id="welcomeProgressText">正在载入界面设置...</span>
@@ -667,6 +690,79 @@
       <div class="modal-footer">
         <button class="button small gray" id="resetUiSettingsButton">恢复默认</button>
         <button class="button small gray" id="closeUiSettingsButton">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="helpCenterModal">
+    <div class="modal-panel help-center-modal-panel">
+      <div class="modal-header"><strong>帮助中心</strong></div>
+      <div class="modal-body help-center-body">
+        <section class="help-center-hero">
+          <div class="help-center-kicker">WordZ Help Center</div>
+          <h3 class="help-center-title" id="helpCenterTitle">WordZ 帮助中心</h3>
+          <p class="help-center-summary" id="helpCenterSummary">这里会显示 WordZ 的使用说明与常见入口。</p>
+          <div class="status-row">
+            <span class="chip primary" id="helpCenterVersionChip">当前版本</span>
+            <span class="chip" id="helpCenterAuthorChip">作者</span>
+          </div>
+        </section>
+
+        <div class="help-center-grid">
+          <section class="help-center-card">
+            <div class="help-center-card-label">快速上手</div>
+            <ol class="help-center-step-list">
+              <li>
+                <strong>先打开语料</strong>
+                <span>从“打开语料”进入，快速打开外部文本，或导入并保存到本地语料库。</span>
+              </li>
+              <li>
+                <strong>再点统计</strong>
+                <span>先得到稳定的词频和摘要结果，再继续做 KWIC、Collocate 和对比分析。</span>
+              </li>
+              <li>
+                <strong>需要时再看定位</strong>
+                <span>KWIC 命中行可以直接跳到原文定位，适合快速核对上下文。</span>
+              </li>
+              <li>
+                <strong>定期备份</strong>
+                <span>在本地语料库里使用备份、恢复、修复和回收站，保证工作区更稳。</span>
+              </li>
+            </ol>
+            <div class="help-center-action-row">
+              <button class="button small" id="reopenTutorialButton" type="button">重新查看首次教程</button>
+            </div>
+          </section>
+
+          <section class="help-center-card">
+            <div class="help-center-card-label">使用说明</div>
+            <div class="help-center-list" id="helpCenterHelpList">
+              <div class="empty-tip">这里会显示当前版本的使用说明。</div>
+            </div>
+          </section>
+
+          <section class="help-center-card">
+            <div class="help-center-card-label">关于与发布</div>
+            <div class="help-center-meta-list">
+              <div class="help-center-meta-item">
+                <span class="help-center-meta-label">GitHub 仓库</span>
+                <div class="help-center-repo-line">
+                  <code class="help-center-repo-url" id="helpCenterRepositoryUrl">未配置</code>
+                  <button class="button small gray" id="openGitHubRepoButton" type="button">打开 GitHub</button>
+                </div>
+              </div>
+              <div class="help-center-meta-item">
+                <span class="help-center-meta-label">发布说明</span>
+                <div class="help-center-list" id="helpCenterReleaseList">
+                  <div class="empty-tip">当前版本没有额外发布说明。</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button small gray" id="closeHelpCenterButton">关闭</button>
       </div>
     </div>
   </div>

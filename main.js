@@ -8,137 +8,45 @@ const { CorpusStorage } = require('./corpusStorage')
 const { readCorpusFile } = require('./corpusFileReader')
 const { createAutoUpdateController } = require('./autoUpdate')
 const { createDiagnosticsController } = require('./diagnostics')
+const { getAppInfo } = require('./main/helpers/appInfo')
+const {
+  createDialogController,
+  normalizeOptionalPathEnv,
+  readJsonArrayEnv
+} = require('./main/helpers/dialogSupport')
+const {
+  normalizeBooleanInput,
+  normalizeExternalUrlInput,
+  normalizeFilePathInput,
+  normalizeIdentifier,
+  normalizeTableRows,
+  normalizeTextInput
+} = require('./main/helpers/inputGuards')
+const {
+  migrateLegacyUserDataDirIfNeeded,
+  pathExists
+} = require('./main/helpers/userDataMigration')
 
 let corpusStorage = null
 let autoUpdateController = null
 let diagnosticsController = null
 const APP_ENTRY_URL = pathToFileURL(path.join(__dirname, 'index.html')).toString()
 const LEGACY_USER_DATA_DIR_NAMES = ['语料助手', 'corpus-lite', 'WordZou']
-const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{1,160}$/
-const MAX_EXPORT_ROWS = 250000
-const MAX_EXPORT_COLUMNS = 256
-const MAX_EXPORT_CELL_LENGTH = 100000
 const SMOKE_USER_DATA_DIR = normalizeOptionalPathEnv('CORPUS_LITE_SMOKE_USER_DATA_DIR')
 const SMOKE_OPEN_DIALOG_QUEUE = readJsonArrayEnv('CORPUS_LITE_SMOKE_OPEN_DIALOG_QUEUE')
 const SMOKE_SAVE_DIALOG_QUEUE = readJsonArrayEnv('CORPUS_LITE_SMOKE_SAVE_DIALOG_QUEUE')
+const {
+  showOpenDialog: showOpenDialogForApp,
+  showSaveDialog: showSaveDialogForApp
+} = createDialogController({
+  dialog,
+  openQueue: SMOKE_OPEN_DIALOG_QUEUE,
+  saveQueue: SMOKE_SAVE_DIALOG_QUEUE
+})
 
 if (SMOKE_USER_DATA_DIR) {
   app.setPath('userData', SMOKE_USER_DATA_DIR)
   app.setPath('sessionData', path.join(SMOKE_USER_DATA_DIR, 'session-data'))
-}
-
-function readJsonArrayEnv(name) {
-  const rawValue = process.env[name]
-  if (!rawValue) return null
-
-  try {
-    const parsedValue = JSON.parse(rawValue)
-    return Array.isArray(parsedValue) ? [...parsedValue] : null
-  } catch (error) {
-    console.warn(`[${name}] 解析失败`, error)
-    return null
-  }
-}
-
-function normalizeOptionalPathEnv(name) {
-  const rawValue = String(process.env[name] || '').trim()
-  return rawValue ? path.resolve(rawValue) : ''
-}
-
-function normalizeTextInput(value, { fallback = '', maxLength = 160 } = {}) {
-  return String(value ?? fallback).trim().slice(0, maxLength)
-}
-
-function normalizeFilePathInput(value, { fieldName = '文件路径' } = {}) {
-  const normalizedValue = String(value ?? '').trim()
-  if (!normalizedValue) {
-    throw new Error(`${fieldName}不能为空`)
-  }
-  if (normalizedValue.includes('\0')) {
-    throw new Error(`${fieldName}格式不合法`)
-  }
-  return path.resolve(normalizedValue)
-}
-
-function normalizeBooleanInput(value) {
-  if (typeof value === 'boolean') return value
-  const normalizedValue = String(value ?? '').trim().toLowerCase()
-  return ['1', 'true', 'yes', 'on'].includes(normalizedValue)
-}
-
-function normalizeIdentifier(value, { fieldName = '标识', allowAll = false, allowEmpty = false } = {}) {
-  const normalizedValue = String(value ?? '').trim()
-  if (!normalizedValue) {
-    if (allowEmpty) return ''
-    throw new Error(`${fieldName}不能为空`)
-  }
-  if (allowAll && normalizedValue === 'all') return 'all'
-  if (!SAFE_ID_PATTERN.test(normalizedValue)) {
-    throw new Error(`${fieldName}格式不合法`)
-  }
-  return normalizedValue
-}
-
-function normalizeTableRows(rows) {
-  if (!Array.isArray(rows)) {
-    throw new Error('表格数据格式不合法')
-  }
-  if (rows.length > MAX_EXPORT_ROWS) {
-    throw new Error('导出数据过大，请缩小导出范围后重试')
-  }
-
-  return rows.map((row, rowIndex) => {
-    if (!Array.isArray(row)) {
-      throw new Error(`第 ${rowIndex + 1} 行表格数据格式不合法`)
-    }
-    if (row.length > MAX_EXPORT_COLUMNS) {
-      throw new Error(`第 ${rowIndex + 1} 行列数过多，请缩小导出范围后重试`)
-    }
-
-    return row.map(cell => String(cell ?? '').slice(0, MAX_EXPORT_CELL_LENGTH))
-  })
-}
-
-function getAppInfo() {
-  const autoUpdateSnapshot = autoUpdateController?.getStatusSnapshot?.() || {}
-  const author =
-    typeof packageManifest.author === 'string'
-      ? packageManifest.author
-      : packageManifest.author && typeof packageManifest.author.name === 'string'
-        ? packageManifest.author.name
-        : ''
-  const wordzMeta =
-    packageManifest.wordz && typeof packageManifest.wordz === 'object'
-      ? packageManifest.wordz
-      : {}
-  const releaseMeta = wordzMeta.release && typeof wordzMeta.release === 'object'
-    ? wordzMeta.release
-    : {}
-  const help = Array.isArray(wordzMeta.help)
-    ? wordzMeta.help.map(item => String(item).trim()).filter(Boolean)
-    : []
-  const releaseChannel = String(autoUpdateSnapshot.releaseChannel || releaseMeta.channel || 'stable').trim() || 'stable'
-  const releaseChannelLabel = String(
-    autoUpdateSnapshot.releaseChannelLabel ||
-    (releaseChannel === 'stable' ? '稳定版' : releaseChannel)
-  ).trim() || '稳定版'
-
-  return {
-    name: packageManifest.productName || app.getName() || packageManifest.name || 'WordZ',
-    version: app.getVersion() || packageManifest.version || '',
-    description: packageManifest.description || '',
-    author,
-    help,
-    autoUpdateConfigured: Boolean(autoUpdateSnapshot.configured),
-    autoUpdateProvider: String(autoUpdateSnapshot.provider || '').trim(),
-    autoUpdateProviderLabel: String(autoUpdateSnapshot.providerLabel || '').trim(),
-    autoUpdateTarget: String(autoUpdateSnapshot.providerTarget || '').trim(),
-    releaseChannel,
-    releaseChannelLabel,
-    releaseNotes: Array.isArray(wordzMeta.releaseNotes)
-      ? wordzMeta.releaseNotes.map(item => String(item).trim()).filter(Boolean)
-      : []
-  }
 }
 
 function isTrustedIpcSender(event) {
@@ -189,69 +97,6 @@ function hardenWindow(win) {
   })
 }
 
-function takeSmokeDialogQueueItem(queue, label) {
-  if (!queue) return null
-  if (queue.length === 0) {
-    throw new Error(`测试 ${label} 对话框队列已耗尽`)
-  }
-  return queue.shift()
-}
-
-function resolveSmokeOpenDialogResult(queuedItem) {
-  if (
-    queuedItem &&
-    typeof queuedItem === 'object' &&
-    !Array.isArray(queuedItem) &&
-    queuedItem.canceled
-  ) {
-    return {
-      canceled: true,
-      filePaths: []
-    }
-  }
-
-  const filePaths = Array.isArray(queuedItem) ? queuedItem.map(item => String(item)) : [String(queuedItem)]
-  return {
-    canceled: false,
-    filePaths
-  }
-}
-
-function resolveSmokeSaveDialogResult(queuedItem) {
-  if (
-    queuedItem &&
-    typeof queuedItem === 'object' &&
-    !Array.isArray(queuedItem) &&
-    queuedItem.canceled
-  ) {
-    return {
-      canceled: true,
-      filePath: ''
-    }
-  }
-
-  return {
-    canceled: false,
-    filePath: String(queuedItem)
-  }
-}
-
-async function showOpenDialogForApp(options) {
-  const queuedItem = takeSmokeDialogQueueItem(SMOKE_OPEN_DIALOG_QUEUE, '打开')
-  if (queuedItem !== null) {
-    return resolveSmokeOpenDialogResult(queuedItem)
-  }
-  return dialog.showOpenDialog(options)
-}
-
-async function showSaveDialogForApp(options) {
-  const queuedItem = takeSmokeDialogQueueItem(SMOKE_SAVE_DIALOG_QUEUE, '保存')
-  if (queuedItem !== null) {
-    return resolveSmokeSaveDialogResult(queuedItem)
-  }
-  return dialog.showSaveDialog(options)
-}
-
 function createWindow() {
   const win = new BrowserWindow({
     width: 1400,
@@ -289,59 +134,6 @@ function getCorpusStorage() {
   }
 
   return corpusStorage
-}
-
-async function pathExists(targetPath) {
-  try {
-    await fs.access(targetPath)
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function copyDirectoryContents(sourceDir, targetDir) {
-  await fs.mkdir(targetDir, { recursive: true })
-  const entries = await fs.readdir(sourceDir, { withFileTypes: true })
-  for (const entry of entries) {
-    const sourcePath = path.join(sourceDir, entry.name)
-    const targetPath = path.join(targetDir, entry.name)
-    if (entry.isDirectory()) {
-      await copyDirectoryContents(sourcePath, targetPath)
-    } else if (entry.isFile()) {
-      await fs.copyFile(sourcePath, targetPath)
-    }
-  }
-}
-
-async function migrateLegacyUserDataDirIfNeeded() {
-  if (SMOKE_USER_DATA_DIR) return
-
-  const targetUserDataDir = app.getPath('userData')
-  if (await pathExists(targetUserDataDir)) return
-
-  const appDataDir = app.getPath('appData')
-  for (const legacyDirName of LEGACY_USER_DATA_DIR_NAMES) {
-    const legacyUserDataDir = path.join(appDataDir, legacyDirName)
-    if (legacyUserDataDir === targetUserDataDir) continue
-    if (!(await pathExists(legacyUserDataDir))) continue
-
-    try {
-      await fs.rename(legacyUserDataDir, targetUserDataDir)
-      console.log(`[user-data] 已迁移旧目录：${legacyUserDataDir} -> ${targetUserDataDir}`)
-      return
-    } catch (renameError) {
-      console.warn('[user-data.rename]', renameError)
-    }
-
-    try {
-      await copyDirectoryContents(legacyUserDataDir, targetUserDataDir)
-      console.log(`[user-data] 已复制旧目录：${legacyUserDataDir} -> ${targetUserDataDir}`)
-      return
-    } catch (copyError) {
-      console.warn('[user-data.copy]', copyError)
-    }
-  }
 }
 
 function registerSafeIpcHandler(channel, handler) {
@@ -425,7 +217,7 @@ registerSafeIpcHandler('save-table-file', async (event, { defaultBaseName, rows 
 registerSafeIpcHandler('get-app-info', async () => {
   return {
     success: true,
-    appInfo: getAppInfo()
+    appInfo: getAppInfo({ app, packageManifest, autoUpdateController })
   }
 })
 
@@ -524,6 +316,15 @@ registerSafeIpcHandler('open-github-feedback', async (event, payload = {}) => {
   }
 })
 
+registerSafeIpcHandler('open-external-url', async (event, rawUrl) => {
+  const externalUrl = normalizeExternalUrlInput(rawUrl)
+  await shell.openExternal(externalUrl)
+  return {
+    success: true,
+    url: externalUrl
+  }
+})
+
 registerSafeIpcHandler('open-quick-corpus', async () => {
   const result = await showOpenDialogForApp({
     properties: ['openFile'],
@@ -554,7 +355,7 @@ registerSafeIpcHandler('open-quick-corpus', async () => {
 
 registerSafeIpcHandler('open-quick-corpus-at-path', async (event, filePath) => {
   const resolvedFilePath = normalizeFilePathInput(filePath, { fieldName: '语料路径' })
-  if (!(await pathExists(resolvedFilePath))) {
+  if (!(await pathExists(fs, resolvedFilePath))) {
     return {
       success: false,
       message: '原始语料文件已不存在'
@@ -764,7 +565,14 @@ app.whenReady().then(async () => {
   logMainDiagnostic('info', 'app', 'WordZ 正在启动。')
 
   try {
-    await migrateLegacyUserDataDirIfNeeded()
+    await migrateLegacyUserDataDirIfNeeded({
+      app,
+      fs,
+      path,
+      legacyDirNames: LEGACY_USER_DATA_DIR_NAMES,
+      smokeUserDataDir: SMOKE_USER_DATA_DIR,
+      logger: console
+    })
     await getCorpusStorage().prepare()
     logMainDiagnostic('info', 'storage', '本地语料库已准备完成。')
   } catch (error) {

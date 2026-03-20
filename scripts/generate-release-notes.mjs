@@ -71,6 +71,7 @@ function buildReleaseNotes(packageManifest) {
     '',
     `- 从 \`v${version}\` 开始，${productName} 支持通过 GitHub Releases 检查更新`,
     '- 在应用内点击“检查更新”即可确认当前是否为最新版本',
+    '- macOS 当前发布包仍为未正式签名版本，因此暂不提供可用的自动更新；mac 用户请在 Release 页面手动下载新版 DMG 或 ZIP',
     '',
     '## 已知说明',
     '',
