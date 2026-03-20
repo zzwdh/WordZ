@@ -11,10 +11,13 @@ Auto update:
 - `WordZ` now defaults to a `GitHub Releases` update provider.
 - The release workflow at `/Users/zouyuxuan/corpus-lite/.github/workflows/github-release.yml` publishes macOS and Windows builds to the current GitHub repository.
 - The workflow injects `WORDZ_AUTO_UPDATE_GITHUB_OWNER` and `WORDZ_AUTO_UPDATE_GITHUB_REPO` into the packaged app, so end users can check updates without extra local configuration.
+- The same workflow now also runs `node /Users/zouyuxuan/corpus-lite/scripts/generate-release-notes.mjs` and writes the generated markdown back into the GitHub Release page automatically.
 - For manual release publishing, set `GITHUB_TOKEN` or `GH_TOKEN`, then run one of:
   - `npm run release:github`
   - `npm run release:github:mac`
   - `npm run release:github:win`
+- If you only want to preview or regenerate the release正文 locally, run:
+  - `npm run release:notes`
 - Manual publishing also accepts:
   - `WORDZ_AUTO_UPDATE_GITHUB_OWNER`
   - `WORDZ_AUTO_UPDATE_GITHUB_REPO`

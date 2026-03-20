@@ -19,6 +19,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release-mac:
     if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'mac'
@@ -75,3 +78,32 @@ jobs:
           WORDZ_AUTO_UPDATE_GITHUB_OWNER: ${{ github.repository_owner }}
           WORDZ_AUTO_UPDATE_GITHUB_REPO: ${{ github.event.repository.name }}
         run: npm run release:github:win
+
+  update-release-notes:
+    needs:
+      - release-mac
+      - release-win
+    if: |
+      always() &&
+      !cancelled() &&
+      (needs.release-mac.result == 'success' || needs.release-mac.result == 'skipped') &&
+      (needs.release-win.result == 'success' || needs.release-win.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'
+
+      - name: Generate release notes
+        run: node scripts/generate-release-notes.mjs --output build/release-notes.generated.md
+
+      - name: Apply release notes to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --notes-file build/release-notes.generated.md
