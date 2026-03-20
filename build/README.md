@@ -6,7 +6,7 @@
 - `icon.icns`：macOS 应用图标
 - `installer-sidebar.bmp`：NSIS 安装器侧边图
 - `installer-header.bmp`：NSIS 安装器顶部图
-- `license_zh.txt`：Windows 安装器许可文案（中文）
+- `license_zh_CN.txt`：Windows 安装器许可文案（简体中文）
 - `license_en.txt`：Windows 安装器许可文案（英文）
 - `entitlements.mac.plist`：macOS 主应用签名权限
 - `entitlements.mac.inherit.plist`：macOS 继承签名权限

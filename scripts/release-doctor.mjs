@@ -13,7 +13,7 @@ const REQUIRED_ASSETS = Object.freeze([
   'build/icon.icns',
   'build/installer-sidebar.bmp',
   'build/installer-header.bmp',
-  'build/license_zh.txt',
+  'build/license_zh_CN.txt',
   'build/license_en.txt',
   'build/entitlements.mac.plist',
   'build/entitlements.mac.inherit.plist'

@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -53,9 +53,9 @@
       "channel": "stable"
     },
     "releaseNotes": [
-      "修复 GitHub Releases 的 macOS 发布流程：现在在未配置签名或 notarization secrets 时，会自动清理空的签名环境变量，不再因为空 CSC_LINK 导致发布失败。",
-      "补充发布脚本测试，确保稳定版 GitHub 发布参数和环境变量清理逻辑可回归验证。",
-      "保持 stable 单渠道发布策略不变，继续兼容当前的自动更新与 GitHub Release 工作流。"
+      "修复 macOS DMG 的许可文案编码问题：简体中文许可文件现在使用更明确的 zh_CN 命名，不再被 DMG 构建流程误判为繁体中文编码。",
+      "保持 Windows 安装器中文许可与发布体检同步更新，稳定版打包配置在 macOS 和 Windows 上更一致。",
+      "继续保持 stable 单渠道发布策略，兼容现有自动更新与 GitHub Releases 发布流程。"
     ]
   },
   "license": "MIT",
@@ -147,7 +147,7 @@
       "installerSidebar": "build/installer-sidebar.bmp",
       "uninstallerSidebar": "build/installer-sidebar.bmp",
       "installerHeader": "build/installer-header.bmp",
-      "license": "build/license_zh.txt"
+      "license": "build/license_zh_CN.txt"
     },
     "publish": [
       {
