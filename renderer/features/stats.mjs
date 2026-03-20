@@ -12,13 +12,25 @@ export function renderWorkspaceOverview(state, dom, { formatCount }) {
   }
 
   const hasStats = state.currentTokenCount > 0 || state.currentFreqRows.length > 0
-  const corpusModeLabel = state.currentCorpusMode === 'saved' ? '已保存语料' : 'Quick Corpus'
-  const folderLabel = state.currentCorpusMode === 'saved' ? (state.currentCorpusFolderName || '未分类') : '临时工作区'
+  const selectedCount = Array.isArray(state.currentSelectedCorpora) ? state.currentSelectedCorpora.length : 0
+  const corpusModeLabel =
+    state.currentCorpusMode === 'saved-multi'
+      ? '多语料工作区'
+      : state.currentCorpusMode === 'saved'
+        ? '已保存语料'
+        : 'Quick Corpus'
+  const folderLabel =
+    state.currentCorpusMode === 'saved' || state.currentCorpusMode === 'saved-multi'
+      ? (state.currentCorpusFolderName || '未分类')
+      : '临时工作区'
   const tokenCount = state.currentTokenCount > 0 ? state.currentTokenCount : state.currentTokens.length
   const typeValue = hasStats ? formatCount(state.currentTypeCount) : '--'
 
   dom.workspaceCorpusValue.textContent = state.currentCorpusDisplayName
-  dom.workspaceCorpusNote.textContent = `${corpusModeLabel} · ${folderLabel}`
+  dom.workspaceCorpusNote.textContent =
+    state.currentCorpusMode === 'saved-multi'
+      ? `${corpusModeLabel} · 已选 ${formatCount(selectedCount)} 条 · ${folderLabel}`
+      : `${corpusModeLabel} · ${folderLabel}`
 
   dom.workspaceModeValue.textContent = hasStats ? '分析就绪' : '语料已载入'
   dom.workspaceModeNote.textContent = hasStats
@@ -71,8 +83,44 @@ export function renderStatsSummary(state, dom, helpers) {
   renderWorkspaceOverview(state, dom, helpers)
 }
 
-function getCurrentFrequencyPageRows({ currentFreqRows, currentPage, pageSize }) {
-  const totalRows = currentFreqRows.length
+export function renderWordCloud(state, dom, helpers) {
+  if (!dom.wordCloudMeta || !dom.wordCloudWrapper) return
+
+  if (state.currentSearchError) {
+    dom.wordCloudMeta.textContent = 'SearchQuery 当前无效。'
+    dom.wordCloudWrapper.innerHTML = `<div class="empty-tip">${helpers.escapeHtml(state.currentSearchError)}</div>`
+    return
+  }
+
+  const rows = (state.currentDisplayedFreqRows || []).slice(0, 80)
+  if (rows.length === 0) {
+    dom.wordCloudMeta.textContent = '开始统计后会根据高频词生成词云。'
+    dom.wordCloudWrapper.innerHTML = '<div class="empty-tip">这里会显示当前语料的高频词云。</div>'
+    return
+  }
+
+  const maxCount = rows[0][1]
+  const minCount = rows[rows.length - 1][1]
+  const scaleRange = Math.max(maxCount - minCount, 1)
+  const cloudHtml = rows
+    .map(([word, count], index) => {
+      const ratio = (count - minCount) / scaleRange
+      const fontSize = 14 + ratio * 28
+      const fontWeight = 520 + Math.round(ratio * 260)
+      const accentClass = index < 12 ? ' is-accent' : ''
+      return `<button class="word-cloud-item${accentClass}" type="button" data-word-cloud-term="${helpers.escapeHtml(word)}" style="font-size:${fontSize.toFixed(1)}px;font-weight:${fontWeight};" title="${helpers.escapeHtml(word)} · ${helpers.formatCount(count)}">${helpers.escapeHtml(word)}</button>`
+    })
+    .join('')
+
+  dom.wordCloudMeta.textContent = state.currentSearchQuery
+    ? `基于当前 SearchQuery 展示前 ${helpers.formatCount(rows.length)} 个词。点击任一词可继续检索。`
+    : `展示当前语料中前 ${helpers.formatCount(rows.length)} 个高频词。点击任一词可继续检索。`
+  dom.wordCloudWrapper.innerHTML = `<div class="word-cloud-grid">${cloudHtml}</div>`
+}
+
+function getCurrentFrequencyPageRows({ currentDisplayedFreqRows, currentPage, pageSize }) {
+  const rows = Array.isArray(currentDisplayedFreqRows) ? currentDisplayedFreqRows : []
+  const totalRows = rows.length
   if (totalRows === 0) {
     return { pageRows: [], currentPage: 1, totalPages: 0, totalRows }
   }
@@ -80,7 +128,7 @@ function getCurrentFrequencyPageRows({ currentFreqRows, currentPage, pageSize })
   const safePage = Math.min(currentPage, totalPages)
   const startIndex = (safePage - 1) * pageSize
   return {
-    pageRows: currentFreqRows.slice(startIndex, startIndex + pageSize),
+    pageRows: rows.slice(startIndex, startIndex + pageSize),
     currentPage: safePage,
     totalPages,
     totalRows
@@ -89,28 +137,40 @@ function getCurrentFrequencyPageRows({ currentFreqRows, currentPage, pageSize })
 
 export function renderFrequencyTable(state, dom, helpers) {
   const { pageRows, currentPage, totalPages, totalRows } = getCurrentFrequencyPageRows(state)
+  const hasFilter = Boolean(String(state.currentSearchQuery || '').trim())
+  const allRowsCount = Array.isArray(state.currentFreqRows) ? state.currentFreqRows.length : 0
+  const emptyMessage = hasFilter
+    ? `没有匹配“${helpers.escapeHtml(state.currentSearchQuery)}”的词频结果`
+    : '没有可显示的词频结果'
 
   if (totalRows === 0) {
     helpers.cancelTableRender(dom.tableWrapper)
-    dom.totalRowsInfo.textContent = '共 0 个单词'
+    if (state.currentSearchError) {
+      dom.totalRowsInfo.textContent = 'SearchQuery 无效'
+    } else {
+      dom.totalRowsInfo.textContent = hasFilter ? `共 ${allRowsCount} 个单词（匹配 0 个）` : '共 0 个单词'
+    }
     dom.pageInfo.textContent = '第 0 / 0 页'
     dom.prevPageButton.disabled = true
     dom.nextPageButton.disabled = true
-    dom.tableWrapper.innerHTML = '<div class="empty-tip">没有可显示的词频结果</div>'
+    dom.tableWrapper.innerHTML = `<div class="empty-tip">${state.currentSearchError ? helpers.escapeHtml(state.currentSearchError) : emptyMessage}</div>`
     return { currentPage: 1 }
   }
 
   const isShowingAllRows = dom.pageSizeSelect.value === 'all'
-  dom.totalRowsInfo.textContent = `共 ${totalRows} 个单词`
+  dom.totalRowsInfo.textContent = hasFilter
+    ? `共 ${allRowsCount} 个单词（匹配 ${totalRows} 个）`
+    : `共 ${totalRows} 个单词`
   dom.pageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentPage} / ${totalPages} 页`
   dom.prevPageButton.disabled = isShowingAllRows || currentPage === 1
   dom.nextPageButton.disabled = isShowingAllRows || currentPage === totalPages
   helpers.renderTableInChunks({
     container: dom.tableWrapper,
     rows: pageRows,
+    tableClassName: 'fit-data-table',
     headerHtml: '<tr><th>词</th><th class="numeric-cell">频次</th><th class="numeric-cell">相对频率</th></tr>',
     rowUnit: '词条',
-    emptyHtml: '<div class="empty-tip">没有可显示的词频结果</div>',
+    emptyHtml: `<div class="empty-tip">${emptyMessage}</div>`,
     renderRow: ([word, count]) => {
       const relativeFreq = ((count / state.currentTokens.length) * 100).toFixed(2) + '%'
       return `<tr><td>${helpers.escapeHtml(word)}</td><td class="numeric-cell mono-readout">${helpers.formatCount(count)}</td><td class="numeric-cell mono-readout">${relativeFreq}</td></tr>`
@@ -135,9 +195,9 @@ export function buildFrequencyRows(state) {
 }
 
 export function buildAllFrequencyRows(state) {
-  if (state.currentFreqRows.length === 0) return []
+  if (state.currentDisplayedFreqRows.length === 0) return []
   const result = [['词', '频次', '相对频率']]
-  for (const [word, count] of state.currentFreqRows) {
+  for (const [word, count] of state.currentDisplayedFreqRows) {
     result.push([word, count, ((count / state.currentTokens.length) * 100).toFixed(2) + '%'])
   }
   return result

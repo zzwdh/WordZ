@@ -51,7 +51,7 @@ test('resolveAutoUpdateConfig disables GitHub updater cleanly when owner/repo is
   assert.match(config.disableReason, /GitHub Releases 仓库/)
 })
 
-test('resolveAutoUpdateConfig honors env overrides for packaged desktop builds', () => {
+test('resolveAutoUpdateConfig honors stable desktop env overrides without changing release channel', () => {
   const config = resolveAutoUpdateConfig({
     packageManifest: {
       wordz: {
@@ -65,7 +65,6 @@ test('resolveAutoUpdateConfig honors env overrides for packaged desktop builds',
     },
     env: {
       WORDZ_AUTO_UPDATE_URL: 'https://cdn.example.com/wordz',
-      WORDZ_AUTO_UPDATE_CHANNEL: 'beta',
       WORDZ_AUTO_UPDATE_CHECK_DELAY_MS: '45000'
     },
     isPackaged: true,
@@ -74,7 +73,9 @@ test('resolveAutoUpdateConfig honors env overrides for packaged desktop builds',
 
   assert.equal(config.enabled, true)
   assert.equal(config.url, 'https://cdn.example.com/wordz')
-  assert.equal(config.channel, 'beta')
+  assert.equal(config.channel, 'latest')
+  assert.equal(config.releaseChannel, 'stable')
+  assert.equal(config.releaseChannelLabel, '稳定版')
   assert.equal(config.checkDelayMs, 45000)
 })
 

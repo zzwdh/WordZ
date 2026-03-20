@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, session } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, session, shell } = require('electron')
 const path = require('path')
 const { pathToFileURL } = require('url')
 const fs = require('fs/promises')
@@ -7,9 +7,11 @@ const packageManifest = require('./package.json')
 const { CorpusStorage } = require('./corpusStorage')
 const { readCorpusFile } = require('./corpusFileReader')
 const { createAutoUpdateController } = require('./autoUpdate')
+const { createDiagnosticsController } = require('./diagnostics')
 
 let corpusStorage = null
 let autoUpdateController = null
+let diagnosticsController = null
 const APP_ENTRY_URL = pathToFileURL(path.join(__dirname, 'index.html')).toString()
 const LEGACY_USER_DATA_DIR_NAMES = ['语料助手', 'corpus-lite', 'WordZou']
 const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{1,160}$/
@@ -45,6 +47,23 @@ function normalizeOptionalPathEnv(name) {
 
 function normalizeTextInput(value, { fallback = '', maxLength = 160 } = {}) {
   return String(value ?? fallback).trim().slice(0, maxLength)
+}
+
+function normalizeFilePathInput(value, { fieldName = '文件路径' } = {}) {
+  const normalizedValue = String(value ?? '').trim()
+  if (!normalizedValue) {
+    throw new Error(`${fieldName}不能为空`)
+  }
+  if (normalizedValue.includes('\0')) {
+    throw new Error(`${fieldName}格式不合法`)
+  }
+  return path.resolve(normalizedValue)
+}
+
+function normalizeBooleanInput(value) {
+  if (typeof value === 'boolean') return value
+  const normalizedValue = String(value ?? '').trim().toLowerCase()
+  return ['1', 'true', 'yes', 'on'].includes(normalizedValue)
 }
 
 function normalizeIdentifier(value, { fieldName = '标识', allowAll = false, allowEmpty = false } = {}) {
@@ -92,9 +111,17 @@ function getAppInfo() {
     packageManifest.wordz && typeof packageManifest.wordz === 'object'
       ? packageManifest.wordz
       : {}
+  const releaseMeta = wordzMeta.release && typeof wordzMeta.release === 'object'
+    ? wordzMeta.release
+    : {}
   const help = Array.isArray(wordzMeta.help)
     ? wordzMeta.help.map(item => String(item).trim()).filter(Boolean)
     : []
+  const releaseChannel = String(autoUpdateSnapshot.releaseChannel || releaseMeta.channel || 'stable').trim() || 'stable'
+  const releaseChannelLabel = String(
+    autoUpdateSnapshot.releaseChannelLabel ||
+    (releaseChannel === 'stable' ? '稳定版' : releaseChannel)
+  ).trim() || '稳定版'
 
   return {
     name: packageManifest.productName || app.getName() || packageManifest.name || 'WordZ',
@@ -106,6 +133,8 @@ function getAppInfo() {
     autoUpdateProvider: String(autoUpdateSnapshot.provider || '').trim(),
     autoUpdateProviderLabel: String(autoUpdateSnapshot.providerLabel || '').trim(),
     autoUpdateTarget: String(autoUpdateSnapshot.providerTarget || '').trim(),
+    releaseChannel,
+    releaseChannelLabel,
     releaseNotes: Array.isArray(wordzMeta.releaseNotes)
       ? wordzMeta.releaseNotes.map(item => String(item).trim()).filter(Boolean)
       : []
@@ -134,6 +163,14 @@ function configureSessionSecurity() {
   if (typeof currentSession.setPermissionCheckHandler === 'function') {
     currentSession.setPermissionCheckHandler(() => false)
   }
+}
+
+function captureMainError(scope, error, details = null) {
+  diagnosticsController?.captureError?.(scope, error, details)
+}
+
+function logMainDiagnostic(level, scope, message, details = null) {
+  diagnosticsController?.log?.(level, scope, message, details)
 }
 
 function hardenWindow(win) {
@@ -232,9 +269,16 @@ function createWindow() {
   })
 
   hardenWindow(win)
+  win.on('unresponsive', () => {
+    captureMainError('window.unresponsive', new Error('窗口无响应'))
+  })
+  win.webContents.on('render-process-gone', (_event, details) => {
+    captureMainError('window.render-process-gone', new Error(`渲染进程已退出：${details?.reason || 'unknown'}`), details)
+  })
   win.loadFile('index.html')
   win.webContents.on('did-finish-load', () => {
     autoUpdateController?.broadcastStatus?.()
+    logMainDiagnostic('info', 'window', '主窗口已完成加载。')
   })
   return win
 }
@@ -307,6 +351,7 @@ function registerSafeIpcHandler(channel, handler) {
       return await handler(event, payload)
     } catch (error) {
       console.error(`[${channel}]`, error)
+      captureMainError(`ipc:${channel}`, error, { payload })
       return {
         success: false,
         message: error && error.message ? error.message : '操作失败'
@@ -406,6 +451,79 @@ registerSafeIpcHandler('install-downloaded-update', async () => {
   }
 })
 
+registerSafeIpcHandler('get-diagnostic-state', async () => {
+  return {
+    success: true,
+    diagnostics: diagnosticsController?.getSnapshot?.() || null
+  }
+})
+
+registerSafeIpcHandler('set-diagnostic-logging-enabled', async (event, enabled) => {
+  const diagnostics = diagnosticsController?.setDebugLoggingEnabled?.(normalizeBooleanInput(enabled)) || null
+  return {
+    success: true,
+    diagnostics
+  }
+})
+
+registerSafeIpcHandler('write-diagnostic-log', async (event, payload = {}) => {
+  diagnosticsController?.log?.(
+    normalizeTextInput(payload?.level, { fallback: 'info', maxLength: 16 }),
+    normalizeTextInput(payload?.scope, { fallback: 'renderer', maxLength: 80 }),
+    normalizeTextInput(payload?.message, { fallback: '', maxLength: 600 }),
+    payload?.details ?? null
+  )
+  return {
+    success: true
+  }
+})
+
+registerSafeIpcHandler('export-diagnostic-report', async (event, rendererState = {}) => {
+  const snapshot = diagnosticsController?.getSnapshot?.() || {}
+  const defaultPath = path.join(
+    snapshot.diagnosticsDir || path.join(app.getPath('userData'), 'diagnostics'),
+    `WordZ-diagnostics-${snapshot.sessionId || Date.now()}.md`
+  )
+  const result = await showSaveDialogForApp({
+    defaultPath,
+    filters: [{ name: 'Markdown 文件', extensions: ['md'] }, { name: '文本文件', extensions: ['txt'] }]
+  })
+
+  if (result.canceled || !result.filePath) {
+    return {
+      success: false,
+      canceled: true,
+      message: '用户取消了诊断报告导出'
+    }
+  }
+
+  const exportResult = await diagnosticsController.exportReport(result.filePath, rendererState)
+  return {
+    success: true,
+    filePath: exportResult.filePath
+  }
+})
+
+registerSafeIpcHandler('open-github-feedback', async (event, payload = {}) => {
+  const issueUrl = diagnosticsController?.getGitHubIssueUrl?.(
+    payload?.rendererState ?? {},
+    normalizeTextInput(payload?.issueTitle, { fallback: '[Bug] 请简要描述问题', maxLength: 120 })
+  ) || ''
+
+  if (!issueUrl) {
+    return {
+      success: false,
+      message: '当前仓库未配置可用的 GitHub Issues 地址。'
+    }
+  }
+
+  await shell.openExternal(issueUrl)
+  return {
+    success: true,
+    issueUrl
+  }
+})
+
 registerSafeIpcHandler('open-quick-corpus', async () => {
   const result = await showOpenDialogForApp({
     properties: ['openFile'],
@@ -429,6 +547,28 @@ registerSafeIpcHandler('open-quick-corpus', async () => {
     filePath,
     fileName: path.basename(filePath),
     displayName: path.basename(filePath, path.extname(filePath)),
+    content,
+    sourceEncoding: encoding
+  }
+})
+
+registerSafeIpcHandler('open-quick-corpus-at-path', async (event, filePath) => {
+  const resolvedFilePath = normalizeFilePathInput(filePath, { fieldName: '语料路径' })
+  if (!(await pathExists(resolvedFilePath))) {
+    return {
+      success: false,
+      message: '原始语料文件已不存在'
+    }
+  }
+
+  const { content, encoding } = await readCorpusFile(resolvedFilePath)
+
+  return {
+    success: true,
+    mode: 'quick',
+    filePath: resolvedFilePath,
+    fileName: path.basename(resolvedFilePath),
+    displayName: path.basename(resolvedFilePath, path.extname(resolvedFilePath)),
     content,
     sourceEncoding: encoding
   }
@@ -568,6 +708,19 @@ registerSafeIpcHandler('open-saved-corpus', async (event, corpusId) => {
   return getCorpusStorage().openCorpus(normalizeIdentifier(corpusId, { fieldName: '语料 ID' }))
 })
 
+registerSafeIpcHandler('open-saved-corpora', async (event, corpusIds = []) => {
+  if (!Array.isArray(corpusIds) || corpusIds.length === 0) {
+    return {
+      success: false,
+      message: '请至少选择一条语料'
+    }
+  }
+
+  return getCorpusStorage().openCorpora(
+    corpusIds.map(corpusId => normalizeIdentifier(corpusId, { fieldName: '语料 ID' }))
+  )
+})
+
 registerSafeIpcHandler('rename-saved-corpus', async (event, { corpusId, newName } = {}) => {
   return getCorpusStorage().renameCorpus(
     normalizeIdentifier(corpusId, { fieldName: '语料 ID' }),
@@ -589,12 +742,34 @@ registerSafeIpcHandler('delete-saved-corpus', async (event, corpusId) => {
   return getCorpusStorage().deleteCorpus(normalizeIdentifier(corpusId, { fieldName: '语料 ID' }))
 })
 
+process.on('uncaughtException', error => {
+  captureMainError('main.uncaughtException', error)
+  console.error('[uncaughtException]', error)
+})
+
+process.on('unhandledRejection', reason => {
+  const normalizedError = reason instanceof Error ? reason : new Error(String(reason))
+  captureMainError('main.unhandledRejection', normalizedError, {
+    reason: reason instanceof Error ? undefined : String(reason)
+  })
+  console.error('[unhandledRejection]', reason)
+})
+
 app.whenReady().then(async () => {
+  diagnosticsController = createDiagnosticsController({
+    app,
+    packageManifest,
+    logger: console
+  })
+  logMainDiagnostic('info', 'app', 'WordZ 正在启动。')
+
   try {
     await migrateLegacyUserDataDirIfNeeded()
     await getCorpusStorage().prepare()
+    logMainDiagnostic('info', 'storage', '本地语料库已准备完成。')
   } catch (error) {
     console.error('[corpus-library.prepare]', error)
+    captureMainError('storage.prepare', error)
   }
 
   configureSessionSecurity()
@@ -606,6 +781,7 @@ app.whenReady().then(async () => {
   })
   createWindow()
   autoUpdateController.initialize()
+  logMainDiagnostic('info', 'app', '主窗口与自动更新已初始化。')
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -621,5 +797,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  logMainDiagnostic('info', 'app', '应用即将退出。')
   autoUpdateController?.dispose?.()
 })

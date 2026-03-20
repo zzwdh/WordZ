@@ -37,9 +37,13 @@ function buildReleaseNotes(packageManifest) {
   const wordzMeta = packageManifest.wordz && typeof packageManifest.wordz === 'object'
     ? packageManifest.wordz
     : {}
+  const releaseMeta = wordzMeta.release && typeof wordzMeta.release === 'object'
+    ? wordzMeta.release
+    : {}
   const releaseNotes = Array.isArray(wordzMeta.releaseNotes)
     ? wordzMeta.releaseNotes.map(item => normalizeText(item)).filter(Boolean)
     : []
+  const releaseChannelLabel = normalizeText(releaseMeta.channel, 'stable') === 'stable' ? '稳定版' : normalizeText(releaseMeta.channel)
 
   const winExeName = `${productName}-${version}-win-x64.exe`
   const macDmgName = `${productName}-${version}-mac-arm64.dmg`
@@ -48,6 +52,8 @@ function buildReleaseNotes(packageManifest) {
     `# ${productName} ${version}`,
     '',
     `${productName} 是一款本地桌面语料分析工具，适合在 macOS 和 Windows 上进行轻量、稳定的文本语料整理与分析。`,
+    '',
+    `发布渠道：${releaseChannelLabel}`,
     '',
     '## 本版亮点',
     '',

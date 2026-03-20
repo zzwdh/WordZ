@@ -13,7 +13,10 @@ export function createUISettingsController({
     return {
       zoom: clampNumber(settings.zoom, 80, 135, defaultSettings.zoom),
       fontScale: clampNumber(settings.fontScale, 85, 140, defaultSettings.fontScale),
-      fontFamily
+      fontFamily,
+      showWelcomeScreen: settings.showWelcomeScreen !== false,
+      restoreWorkspace: settings.restoreWorkspace !== false,
+      debugLogging: settings.debugLogging === true
     }
   }
 
@@ -26,6 +29,15 @@ export function createUISettingsController({
     dom.uiZoomRange.value = String(settings.zoom)
     dom.uiFontSizeRange.value = String(settings.fontScale)
     dom.uiFontFamilySelect.value = settings.fontFamily
+    if (dom.showWelcomeScreenToggle) {
+      dom.showWelcomeScreenToggle.checked = settings.showWelcomeScreen !== false
+    }
+    if (dom.restoreWorkspaceToggle) {
+      dom.restoreWorkspaceToggle.checked = settings.restoreWorkspace !== false
+    }
+    if (dom.debugLoggingToggle) {
+      dom.debugLoggingToggle.checked = settings.debugLogging === true
+    }
     updateUISettingLabels(settings)
   }
 
@@ -45,10 +57,14 @@ export function createUISettingsController({
   function applyUISettings(settings, options = {}) {
     const { persist = true, syncControls = true } = options
     const normalizedSettings = normalizeUISettings(settings)
+    const previousDebugLogging = currentUISettings.debugLogging === true
     currentUISettings = normalizedSettings
     document.documentElement.style.setProperty('--font-scale', String(normalizedSettings.fontScale / 100))
     document.documentElement.style.setProperty('--app-font-family', fontFamilies[normalizedSettings.fontFamily])
     setAppZoom(normalizedSettings.zoom)
+    if (window.electronAPI?.setDiagnosticLoggingEnabled && previousDebugLogging !== (normalizedSettings.debugLogging === true)) {
+      void window.electronAPI.setDiagnosticLoggingEnabled(normalizedSettings.debugLogging === true)
+    }
     if (syncControls) syncUISettingControls(normalizedSettings)
     if (persist) persistUISettings(normalizedSettings)
   }
@@ -75,7 +91,10 @@ export function createUISettingsController({
     applyUISettings({
       zoom: dom.uiZoomRange.value,
       fontScale: dom.uiFontSizeRange.value,
-      fontFamily: dom.uiFontFamilySelect.value
+      fontFamily: dom.uiFontFamilySelect.value,
+      showWelcomeScreen: dom.showWelcomeScreenToggle?.checked !== false,
+      restoreWorkspace: dom.restoreWorkspaceToggle?.checked !== false,
+      debugLogging: dom.debugLoggingToggle?.checked === true
     })
   }
 
@@ -96,6 +115,7 @@ export function createUISettingsController({
     const savedTheme = localStorage.getItem('corpus-theme') || defaultTheme
     applyTheme(savedTheme)
     applyUISettings(loadStoredUISettings(), { persist: false })
+    return { ...currentUISettings }
   }
 
   return {
@@ -103,6 +123,7 @@ export function createUISettingsController({
     applyUISettings,
     applyUISettingsFromControls,
     closeUISettingsModal,
+    getCurrentUISettings: () => ({ ...currentUISettings }),
     init,
     openUISettingsModal
   }

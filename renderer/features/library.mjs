@@ -73,7 +73,8 @@ export function buildLibraryFolderList(folders, selectedFolderId, totalCount, es
   return html
 }
 
-export function buildLibraryTable(items, folders, currentLibraryFolderId, escapeHtml) {
+export function buildLibraryTable(items, folders, currentLibraryFolderId, escapeHtml, options = {}) {
+  const selectedCorpusIds = options.selectedCorpusIds instanceof Set ? options.selectedCorpusIds : new Set()
   if (!items || items.length === 0) {
     if (currentLibraryFolderId === 'all') {
       return '<div class="empty-tip">本地语料库还是空的。你可以先点击“导入并保存”。</div>'
@@ -81,11 +82,13 @@ export function buildLibraryTable(items, folders, currentLibraryFolderId, escape
     return '<div class="empty-tip">当前文件夹还是空的。可以直接导入到这个文件夹，或者把别的语料移动进来。</div>'
   }
 
-  let html = `<table class="data-table"><thead><tr><th class="library-name-cell">名称</th><th class="library-folder-cell">分类</th><th>原文件名</th><th>创建时间</th><th>操作</th></tr></thead><tbody>`
+  let html = `<table class="data-table"><thead><tr><th class="table-checkbox-cell">选择</th><th class="library-name-cell">名称</th><th class="library-folder-cell">分类</th><th>原文件名</th><th>创建时间</th><th>操作</th></tr></thead><tbody>`
   for (const item of items) {
     const createdAt = (item.createdAt || '').replace('T', ' ').slice(0, 19)
+    const isSelected = selectedCorpusIds.has(item.id)
     html += `
       <tr>
+        <td class="table-checkbox-cell"><input class="table-checkbox" type="checkbox" data-select-corpus-id="${item.id}"${isSelected ? ' checked' : ''} /></td>
         <td>${escapeHtml(item.name)}</td>
         <td class="library-folder-cell">${escapeHtml(item.folderName || '未分类')}</td>
         <td>${escapeHtml(item.originalName || '')}</td>
@@ -105,6 +108,25 @@ export function buildLibraryTable(items, folders, currentLibraryFolderId, escape
     `
   }
   html += `</tbody></table>`
+  return html
+}
+
+export function buildSelectedCorporaTable(items, escapeHtml) {
+  if (!items || items.length === 0) {
+    return '<div class="empty-tip">当前还没有已保存语料被加入工作区。</div>'
+  }
+
+  let html = '<table class="data-table current-corpus-table"><thead><tr><th>名称</th><th>分类</th><th>类型</th></tr></thead><tbody>'
+  for (const item of items) {
+    html += `
+      <tr>
+        <td>${escapeHtml(item.name || '')}</td>
+        <td>${escapeHtml(item.folderName || '未分类')}</td>
+        <td>${escapeHtml(String(item.sourceType || 'txt').toUpperCase())}</td>
+      </tr>
+    `
+  }
+  html += '</tbody></table>'
   return html
 }
 

@@ -1,0 +1,11 @@
+WordZ License Notice
+
+Thank you for using WordZ.
+
+You may install and use this software for local corpus organization, search, statistics, and export, subject to applicable laws.
+You are responsible for backing up your own local corpora and ensuring that imported materials are used with proper rights or permissions.
+
+Except where required by law, this software is provided "as is" without warranties of suitability for every corpus format, operating system, or research workflow.
+
+Author: Zou Yuxuan
+Project: https://github.com/zzwdh/WordZ

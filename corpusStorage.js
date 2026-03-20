@@ -1662,6 +1662,73 @@ class CorpusStorage {
     }
   }
 
+  async openCorpora(corpusIds = []) {
+    await this.prepare()
+    const normalizedCorpusIds = Array.isArray(corpusIds)
+      ? [...new Set(corpusIds.map(corpusId => this.assertStorageId(corpusId, '语料 ID')))]
+      : []
+
+    if (normalizedCorpusIds.length === 0) {
+      return {
+        success: false,
+        message: '请至少选择一条语料'
+      }
+    }
+
+    const items = []
+    const contents = []
+
+    for (const corpusId of normalizedCorpusIds) {
+      const record = await this.findSavedCorpusRecord(corpusId)
+      if (!record || !(await this.pathExists(record.recordPaths.contentPath))) {
+        continue
+      }
+
+      const content = this.normalizeCorpusText(await fs.readFile(record.recordPaths.contentPath, 'utf-8'))
+      if (!content) continue
+
+      items.push({
+        id: record.meta.id,
+        name: record.meta.name,
+        folderId: record.folder.id,
+        folderName: record.folder.name,
+        sourceType: this.normalizeSourceType(record.meta.sourceType),
+        filePath: record.recordPaths.contentPath
+      })
+      contents.push(content)
+    }
+
+    if (items.length === 0) {
+      return {
+        success: false,
+        message: '所选语料不存在或内容为空'
+      }
+    }
+
+    const uniqueFolderNames = [...new Set(items.map(item => item.folderName || DEFAULT_FOLDER_NAME))]
+    const folderLabel = uniqueFolderNames.length === 1 ? uniqueFolderNames[0] : '多个分类'
+
+    return {
+      success: true,
+      mode: items.length === 1 ? 'saved' : 'saved-multi',
+      corpusId: items.length === 1 ? items[0].id : '',
+      corpusIds: items.map(item => item.id),
+      displayName: items.length === 1 ? items[0].name : `已选 ${items.length} 条语料`,
+      folderId: items.length === 1 ? items[0].folderId : '',
+      folderName: folderLabel,
+      content: contents.join('\n\n'),
+      selectedItems: items,
+      comparisonEntries: items.map((item, index) => ({
+        corpusId: item.id,
+        corpusName: item.name,
+        folderId: item.folderId,
+        folderName: item.folderName,
+        sourceType: item.sourceType,
+        content: contents[index] || ''
+      }))
+    }
+  }
+
   async renameCorpus(corpusId, newName) {
     await this.prepare()
     const normalizedCorpusId = this.assertStorageId(corpusId, '语料 ID')

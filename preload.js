@@ -28,6 +28,21 @@ function normalizeTableRows(rows) {
   })
 }
 
+function normalizeIdentifierList(values, { allowEmpty = false } = {}) {
+  if (!Array.isArray(values)) return []
+  const seen = new Set()
+  const normalizedValues = []
+
+  for (const value of values) {
+    const normalizedValue = normalizeIdentifier(value, { allowEmpty })
+    if (!normalizedValue || seen.has(normalizedValue)) continue
+    seen.add(normalizedValue)
+    normalizedValues.push(normalizedValue)
+  }
+
+  return normalizedValues
+}
+
 function clampZoomFactor(factor) {
   const numericFactor = Number(factor)
   if (!Number.isFinite(numericFactor)) return 1
@@ -40,9 +55,37 @@ function clampSmokeDelayMs(value) {
   return Math.min(Math.trunc(numericValue), 10000)
 }
 
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') return value
+  return ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase())
+}
+
 const electronAPI = Object.freeze({
   getAppInfo: () =>
     ipcRenderer.invoke('get-app-info'),
+
+  getDiagnosticState: () =>
+    ipcRenderer.invoke('get-diagnostic-state'),
+
+  setDiagnosticLoggingEnabled: (enabled) =>
+    ipcRenderer.invoke('set-diagnostic-logging-enabled', normalizeBoolean(enabled)),
+
+  writeDiagnosticLog: ({ level, scope, message, details } = {}) =>
+    ipcRenderer.invoke('write-diagnostic-log', {
+      level: normalizeTextInput(level, 16),
+      scope: normalizeTextInput(scope, 80),
+      message: normalizeTextInput(message, 600),
+      details: details ?? null
+    }),
+
+  exportDiagnosticReport: (rendererState) =>
+    ipcRenderer.invoke('export-diagnostic-report', rendererState ?? {}),
+
+  openGitHubFeedback: ({ issueTitle, rendererState } = {}) =>
+    ipcRenderer.invoke('open-github-feedback', {
+      issueTitle: normalizeTextInput(issueTitle, 120),
+      rendererState: rendererState ?? {}
+    }),
 
   getAutoUpdateState: () =>
     ipcRenderer.invoke('get-auto-update-state'),
@@ -72,6 +115,9 @@ const electronAPI = Object.freeze({
 
   openQuickCorpus: () =>
     ipcRenderer.invoke('open-quick-corpus'),
+
+  openQuickCorpusAtPath: (filePath) =>
+    ipcRenderer.invoke('open-quick-corpus-at-path', normalizeTextInput(filePath, 4096)),
 
   importAndSaveCorpus: (folderId) =>
     ipcRenderer.invoke('import-and-save-corpus', {
@@ -120,6 +166,9 @@ const electronAPI = Object.freeze({
 
   openSavedCorpus: (corpusId) =>
     ipcRenderer.invoke('open-saved-corpus', normalizeIdentifier(corpusId)),
+
+  openSavedCorpora: (corpusIds) =>
+    ipcRenderer.invoke('open-saved-corpora', normalizeIdentifierList(corpusIds)),
 
   renameSavedCorpus: (corpusId, newName) =>
     ipcRenderer.invoke('rename-saved-corpus', {

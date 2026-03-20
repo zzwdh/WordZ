@@ -28,6 +28,10 @@ function normalizeUrl(value) {
   }
 }
 
+function getReleaseChannelLabel(releaseChannel) {
+  return '稳定版'
+}
+
 function normalizeReleaseNotes(releaseNotes) {
   if (!releaseNotes) return []
   if (typeof releaseNotes === 'string') {
@@ -104,19 +108,27 @@ function getPackageAutoUpdateMeta(packageManifest = {}) {
   const autoUpdateMeta = wordzMeta.autoUpdate && typeof wordzMeta.autoUpdate === 'object'
     ? wordzMeta.autoUpdate
     : {}
+  const releaseMeta = wordzMeta.release && typeof wordzMeta.release === 'object'
+    ? wordzMeta.release
+    : {}
   const parsedRepository = parseGitHubRepository(packageManifest.repository)
   const githubMeta = autoUpdateMeta.github && typeof autoUpdateMeta.github === 'object'
     ? autoUpdateMeta.github
     : {}
+  const releaseChannel = String(releaseMeta.channel || 'stable').trim() || 'stable'
+  const autoUpdateChannel = String(autoUpdateMeta.channel || 'latest').trim() || 'latest'
+  const allowPrerelease = normalizeBoolean(autoUpdateMeta.allowPrerelease, false)
 
   return {
     enabled: normalizeBoolean(autoUpdateMeta.enabled, true),
     provider: String(autoUpdateMeta.provider || 'generic').trim() || 'generic',
     url: normalizeUrl(autoUpdateMeta.url),
-    channel: String(autoUpdateMeta.channel || 'latest').trim() || 'latest',
+    channel: autoUpdateChannel,
+    releaseChannel,
+    releaseChannelLabel: getReleaseChannelLabel(releaseChannel),
     checkOnLaunch: normalizeBoolean(autoUpdateMeta.checkOnLaunch, true),
     autoDownload: normalizeBoolean(autoUpdateMeta.autoDownload, true),
-    allowPrerelease: normalizeBoolean(autoUpdateMeta.allowPrerelease, false),
+    allowPrerelease,
     checkDelayMs: normalizeInteger(autoUpdateMeta.checkDelayMs, 12000, { min: 0, max: 300000 }),
     github: {
       owner: normalizeText(githubMeta.owner || parsedRepository.owner),
@@ -130,7 +142,7 @@ function resolveAutoUpdateConfig({ packageManifest = {}, env = process.env, isPa
   const packageConfig = getPackageAutoUpdateMeta(packageManifest)
   const provider = String(env.WORDZ_AUTO_UPDATE_PROVIDER || packageConfig.provider || 'generic').trim() || 'generic'
   const url = normalizeUrl(env.WORDZ_AUTO_UPDATE_URL || packageConfig.url)
-  const channel = String(env.WORDZ_AUTO_UPDATE_CHANNEL || packageConfig.channel || 'latest').trim() || 'latest'
+  const channel = 'latest'
   const enabled = normalizeBoolean(env.WORDZ_AUTO_UPDATE_ENABLED, packageConfig.enabled)
   const checkOnLaunch = normalizeBoolean(env.WORDZ_AUTO_UPDATE_CHECK_ON_LAUNCH, packageConfig.checkOnLaunch)
   const autoDownload = normalizeBoolean(env.WORDZ_AUTO_UPDATE_AUTO_DOWNLOAD, packageConfig.autoDownload)
@@ -176,6 +188,8 @@ function resolveAutoUpdateConfig({ packageManifest = {}, env = process.env, isPa
     targetLabel,
     url,
     channel,
+    releaseChannel: 'stable',
+    releaseChannelLabel: getReleaseChannelLabel('stable'),
     github,
     checkOnLaunch,
     autoDownload,
@@ -209,6 +223,8 @@ function createAutoUpdateController({
     providerLabel: config.providerLabel,
     providerTarget: config.targetLabel,
     channel: config.channel,
+    releaseChannel: config.releaseChannel,
+    releaseChannelLabel: config.releaseChannelLabel,
     state: config.enabled ? 'idle' : 'disabled',
     message: config.enabled ? '自动更新已就绪。' : config.disableReason,
     currentVersion: typeof app?.getVersion === 'function' ? app.getVersion() : String(packageManifest?.version || ''),
@@ -294,6 +310,7 @@ function createAutoUpdateController({
     updater.autoDownload = config.autoDownload
     updater.autoInstallOnAppQuit = true
     updater.allowPrerelease = config.allowPrerelease
+    updater.channel = config.channel
     updater.fullChangelog = false
     updater.logger = logger
 

@@ -1,12 +1,17 @@
 export const UI_SETTINGS_STORAGE_KEY = 'corpus-ui-settings'
 export const LIBRARY_FOLDER_STORAGE_KEY = 'corpus-library-folder'
+export const WORKSPACE_STATE_STORAGE_KEY = 'wordz-workspace-state'
+export const RECENT_OPEN_STORAGE_KEY = 'wordz-recent-open'
 export const DEFAULT_THEME = 'light'
 export const PREVIEW_CHAR_LIMIT = 20000
 export const DEFAULT_WINDOW_SIZE = 5
 export const DEFAULT_UI_SETTINGS = {
   zoom: 100,
   fontScale: 100,
-  fontFamily: 'system'
+  fontFamily: 'system',
+  showWelcomeScreen: true,
+  restoreWorkspace: true,
+  debugLogging: false
 }
 
 export const UI_FONT_FAMILIES = {
@@ -35,6 +40,8 @@ export const BUTTON_ICONS = {
   stop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 6 12 12"/><path d="M18 6 6 18"/></svg>',
   reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>',
+  history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
+  bug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M9 7.5V6a3 3 0 1 1 6 0v1.5"/><path d="M5 10h14"/><path d="M7 10v6a5 5 0 0 0 10 0v-6"/><path d="M4 13h3"/><path d="M17 13h3"/><path d="M12 10v9"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5"/><path d="M12 19v2.5"/><path d="m4.9 4.9 1.8 1.8"/><path d="m17.3 17.3 1.8 1.8"/><path d="M2.5 12H5"/><path d="M19 12h2.5"/><path d="m4.9 19.1 1.8-1.8"/><path d="m17.3 6.7 1.8-1.8"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></svg>',
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m4 20 4.5-1 9.2-9.2a2.1 2.1 0 0 0-3-3L5.5 16 4 20Z"/><path d="m13.5 7.5 3 3"/></svg>',

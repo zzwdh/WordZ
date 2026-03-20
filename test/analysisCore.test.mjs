@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   buildCorpusData,
+  compareCorpusFrequencies,
   countWordFrequency,
   calculateTTR,
   calculateSTTR,
@@ -86,4 +87,80 @@ test('library kwic search keeps corpus and folder context across multiple corpor
       ['corpus-b', '语料B', '新闻', 'fades', 'rose', 'returns']
     ]
   )
+})
+
+test('search query options change matching behavior for kwic and collocates', () => {
+  const corpus = buildCorpusData('Cyber rises. cyber grows. CYBER returns fast.')
+
+  assert.equal(
+    searchKWIC(corpus.tokenObjects, 'Cyber', 1, 1, { words: true, caseSensitive: true }).length,
+    1
+  )
+  assert.equal(
+    searchKWIC(corpus.tokenObjects, 'Cyber', 1, 1, { words: true, caseSensitive: false }).length,
+    3
+  )
+  assert.equal(
+    searchKWIC(corpus.tokenObjects, 'ybe', 1, 1, { words: false, caseSensitive: false }).length,
+    3
+  )
+  assert.equal(
+    searchKWIC(corpus.tokenObjects, '^c.*r$', 1, 1, { words: false, regex: true, caseSensitive: false }).length,
+    3
+  )
+
+  const collocates = searchCollocates(
+    corpus.tokenObjects,
+    corpus.tokens,
+    'Cyber',
+    1,
+    1,
+    1,
+    { words: true, caseSensitive: true }
+  )
+  assert.deepEqual(collocates[0], {
+    word: 'rises',
+    total: 1,
+    left: 0,
+    right: 1,
+    wordFreq: 1,
+    keywordFreq: 1,
+    rate: 1
+  })
+})
+
+test('multi-corpus comparison summarizes spread, dominant corpus and normalized range', () => {
+  const comparison = compareCorpusFrequencies([
+    {
+      corpusId: 'corpus-a',
+      corpusName: '语料A',
+      folderName: '文学',
+      content: 'rose rose bloom bright'
+    },
+    {
+      corpusId: 'corpus-b',
+      corpusName: '语料B',
+      folderName: '新闻',
+      content: 'rose bright bright wind'
+    }
+  ])
+
+  assert.equal(comparison.corpora.length, 2)
+  assert.equal(comparison.corpora[0].tokenCount, 4)
+  assert.equal(comparison.corpora[1].topWord, 'bright')
+
+  const roseRow = comparison.rows.find(row => row.word === 'rose')
+  assert.ok(roseRow)
+  assert.equal(roseRow.spread, 2)
+  assert.equal(roseRow.total, 3)
+  assert.equal(roseRow.dominantCorpusName, '语料A')
+  assert.equal(roseRow.perCorpus[0].count, 2)
+  assert.equal(roseRow.perCorpus[1].count, 1)
+  assert.equal(roseRow.range, 2500)
+
+  const bloomRow = comparison.rows.find(row => row.word === 'bloom')
+  assert.ok(bloomRow)
+  assert.equal(bloomRow.spread, 1)
+  assert.equal(bloomRow.dominantCorpusName, '语料A')
+  assert.equal(bloomRow.perCorpus[1].count, 0)
 })

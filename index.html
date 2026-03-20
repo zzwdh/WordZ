@@ -11,33 +11,96 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div class="welcome-overlay hidden" id="welcomeOverlay" aria-live="polite">
+    <div class="welcome-panel">
+      <div class="welcome-header">
+        <div class="welcome-kicker">Welcome to WordZ</div>
+        <div class="welcome-version" id="welcomeVersionBadge">正在读取版本...</div>
+        <h2 class="welcome-title" id="welcomeTitle">欢迎使用 WordZ</h2>
+        <p class="welcome-subtitle" id="welcomeSubtitle">正在为你准备语料分析工作台。</p>
+      </div>
+      <div class="welcome-feature-grid">
+        <section class="welcome-card">
+          <div class="welcome-card-label">工具栏左侧概览</div>
+          <div class="welcome-card-title">本地桌面语料工作台</div>
+          <p class="welcome-card-note" id="welcomeFeatureSummary">支持 Quick Corpus、本地语料库、词频统计、多语料对比分析、跨语料库 KWIC、Collocate、原文定位和自动更新。</p>
+          <div class="status-row welcome-status-row">
+            <span class="chip primary">桌面语料工作台</span>
+            <span class="chip">词频 / 对比 / KWIC / Collocate / 定位</span>
+            <span class="chip">支持 txt / docx / pdf</span>
+          </div>
+        </section>
+        <section class="welcome-card">
+          <div class="welcome-card-label">当前正在准备</div>
+          <div class="welcome-card-title" id="welcomeProgressTitle">正在载入界面设置</div>
+          <p class="welcome-card-note">欢迎使用 WordZ。你可以直接开始快速打开语料、导入并保存，或者进入本地语料库继续工作。</p>
+        </section>
+      </div>
+      <div class="welcome-progress-block">
+        <div class="welcome-progress-meta">
+          <span id="welcomeProgressText">正在载入界面设置...</span>
+          <strong id="welcomeProgressPercent">0%</strong>
+        </div>
+        <div class="welcome-progress-track" aria-hidden="true">
+          <span class="welcome-progress-fill" id="welcomeProgressFill"></span>
+        </div>
+      </div>
+      <div class="welcome-restore-prompt hidden" id="welcomeRestorePrompt">
+        <div class="welcome-restore-label">检测到上次会话</div>
+        <div class="welcome-restore-title">要恢复上次工作区吗？</div>
+        <p class="welcome-restore-summary" id="welcomeRestoreSummary">这里会显示上次工作区的语料、标签页和搜索状态摘要。</p>
+        <div class="welcome-restore-actions">
+          <button class="button" id="restoreWorkspaceButton" type="button">恢复上次会话</button>
+          <button class="button small gray" id="skipWorkspaceRestoreButton" type="button">从空白开始</button>
+        </div>
+      </div>
+      <div class="welcome-actions">
+        <label class="welcome-checkbox">
+          <input id="welcomeDisableCheckbox" type="checkbox" />
+          <span>下次启动不再显示欢迎页</span>
+        </label>
+        <button class="button welcome-start-button" id="closeWelcomeButton" type="button">开始使用</button>
+      </div>
+    </div>
+  </div>
+
   <div class="app-shell">
     <header class="topbar">
       <div class="topbar-main">
-        <div class="eyebrow">Corpus Analysis Console</div>
-        <h1 id="appTitleHeading">WordZ</h1>
-        <p class="subtitle" id="appSubtitle">支持 Quick Corpus、本地语料库、词频统计、跨语料库 KWIC、Collocate、原文定位、自动更新，以及 xlsx / csv 导出。当前版本按空格分词，适合英文等空格分隔语言。</p>
-        <div class="status-row">
-          <span class="chip primary">桌面语料工作台</span>
-          <span class="chip">词频 / KWIC / Collocate / 定位</span>
-          <span class="chip">支持 txt / docx / pdf</span>
+        <div class="topbar-brand-inline">
+          <h1 id="appTitleHeading">WordZ</h1>
+          <p class="subtitle compact-subtitle" id="appSubtitle">本地语料工作台</p>
         </div>
       </div>
-      <div class="toolbar-actions">
-        <div class="toolbar-menu">
-          <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
-          <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
-            <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
-            <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
-            <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
+      <div class="topbar-actions-shell">
+        <div class="toolbar-actions-group primary">
+          <div class="toolbar-menu">
+            <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
+            <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
+              <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
+              <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
+              <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
+              <div class="toolbar-menu-divider"></div>
+              <section class="toolbar-menu-section hidden" id="recentOpenSection" aria-live="polite">
+                <div class="toolbar-menu-section-head">
+                  <strong>最近打开</strong>
+                  <button class="button small gray menu-inline-button" id="clearRecentOpenButton" type="button">清空</button>
+                </div>
+                <div class="recent-open-list" id="recentOpenList">
+                  <div class="recent-open-empty">最近打开的语料会显示在这里。</div>
+                </div>
+              </section>
+            </div>
           </div>
+          <button class="button" id="countButton">统计</button>
+          <button class="button small gray hidden" id="cancelStatsButton">取消统计</button>
         </div>
-        <button class="button" id="countButton">开始统计</button>
-        <button class="button small gray hidden" id="cancelStatsButton">取消统计</button>
-        <button class="button gray" id="checkUpdateButton">检查更新</button>
-        <button class="button gray" id="aboutButton">关于</button>
-        <button class="button gray" id="uiSettingsButton">界面设置</button>
-        <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务中心</button>
+        <div class="toolbar-actions-group secondary">
+          <button class="button small gray" id="checkUpdateButton">更新</button>
+          <button class="button small gray" id="aboutButton">关于</button>
+          <button class="button small gray" id="uiSettingsButton">设置</button>
+          <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务</button>
+        </div>
       </div>
     </header>
 
@@ -62,9 +125,12 @@
     <main class="main-layout">
       <aside class="sidebar">
         <section class="panel">
-          <div class="panel-header">
-            <h2>当前语料</h2>
-            <div class="panel-subtitle">当前模式与名称固定显示，文本预览可按需展开，便于随时核对当前分析对象。</div>
+          <div class="panel-header panel-header-inline">
+            <div>
+              <h2>当前语料</h2>
+              <div class="panel-subtitle">支持单条或多条已保存语料联合分析；下表会始终显示当前载入对象。</div>
+            </div>
+            <button class="button small gray" id="selectSavedCorporaButton" type="button">选择已保存语料</button>
           </div>
           <div class="panel-body meta-stack">
             <div class="meta-item">
@@ -74,6 +140,12 @@
             <div class="meta-item">
               <div class="meta-label">预览说明</div>
               <div class="meta-value">Quick Corpus 为临时打开；“导入并保存”会复制到应用本地语料库中，方便后续再次打开与重命名。</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">已载入语料列表</div>
+              <div class="table-scroll compact-table-scroll" id="selectedCorporaWrapper">
+                <div class="empty-tip">当前还没有已保存语料被加入工作区。</div>
+              </div>
             </div>
           </div>
         </section>
@@ -136,6 +208,8 @@
         <div class="tab-shell">
           <div class="tab-bar">
             <button class="tab-button active" data-tab="stats">统计结果</button>
+            <button class="tab-button" data-tab="compare">对比分析</button>
+            <button class="tab-button" data-tab="word-cloud">词云</button>
             <button class="tab-button" data-tab="kwic">KWIC 检索</button>
             <button class="tab-button" data-tab="collocate">Collocate 统计</button>
             <button class="tab-button" data-tab="locator">原文定位</button>
@@ -149,33 +223,116 @@
               </div>
             </div>
 
-            <div class="toolbar sticky-toolbar sticky-toolbar-top">
-              <div class="toolbar-left">
-                <button class="button small" id="copyFreqButton">导出当前页词频</button>
-                <button class="button small gray" id="exportAllFreqButton">导出全部词频</button>
+            <div class="section-sticky-stack">
+              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+                <div class="toolbar-left">
+                  <button class="button small" id="copyFreqButton">导出当前页词频</button>
+                  <button class="button small gray" id="exportAllFreqButton">导出全部词频</button>
+                </div>
               </div>
-            </div>
 
-            <div class="toolbar sticky-toolbar sticky-toolbar-sub">
-              <div class="toolbar-left">
-                <span class="toolbar-label">每页显示</span>
-                <select class="select" id="pageSizeSelect">
-                  <option value="10">10 个</option>
-                  <option value="100">100 个</option>
-                  <option value="1000">1000 个</option>
-                  <option value="all">全部显示</option>
-                </select>
-                <span class="toolbar-info" id="totalRowsInfo">共 0 个单词</span>
-              </div>
-              <div class="toolbar-right">
-                <button class="button small gray" id="prevPageButton">上一页</button>
-                <span class="page-info" id="pageInfo">第 0 / 0 页</span>
-                <button class="button small gray" id="nextPageButton">下一页</button>
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+                <div class="toolbar-left">
+                  <input class="input compact-input" id="freqFilterInput" data-shared-search-input="stats" type="search" placeholder="检索某个词，例如 rose" />
+                  <div class="search-query-group">
+                    <span class="toolbar-label">SearchQuery</span>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="words" checked />Words</label>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
+                  </div>
+                  <span class="toolbar-label">每页显示</span>
+                  <select class="select" id="pageSizeSelect">
+                    <option value="10">10 个</option>
+                    <option value="100">100 个</option>
+                    <option value="1000">1000 个</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span class="toolbar-info" id="totalRowsInfo">共 0 个单词</span>
+                </div>
+                <div class="toolbar-right">
+                  <button class="button small gray" id="prevPageButton">上一页</button>
+                  <span class="page-info" id="pageInfo">第 0 / 0 页</span>
+                  <button class="button small gray" id="nextPageButton">下一页</button>
+                </div>
               </div>
             </div>
 
             <div class="table-scroll" id="tableWrapper">
               <div class="empty-tip">请先导入文本，再点击“开始统计”</div>
+            </div>
+          </div>
+
+          <div class="section tab-section hidden" id="compareSection">
+            <div class="section-head">
+              <div>
+                <h3>对比分析</h3>
+                <div class="section-note">当工作区载入两条以上已保存语料时，这里会显示每条语料的摘要卡，以及跨语料词频对比表。差异值按每万词频率计算，更适合长度不同的语料。</div>
+              </div>
+            </div>
+
+            <div class="compare-summary-wrapper" id="compareSummaryWrapper">
+              <div class="empty-tip">载入两条以上已保存语料后，这里会显示多语料对比摘要。</div>
+            </div>
+
+            <div class="section-sticky-stack">
+              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+                <div class="toolbar-left">
+                  <button class="button small" id="copyCompareButton">导出当前页对比</button>
+                  <button class="button small gray" id="exportAllCompareButton">导出全部对比</button>
+                </div>
+              </div>
+
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+                <div class="toolbar-left">
+                  <input class="input compact-input" id="compareFilterInput" data-shared-search-input="compare" type="search" placeholder="检索某个词，例如 rose" />
+                  <div class="search-query-group">
+                    <span class="toolbar-label">SearchQuery</span>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="words" checked />Words</label>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
+                  </div>
+                  <span class="toolbar-label">每页显示</span>
+                  <select class="select" id="comparePageSizeSelect">
+                    <option value="10">10 个</option>
+                    <option value="100">100 个</option>
+                    <option value="1000">1000 个</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span class="toolbar-info" id="compareTotalRowsInfo">至少需要 2 条语料</span>
+                </div>
+                <div class="toolbar-right">
+                  <button class="button small gray" id="comparePrevPageButton">上一页</button>
+                  <span class="page-info" id="comparePageInfo">第 0 / 0 页</span>
+                  <button class="button small gray" id="compareNextPageButton">下一页</button>
+                </div>
+              </div>
+
+              <div class="kwic-meta sticky-meta" id="compareMeta">这里会在载入两条以上已保存语料后显示“多语料对比分析”。</div>
+            </div>
+
+            <div class="table-scroll" id="compareWrapper">
+              <div class="empty-tip">这里会显示多语料词频对比表</div>
+            </div>
+          </div>
+
+          <div class="section tab-section hidden" id="wordCloudSection">
+            <div class="section-head">
+              <div>
+                <h3>词云</h3>
+                <div class="section-note">词云现在作为独立功能展示，会跟随当前统计结果和 SearchQuery 同步更新。点击任一词条可继续联动检索。</div>
+              </div>
+            </div>
+
+            <div class="word-cloud-shell standalone">
+              <div class="toolbar">
+                <div class="toolbar-left">
+                  <strong>高频词云</strong>
+                  <span class="toolbar-info" id="wordCloudMeta">开始统计后会根据高频词生成词云。</span>
+                </div>
+              </div>
+              <div class="word-cloud-wrapper" id="wordCloudWrapper">
+                <div class="empty-tip">这里会显示当前语料的高频词云。</div>
+              </div>
             </div>
           </div>
 
@@ -187,55 +344,63 @@
               </div>
             </div>
 
-            <div class="search-row sticky-toolbar sticky-toolbar-top">
-              <input class="input" id="kwicInput" type="text" placeholder="请输入要检索的词，例如 rose" />
-              <label class="toolbar-inline-field" for="kwicScopeSelect">
-                <span class="toolbar-label">检索范围</span>
-                <select class="select" id="kwicScopeSelect">
-                  <option value="current">当前语料</option>
-                  <option value="folder">当前文件夹</option>
-                  <option value="library">全部本地语料</option>
-                </select>
-              </label>
-              <label class="window-field" for="leftWindowSelect">
-                <input class="select window-size-input" id="leftWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
-                <span class="toolbar-label window-suffix">L</span>
-              </label>
-              <label class="window-field" for="rightWindowSelect">
-                <input class="select window-size-input" id="rightWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
-                <span class="toolbar-label window-suffix">R</span>
-              </label>
-              <button class="button" id="kwicButton">KWIC 检索</button>
-              <button class="button small gray hidden" id="cancelKwicButton">取消 KWIC</button>
-            </div>
-
-            <div class="kwic-meta sticky-meta" id="kwicMeta">请输入一个检索词，并选择检索范围。支持当前语料、当前文件夹和全部本地语料；点击任一 KWIC 结果行可定位或打开对应原句。</div>
-
-            <div class="toolbar sticky-toolbar sticky-toolbar-sub">
-              <div class="toolbar-left">
-                <button class="button small" id="copyKWICButton">导出当前页 KWIC</button>
-                <button class="button small gray" id="exportAllKWICButton">导出全部 KWIC</button>
-                <span class="toolbar-label">KWIC 排序</span>
-                <select class="select" id="kwicSortSelect">
-                  <option value="original">原始顺序</option>
-                  <option value="left-near">按左一词排序</option>
-                  <option value="right-near">按右一词排序</option>
-                  <option value="left-then-right">按左一词→右一词</option>
-                  <option value="right-then-left">按右一词→左一词</option>
-                </select>
-                <span class="toolbar-label">KWIC 每页显示</span>
-                <select class="select" id="kwicPageSizeSelect">
-                  <option value="10">10 条</option>
-                  <option value="100">100 条</option>
-                  <option value="1000">1000 条</option>
-                  <option value="all">全部显示</option>
-                </select>
-                <span class="toolbar-info" id="kwicTotalRowsInfo">共 0 条结果</span>
+            <div class="section-sticky-stack">
+              <div class="search-row sticky-toolbar sticky-toolbar-top">
+                <input class="input" id="kwicInput" data-shared-search-input="kwic" type="text" placeholder="请输入要检索的词，例如 rose" />
+                <div class="search-query-group">
+                  <span class="toolbar-label">SearchQuery</span>
+                  <label class="search-query-option"><input type="checkbox" data-search-option="words" checked />Words</label>
+                  <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
+                  <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
+                </div>
+                <label class="toolbar-inline-field" for="kwicScopeSelect">
+                  <span class="toolbar-label">检索范围</span>
+                  <select class="select" id="kwicScopeSelect">
+                    <option value="current">当前语料</option>
+                    <option value="folder">当前文件夹</option>
+                    <option value="library">全部本地语料</option>
+                  </select>
+                </label>
+                <label class="window-field" for="leftWindowSelect">
+                  <input class="select window-size-input" id="leftWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                  <span class="toolbar-label window-suffix">L</span>
+                </label>
+                <label class="window-field" for="rightWindowSelect">
+                  <input class="select window-size-input" id="rightWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                  <span class="toolbar-label window-suffix">R</span>
+                </label>
+                <button class="button" id="kwicButton">KWIC 检索</button>
+                <button class="button small gray hidden" id="cancelKwicButton">取消 KWIC</button>
               </div>
-              <div class="toolbar-right">
-                <button class="button small gray" id="kwicPrevPageButton">上一页</button>
-                <span class="page-info" id="kwicPageInfo">第 0 / 0 页</span>
-                <button class="button small gray" id="kwicNextPageButton">下一页</button>
+
+              <div class="kwic-meta sticky-meta" id="kwicMeta">请输入一个检索词，并选择检索范围。支持当前语料、当前文件夹和全部本地语料；点击任一 KWIC 结果行可定位或打开对应原句。</div>
+
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+                <div class="toolbar-left">
+                  <button class="button small" id="copyKWICButton">导出当前页 KWIC</button>
+                  <button class="button small gray" id="exportAllKWICButton">导出全部 KWIC</button>
+                  <span class="toolbar-label">KWIC 排序</span>
+                  <select class="select" id="kwicSortSelect">
+                    <option value="original">原始顺序</option>
+                    <option value="left-near">按左一词排序</option>
+                    <option value="right-near">按右一词排序</option>
+                    <option value="left-then-right">按左一词→右一词</option>
+                    <option value="right-then-left">按右一词→左一词</option>
+                  </select>
+                  <span class="toolbar-label">KWIC 每页显示</span>
+                  <select class="select" id="kwicPageSizeSelect">
+                    <option value="10">10 条</option>
+                    <option value="100">100 条</option>
+                    <option value="1000">1000 条</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span class="toolbar-info" id="kwicTotalRowsInfo">共 0 条结果</span>
+                </div>
+                <div class="toolbar-right">
+                  <button class="button small gray" id="kwicPrevPageButton">上一页</button>
+                  <span class="page-info" id="kwicPageInfo">第 0 / 0 页</span>
+                  <button class="button small gray" id="kwicNextPageButton">下一页</button>
+                </div>
               </div>
             </div>
 
@@ -252,47 +417,55 @@
               </div>
             </div>
 
-            <div class="search-row sticky-toolbar sticky-toolbar-top">
-              <input class="input" id="collocateInput" type="text" placeholder="请输入节点词，例如 rose" />
-              <label class="window-field" for="collocateLeftWindowSelect">
-                <input class="select window-size-input" id="collocateLeftWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
-                <span class="toolbar-label window-suffix">L</span>
-              </label>
-              <label class="window-field" for="collocateRightWindowSelect">
-                <input class="select window-size-input" id="collocateRightWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
-                <span class="toolbar-label window-suffix">R</span>
-              </label>
-              <span class="toolbar-label">最低共现次数</span>
-              <select class="select" id="collocateMinFreqSelect">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="5">5</option>
-                <option value="10">10</option>
-              </select>
-              <button class="button" id="collocateButton">开始统计 Collocate</button>
-              <button class="button small gray hidden" id="cancelCollocateButton">取消 Collocate</button>
-            </div>
-
-            <div class="kwic-meta sticky-meta" id="collocateMeta">请先导入文本，并输入节点词后开始统计 Collocate。</div>
-
-            <div class="toolbar sticky-toolbar sticky-toolbar-sub">
-              <div class="toolbar-left">
-                <button class="button small" id="exportCollocateButton">导出当前页 Collocate</button>
-                <button class="button small gray" id="exportAllCollocateButton">导出全部 Collocate</button>
-                <span class="toolbar-label">每页显示</span>
-                <select class="select" id="collocatePageSizeSelect">
-                  <option value="10">10 条</option>
-                  <option value="100">100 条</option>
-                  <option value="1000">1000 条</option>
-                  <option value="all">全部显示</option>
+            <div class="section-sticky-stack">
+              <div class="search-row sticky-toolbar sticky-toolbar-top">
+                <input class="input" id="collocateInput" data-shared-search-input="collocate" type="text" placeholder="请输入节点词，例如 rose" />
+                <div class="search-query-group">
+                  <span class="toolbar-label">SearchQuery</span>
+                  <label class="search-query-option"><input type="checkbox" data-search-option="words" checked />Words</label>
+                  <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
+                  <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
+                </div>
+                <label class="window-field" for="collocateLeftWindowSelect">
+                  <input class="select window-size-input" id="collocateLeftWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                  <span class="toolbar-label window-suffix">L</span>
+                </label>
+                <label class="window-field" for="collocateRightWindowSelect">
+                  <input class="select window-size-input" id="collocateRightWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                  <span class="toolbar-label window-suffix">R</span>
+                </label>
+                <span class="toolbar-label">最低共现次数</span>
+                <select class="select" id="collocateMinFreqSelect">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="5">5</option>
+                  <option value="10">10</option>
                 </select>
-                <span class="toolbar-info" id="collocateTotalRowsInfo">共 0 条结果</span>
+                <button class="button" id="collocateButton">开始统计 Collocate</button>
+                <button class="button small gray hidden" id="cancelCollocateButton">取消 Collocate</button>
               </div>
-              <div class="toolbar-right">
-                <button class="button small gray" id="collocatePrevPageButton">上一页</button>
-                <span class="page-info" id="collocatePageInfo">第 0 / 0 页</span>
-                <button class="button small gray" id="collocateNextPageButton">下一页</button>
+
+              <div class="kwic-meta sticky-meta" id="collocateMeta">请先导入文本，并输入节点词后开始统计 Collocate。</div>
+
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+                <div class="toolbar-left">
+                  <button class="button small" id="exportCollocateButton">导出当前页 Collocate</button>
+                  <button class="button small gray" id="exportAllCollocateButton">导出全部 Collocate</button>
+                  <span class="toolbar-label">每页显示</span>
+                  <select class="select" id="collocatePageSizeSelect">
+                    <option value="10">10 条</option>
+                    <option value="100">100 条</option>
+                    <option value="1000">1000 条</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span class="toolbar-info" id="collocateTotalRowsInfo">共 0 条结果</span>
+                </div>
+                <div class="toolbar-right">
+                  <button class="button small gray" id="collocatePrevPageButton">上一页</button>
+                  <span class="page-info" id="collocatePageInfo">第 0 / 0 页</span>
+                  <button class="button small gray" id="collocateNextPageButton">下一页</button>
+                </div>
               </div>
             </div>
 
@@ -309,10 +482,12 @@
               </div>
             </div>
 
-            <div class="locator-meta" id="locatorMeta">导入文本后，这里会显示原文定位表。点击任一 KWIC 结果行后，会自动定位并高亮对应原句。</div>
-            <div class="toolbar sticky-toolbar sticky-toolbar-top">
-              <div class="toolbar-left">
-                <button class="button small" id="copyLocatorButton">导出原文定位表</button>
+            <div class="section-sticky-stack">
+              <div class="locator-meta sticky-meta" id="locatorMeta">导入文本后，这里会显示原文定位表。点击任一 KWIC 结果行后，会自动定位并高亮对应原句。</div>
+              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+                <div class="toolbar-left">
+                  <button class="button small" id="copyLocatorButton">导出原文定位表</button>
+                </div>
               </div>
             </div>
             <div class="table-scroll" id="sentenceViewer">
@@ -370,6 +545,7 @@
         <button class="button small gray" id="backupLibraryButton">备份语料库</button>
         <button class="button small gray" id="restoreLibraryButton">恢复语料库</button>
         <button class="button small gray" id="repairLibraryButton">修复语料库</button>
+        <button class="button small" id="loadSelectedCorporaButton">载入选中语料</button>
         <button class="button small gray" id="closeLibraryButton">关闭</button>
       </div>
     </div>
@@ -445,6 +621,46 @@
           <div class="settings-preview">
             <div class="settings-label">预览</div>
             <div class="settings-preview-text" id="settingsPreviewText">WordZ Corpus Helper 123 ABC。这里会实时预览你当前选择的字体和字号效果。</div>
+          </div>
+
+          <label class="settings-field settings-toggle-field" for="showWelcomeScreenToggle">
+            <div class="settings-field-head">
+              <span class="settings-label">启动欢迎页</span>
+              <span class="settings-value">可关闭</span>
+            </div>
+            <div class="settings-toggle-row">
+              <input id="showWelcomeScreenToggle" type="checkbox" checked />
+              <span>启动时显示欢迎使用界面和加载进度条</span>
+            </div>
+            <div class="settings-note">关闭后，WordZ 会直接进入工作台；你仍然可以在这里重新开启。</div>
+          </label>
+
+          <label class="settings-field settings-toggle-field" for="restoreWorkspaceToggle">
+            <div class="settings-field-head">
+              <span class="settings-label">恢复上次工作区</span>
+              <span class="settings-value">推荐开启</span>
+            </div>
+            <div class="settings-toggle-row">
+              <input id="restoreWorkspaceToggle" type="checkbox" checked />
+              <span>启动时恢复上次已保存语料、当前标签页和搜索条件</span>
+            </div>
+            <div class="settings-note">只恢复可稳定重建的已保存工作区；Quick Corpus 不会自动重新打开原始外部文件。</div>
+          </label>
+
+          <div class="settings-field">
+            <div class="settings-field-head">
+              <span class="settings-label">诊断与反馈</span>
+              <span class="settings-value">可选</span>
+            </div>
+            <label class="settings-toggle-row" for="debugLoggingToggle">
+              <input id="debugLoggingToggle" type="checkbox" />
+              <span>记录调试日志（Debug）</span>
+            </label>
+            <div class="settings-note" id="diagnosticsStatusText">默认仅保留轻量错误摘要。开启后会把当前会话的关键操作和错误写入诊断日志，便于导出或反馈到 GitHub。</div>
+            <div class="settings-action-row">
+              <button class="button small gray" type="button" id="exportDiagnosticsButton">导出诊断报告</button>
+              <button class="button small gray" type="button" id="reportIssueButton">反馈到 GitHub</button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import {
   buildCorpusData,
+  compareCorpusFrequencies,
   countWordFrequency,
   calculateTTR,
   calculateSTTR,
@@ -39,14 +40,20 @@ function ensureFrequencyMap() {
   return analysisState.freqMap
 }
 
-function computeStats() {
+function computeStats(payload = {}) {
   const freqMap = ensureFrequencyMap()
+  const comparison =
+    Array.isArray(payload?.comparisonEntries) && payload.comparisonEntries.length >= 2
+      ? compareCorpusFrequencies(payload.comparisonEntries)
+      : { corpora: [], rows: [] }
   return {
     freqRows: getSortedFrequencyRows(freqMap),
     tokenCount: analysisState.tokens.length,
     typeCount: Object.keys(freqMap).length,
     ttr: calculateTTR(analysisState.tokens),
-    sttr: calculateSTTR(analysisState.tokens, 1000)
+    sttr: calculateSTTR(analysisState.tokens, 1000),
+    compareCorpora: comparison.corpora,
+    compareRows: comparison.rows
   }
 }
 
@@ -63,20 +70,22 @@ self.onmessage = async event => {
     if (type === 'load-corpus') {
       result = setCorpus(payload?.text || '')
     } else if (type === 'compute-stats') {
-      result = computeStats()
+      result = computeStats(payload)
     } else if (type === 'search-kwic') {
       result = searchKWIC(
         analysisState.tokenObjects,
         payload?.keyword || '',
         payload?.leftWindowSize ?? 5,
-        payload?.rightWindowSize ?? 5
+        payload?.rightWindowSize ?? 5,
+        payload?.searchOptions || {}
       )
     } else if (type === 'search-library-kwic') {
       result = searchLibraryKWIC(
         payload?.corpusEntries || [],
         payload?.keyword || '',
         payload?.leftWindowSize ?? 5,
-        payload?.rightWindowSize ?? 5
+        payload?.rightWindowSize ?? 5,
+        payload?.searchOptions || {}
       )
     } else if (type === 'search-collocates') {
       result = searchCollocates(
@@ -85,7 +94,8 @@ self.onmessage = async event => {
         payload?.keyword || '',
         payload?.leftWindowSize ?? 5,
         payload?.rightWindowSize ?? 5,
-        payload?.minFreq ?? 1
+        payload?.minFreq ?? 1,
+        payload?.searchOptions || {}
       )
     } else {
       throw new Error(`未知的分析任务：${type}`)

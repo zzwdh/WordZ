@@ -1,24 +1,26 @@
 {
   "name": "corpus-lite",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
   "packageManager": "npm@11.9.0",
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --dir --publish never",
-    "dist": "electron-builder --publish never",
-    "dist:mac": "electron-builder --mac --publish never",
-    "dist:win": "electron-builder --win --x64 --publish never",
-    "dist:win:arm64": "electron-builder --win --arm64 --publish never",
-    "release:github": "node scripts/github-release.mjs",
-    "release:github:mac": "node scripts/github-release.mjs --mac",
-    "release:github:win": "node scripts/github-release.mjs --win --x64",
-    "release:github:win:arm64": "node scripts/github-release.mjs --win --arm64",
+    "build:assets": "node scripts/generate-build-assets.mjs",
+    "pack": "npm run build:assets && electron-builder --dir --publish never",
+    "dist": "npm run build:assets && electron-builder --publish never",
+    "dist:mac": "npm run build:assets && electron-builder --mac --publish never",
+    "dist:win": "npm run build:assets && electron-builder --win --x64 --publish never",
+    "dist:win:arm64": "npm run build:assets && electron-builder --win --arm64 --publish never",
+    "release:github": "npm run build:assets && node scripts/github-release.mjs",
+    "release:github:mac": "npm run build:assets && node scripts/github-release.mjs --mac",
+    "release:github:win": "npm run build:assets && node scripts/github-release.mjs --win --x64",
+    "release:github:win:arm64": "npm run build:assets && node scripts/github-release.mjs --win --arm64",
     "release:notes": "node scripts/generate-release-notes.mjs",
+    "release:doctor": "node scripts/release-doctor.mjs",
     "deps:check": "node scripts/dependency-health.mjs",
-    "check:syntax": "node --check main.js && node --check autoUpdate.js && node --check corpusFileReader.js && node --check corpusStorage.js && node --check preload.js && node --check renderer.js && node --check renderer/app.mjs && node --check renderer/constants.mjs && node --check renderer/domRefs.mjs && node --check renderer/utils.mjs && node --check renderer/feedback.mjs && node --check renderer/analysisBridge.mjs && node --check renderer/tableRender.mjs && node --check renderer/uiSettings.mjs && node --check renderer/features/stats.mjs && node --check renderer/features/kwic.mjs && node --check renderer/features/collocate.mjs && node --check renderer/features/library.mjs && node --check renderer/features/locator.mjs && node --check analysisCore.mjs && node --check analysisWorker.mjs && node --check smoke/electron.smoke.mjs && node --check scripts/dependency-health.mjs && node --check scripts/github-release.mjs && node --check scripts/generate-release-notes.mjs",
+    "check:syntax": "node --check main.js && node --check autoUpdate.js && node --check corpusFileReader.js && node --check corpusStorage.js && node --check diagnostics.js && node --check preload.js && node --check renderer.js && node --check renderer/app.mjs && node --check renderer/constants.mjs && node --check renderer/domRefs.mjs && node --check renderer/utils.mjs && node --check renderer/feedback.mjs && node --check renderer/analysisBridge.mjs && node --check renderer/tableRender.mjs && node --check renderer/uiSettings.mjs && node --check renderer/features/stats.mjs && node --check renderer/features/compare.mjs && node --check renderer/features/kwic.mjs && node --check renderer/features/collocate.mjs && node --check renderer/features/library.mjs && node --check renderer/features/locator.mjs && node --check analysisCore.mjs && node --check analysisWorker.mjs && node --check smoke/electron.smoke.mjs && node --check scripts/dependency-health.mjs && node --check scripts/github-release.mjs && node --check scripts/generate-build-assets.mjs && node --check scripts/generate-release-notes.mjs && node --check scripts/release-doctor.mjs",
     "test": "node --test",
     "test:smoke": "node --test smoke/electron.smoke.mjs",
     "verify": "npm run check:syntax && npm test",
@@ -47,16 +49,23 @@
         "private": false
       }
     },
+    "release": {
+      "channel": "stable"
+    },
     "releaseNotes": [
-      "新增 GitHub Releases 自动更新方案：发布工作流会自动注入仓库信息并生成更新元数据。",
-      "新增任务取消：现在可以取消统计、KWIC 和 Collocate 长任务。",
-      "新增本地语料库备份、恢复与修复能力，并补全对应烟测。",
-      "优化 txt 兼容性：支持 UTF-8、UTF-16 和常见 Windows 中文编码导入。",
-      "新增 PDF 导入：现在可以直接打开或导入可提取文本的 PDF 文件。",
-      "About 与版本信息改为动态读取，后续发版无需再手改前端文案。"
+      "新增多语料对比分析：现在可以在同一工作区中载入多条已保存语料，并查看跨语料词频对比表与摘要卡。",
+      "新增启动恢复询问与最近打开：重启后可选择是否恢复上次会话，也可以从“最近打开”快速回到之前的语料或工作区。",
+      "新增会话诊断与 GitHub 反馈：设置中可开关 Debug 日志、导出诊断报告，并一键跳转到 GitHub Issues 反馈问题。",
+      "增强本地语料能力：支持 PDF 导入、txt 编码兼容、回收站可恢复删除，以及备份 / 恢复 / 修复闭环。",
+      "增强分析工作流：共享 SearchQuery、独立词云、跨语料库 KWIC、可取消统计 / KWIC / Collocate，以及更完整的烟测覆盖。",
+      "发布链路继续完善：自动更新、稳定版发布、About 动态版本信息与正式构建资源已经接通。"
     ]
   },
   "license": "MIT",
+  "homepage": "https://github.com/zzwdh/WordZ",
+  "bugs": {
+    "url": "https://github.com/zzwdh/WordZ/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/zzwdh/WordZ.git"
@@ -66,9 +75,10 @@
     "npm": ">=11 <12"
   },
   "build": {
-    "appId": "com.zouyuxuan.corpushelper",
+    "appId": "com.zzwdh.wordz",
     "productName": "WordZ",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "copyright": "Copyright © 2026 邹羽轩",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -87,13 +97,37 @@
     "asar": true,
     "npmRebuild": false,
     "mac": {
+      "icon": "build/icon.icns",
       "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
       "target": [
         "dmg",
         "zip"
       ]
     },
+    "dmg": {
+      "icon": "build/icon.icns",
+      "title": "${productName} ${version}",
+      "contents": [
+        {
+          "x": 156,
+          "y": 214
+        },
+        {
+          "x": 414,
+          "y": 214,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
     "win": {
+      "icon": "build/icon.ico",
+      "legalTrademarks": "WordZ · 邹羽轩",
+      "requestedExecutionLevel": "asInvoker",
       "target": [
         "nsis",
         "zip"
@@ -102,8 +136,21 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "shortcutName": "WordZ"
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "menuCategory": true,
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "shortcutName": "WordZ",
+      "uninstallDisplayName": "WordZ",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installer-sidebar.bmp",
+      "uninstallerSidebar": "build/installer-sidebar.bmp",
+      "installerHeader": "build/installer-header.bmp",
+      "license": "build/license_zh.txt"
     },
     "publish": [
       {

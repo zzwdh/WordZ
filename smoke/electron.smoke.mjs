@@ -48,6 +48,44 @@ async function waitForHidden(page, selector) {
   }, selector)
 }
 
+async function dismissWelcomeOverlayIfVisible(page, { restorePrompt = 'skip' } = {}) {
+  const isOverlayVisible = await isVisible(page, '#welcomeOverlay')
+  if (!isOverlayVisible) return
+
+  await page.waitForFunction(() => {
+    const overlay = document.getElementById('welcomeOverlay')
+    const button = document.getElementById('closeWelcomeButton')
+    const restorePromptNode = document.getElementById('welcomeRestorePrompt')
+    return Boolean(overlay) &&
+      !overlay.classList.contains('hidden') &&
+      (
+        (Boolean(button) && !button.disabled) ||
+        (Boolean(restorePromptNode) && !restorePromptNode.classList.contains('hidden'))
+      )
+  })
+
+  const restorePromptVisible = await isVisible(page, '#welcomeRestorePrompt').catch(() => false)
+  if (restorePromptVisible) {
+    await page.locator(restorePrompt === 'restore' ? '#restoreWorkspaceButton' : '#skipWorkspaceRestoreButton').click()
+  }
+
+  await page.waitForFunction(() => {
+    const overlay = document.getElementById('welcomeOverlay')
+    const button = document.getElementById('closeWelcomeButton')
+    return Boolean(overlay) &&
+      !overlay.classList.contains('hidden') &&
+      Boolean(button) &&
+      !button.disabled
+  })
+  await page.locator('#closeWelcomeButton').click()
+  await waitForHidden(page, '#welcomeOverlay')
+}
+
+async function prepareWindow(page, options = {}) {
+  await page.waitForLoadState('domcontentloaded')
+  await dismissWelcomeOverlayIfVisible(page, options)
+}
+
 async function chooseCorpusMenuAction(page, actionSelector) {
   await page.locator('#openCorpusMenuButton').click()
   await waitForVisible(page, '#openCorpusMenuPanel')
@@ -119,7 +157,7 @@ test('Electron smoke: main shell, tabs and modals load normally', { timeout: 120
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await page.locator('#openCorpusMenuButton').waitFor()
   await page.locator('#workspaceCorpusValue').waitFor()
 
@@ -140,6 +178,9 @@ test('Electron smoke: main shell, tabs and modals load normally', { timeout: 120
   await page.locator('#uiSettingsButton').click()
   await page.waitForFunction(() => !document.getElementById('uiSettingsModal').classList.contains('hidden'))
   assert.equal(await isVisible(page, '#uiSettingsModal'), true)
+  await page.locator('#debugLoggingToggle').waitFor()
+  await page.locator('#exportDiagnosticsButton').waitFor()
+  await page.locator('#reportIssueButton').waitFor()
   await page.locator('#darkThemeButton').click()
   await page.waitForFunction(() => document.body.getAttribute('data-theme') === 'dark')
   await page.locator('#closeUiSettingsButton').click()
@@ -234,7 +275,7 @@ test('Electron smoke: import, library actions, analysis and export work end-to-e
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await page.locator('#openCorpusMenuButton').waitFor()
 
   await chooseCorpusMenuAction(page, '#libraryButton')
@@ -359,7 +400,7 @@ test('Electron smoke: library-wide KWIC search opens matching saved corpora', { 
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#libraryButton')
   await waitForVisible(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('libraryMeta').textContent.trim() !== '正在读取本地语料库...')
@@ -405,6 +446,189 @@ test('Electron smoke: library-wide KWIC search opens matching saved corpora', { 
   assert.deepEqual(pageErrors, [])
 })
 
+test('Electron smoke: multi-corpus comparison analysis renders after loading multiple saved corpora', { timeout: 120000 }, async t => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'corpus-lite-compare-smoke-'))
+  const firstFixturePath = path.join(tempHome, 'compare-a.txt')
+  const secondFixturePath = path.join(tempHome, 'compare-b.txt')
+  let electronApp = null
+
+  await fs.writeFile(firstFixturePath, 'rose rose bloom bright', 'utf-8')
+  await fs.writeFile(secondFixturePath, 'rose bright bright wind', 'utf-8')
+
+  t.after(async () => {
+    if (electronApp) {
+      await electronApp.close().catch(() => {})
+    }
+    await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
+  })
+
+  electronApp = await electron.launch({
+    args: [appRoot],
+    cwd: appRoot,
+    env: buildIsolatedEnv(tempHome, {
+      CORPUS_LITE_SMOKE_OPEN_DIALOG_QUEUE: JSON.stringify([firstFixturePath, secondFixturePath])
+    })
+  })
+
+  const page = await electronApp.firstWindow()
+  const pageErrors = []
+  page.on('pageerror', error => {
+    pageErrors.push(error.message || String(error))
+  })
+
+  await prepareWindow(page)
+  await chooseCorpusMenuAction(page, '#libraryButton')
+  await waitForVisible(page, '#libraryModal')
+  await page.waitForFunction(() => document.getElementById('libraryMeta').textContent.trim() !== '正在读取本地语料库...')
+
+  await page.locator('#importToFolderButton').click()
+  await page.waitForFunction(() => document.getElementById('libraryTableWrapper').textContent.includes('compare-a'))
+  await page.locator('#importToFolderButton').click()
+  await page.waitForFunction(() => document.getElementById('libraryTableWrapper').textContent.includes('compare-b'))
+
+  const firstRow = page.locator('#libraryTableWrapper tbody tr').filter({ hasText: 'compare-a' }).first()
+  const secondRow = page.locator('#libraryTableWrapper tbody tr').filter({ hasText: 'compare-b' }).first()
+  await firstRow.locator('[data-select-corpus-id]').check()
+  await secondRow.locator('[data-select-corpus-id]').check()
+  await page.waitForFunction(() => document.getElementById('loadSelectedCorporaButton').textContent.includes('2'))
+
+  await page.locator('#loadSelectedCorporaButton').click()
+  await waitForHidden(page, '#libraryModal')
+  await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === '已选 2 条语料')
+  assert.match((await page.locator('#selectedCorporaWrapper').textContent()) || '', /compare-a/)
+  assert.match((await page.locator('#selectedCorporaWrapper').textContent()) || '', /compare-b/)
+
+  await page.locator('#countButton').click()
+  await page.waitForFunction(() => document.getElementById('workspaceModeValue').textContent.trim() === '分析就绪')
+  await page.locator('.tab-button[data-tab="compare"]').click()
+  await page.waitForFunction(() => !document.getElementById('compareSection').classList.contains('hidden'))
+  await page.waitForFunction(() => document.querySelectorAll('#compareWrapper tbody tr').length > 0)
+
+  assert.match((await page.locator('#compareSummaryWrapper').textContent()) || '', /compare-a/)
+  assert.match((await page.locator('#compareSummaryWrapper').textContent()) || '', /compare-b/)
+  assert.match((await page.locator('#compareMeta').textContent()) || '', /已对比 2 条语料/)
+  assert.match((await page.locator('#compareWrapper').textContent()) || '', /rose/)
+  assert.deepEqual(pageErrors, [])
+})
+
+test('Electron smoke: saved workspace is restored on next launch', { timeout: 120000 }, async t => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'corpus-lite-workspace-restore-smoke-'))
+  const fixturePath = path.join(tempHome, 'workspace-restore-source.txt')
+  let firstApp = null
+  let secondApp = null
+
+  await fs.writeFile(
+    fixturePath,
+    [
+      'rose red rose bloom bright',
+      'rose bloom bright bloom rose'
+    ].join('\n'),
+    'utf-8'
+  )
+
+  t.after(async () => {
+    if (firstApp) {
+      await firstApp.close().catch(() => {})
+    }
+    if (secondApp) {
+      await secondApp.close().catch(() => {})
+    }
+    await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
+  })
+
+  firstApp = await electron.launch({
+    args: [appRoot],
+    cwd: appRoot,
+    env: buildIsolatedEnv(tempHome, {
+      CORPUS_LITE_SMOKE_OPEN_DIALOG_QUEUE: JSON.stringify([fixturePath])
+    })
+  })
+
+  let page = await firstApp.firstWindow()
+  await prepareWindow(page)
+  await chooseCorpusMenuAction(page, '#saveImportButton')
+  await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'workspace-restore-source')
+  await page.locator('#pageSizeSelect').selectOption('100')
+  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await page.locator('#kwicInput').fill('rose')
+  await page.waitForFunction(() => document.getElementById('kwicInput').value === 'rose')
+  await page.waitForTimeout(300)
+  await firstApp.close()
+  firstApp = null
+
+  secondApp = await electron.launch({
+    args: [appRoot],
+    cwd: appRoot,
+    env: buildIsolatedEnv(tempHome)
+  })
+
+  page = await secondApp.firstWindow()
+  await page.waitForFunction(() => {
+    const prompt = document.getElementById('welcomeRestorePrompt')
+    return Boolean(prompt) && !prompt.classList.contains('hidden')
+  })
+  await prepareWindow(page, { restorePrompt: 'restore' })
+  await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'workspace-restore-source')
+  await page.waitForFunction(() => !document.getElementById('kwicSection').classList.contains('hidden'))
+  assert.equal((await page.locator('#kwicInput').inputValue()).trim(), 'rose')
+  assert.equal(await page.locator('#pageSizeSelect').inputValue(), '100')
+})
+
+test('Electron smoke: recent open entries reopen the latest quick corpus', { timeout: 120000 }, async t => {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'corpus-lite-recent-open-smoke-'))
+  const fixturePath = path.join(tempHome, 'recent-open-source.txt')
+  let firstApp = null
+  let secondApp = null
+
+  await fs.writeFile(
+    fixturePath,
+    [
+      'orchid quiet orchid signal',
+      'signal orchid returns softly'
+    ].join('\n'),
+    'utf-8'
+  )
+
+  t.after(async () => {
+    if (firstApp) {
+      await firstApp.close().catch(() => {})
+    }
+    if (secondApp) {
+      await secondApp.close().catch(() => {})
+    }
+    await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
+  })
+
+  firstApp = await electron.launch({
+    args: [appRoot],
+    cwd: appRoot,
+    env: buildIsolatedEnv(tempHome, {
+      CORPUS_LITE_SMOKE_OPEN_DIALOG_QUEUE: JSON.stringify([fixturePath])
+    })
+  })
+
+  let page = await firstApp.firstWindow()
+  await prepareWindow(page)
+  await chooseCorpusMenuAction(page, '#quickOpenButton')
+  await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'recent-open-source')
+  await firstApp.close()
+  firstApp = null
+
+  secondApp = await electron.launch({
+    args: [appRoot],
+    cwd: appRoot,
+    env: buildIsolatedEnv(tempHome)
+  })
+
+  page = await secondApp.firstWindow()
+  await prepareWindow(page)
+  await page.locator('#openCorpusMenuButton').click()
+  await waitForVisible(page, '#openCorpusMenuPanel')
+  await waitForVisible(page, '#recentOpenSection')
+  await page.locator('[data-recent-open-index="0"]').click()
+  await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'recent-open-source')
+})
+
 test('Electron smoke: recycle bin restores and purges deleted entries', { timeout: 120000 }, async t => {
   const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'corpus-lite-recycle-smoke-'))
   const fixturePath = path.join(tempHome, 'recycle-source.txt')
@@ -440,7 +664,7 @@ test('Electron smoke: recycle bin restores and purges deleted entries', { timeou
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#libraryButton')
   await waitForVisible(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('libraryMeta').textContent.trim() !== '正在读取本地语料库...')
@@ -561,7 +785,7 @@ test('Electron smoke: backup, restore and repair library flows work end-to-end',
     firstPageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#libraryButton')
   await waitForVisible(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('libraryMeta').textContent.trim() !== '正在读取本地语料库...')
@@ -596,7 +820,7 @@ test('Electron smoke: backup, restore and repair library flows work end-to-end',
     secondPageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#libraryButton')
   await waitForVisible(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('libraryTableWrapper').textContent.includes('backup-source-a'))
@@ -668,7 +892,7 @@ test('Electron smoke: invalid backup restore is rejected without mutating the li
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#libraryButton')
   await waitForVisible(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('libraryMeta').textContent.trim() !== '正在读取本地语料库...')
@@ -721,7 +945,7 @@ test('Electron smoke: repair recovers malformed library entries and quarantines 
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#libraryButton')
   await waitForVisible(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('libraryMeta').textContent.trim() !== '正在读取本地语料库...')
@@ -803,7 +1027,7 @@ test('Electron smoke: docx quick open and csv/xlsx exports work end-to-end', { t
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await page.locator('#openCorpusMenuButton').waitFor()
 
   await chooseCorpusMenuAction(page, '#quickOpenButton')
@@ -863,7 +1087,7 @@ test('Electron smoke: pdf quick open and saved import work end-to-end', { timeou
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#quickOpenButton')
   await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'smoke-pdf')
   assert.match((await page.locator('#previewBox').textContent()) || '', /rose bloom bright/)
@@ -922,7 +1146,7 @@ test('Electron smoke: gb18030 txt files open and import without mojibake', { tim
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#quickOpenButton')
   await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'gb18030-sample')
   assert.match((await page.locator('#previewBox').textContent()) || '', /春天 花开 词频 分析/)
@@ -979,7 +1203,7 @@ test('Electron smoke: cancel actions update task center and keep UI responsive',
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await chooseCorpusMenuAction(page, '#quickOpenButton')
   await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'cancel-source')
 
@@ -1064,7 +1288,7 @@ test('Electron smoke: system dialog cancellations are handled gracefully', { tim
     pageErrors.push(error.message || String(error))
   })
 
-  await page.waitForLoadState('domcontentloaded')
+  await prepareWindow(page)
   await page.locator('#openCorpusMenuButton').waitFor()
 
   await chooseCorpusMenuAction(page, '#quickOpenButton')

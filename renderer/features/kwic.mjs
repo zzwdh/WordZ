@@ -49,6 +49,11 @@ function getCurrentKWICPageRows(state, sortResults) {
 }
 
 function buildKWICMetaHtml(state, escapeHtml) {
+  const searchOptions = []
+  if (state.currentSearchOptions?.words) searchOptions.push('Words')
+  if (state.currentSearchOptions?.caseSensitive) searchOptions.push('Case')
+  if (state.currentSearchOptions?.regex) searchOptions.push('Regex')
+  const searchQueryLabel = searchOptions.length > 0 ? searchOptions.join(' / ') : '默认匹配'
   if (!state.currentKWICKeyword) {
     return '请先输入一个检索词，并选择检索范围。<br />支持当前语料、当前文件夹和全部本地语料；点击任一 KWIC 结果行可定位原句。'
   }
@@ -56,7 +61,7 @@ function buildKWICMetaHtml(state, escapeHtml) {
   const searchedCorpusCount = Number(state.currentKWICSearchedCorpusCount || 0)
   const corpusSummary = hasCorpusColumns(state) ? ` ｜ 语料数：${searchedCorpusCount}` : ''
   const clickHint = hasCorpusColumns(state) ? '点击任一结果行会自动打开对应语料并定位原句。' : '点击任一结果行可定位原句。'
-  return `检索范围：${scopeLabel}${corpusSummary} ｜ 检索词：${escapeHtml(state.currentKWICKeyword)} ｜ 命中次数：${state.currentKWICResults.length} ｜ 范围：${state.currentKWICLeftWindow}L ${state.currentKWICRightWindow}R ｜ 排序：${getKWICSortLabel(state.currentKWICSortMode)}<br />${clickHint}`
+  return `检索范围：${scopeLabel}${corpusSummary} ｜ 检索词：${escapeHtml(state.currentKWICKeyword)} ｜ SearchQuery：${escapeHtml(searchQueryLabel)} ｜ 命中次数：${state.currentKWICResults.length} ｜ 范围：${state.currentKWICLeftWindow}L ${state.currentKWICRightWindow}R ｜ 排序：${getKWICSortLabel(state.currentKWICSortMode)}<br />${clickHint}`
 }
 
 export function renderKWICTable(state, dom, helpers) {

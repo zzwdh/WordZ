@@ -49,12 +49,16 @@ const isPrivateRepo = normalizeBoolean(
   process.env.WORDZ_AUTO_UPDATE_GITHUB_PRIVATE || process.env.WORDZ_GH_PRIVATE,
   false
 )
+const releaseChannel = 'stable'
 const extraArgs = process.argv.slice(2)
 const electronBuilderArgs = [
   '--publish',
   'always',
   ...extraArgs,
+  `-c.extraMetadata.wordz.release.channel=${releaseChannel}`,
   '-c.extraMetadata.wordz.autoUpdate.provider=github',
+  '-c.extraMetadata.wordz.autoUpdate.channel=latest',
+  '-c.extraMetadata.wordz.autoUpdate.allowPrerelease=false',
   `-c.extraMetadata.wordz.autoUpdate.github.owner=${owner}`,
   `-c.extraMetadata.wordz.autoUpdate.github.repo=${repo}`,
   `-c.extraMetadata.wordz.autoUpdate.github.private=${isPrivateRepo ? 'true' : 'false'}`
@@ -63,7 +67,7 @@ const command = process.platform === 'win32'
   ? path.join(process.cwd(), 'node_modules', '.bin', 'electron-builder.cmd')
   : path.join(process.cwd(), 'node_modules', '.bin', 'electron-builder')
 
-console.log(`[github-release] publishing WordZ to GitHub Releases: ${owner}/${repo}`)
+console.log(`[github-release] publishing WordZ stable release to GitHub Releases: ${owner}/${repo}`)
 
 const child = spawn(command, electronBuilderArgs, {
   stdio: 'inherit',
