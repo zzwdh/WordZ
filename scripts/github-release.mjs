@@ -67,6 +67,7 @@ console.log(`[github-release] publishing WordZ to GitHub Releases: ${owner}/${re
 
 const child = spawn(command, electronBuilderArgs, {
   stdio: 'inherit',
+  shell: process.platform === 'win32',
   env: {
     ...process.env,
     GH_TOKEN: githubToken
