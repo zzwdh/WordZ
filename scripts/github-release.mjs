@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import path from 'node:path'
 import process from 'node:process'
 
 function normalizeText(value) {
@@ -50,7 +51,6 @@ const isPrivateRepo = normalizeBoolean(
 )
 const extraArgs = process.argv.slice(2)
 const electronBuilderArgs = [
-  'electron-builder',
   '--publish',
   'always',
   ...extraArgs,
@@ -59,7 +59,9 @@ const electronBuilderArgs = [
   `-c.extraMetadata.wordz.autoUpdate.github.repo=${repo}`,
   `-c.extraMetadata.wordz.autoUpdate.github.private=${isPrivateRepo ? 'true' : 'false'}`
 ]
-const command = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+const command = process.platform === 'win32'
+  ? path.join(process.cwd(), 'node_modules', '.bin', 'electron-builder.cmd')
+  : path.join(process.cwd(), 'node_modules', '.bin', 'electron-builder')
 
 console.log(`[github-release] publishing WordZ to GitHub Releases: ${owner}/${repo}`)
 

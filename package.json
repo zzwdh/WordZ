@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
