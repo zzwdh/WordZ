@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -53,12 +53,9 @@
       "channel": "stable"
     },
     "releaseNotes": [
-      "新增多语料对比分析：现在可以在同一工作区中载入多条已保存语料，并查看跨语料词频对比表与摘要卡。",
-      "新增启动恢复询问与最近打开：重启后可选择是否恢复上次会话，也可以从“最近打开”快速回到之前的语料或工作区。",
-      "新增会话诊断与 GitHub 反馈：设置中可开关 Debug 日志、导出诊断报告，并一键跳转到 GitHub Issues 反馈问题。",
-      "增强本地语料能力：支持 PDF 导入、txt 编码兼容、回收站可恢复删除，以及备份 / 恢复 / 修复闭环。",
-      "增强分析工作流：共享 SearchQuery、独立词云、跨语料库 KWIC、可取消统计 / KWIC / Collocate，以及更完整的烟测覆盖。",
-      "发布链路继续完善：自动更新、稳定版发布、About 动态版本信息与正式构建资源已经接通。"
+      "修复 GitHub Releases 的 macOS 发布流程：现在在未配置签名或 notarization secrets 时，会自动清理空的签名环境变量，不再因为空 CSC_LINK 导致发布失败。",
+      "补充发布脚本测试，确保稳定版 GitHub 发布参数和环境变量清理逻辑可回归验证。",
+      "保持 stable 单渠道发布策略不变，继续兼容当前的自动更新与 GitHub Release 工作流。"
     ]
   },
   "license": "MIT",
