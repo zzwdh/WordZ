@@ -1,0 +1,77 @@
+name: GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Release target
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - mac
+          - win
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-mac:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'mac'
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run verification
+        run: npm run verify
+
+      - name: Publish macOS release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORDZ_AUTO_UPDATE_GITHUB_OWNER: ${{ github.repository_owner }}
+          WORDZ_AUTO_UPDATE_GITHUB_REPO: ${{ github.event.repository.name }}
+        run: npm run release:github:mac
+
+  release-win:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'win'
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run verification
+        run: npm run verify
+
+      - name: Publish Windows release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORDZ_AUTO_UPDATE_GITHUB_OWNER: ${{ github.repository_owner }}
+          WORDZ_AUTO_UPDATE_GITHUB_REPO: ${{ github.event.repository.name }}
+        run: npm run release:github:win

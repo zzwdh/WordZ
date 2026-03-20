@@ -1,0 +1,39 @@
+name: Dependency Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * 1'
+  push:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/dependency-health.mjs'
+      - '.github/workflows/dependency-health.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.0'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run dependency health check
+        run: npm run deps:check
+
+      - name: Run baseline verification
+        run: npm run verify

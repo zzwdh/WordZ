@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  />
+  <title>WordZ</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="eyebrow">Corpus Analysis Console</div>
+        <h1 id="appTitleHeading">WordZ</h1>
+        <p class="subtitle" id="appSubtitle">支持 Quick Corpus、本地语料库、词频统计、跨语料库 KWIC、Collocate、原文定位、自动更新，以及 xlsx / csv 导出。当前版本按空格分词，适合英文等空格分隔语言。</p>
+        <div class="status-row">
+          <span class="chip primary">桌面语料工作台</span>
+          <span class="chip">词频 / KWIC / Collocate / 定位</span>
+          <span class="chip">支持 txt / docx / pdf</span>
+        </div>
+      </div>
+      <div class="toolbar-actions">
+        <div class="toolbar-menu">
+          <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
+          <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
+            <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
+            <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
+            <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
+          </div>
+        </div>
+        <button class="button" id="countButton">开始统计</button>
+        <button class="button small gray hidden" id="cancelStatsButton">取消统计</button>
+        <button class="button gray" id="checkUpdateButton">检查更新</button>
+        <button class="button gray" id="aboutButton">关于</button>
+        <button class="button gray" id="uiSettingsButton">界面设置</button>
+        <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务中心</button>
+      </div>
+    </header>
+
+    <div class="system-status hidden" id="systemStatus">
+      <span class="system-status-spinner" aria-hidden="true"></span>
+      <span id="systemStatusText">处理中...</span>
+    </div>
+
+    <aside class="task-center hidden" id="taskCenterPanel" aria-live="polite">
+      <div class="task-center-header">
+        <div>
+          <strong>任务中心</strong>
+          <div class="task-center-meta" id="taskCenterMeta">最近的分析任务会显示在这里。</div>
+        </div>
+        <button class="button small gray" id="closeTaskCenterButton" type="button">关闭</button>
+      </div>
+      <div class="task-center-list" id="taskCenterList">
+        <div class="task-center-empty">最近的统计、KWIC 和 Collocate 任务会显示在这里。</div>
+      </div>
+    </aside>
+
+    <main class="main-layout">
+      <aside class="sidebar">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>当前语料</h2>
+            <div class="panel-subtitle">当前模式与名称固定显示，文本预览可按需展开，便于随时核对当前分析对象。</div>
+          </div>
+          <div class="panel-body meta-stack">
+            <div class="meta-item">
+              <div class="meta-label">当前语料状态</div>
+              <div class="meta-value" id="fileInfo">尚未选择文件</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-label">预览说明</div>
+              <div class="meta-value">Quick Corpus 为临时打开；“导入并保存”会复制到应用本地语料库中，方便后续再次打开与重命名。</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header panel-header-inline">
+            <div>
+              <h3>文本预览</h3>
+              <div class="panel-subtitle">默认收起，需要时再展开查看语料片段。</div>
+            </div>
+            <button class="panel-toggle" id="previewToggleButton" type="button" aria-expanded="false" aria-controls="previewPanelBody">展开预览</button>
+          </div>
+          <div class="panel-body hidden" id="previewPanelBody">
+            <div class="preview-box" id="previewBox">这里会显示导入的文本内容预览</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h3>基础统计摘要</h3>
+            <div class="panel-subtitle">Token / Type / TTR / STTR 始终固定在左侧，适合边看右侧分析边对照全局指标。</div>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <button class="button small" id="copyStatsButton">导出统计摘要</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="statsSummaryWrapper">
+              <div class="empty-tip">请先导入文本并点击“开始统计”</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="workspace-overview">
+          <div class="overview-card accent">
+            <div class="overview-label">当前语料</div>
+            <div class="overview-value" id="workspaceCorpusValue">未载入</div>
+            <div class="overview-note" id="workspaceCorpusNote">导入语料后会在这里显示当前分析对象。</div>
+          </div>
+          <div class="overview-card">
+            <div class="overview-label">工作状态</div>
+            <div class="overview-value" id="workspaceModeValue">待载入</div>
+            <div class="overview-note" id="workspaceModeNote">目前还没有可分析的语料。</div>
+          </div>
+          <div class="overview-card">
+            <div class="overview-label">Token / Type</div>
+            <div class="overview-value mono-readout" id="workspaceTokenValue">0 / 0</div>
+            <div class="overview-note" id="workspaceTokenNote">点击“开始统计”后会同步更新摘要。</div>
+          </div>
+          <div class="overview-card">
+            <div class="overview-label">词汇指标</div>
+            <div class="overview-value mono-readout" id="workspaceMetricValue">--</div>
+            <div class="overview-note" id="workspaceMetricNote">TTR / STTR 待计算。</div>
+          </div>
+        </div>
+
+        <div class="tab-shell">
+          <div class="tab-bar">
+            <button class="tab-button active" data-tab="stats">统计结果</button>
+            <button class="tab-button" data-tab="kwic">KWIC 检索</button>
+            <button class="tab-button" data-tab="collocate">Collocate 统计</button>
+            <button class="tab-button" data-tab="locator">原文定位</button>
+          </div>
+
+          <div class="section tab-section" id="statsSection">
+            <div class="section-head">
+              <div>
+                <h3>统计结果</h3>
+                <div class="section-note">右侧专注展示词频结果。分页、导出和表格滚动全部集中在这里，避免与预览区混在一起。</div>
+              </div>
+            </div>
+
+            <div class="toolbar sticky-toolbar sticky-toolbar-top">
+              <div class="toolbar-left">
+                <button class="button small" id="copyFreqButton">导出当前页词频</button>
+                <button class="button small gray" id="exportAllFreqButton">导出全部词频</button>
+              </div>
+            </div>
+
+            <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar-left">
+                <span class="toolbar-label">每页显示</span>
+                <select class="select" id="pageSizeSelect">
+                  <option value="10">10 个</option>
+                  <option value="100">100 个</option>
+                  <option value="1000">1000 个</option>
+                  <option value="all">全部显示</option>
+                </select>
+                <span class="toolbar-info" id="totalRowsInfo">共 0 个单词</span>
+              </div>
+              <div class="toolbar-right">
+                <button class="button small gray" id="prevPageButton">上一页</button>
+                <span class="page-info" id="pageInfo">第 0 / 0 页</span>
+                <button class="button small gray" id="nextPageButton">下一页</button>
+              </div>
+            </div>
+
+            <div class="table-scroll" id="tableWrapper">
+              <div class="empty-tip">请先导入文本，再点击“开始统计”</div>
+            </div>
+          </div>
+
+          <div class="section tab-section hidden" id="kwicSection">
+            <div class="section-head">
+              <div>
+                <h3>KWIC 检索</h3>
+                <div class="section-note">支持当前语料、当前文件夹、全部本地语料三种范围，自定义左右窗口、排序、分页和导出。点击任一行可自动跳转到“原文定位”标签并高亮对应原句。</div>
+              </div>
+            </div>
+
+            <div class="search-row sticky-toolbar sticky-toolbar-top">
+              <input class="input" id="kwicInput" type="text" placeholder="请输入要检索的词，例如 rose" />
+              <label class="toolbar-inline-field" for="kwicScopeSelect">
+                <span class="toolbar-label">检索范围</span>
+                <select class="select" id="kwicScopeSelect">
+                  <option value="current">当前语料</option>
+                  <option value="folder">当前文件夹</option>
+                  <option value="library">全部本地语料</option>
+                </select>
+              </label>
+              <label class="window-field" for="leftWindowSelect">
+                <input class="select window-size-input" id="leftWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                <span class="toolbar-label window-suffix">L</span>
+              </label>
+              <label class="window-field" for="rightWindowSelect">
+                <input class="select window-size-input" id="rightWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                <span class="toolbar-label window-suffix">R</span>
+              </label>
+              <button class="button" id="kwicButton">KWIC 检索</button>
+              <button class="button small gray hidden" id="cancelKwicButton">取消 KWIC</button>
+            </div>
+
+            <div class="kwic-meta sticky-meta" id="kwicMeta">请输入一个检索词，并选择检索范围。支持当前语料、当前文件夹和全部本地语料；点击任一 KWIC 结果行可定位或打开对应原句。</div>
+
+            <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar-left">
+                <button class="button small" id="copyKWICButton">导出当前页 KWIC</button>
+                <button class="button small gray" id="exportAllKWICButton">导出全部 KWIC</button>
+                <span class="toolbar-label">KWIC 排序</span>
+                <select class="select" id="kwicSortSelect">
+                  <option value="original">原始顺序</option>
+                  <option value="left-near">按左一词排序</option>
+                  <option value="right-near">按右一词排序</option>
+                  <option value="left-then-right">按左一词→右一词</option>
+                  <option value="right-then-left">按右一词→左一词</option>
+                </select>
+                <span class="toolbar-label">KWIC 每页显示</span>
+                <select class="select" id="kwicPageSizeSelect">
+                  <option value="10">10 条</option>
+                  <option value="100">100 条</option>
+                  <option value="1000">1000 条</option>
+                  <option value="all">全部显示</option>
+                </select>
+                <span class="toolbar-info" id="kwicTotalRowsInfo">共 0 条结果</span>
+              </div>
+              <div class="toolbar-right">
+                <button class="button small gray" id="kwicPrevPageButton">上一页</button>
+                <span class="page-info" id="kwicPageInfo">第 0 / 0 页</span>
+                <button class="button small gray" id="kwicNextPageButton">下一页</button>
+              </div>
+            </div>
+
+            <div class="table-scroll" id="kwicWrapper">
+              <div class="empty-tip">这里会显示关键词前后文结果</div>
+            </div>
+          </div>
+
+          <div class="section tab-section hidden" id="collocateSection">
+            <div class="section-head">
+              <div>
+                <h3>Collocate 统计</h3>
+                <div class="section-note">聚焦搭配词统计。支持窗口设置、最低共现次数筛选、分页和导出。</div>
+              </div>
+            </div>
+
+            <div class="search-row sticky-toolbar sticky-toolbar-top">
+              <input class="input" id="collocateInput" type="text" placeholder="请输入节点词，例如 rose" />
+              <label class="window-field" for="collocateLeftWindowSelect">
+                <input class="select window-size-input" id="collocateLeftWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                <span class="toolbar-label window-suffix">L</span>
+              </label>
+              <label class="window-field" for="collocateRightWindowSelect">
+                <input class="select window-size-input" id="collocateRightWindowSelect" type="number" inputmode="numeric" min="0" step="1" list="windowSizeOptions" value="5" />
+                <span class="toolbar-label window-suffix">R</span>
+              </label>
+              <span class="toolbar-label">最低共现次数</span>
+              <select class="select" id="collocateMinFreqSelect">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+              <button class="button" id="collocateButton">开始统计 Collocate</button>
+              <button class="button small gray hidden" id="cancelCollocateButton">取消 Collocate</button>
+            </div>
+
+            <div class="kwic-meta sticky-meta" id="collocateMeta">请先导入文本，并输入节点词后开始统计 Collocate。</div>
+
+            <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar-left">
+                <button class="button small" id="exportCollocateButton">导出当前页 Collocate</button>
+                <button class="button small gray" id="exportAllCollocateButton">导出全部 Collocate</button>
+                <span class="toolbar-label">每页显示</span>
+                <select class="select" id="collocatePageSizeSelect">
+                  <option value="10">10 条</option>
+                  <option value="100">100 条</option>
+                  <option value="1000">1000 条</option>
+                  <option value="all">全部显示</option>
+                </select>
+                <span class="toolbar-info" id="collocateTotalRowsInfo">共 0 条结果</span>
+              </div>
+              <div class="toolbar-right">
+                <button class="button small gray" id="collocatePrevPageButton">上一页</button>
+                <span class="page-info" id="collocatePageInfo">第 0 / 0 页</span>
+                <button class="button small gray" id="collocateNextPageButton">下一页</button>
+              </div>
+            </div>
+
+            <div class="table-scroll" id="collocateWrapper">
+              <div class="empty-tip">这里会显示 Collocate 统计结果</div>
+            </div>
+          </div>
+
+          <div class="section tab-section hidden" id="locatorSection">
+            <div class="section-head">
+              <div>
+                <h3>原文定位</h3>
+                <div class="section-note">点击任一 KWIC 结果行后，这里会自动定位到对应原句，并高亮节点词及左右窗口词。</div>
+              </div>
+            </div>
+
+            <div class="locator-meta" id="locatorMeta">导入文本后，这里会显示原文定位表。点击任一 KWIC 结果行后，会自动定位并高亮对应原句。</div>
+            <div class="toolbar sticky-toolbar sticky-toolbar-top">
+              <div class="toolbar-left">
+                <button class="button small" id="copyLocatorButton">导出原文定位表</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="sentenceViewer">
+              <div class="empty-tip">这里会显示原文定位表</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <datalist id="windowSizeOptions">
+    <option value="0"></option>
+    <option value="1"></option>
+    <option value="3"></option>
+    <option value="5"></option>
+    <option value="10"></option>
+    <option value="20"></option>
+  </datalist>
+
+  <div class="modal-overlay hidden" id="libraryModal">
+    <div class="modal-panel">
+      <div class="modal-header"><strong>本地语料库</strong></div>
+      <div class="modal-body">
+        <div class="library-layout">
+          <aside class="library-sidebar-panel">
+            <div class="library-toolbar">
+              <div>
+                <strong>分类文件夹</strong>
+                <div class="panel-subtitle">用文件夹整理不同语料项目。</div>
+              </div>
+              <button class="button small" id="createFolderButton">新建文件夹</button>
+            </div>
+            <div class="library-folder-list" id="libraryFolderList">
+              <div class="empty-tip">正在加载文件夹...</div>
+            </div>
+          </aside>
+
+          <section class="library-content-panel">
+            <div class="library-toolbar">
+              <div class="kwic-meta" id="libraryMeta">这里会显示已保存语料列表。</div>
+              <div class="library-actions">
+                <span class="chip" id="libraryTargetChip">当前查看：全部语料</span>
+                <button class="button small" id="importToFolderButton">导入到当前文件夹</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="libraryTableWrapper">
+              <div class="empty-tip">正在加载本地语料库...</div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button small gray" id="recycleBinButton">回收站</button>
+        <button class="button small gray" id="backupLibraryButton">备份语料库</button>
+        <button class="button small gray" id="restoreLibraryButton">恢复语料库</button>
+        <button class="button small gray" id="repairLibraryButton">修复语料库</button>
+        <button class="button small gray" id="closeLibraryButton">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="recycleModal">
+    <div class="modal-panel">
+      <div class="modal-header"><strong>回收站</strong></div>
+      <div class="modal-body">
+        <div class="kwic-meta" id="recycleMeta">这里会显示最近删除的语料和文件夹。</div>
+        <div class="table-scroll" id="recycleTableWrapper">
+          <div class="empty-tip">正在读取回收站...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button small gray" id="closeRecycleButton">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="uiSettingsModal">
+    <div class="modal-panel settings-modal-panel">
+      <div class="modal-header"><strong>界面设置</strong></div>
+      <div class="modal-body">
+        <div class="settings-layout">
+          <div class="settings-intro">
+            <div class="panel-subtitle">调整当前界面的缩放、字体大小和字体风格。设置会自动保存在这台电脑上，下次打开继续生效。</div>
+          </div>
+
+          <div class="settings-field">
+            <div class="settings-field-head">
+              <span class="settings-label">外观模式</span>
+              <span class="settings-value" id="themeModeValue">浅色模式</span>
+            </div>
+            <div class="settings-theme-group">
+              <button class="button small gray settings-theme-button" type="button" id="lightThemeButton">浅色模式</button>
+              <button class="button small gray settings-theme-button" type="button" id="darkThemeButton">深色模式</button>
+            </div>
+            <div class="settings-note">在浅色和深色界面之间切换，按钮图标会自动跟随当前主题颜色。</div>
+          </div>
+
+          <label class="settings-field" for="uiZoomRange">
+            <div class="settings-field-head">
+              <span class="settings-label">界面缩放</span>
+              <span class="settings-value" id="uiZoomValue">100%</span>
+            </div>
+            <input class="settings-range" id="uiZoomRange" type="range" min="80" max="135" step="5" value="100" />
+            <div class="settings-note">会整体放大或缩小整个应用界面。</div>
+          </label>
+
+          <label class="settings-field" for="uiFontSizeRange">
+            <div class="settings-field-head">
+              <span class="settings-label">字体大小</span>
+              <span class="settings-value" id="uiFontSizeValue">100%</span>
+            </div>
+            <input class="settings-range" id="uiFontSizeRange" type="range" min="85" max="140" step="5" value="100" />
+            <div class="settings-note">主要影响标题、按钮、表格和说明文字的字号。</div>
+          </label>
+
+          <label class="settings-field" for="uiFontFamilySelect">
+            <div class="settings-field-head">
+              <span class="settings-label">字体选择</span>
+            </div>
+            <select class="select" id="uiFontFamilySelect">
+              <option value="system">系统默认</option>
+              <option value="modern">现代无衬线</option>
+              <option value="readable">清晰阅读</option>
+              <option value="serif">宋体阅读</option>
+            </select>
+            <div class="settings-note">不同系统会自动回退到可用字体，不会因为缺字导致界面失效。</div>
+          </label>
+
+          <div class="settings-preview">
+            <div class="settings-label">预览</div>
+            <div class="settings-preview-text" id="settingsPreviewText">WordZ Corpus Helper 123 ABC。这里会实时预览你当前选择的字体和字号效果。</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button small gray" id="resetUiSettingsButton">恢复默认</button>
+        <button class="button small gray" id="closeUiSettingsButton">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="feedbackModal">
+    <div class="modal-panel feedback-modal-panel" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+      <div class="modal-header"><strong id="feedbackTitle">提示</strong></div>
+      <div class="modal-body feedback-body">
+        <div class="feedback-message" id="feedbackMessage"></div>
+        <div class="feedback-input-wrap hidden" id="feedbackInputWrap">
+          <input class="input feedback-input" id="feedbackInput" type="text" autocomplete="off" />
+        </div>
+        <div class="feedback-error hidden" id="feedbackError"></div>
+      </div>
+      <div class="modal-footer feedback-actions">
+        <button class="button small gray" type="button" id="feedbackCancelButton">取消</button>
+        <button class="button small" type="button" id="feedbackConfirmButton">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-viewport" id="toastViewport" aria-live="polite" aria-atomic="true"></div>
+  <script src="./renderer.js"></script>
+</body>
+</html>

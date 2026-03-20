@@ -1,0 +1,126 @@
+{
+  "name": "corpus-lite",
+  "version": "1.0.0",
+  "productName": "WordZ",
+  "description": "一个本地桌面语料分析工具。",
+  "main": "main.js",
+  "packageManager": "npm@11.9.0",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir --publish never",
+    "dist": "electron-builder --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:win:arm64": "electron-builder --win --arm64 --publish never",
+    "release:github": "node scripts/github-release.mjs",
+    "release:github:mac": "node scripts/github-release.mjs --mac",
+    "release:github:win": "node scripts/github-release.mjs --win --x64",
+    "release:github:win:arm64": "node scripts/github-release.mjs --win --arm64",
+    "deps:check": "node scripts/dependency-health.mjs",
+    "check:syntax": "node --check main.js && node --check autoUpdate.js && node --check corpusFileReader.js && node --check corpusStorage.js && node --check preload.js && node --check renderer.js && node --check renderer/app.mjs && node --check renderer/constants.mjs && node --check renderer/domRefs.mjs && node --check renderer/utils.mjs && node --check renderer/feedback.mjs && node --check renderer/analysisBridge.mjs && node --check renderer/tableRender.mjs && node --check renderer/uiSettings.mjs && node --check renderer/features/stats.mjs && node --check renderer/features/kwic.mjs && node --check renderer/features/collocate.mjs && node --check renderer/features/library.mjs && node --check renderer/features/locator.mjs && node --check analysisCore.mjs && node --check analysisWorker.mjs && node --check smoke/electron.smoke.mjs && node --check scripts/dependency-health.mjs && node --check scripts/github-release.mjs",
+    "test": "node --test",
+    "test:smoke": "node --test smoke/electron.smoke.mjs",
+    "verify": "npm run check:syntax && npm test",
+    "verify:smoke": "npm run verify && npm run test:smoke"
+  },
+  "author": "邹羽轩",
+  "wordz": {
+    "help": [
+      "使用“打开语料”菜单可快速打开 txt / docx / pdf，或导入并保存到本地语料库。",
+      "使用“本地语料库”可以按分类管理语料，也可以恢复、修复或从回收站找回误删内容。",
+      "先点击“开始统计”，再进行 KWIC、Collocate 和原文定位查看，会得到更完整的分析结果。",
+      "建议定期使用“备份语料库”创建外部备份；如果目录异常，可使用“修复语料库”检查并隔离坏数据。",
+      "自动更新默认走 GitHub Releases；使用 GitHub Actions 发布工作流时，会自动把当前仓库 owner/repo 注入到打包结果里。"
+    ],
+    "autoUpdate": {
+      "enabled": true,
+      "provider": "github",
+      "channel": "latest",
+      "checkOnLaunch": true,
+      "autoDownload": true,
+      "allowPrerelease": false,
+      "checkDelayMs": 12000,
+      "github": {
+        "owner": "",
+        "repo": "",
+        "private": false
+      }
+    },
+    "releaseNotes": [
+      "新增 GitHub Releases 自动更新方案：发布工作流会自动注入仓库信息并生成更新元数据。",
+      "新增任务取消：现在可以取消统计、KWIC 和 Collocate 长任务。",
+      "新增本地语料库备份、恢复与修复能力，并补全对应烟测。",
+      "优化 txt 兼容性：支持 UTF-8、UTF-16 和常见 Windows 中文编码导入。",
+      "新增 PDF 导入：现在可以直接打开或导入可提取文本的 PDF 文件。",
+      "About 与版本信息改为动态读取，后续发版无需再手改前端文案。"
+    ]
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zzwdh/WordZ.git"
+  },
+  "engines": {
+    "node": ">=24.14.0 <25",
+    "npm": ">=11 <12"
+  },
+  "build": {
+    "appId": "com.zouyuxuan.corpushelper",
+    "productName": "WordZ",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!dist{,/**}",
+      "!out{,/**}",
+      "!coverage{,/**}",
+      "!smoke{,/**}",
+      "!test{,/**}",
+      "!.git{,/**}",
+      "!.DS_Store",
+      "!*.log"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "WordZ"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
+    "playwright-core": "^1.58.2"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "exceljs": "^4.4.0",
+    "iconv-lite": "^0.7.2",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5"
+  }
+}
