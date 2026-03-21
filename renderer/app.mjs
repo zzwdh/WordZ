@@ -125,6 +125,8 @@ import {
   decorateLibraryTableControls,
   decorateRecycleTableControls
 } from './controllers/libraryTableEvents.mjs'
+import { runDeferredRendererStartup, runInitialRendererSetup } from './startup/flow.mjs'
+import { createStartupPhaseRunner } from './startup/phaseRunner.mjs'
 
 const {
   dropImportOverlay,
@@ -440,6 +442,7 @@ let recentOpenEntries = []
 let onboardingState = loadOnboardingState(localStorage, ONBOARDING_STORAGE_KEY)
 let systemOpenRequestQueue = Promise.resolve()
 let startupRestoreHandledByCrashWizard = false
+const startupPhaseEvents = []
 let dropImportDragDepth = 0
 const REMINDER_CATEGORY_SETTING_KEYS = Object.freeze({
   'analysis-complete': 'notifyAnalysisComplete',
@@ -2278,6 +2281,14 @@ function getDiagnosticRendererState() {
       detail: entry.detail,
       durationMs: entry.durationMs || 0
     })),
+    startupPhases: startupPhaseEvents.slice(-16).map(event => ({
+      phase: event.phase,
+      status: event.status,
+      durationMs: Number(event.durationMs) || 0,
+      startedAt: event.startedAt || '',
+      endedAt: event.endedAt || '',
+      errorMessage: event.errorMessage || ''
+    })),
     uiSettings: getCurrentUISettings()
   }
 }
@@ -4011,48 +4022,73 @@ async function runCrashRecoveryWizard() {
   }
 }
 
-decorateStaticButtons()
-updateAnalysisActionButtons()
-setPreviewCollapsed(true)
-taskCenter.render()
-updateAnalysisQueueControls()
-setOpenCorpusMenuOpen(false)
-bindDropImportHandlers()
-void revealNativeToolbarOverflowForSmoke()
-const initialUISettings = initUISettings()
-recentOpenEntries = loadRecentOpenEntriesFromStorage(localStorage, RECENT_OPEN_STORAGE_KEY)
-renderWorkspaceOverview()
-renderSelectedCorporaTable()
-updateLoadSelectedCorporaButton()
-renderRecentOpenList()
-syncSharedSearchInputs()
-syncSearchOptionInputs()
-syncChiSquareInputsFromState()
-renderCompareSection()
-renderWordCloud()
-renderNgramTable()
-renderChiSquareResult()
-applyAppInfoToShell()
-applyAutoUpdateButtonState(null)
-syncWelcomePreferenceCheckboxes()
-void refreshDiagnosticsStatusText()
-void refreshAnalysisCacheState({ silent: true })
-const showFirstRunTutorial = shouldShowFirstRunTutorial(onboardingState)
-if (initialUISettings.showWelcomeScreen !== false || showFirstRunTutorial) {
-  showWelcomeOverlay({
-    force: showFirstRunTutorial,
-    tutorialMode: showFirstRunTutorial
-  })
-  setWelcomeProgress(
-    12,
-    '正在载入界面设置...',
-    showFirstRunTutorial ? '正在准备首次使用教程' : '正在准备欢迎界面'
-  )
-}
-void recordDiagnostic('info', 'app', 'Renderer 已完成初始化。', {
-  tab: currentTab,
-  showWelcomeScreen: initialUISettings.showWelcomeScreen !== false
+const startupPhaseRunner = createStartupPhaseRunner({
+  maxEvents: 100,
+  onEvent: event => {
+    startupPhaseEvents.push(event)
+    while (startupPhaseEvents.length > 100) {
+      startupPhaseEvents.shift()
+    }
+    globalThis.__WORDZ_STARTUP_PHASE_EVENTS__ = startupPhaseEvents.map(item => ({ ...item }))
+    if (event.status === 'started' || event.status === 'completed') {
+      console.warn(
+        '[renderer.startup.phase]',
+        event.status,
+        event.phase,
+        Number(event.durationMs) || 0
+      )
+    }
+    if (event.status === 'failed') {
+      console.error('[renderer.startup.phase]', event.phase, event.errorMessage || '')
+      void recordDiagnostic('error', 'renderer.startup.phase', `启动阶段失败：${event.phase}`, {
+        phase: event.phase,
+        durationMs: Number(event.durationMs) || 0,
+        errorName: event.errorName || '',
+        errorMessage: event.errorMessage || ''
+      })
+    }
+  }
 })
+
+const { recentOpenEntries: loadedRecentOpenEntries } = runInitialRendererSetup({
+  runSyncPhase: startupPhaseRunner.runSyncPhase,
+  decorateStaticButtons,
+  updateAnalysisActionButtons,
+  setPreviewCollapsed,
+  taskCenter,
+  updateAnalysisQueueControls,
+  setOpenCorpusMenuOpen,
+  bindDropImportHandlers,
+  revealNativeToolbarOverflowForSmoke,
+  initUISettings,
+  loadRecentOpenEntries: () => loadRecentOpenEntriesFromStorage(localStorage, RECENT_OPEN_STORAGE_KEY),
+  renderWorkspaceOverview,
+  renderSelectedCorporaTable,
+  updateLoadSelectedCorporaButton,
+  renderRecentOpenList,
+  syncSharedSearchInputs,
+  syncSearchOptionInputs,
+  syncChiSquareInputsFromState,
+  renderCompareSection,
+  renderWordCloud,
+  renderNgramTable,
+  renderChiSquareResult,
+  applyAppInfoToShell,
+  applyAutoUpdateButtonState,
+  syncWelcomePreferenceCheckboxes,
+  refreshDiagnosticsStatusText,
+  refreshAnalysisCacheState,
+  shouldShowFirstRunTutorial: () => shouldShowFirstRunTutorial(onboardingState),
+  showWelcomeOverlay,
+  setWelcomeProgress,
+  recordRendererInitialized: (settings) => {
+    void recordDiagnostic('info', 'app', 'Renderer 已完成初始化。', {
+      tab: currentTab,
+      showWelcomeScreen: settings.showWelcomeScreen !== false
+    })
+  }
+})
+recentOpenEntries = loadedRecentOpenEntries
 
 if (window.electronAPI?.onSystemOpenFileRequest) {
   window.electronAPI.onSystemOpenFileRequest(payload => {
@@ -4110,41 +4146,46 @@ window.addEventListener('unhandledrejection', event => {
   void maybePromptAutoBugFeedback('renderer.unhandledrejection', normalizedError, rejectionDetails)
 })
 
-void (async () => {
-  setWelcomeProgress(32, '正在同步版本信息...', '正在读取当前版本')
-  await ensureAppInfoLoaded()
-  if (window.electronAPI?.consumePendingSystemOpenFiles) {
+void runDeferredRendererStartup({
+  runPhase: startupPhaseRunner.runPhase,
+  setWelcomeProgress,
+  ensureAppInfoLoaded,
+  consumePendingSystemOpenFiles: async () => {
+    if (!window.electronAPI?.consumePendingSystemOpenFiles) return
     const pendingOpenResult = await window.electronAPI.consumePendingSystemOpenFiles()
-    if (pendingOpenResult?.success && Array.isArray(pendingOpenResult.filePaths)) {
-      for (const filePath of pendingOpenResult.filePaths) {
-        await enqueueSystemOpenFileRequest({ filePath })
-      }
+    if (!pendingOpenResult?.success || !Array.isArray(pendingOpenResult.filePaths)) return
+    for (const filePath of pendingOpenResult.filePaths) {
+      await enqueueSystemOpenFileRequest({ filePath })
     }
-  }
-  setWelcomeProgress(58, '正在初始化自动更新...', '正在连接桌面更新能力')
-  await initializeAutoUpdate()
-  setWelcomeProgress(68, '正在检查异常恢复状态...', '正在准备恢复向导')
-  await runCrashRecoveryWizard()
-  if (getCurrentUISettings().restoreWorkspace !== false && !startupRestoreHandledByCrashWizard) {
+  },
+  initializeAutoUpdate,
+  runCrashRecoveryWizard,
+  maybeRestoreWorkspaceOnStartup: async () => {
+    if (getCurrentUISettings().restoreWorkspace === false || startupRestoreHandledByCrashWizard) return
     const workspaceSnapshot = loadStoredWorkspaceSnapshot()
-    if (hasMeaningfulWorkspaceSnapshot(workspaceSnapshot)) {
-      const shouldRestoreWorkspace = await requestWorkspaceRestoreDecision(workspaceSnapshot)
-      if (shouldRestoreWorkspace) {
-        setWelcomeProgress(76, '正在恢复上次工作区...', '正在连接上次分析状态')
-        await restoreWorkspaceFromSnapshot(workspaceSnapshot)
-      } else {
-        void recordDiagnostic('info', 'workspace.restore', '用户选择跳过恢复上次工作区。', {
-          snapshotCorpusCount: workspaceSnapshot?.workspace?.corpusIds?.length || 0
-        })
-      }
+    if (!hasMeaningfulWorkspaceSnapshot(workspaceSnapshot)) return
+    const shouldRestoreWorkspace = await requestWorkspaceRestoreDecision(workspaceSnapshot)
+    if (shouldRestoreWorkspace) {
+      setWelcomeProgress(76, '正在恢复上次工作区...', '正在连接上次分析状态')
+      await restoreWorkspaceFromSnapshot(workspaceSnapshot)
+      return
     }
-  }
-  workspaceSnapshotReady = true
-  scheduleWorkspaceSnapshotSave({ immediate: true })
-  setWelcomeProgress(90, '正在整理工作区与工具栏...', '正在准备分析工作台')
-  await new Promise(resolve => requestAnimationFrame(() => resolve()))
-  markWelcomeReady()
-})()
+    void recordDiagnostic('info', 'workspace.restore', '用户选择跳过恢复上次工作区。', {
+      snapshotCorpusCount: workspaceSnapshot?.workspace?.corpusIds?.length || 0
+    })
+  },
+  markWorkspaceSnapshotReady: () => {
+    workspaceSnapshotReady = true
+  },
+  scheduleWorkspaceSnapshotSave,
+  waitForNextFrame: () => new Promise(resolve => requestAnimationFrame(() => resolve())),
+  markWelcomeReady
+}).catch(error => {
+  const normalizedError = recordDiagnosticError('renderer.startup.flow', error)
+  void maybePromptAutoBugFeedback('renderer.startup.flow', normalizedError, {
+    startupPhases: startupPhaseEvents.slice(-12)
+  })
+})
 
 previewToggleButton?.addEventListener('click', () => {
   const isCollapsed = previewPanelBody?.classList.contains('hidden')

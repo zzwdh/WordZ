@@ -3,7 +3,8 @@ const path = require('path')
 const { isUtf8 } = require('node:buffer')
 const iconv = require('iconv-lite')
 const mammoth = require('mammoth')
-const { PDFParse } = require('pdf-parse')
+
+let cachedPDFParseClass = null
 
 const SUPPORTED_CORPUS_EXTENSIONS = new Set(['.txt', '.docx', '.pdf'])
 const DEFAULT_PREFLIGHT_OPTIONS = Object.freeze({
@@ -18,6 +19,41 @@ const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
 const UTF16LE_BOM = Buffer.from([0xff, 0xfe])
 const UTF16BE_BOM = Buffer.from([0xfe, 0xff])
 const LEGACY_TEXT_ENCODINGS = ['gb18030', 'big5']
+
+function ensurePdfRuntimeGlobals() {
+  let canvasModule = null
+  try {
+    canvasModule = require('@napi-rs/canvas')
+  } catch {
+    return
+  }
+
+  const runtimeGlobals = [
+    ['DOMMatrix', canvasModule.DOMMatrix],
+    ['ImageData', canvasModule.ImageData],
+    ['Path2D', canvasModule.Path2D]
+  ]
+
+  for (const [globalName, globalValue] of runtimeGlobals) {
+    if (typeof globalThis[globalName] === 'undefined' && globalValue) {
+      globalThis[globalName] = globalValue
+    }
+  }
+}
+
+function getPDFParseClass() {
+  if (cachedPDFParseClass) return cachedPDFParseClass
+
+  ensurePdfRuntimeGlobals()
+
+  const pdfParseModule = require('pdf-parse')
+  if (typeof pdfParseModule?.PDFParse !== 'function') {
+    throw new Error('PDF 解析器初始化失败：未找到可用的 PDFParse 构造器')
+  }
+
+  cachedPDFParseClass = pdfParseModule.PDFParse
+  return cachedPDFParseClass
+}
 
 function normalizeCorpusText(text) {
   return String(text || '')
@@ -176,7 +212,8 @@ function normalizePdfText(text) {
 }
 
 async function extractPdfText(buffer) {
-  const parser = new PDFParse({ data: buffer })
+  const PDFParseClass = getPDFParseClass()
+  const parser = new PDFParseClass({ data: buffer })
 
   try {
     const result = await parser.getText()

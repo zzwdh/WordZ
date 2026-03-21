@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.0.7",
+  "version": "1.0.21",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -111,7 +111,7 @@
       "!**/.DS_Store",
       "!**/*.log"
     ],
-    "asar": true,
+    "asar": false,
     "npmRebuild": false,
     "fileAssociations": [
       {

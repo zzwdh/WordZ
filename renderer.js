@@ -34,10 +34,51 @@ function showBootstrapError(message) {
 
   panel.append(title, text)
   notice.append(panel)
-  document.body.append(notice)
+
+  if (document.body) {
+    document.body.append(notice)
+    return
+  }
+
+  const mountNotice = () => {
+    if (!document.body) return
+    if (document.getElementById('bootstrapErrorNotice')) return
+    document.body.append(notice)
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountNotice, { once: true })
+    return
+  }
+  mountNotice()
 }
 
-import('./renderer/app.mjs').catch(error => {
+function reportBootstrapFailure(error, fallbackMessage = '前端初始化失败，请重启应用后重试。') {
   console.error('[renderer.bootstrap]', error)
-  showBootstrapError('前端初始化失败，请重启应用后重试。')
+  showBootstrapError(fallbackMessage)
+}
+
+function bootRendererApp() {
+  import('./renderer/app.mjs').catch(error => {
+    reportBootstrapFailure(error)
+  })
+}
+
+window.addEventListener('error', event => {
+  const message = event?.message ? String(event.message) : '渲染脚本运行失败。'
+  reportBootstrapFailure(event?.error || new Error(message), message)
 })
+
+window.addEventListener('unhandledrejection', event => {
+  const reason = event?.reason
+  const normalizedError = reason instanceof Error ? reason : new Error(String(reason || 'Promise rejected'))
+  reportBootstrapFailure(normalizedError)
+})
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    queueMicrotask(bootRendererApp)
+  }, { once: true })
+} else {
+  bootRendererApp()
+}
