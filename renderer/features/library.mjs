@@ -96,6 +96,7 @@ export function buildLibraryTable(items, folders, currentLibraryFolderId, escape
         <td>
           <div class="library-actions">
             <button class="button small" data-open-corpus-id="${item.id}">打开</button>
+            <button class="button small gray" data-show-corpus-id="${item.id}" data-corpus-name="${escapeHtml(item.name)}">显示位置</button>
             <button class="button small gray" data-rename-corpus-id="${item.id}" data-current-name="${escapeHtml(item.name)}">重命名</button>
             <select class="select library-move-select" data-move-folder-select="${item.id}">
               ${buildFolderOptions(folders, item.folderId, escapeHtml)}
@@ -160,6 +161,7 @@ export function buildRecycleBinTable(entries, escapeHtml) {
         <td>${escapeHtml(deletedAt)}</td>
         <td>
           <div class="library-actions">
+            <button class="button small gray" data-show-recycle-entry-id="${entry.recycleEntryId}" data-recycle-entry-name="${escapeHtml(entry.name || '')}" data-recycle-entry-type="${entry.type}">显示位置</button>
             <button class="button small" data-restore-recycle-entry-id="${entry.recycleEntryId}" data-recycle-entry-name="${escapeHtml(entry.name || '')}" data-recycle-entry-type="${entry.type}">恢复</button>
             <button class="button small danger" data-purge-recycle-entry-id="${entry.recycleEntryId}" data-recycle-entry-name="${escapeHtml(entry.name || '')}" data-recycle-entry-type="${entry.type}">彻底删除</button>
           </div>

@@ -1,11 +1,11 @@
-const { app, BrowserWindow, ipcMain, dialog, session, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, session, shell, Notification, nativeImage, Menu } = require('electron')
 const path = require('path')
 const { pathToFileURL } = require('url')
 const fs = require('fs/promises')
 const ExcelJS = require('exceljs')
 const packageManifest = require('./package.json')
 const { CorpusStorage } = require('./corpusStorage')
-const { readCorpusFile } = require('./corpusFileReader')
+const { readCorpusFile, inspectCorpusFilePreflight } = require('./corpusFileReader')
 const { createAutoUpdateController } = require('./autoUpdate')
 const { createDiagnosticsController } = require('./diagnostics')
 const { getAppInfo } = require('./main/helpers/appInfo')
@@ -23,18 +23,59 @@ const {
   normalizeTextInput
 } = require('./main/helpers/inputGuards')
 const {
+  addRecentDocumentIfSupported,
+  extractLaunchAction,
+  extractLaunchFilePaths,
+  focusWindow,
+  normalizeSupportedCorpusFilePath
+} = require('./main/helpers/fileOpenSupport')
+const { createSystemNotificationController } = require('./main/helpers/systemNotifications')
+const { createWindowAttentionController } = require('./main/helpers/windowAttention')
+const { createWindowProgressController } = require('./main/helpers/windowProgress')
+const { createAnalysisCacheController } = require('./main/helpers/analysisCache')
+const {
   migrateLegacyUserDataDirIfNeeded,
   pathExists
 } = require('./main/helpers/userDataMigration')
+const { registerSystemIpcRoutes } = require('./main/ipc/systemRoutes')
+const { registerLibraryIpcRoutes } = require('./main/ipc/libraryRoutes')
 
 let corpusStorage = null
 let autoUpdateController = null
 let diagnosticsController = null
+let systemNotificationController = null
+let windowAttentionController = null
+let windowProgressController = null
+let analysisCacheController = null
 const APP_ENTRY_URL = pathToFileURL(path.join(__dirname, 'index.html')).toString()
 const LEGACY_USER_DATA_DIR_NAMES = ['语料助手', 'corpus-lite', 'WordZou']
+const APP_USER_MODEL_ID = packageManifest?.build?.appId || 'com.zzwdh.wordz'
 const SMOKE_USER_DATA_DIR = normalizeOptionalPathEnv('CORPUS_LITE_SMOKE_USER_DATA_DIR')
 const SMOKE_OPEN_DIALOG_QUEUE = readJsonArrayEnv('CORPUS_LITE_SMOKE_OPEN_DIALOG_QUEUE')
 const SMOKE_SAVE_DIALOG_QUEUE = readJsonArrayEnv('CORPUS_LITE_SMOKE_SAVE_DIALOG_QUEUE')
+const DISABLE_SINGLE_INSTANCE = normalizeBooleanInput(process.env.CORPUS_LITE_DISABLE_SINGLE_INSTANCE)
+const IS_SMOKE_ENV = Boolean(SMOKE_USER_DATA_DIR)
+const SMOKE_EVENT_LIMIT = 60
+const smokeObserverState = {
+  notifications: [],
+  notificationActions: [],
+  windowAttention: [],
+  windowProgress: []
+}
+
+function pushSmokeObserverEvent(type, event) {
+  if (!IS_SMOKE_ENV) return
+  if (!smokeObserverState[type]) return
+  smokeObserverState[type].push({
+    timestamp: new Date().toISOString(),
+    ...event
+  })
+  smokeObserverState[type] = smokeObserverState[type].slice(-SMOKE_EVENT_LIMIT)
+}
+let systemOpenBridgeReady = false
+const pendingSystemOpenFilePaths = []
+const pendingAppMenuActions = []
+const pendingSystemNotificationActions = []
 const {
   showOpenDialog: showOpenDialogForApp,
   showSaveDialog: showSaveDialogForApp
@@ -48,6 +89,215 @@ if (SMOKE_USER_DATA_DIR) {
   app.setPath('userData', SMOKE_USER_DATA_DIR)
   app.setPath('sessionData', path.join(SMOKE_USER_DATA_DIR, 'session-data'))
 }
+
+function getPrimaryWindow() {
+  return BrowserWindow.getAllWindows().find(win => win && !win.isDestroyed?.()) || null
+}
+
+function queueSystemOpenFilePath(filePath) {
+  const normalizedPath = normalizeSupportedCorpusFilePath(filePath)
+  if (!normalizedPath) return ''
+
+  const existingIndex = pendingSystemOpenFilePaths.indexOf(normalizedPath)
+  if (existingIndex >= 0) {
+    pendingSystemOpenFilePaths.splice(existingIndex, 1)
+  }
+  pendingSystemOpenFilePaths.push(normalizedPath)
+  return normalizedPath
+}
+
+function consumePendingSystemOpenFilePaths() {
+  const filePaths = [...pendingSystemOpenFilePaths]
+  pendingSystemOpenFilePaths.length = 0
+  return filePaths
+}
+
+function queueAppMenuAction(action) {
+  const normalizedAction = String(action || '').trim()
+  if (!normalizedAction) return ''
+
+  pendingAppMenuActions.push(normalizedAction)
+  if (pendingAppMenuActions.length > 30) {
+    pendingAppMenuActions.splice(0, pendingAppMenuActions.length - 30)
+  }
+  return normalizedAction
+}
+
+function consumePendingAppMenuActions() {
+  const actions = [...pendingAppMenuActions]
+  pendingAppMenuActions.length = 0
+  return actions
+}
+
+function sendAppMenuActionToWindow(targetWindow, action) {
+  const normalizedAction = String(action || '').trim()
+  if (!targetWindow || targetWindow.isDestroyed?.() || !normalizedAction) return false
+  focusWindow(targetWindow)
+  try {
+    targetWindow.webContents.send('app-menu-action', {
+      action: normalizedAction
+    })
+    return true
+  } catch (error) {
+    captureMainError('menu.dispatch-action', error, { action: normalizedAction })
+    return false
+  }
+}
+
+function flushPendingAppMenuActions(targetWindow = getPrimaryWindow()) {
+  if (!systemOpenBridgeReady || !targetWindow || targetWindow.isDestroyed?.()) return
+  const actions = consumePendingAppMenuActions()
+  for (const action of actions) {
+    if (!sendAppMenuActionToWindow(targetWindow, action)) {
+      queueAppMenuAction(action)
+    }
+  }
+}
+
+function normalizeSystemNotificationActionPayload(payload = {}) {
+  const actionId = String(payload?.actionId || '').trim()
+  if (!actionId) return null
+
+  return {
+    actionId,
+    tag: String(payload?.tag || '').trim(),
+    title: String(payload?.title || '').trim(),
+    body: String(payload?.body || '').trim(),
+    actionPayload: payload?.actionPayload ?? null
+  }
+}
+
+function queueSystemNotificationAction(payload) {
+  const normalizedPayload = normalizeSystemNotificationActionPayload(payload)
+  if (!normalizedPayload) return null
+
+  pendingSystemNotificationActions.push(normalizedPayload)
+  if (pendingSystemNotificationActions.length > 30) {
+    pendingSystemNotificationActions.splice(0, pendingSystemNotificationActions.length - 30)
+  }
+  return normalizedPayload
+}
+
+function consumePendingSystemNotificationActions() {
+  const actions = [...pendingSystemNotificationActions]
+  pendingSystemNotificationActions.length = 0
+  return actions
+}
+
+function sendSystemNotificationActionToWindow(targetWindow, payload) {
+  const normalizedPayload = normalizeSystemNotificationActionPayload(payload)
+  if (!targetWindow || targetWindow.isDestroyed?.() || !normalizedPayload) return false
+
+  focusWindow(targetWindow)
+  try {
+    targetWindow.webContents.send('system-notification-action', normalizedPayload)
+    return true
+  } catch (error) {
+    captureMainError('system-notification.dispatch-action', error, normalizedPayload)
+    return false
+  }
+}
+
+function flushPendingSystemNotificationActions(targetWindow = getPrimaryWindow()) {
+  if (!systemOpenBridgeReady || !targetWindow || targetWindow.isDestroyed?.()) return
+  const actions = consumePendingSystemNotificationActions()
+  for (const action of actions) {
+    if (!sendSystemNotificationActionToWindow(targetWindow, action)) {
+      queueSystemNotificationAction(action)
+    }
+  }
+}
+
+function dispatchSystemNotificationAction(payload) {
+  const normalizedPayload = normalizeSystemNotificationActionPayload(payload)
+  if (!normalizedPayload) return false
+
+  const primaryWindow = getPrimaryWindow()
+  if (!primaryWindow || !systemOpenBridgeReady) {
+    queueSystemNotificationAction(normalizedPayload)
+    if (primaryWindow) {
+      focusWindow(primaryWindow)
+    } else if (app.isReady()) {
+      const createdWindow = createWindow()
+      createdWindow.webContents.once('did-finish-load', () => {
+        flushPendingSystemNotificationActions(createdWindow)
+      })
+    }
+    return false
+  }
+
+  if (!sendSystemNotificationActionToWindow(primaryWindow, normalizedPayload)) {
+    queueSystemNotificationAction(normalizedPayload)
+    return false
+  }
+
+  return true
+}
+
+function dispatchSystemOpenFilePath(filePath) {
+  const normalizedPath = normalizeSupportedCorpusFilePath(filePath)
+  if (!normalizedPath) return false
+
+  const primaryWindow = getPrimaryWindow()
+  if (!systemOpenBridgeReady || !primaryWindow) {
+    queueSystemOpenFilePath(normalizedPath)
+    if (primaryWindow) {
+      focusWindow(primaryWindow)
+    } else if (app.isReady()) {
+      createWindow()
+    }
+    return false
+  }
+
+  try {
+    focusWindow(primaryWindow)
+    primaryWindow.webContents.send('system-open-file-request', {
+      filePath: normalizedPath
+    })
+    return true
+  } catch (error) {
+    queueSystemOpenFilePath(normalizedPath)
+    captureMainError('system-open.dispatch', error, { filePath: normalizedPath })
+    return false
+  }
+}
+
+function handleSystemOpenFilePaths(filePaths = []) {
+  const normalizedPaths = extractLaunchFilePaths(filePaths)
+  if (normalizedPaths.length === 0) {
+    const primaryWindow = getPrimaryWindow()
+    if (primaryWindow) focusWindow(primaryWindow)
+    return
+  }
+
+  let hasDispatched = false
+  for (const filePath of normalizedPaths) {
+    if (dispatchSystemOpenFilePath(filePath)) {
+      hasDispatched = true
+    }
+  }
+
+  if (!hasDispatched && app.isReady() && !getPrimaryWindow()) {
+    createWindow()
+  }
+}
+
+if (!DISABLE_SINGLE_INSTANCE) {
+  const hasSingleInstanceLock = app.requestSingleInstanceLock()
+  if (!hasSingleInstanceLock) {
+    app.quit()
+  } else {
+    app.on('second-instance', (_event, argv) => {
+      handleLaunchActionArgs(argv)
+      handleSystemOpenFilePaths(argv)
+    })
+  }
+}
+
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  handleSystemOpenFilePaths([filePath])
+})
 
 function isTrustedIpcSender(event) {
   const senderUrl = event?.senderFrame?.url || event?.sender?.getURL?.() || ''
@@ -98,6 +348,7 @@ function hardenWindow(win) {
 }
 
 function createWindow() {
+  systemOpenBridgeReady = false
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -114,11 +365,20 @@ function createWindow() {
   })
 
   hardenWindow(win)
+  win.on('closed', () => {
+    if (!getPrimaryWindow()) {
+      systemOpenBridgeReady = false
+    }
+  })
   win.on('unresponsive', () => {
-    captureMainError('window.unresponsive', new Error('窗口无响应'))
+    const error = new Error('窗口无响应')
+    captureMainError('window.unresponsive', error)
+    void diagnosticsController?.markCrashRecoveryState?.('window.unresponsive', error)
   })
   win.webContents.on('render-process-gone', (_event, details) => {
-    captureMainError('window.render-process-gone', new Error(`渲染进程已退出：${details?.reason || 'unknown'}`), details)
+    const error = new Error(`渲染进程已退出：${details?.reason || 'unknown'}`)
+    captureMainError('window.render-process-gone', error, details)
+    void diagnosticsController?.markCrashRecoveryState?.('window.render-process-gone', error, details)
   })
   win.loadFile('index.html')
   win.webContents.on('did-finish-load', () => {
@@ -128,12 +388,250 @@ function createWindow() {
   return win
 }
 
+function dispatchAppMenuAction(action) {
+  const normalizedAction = String(action || '').trim()
+  if (!normalizedAction) return
+
+  const primaryWindow = getPrimaryWindow()
+  if (!primaryWindow) {
+    queueAppMenuAction(normalizedAction)
+    if (!app.isReady()) return
+    const createdWindow = createWindow()
+    createdWindow.webContents.once('did-finish-load', () => {
+      flushPendingAppMenuActions(createdWindow)
+    })
+    return
+  }
+
+  if (!systemOpenBridgeReady) {
+    queueAppMenuAction(normalizedAction)
+    focusWindow(primaryWindow)
+    return
+  }
+
+  if (!sendAppMenuActionToWindow(primaryWindow, normalizedAction)) {
+    queueAppMenuAction(normalizedAction)
+  }
+}
+
+function buildApplicationMenuTemplate() {
+  const locale = String(typeof app.getLocale === 'function' ? app.getLocale() : '').toLowerCase()
+  const isZhLocale = locale.startsWith('zh')
+  const fileMenuLabel = isZhLocale ? '文件' : 'File'
+  const toolsMenuLabel = isZhLocale ? '工具' : 'Tools'
+  const statsLabel = isZhLocale ? '开始统计' : 'Run Statistics'
+  const checkUpdateLabel = isZhLocale ? '检查更新' : 'Check Updates'
+  const settingsLabel = isZhLocale ? '打开设置' : 'Open Settings'
+  const taskCenterLabel = isZhLocale ? '切换任务中心' : 'Toggle Task Center'
+  const commandPaletteLabel = isZhLocale ? '命令面板…' : 'Command Palette…'
+  const helpLabel = isZhLocale ? '打开帮助中心' : 'Open Help Center'
+  const quickOpenLabel = isZhLocale ? '快速打开语料…' : 'Quick Open Corpus…'
+  const importAndSaveLabel = isZhLocale ? '导入并保存语料…' : 'Import And Save Corpus…'
+  const openLibraryLabel = isZhLocale ? '打开本地语料库' : 'Open Local Library'
+  const fileSubmenu = [
+    {
+      label: quickOpenLabel,
+      accelerator: 'CmdOrCtrl+O',
+      click: () => {
+        dispatchAppMenuAction('open-quick-corpus')
+      }
+    },
+    {
+      label: importAndSaveLabel,
+      accelerator: 'CmdOrCtrl+Shift+O',
+      click: () => {
+        dispatchAppMenuAction('import-and-save-corpus')
+      }
+    },
+    {
+      label: openLibraryLabel,
+      accelerator: 'CmdOrCtrl+L',
+      click: () => {
+        dispatchAppMenuAction('open-library')
+      }
+    },
+    { type: 'separator' },
+    process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }
+  ]
+
+  const toolsSubmenu = [
+    {
+      label: statsLabel,
+      accelerator: 'CmdOrCtrl+Enter',
+      click: () => {
+        dispatchAppMenuAction('run-stats')
+      }
+    },
+    { type: 'separator' },
+    {
+      label: checkUpdateLabel,
+      accelerator: 'CmdOrCtrl+U',
+      click: () => {
+        dispatchAppMenuAction('check-update')
+      }
+    },
+    {
+      label: settingsLabel,
+      accelerator: 'CmdOrCtrl+,',
+      click: () => {
+        dispatchAppMenuAction('open-settings')
+      }
+    },
+    {
+      label: commandPaletteLabel,
+      accelerator: 'CmdOrCtrl+K',
+      click: () => {
+        dispatchAppMenuAction('open-command-palette')
+      }
+    },
+    {
+      label: taskCenterLabel,
+      accelerator: 'CmdOrCtrl+J',
+      click: () => {
+        dispatchAppMenuAction('toggle-task-center')
+      }
+    },
+    {
+      label: helpLabel,
+      click: () => {
+        dispatchAppMenuAction('open-help-center')
+      }
+    }
+  ]
+
+  const template = [
+    {
+      label: fileMenuLabel,
+      submenu: fileSubmenu
+    },
+    {
+      label: toolsMenuLabel,
+      submenu: toolsSubmenu
+    },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' }
+  ]
+
+  if (process.platform === 'darwin') {
+    template.unshift({
+      role: 'appMenu',
+      submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }]
+    })
+  } else {
+    template.push({
+      role: 'help',
+      submenu: [{ label: '关于 WordZ', click: () => dispatchAppMenuAction('open-help-center') }]
+    })
+  }
+
+  return template
+}
+
+function setupApplicationMenu() {
+  const menu = Menu.buildFromTemplate(buildApplicationMenuTemplate())
+  Menu.setApplicationMenu(menu)
+}
+
+function setupDockQuickMenu() {
+  if (process.platform !== 'darwin') return
+  if (!app.dock || typeof app.dock.setMenu !== 'function') return
+
+  const dockMenu = Menu.buildFromTemplate([
+    {
+      label: '快速打开语料…',
+      click: () => dispatchAppMenuAction('open-quick-corpus')
+    },
+    {
+      label: '导入并保存语料…',
+      click: () => dispatchAppMenuAction('import-and-save-corpus')
+    },
+    {
+      label: '打开本地语料库',
+      click: () => dispatchAppMenuAction('open-library')
+    }
+  ])
+  app.dock.setMenu(dockMenu)
+}
+
+function setupWindowsJumpList() {
+  if (process.platform !== 'win32') return
+  if (typeof app.setJumpList !== 'function') return
+
+  const taskIconPath = process.execPath
+  const taskProgramPath = process.execPath
+  const buildTaskItem = ({ title, description, action }) => ({
+    type: 'task',
+    title,
+    description,
+    program: taskProgramPath,
+    args: `--wordz-action=${action}`,
+    iconPath: taskIconPath,
+    iconIndex: 0
+  })
+
+  try {
+    app.setJumpList([
+      {
+        type: 'tasks',
+        items: [
+          buildTaskItem({
+            title: '快速打开语料',
+            description: '快速打开 txt / docx / pdf 语料',
+            action: 'open-quick-corpus'
+          }),
+          buildTaskItem({
+            title: '导入并保存语料',
+            description: '导入语料并保存到本地语料库',
+            action: 'import-and-save-corpus'
+          }),
+          buildTaskItem({
+            title: '打开本地语料库',
+            description: '进入本地语料库并管理语料',
+            action: 'open-library'
+          })
+        ]
+      },
+      { type: 'recent' }
+    ])
+  } catch (error) {
+    captureMainError('windows.jump-list', error)
+  }
+}
+
+function setupPlatformFileIntegration() {
+  setupDockQuickMenu()
+  setupWindowsJumpList()
+}
+
+function handleLaunchActionArgs(argv = []) {
+  const launchAction = extractLaunchAction(argv)
+  if (!launchAction) return
+  dispatchAppMenuAction(launchAction)
+}
+
 function getCorpusStorage() {
   if (!corpusStorage) {
     corpusStorage = new CorpusStorage(path.join(app.getPath('userData'), 'corpus-library'))
   }
 
   return corpusStorage
+}
+
+async function showItemInSystemFileManager(targetPath, { fieldName = '目标路径', missingMessage = '目标路径不存在' } = {}) {
+  const resolvedPath = normalizeFilePathInput(targetPath, { fieldName })
+  if (!(await pathExists(fs, resolvedPath))) {
+    return {
+      success: false,
+      message: missingMessage
+    }
+  }
+
+  shell.showItemInFolder(resolvedPath)
+  return {
+    success: true,
+    path: resolvedPath
+  }
 }
 
 function registerSafeIpcHandler(channel, handler) {
@@ -152,399 +650,64 @@ function registerSafeIpcHandler(channel, handler) {
   })
 }
 
-registerSafeIpcHandler('save-table-file', async (event, { defaultBaseName, rows } = {}) => {
-  const normalizedBaseName = normalizeTextInput(defaultBaseName, {
-    fallback: '导出结果',
-    maxLength: 120
-  })
-  const normalizedRows = normalizeTableRows(rows)
-
-  const result = await showSaveDialogForApp({
-    defaultPath: `${normalizedBaseName || '导出结果'}.xlsx`,
-    filters: [
-      { name: 'Excel 工作簿', extensions: ['xlsx'] },
-      { name: 'CSV 文件', extensions: ['csv'] }
-    ]
-  })
-
-  if (result.canceled || !result.filePath) {
-    return {
-      success: false,
-      canceled: true,
-      message: '用户取消了保存'
-    }
-  }
-
-  const outputPath = result.filePath
-  const ext = path.extname(outputPath).toLowerCase()
-
-  if (normalizedRows.length === 0) {
-    return {
-      success: false,
-      message: '没有可导出的表格数据'
-    }
-  }
-
-  if (ext === '.csv') {
-    const csvLines = normalizedRows.map(row =>
-      row
-        .map(value => {
-          const text = String(value ?? '')
-          return '"' + text.replace(/"/g, '""') + '"'
-        })
-        .join(',')
-    )
-
-    await fs.writeFile(outputPath, '\uFEFF' + csvLines.join('\r\n'), 'utf8')
-
-    return {
-      success: true,
-      filePath: outputPath
-    }
-  }
-
-  const workbook = new ExcelJS.Workbook()
-  const worksheet = workbook.addWorksheet('Sheet1')
-  worksheet.addRows(normalizedRows)
-  await workbook.xlsx.writeFile(outputPath)
-
-  return {
-    success: true,
-    filePath: outputPath
-  }
+registerSystemIpcRoutes({
+  registerSafeIpcHandler,
+  fs,
+  path,
+  ExcelJS,
+  app,
+  packageManifest,
+  getAppInfo,
+  showSaveDialogForApp,
+  normalizeTextInput,
+  normalizeTableRows,
+  normalizeBooleanInput,
+  normalizeExternalUrlInput,
+  normalizeFilePathInput,
+  pathExists,
+  showItemInSystemFileManager,
+  getSystemNotificationController: () => systemNotificationController,
+  getWindowProgressController: () => windowProgressController,
+  getWindowAttentionController: () => windowAttentionController,
+  isSmokeEnv: IS_SMOKE_ENV,
+  getSmokeObserverState: () => ({
+    notifications: [...smokeObserverState.notifications],
+    notificationActions: [...smokeObserverState.notificationActions],
+    windowAttention: [...smokeObserverState.windowAttention],
+    windowProgress: [...smokeObserverState.windowProgress]
+  }),
+  markSystemOpenBridgeReady: () => {
+    systemOpenBridgeReady = true
+    flushPendingAppMenuActions()
+    flushPendingSystemNotificationActions()
+  },
+  consumePendingSystemOpenFilePaths,
+  getAutoUpdateController: () => autoUpdateController,
+  getDiagnosticsController: () => diagnosticsController,
+  getAnalysisCacheController: () => analysisCacheController,
+  shell
 })
 
-registerSafeIpcHandler('get-app-info', async () => {
-  return {
-    success: true,
-    appInfo: getAppInfo({ app, packageManifest, autoUpdateController })
-  }
-})
-
-registerSafeIpcHandler('get-auto-update-state', async () => {
-  return {
-    success: true,
-    updateState: autoUpdateController?.getStatusSnapshot?.() || null
-  }
-})
-
-registerSafeIpcHandler('check-for-updates', async () => {
-  return autoUpdateController?.checkForUpdates?.() || {
-    success: false,
-    disabled: true,
-    message: '自动更新当前不可用。'
-  }
-})
-
-registerSafeIpcHandler('install-downloaded-update', async () => {
-  return autoUpdateController?.quitAndInstall?.() || {
-    success: false,
-    message: '当前没有已下载完成的更新。'
-  }
-})
-
-registerSafeIpcHandler('get-diagnostic-state', async () => {
-  return {
-    success: true,
-    diagnostics: diagnosticsController?.getSnapshot?.() || null
-  }
-})
-
-registerSafeIpcHandler('set-diagnostic-logging-enabled', async (event, enabled) => {
-  const diagnostics = diagnosticsController?.setDebugLoggingEnabled?.(normalizeBooleanInput(enabled)) || null
-  return {
-    success: true,
-    diagnostics
-  }
-})
-
-registerSafeIpcHandler('write-diagnostic-log', async (event, payload = {}) => {
-  diagnosticsController?.log?.(
-    normalizeTextInput(payload?.level, { fallback: 'info', maxLength: 16 }),
-    normalizeTextInput(payload?.scope, { fallback: 'renderer', maxLength: 80 }),
-    normalizeTextInput(payload?.message, { fallback: '', maxLength: 600 }),
-    payload?.details ?? null
-  )
-  return {
-    success: true
-  }
-})
-
-registerSafeIpcHandler('export-diagnostic-report', async (event, rendererState = {}) => {
-  const snapshot = diagnosticsController?.getSnapshot?.() || {}
-  const defaultPath = path.join(
-    snapshot.diagnosticsDir || path.join(app.getPath('userData'), 'diagnostics'),
-    `WordZ-diagnostics-${snapshot.sessionId || Date.now()}.md`
-  )
-  const result = await showSaveDialogForApp({
-    defaultPath,
-    filters: [{ name: 'Markdown 文件', extensions: ['md'] }, { name: '文本文件', extensions: ['txt'] }]
-  })
-
-  if (result.canceled || !result.filePath) {
-    return {
-      success: false,
-      canceled: true,
-      message: '用户取消了诊断报告导出'
-    }
-  }
-
-  const exportResult = await diagnosticsController.exportReport(result.filePath, rendererState)
-  return {
-    success: true,
-    filePath: exportResult.filePath
-  }
-})
-
-registerSafeIpcHandler('open-github-feedback', async (event, payload = {}) => {
-  const issueUrl = diagnosticsController?.getGitHubIssueUrl?.(
-    payload?.rendererState ?? {},
-    normalizeTextInput(payload?.issueTitle, { fallback: '[Bug] 请简要描述问题', maxLength: 120 })
-  ) || ''
-
-  if (!issueUrl) {
-    return {
-      success: false,
-      message: '当前仓库未配置可用的 GitHub Issues 地址。'
-    }
-  }
-
-  await shell.openExternal(issueUrl)
-  return {
-    success: true,
-    issueUrl
-  }
-})
-
-registerSafeIpcHandler('open-external-url', async (event, rawUrl) => {
-  const externalUrl = normalizeExternalUrlInput(rawUrl)
-  await shell.openExternal(externalUrl)
-  return {
-    success: true,
-    url: externalUrl
-  }
-})
-
-registerSafeIpcHandler('open-quick-corpus', async () => {
-  const result = await showOpenDialogForApp({
-    properties: ['openFile'],
-    filters: [{ name: '语料文件', extensions: ['txt', 'docx', 'pdf'] }]
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return {
-      success: false,
-      canceled: true,
-      message: '用户取消了选择'
-    }
-  }
-
-  const filePath = result.filePaths[0]
-  const { content, encoding } = await readCorpusFile(filePath)
-
-  return {
-    success: true,
-    mode: 'quick',
-    filePath,
-    fileName: path.basename(filePath),
-    displayName: path.basename(filePath, path.extname(filePath)),
-    content,
-    sourceEncoding: encoding
-  }
-})
-
-registerSafeIpcHandler('open-quick-corpus-at-path', async (event, filePath) => {
-  const resolvedFilePath = normalizeFilePathInput(filePath, { fieldName: '语料路径' })
-  if (!(await pathExists(fs, resolvedFilePath))) {
-    return {
-      success: false,
-      message: '原始语料文件已不存在'
-    }
-  }
-
-  const { content, encoding } = await readCorpusFile(resolvedFilePath)
-
-  return {
-    success: true,
-    mode: 'quick',
-    filePath: resolvedFilePath,
-    fileName: path.basename(resolvedFilePath),
-    displayName: path.basename(resolvedFilePath, path.extname(resolvedFilePath)),
-    content,
-    sourceEncoding: encoding
-  }
-})
-
-registerSafeIpcHandler('import-and-save-corpus', async (event, payload = {}) => {
-  const result = await showOpenDialogForApp({
-    properties: ['openFile'],
-    filters: [{ name: '语料文件', extensions: ['txt', 'docx', 'pdf'] }]
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return {
-      success: false,
-      canceled: true,
-      message: '用户取消了选择'
-    }
-  }
-
-  const sourcePath = result.filePaths[0]
-  const originalName = path.basename(sourcePath)
-  const originalExt = path.extname(sourcePath).toLowerCase()
-  const { content, encoding } = await readCorpusFile(sourcePath)
-  const savedRecord = await getCorpusStorage().importCorpus({
-    originalName,
-    sourceType: originalExt === '.docx' ? 'docx' : originalExt === '.pdf' ? 'pdf' : 'txt',
-    content,
-    folderId:
-      normalizeIdentifier(payload?.folderId, {
-        fieldName: '文件夹 ID',
-        allowEmpty: true
-      }) || ''
-  })
-
-  return {
-    success: true,
-    mode: 'saved',
-    corpusId: savedRecord.meta.id,
-    filePath: savedRecord.filePath,
-    fileName: savedRecord.fileName,
-    displayName: savedRecord.meta.name,
-    folderId: savedRecord.meta.folderId,
-    folderName: savedRecord.meta.folderName,
-    content,
-    sourceEncoding: encoding
-  }
-})
-
-registerSafeIpcHandler('backup-corpus-library', async () => {
-  const result = await showOpenDialogForApp({
-    properties: ['openDirectory', 'createDirectory']
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return {
-      success: false,
-      canceled: true,
-      message: '用户取消了备份位置选择'
-    }
-  }
-
-  return getCorpusStorage().backupLibrary(result.filePaths[0])
-})
-
-registerSafeIpcHandler('restore-corpus-library', async () => {
-  const result = await showOpenDialogForApp({
-    properties: ['openDirectory']
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return {
-      success: false,
-      canceled: true,
-      message: '用户取消了备份目录选择'
-    }
-  }
-
-  return getCorpusStorage().restoreLibrary(result.filePaths[0])
-})
-
-registerSafeIpcHandler('repair-corpus-library', async () => {
-  return getCorpusStorage().repairLibrary()
-})
-
-registerSafeIpcHandler('create-corpus-folder', async (event, folderName) => {
-  return getCorpusStorage().createFolder(normalizeTextInput(folderName, { maxLength: 80 }))
-})
-
-registerSafeIpcHandler('rename-corpus-folder', async (event, { folderId, newName } = {}) => {
-  return getCorpusStorage().renameFolder(
-    normalizeIdentifier(folderId, { fieldName: '文件夹 ID' }),
-    normalizeTextInput(newName, { maxLength: 80 })
-  )
-})
-
-registerSafeIpcHandler('delete-corpus-folder', async (event, folderId) => {
-  return getCorpusStorage().deleteFolder(normalizeIdentifier(folderId, { fieldName: '文件夹 ID' }))
-})
-
-registerSafeIpcHandler('list-saved-corpora', async (event, payload = {}) => {
-  return getCorpusStorage().listLibrary(
-    normalizeIdentifier(payload?.folderId, {
-      fieldName: '文件夹 ID',
-      allowAll: true,
-      allowEmpty: true
-    }) || 'all'
-  )
-})
-
-registerSafeIpcHandler('list-searchable-corpora', async (event, payload = {}) => {
-  return getCorpusStorage().listSearchableCorpora(
-    normalizeIdentifier(payload?.folderId, {
-      fieldName: '文件夹 ID',
-      allowAll: true,
-      allowEmpty: true
-    }) || 'all'
-  )
-})
-
-registerSafeIpcHandler('list-recycle-bin', async () => {
-  return getCorpusStorage().listRecycleBin()
-})
-
-registerSafeIpcHandler('restore-recycle-entry', async (event, recycleEntryId) => {
-  return getCorpusStorage().restoreRecycleEntry(
-    normalizeIdentifier(recycleEntryId, { fieldName: '回收站条目 ID' })
-  )
-})
-
-registerSafeIpcHandler('purge-recycle-entry', async (event, recycleEntryId) => {
-  return getCorpusStorage().purgeRecycleEntry(
-    normalizeIdentifier(recycleEntryId, { fieldName: '回收站条目 ID' })
-  )
-})
-
-registerSafeIpcHandler('open-saved-corpus', async (event, corpusId) => {
-  return getCorpusStorage().openCorpus(normalizeIdentifier(corpusId, { fieldName: '语料 ID' }))
-})
-
-registerSafeIpcHandler('open-saved-corpora', async (event, corpusIds = []) => {
-  if (!Array.isArray(corpusIds) || corpusIds.length === 0) {
-    return {
-      success: false,
-      message: '请至少选择一条语料'
-    }
-  }
-
-  return getCorpusStorage().openCorpora(
-    corpusIds.map(corpusId => normalizeIdentifier(corpusId, { fieldName: '语料 ID' }))
-  )
-})
-
-registerSafeIpcHandler('rename-saved-corpus', async (event, { corpusId, newName } = {}) => {
-  return getCorpusStorage().renameCorpus(
-    normalizeIdentifier(corpusId, { fieldName: '语料 ID' }),
-    normalizeTextInput(newName, { maxLength: 120 })
-  )
-})
-
-registerSafeIpcHandler('move-saved-corpus', async (event, { corpusId, targetFolderId } = {}) => {
-  return getCorpusStorage().moveCorpus(
-    normalizeIdentifier(corpusId, { fieldName: '语料 ID' }),
-    normalizeIdentifier(targetFolderId, {
-      fieldName: '目标文件夹 ID',
-      allowEmpty: true
-    }) || ''
-  )
-})
-
-registerSafeIpcHandler('delete-saved-corpus', async (event, corpusId) => {
-  return getCorpusStorage().deleteCorpus(normalizeIdentifier(corpusId, { fieldName: '语料 ID' }))
+registerLibraryIpcRoutes({
+  registerSafeIpcHandler,
+  app,
+  fs,
+  path,
+  showOpenDialogForApp,
+  readCorpusFile,
+  inspectCorpusFilePreflight,
+  addRecentDocumentIfSupported,
+  getCorpusStorage,
+  normalizeFilePathInput,
+  normalizeIdentifier,
+  normalizeTextInput,
+  pathExists,
+  showItemInSystemFileManager
 })
 
 process.on('uncaughtException', error => {
   captureMainError('main.uncaughtException', error)
+  void diagnosticsController?.markCrashRecoveryState?.('main.uncaughtException', error)
   console.error('[uncaughtException]', error)
 })
 
@@ -553,14 +716,56 @@ process.on('unhandledRejection', reason => {
   captureMainError('main.unhandledRejection', normalizedError, {
     reason: reason instanceof Error ? undefined : String(reason)
   })
+  void diagnosticsController?.markCrashRecoveryState?.('main.unhandledRejection', normalizedError, {
+    reason: reason instanceof Error ? undefined : String(reason)
+  })
   console.error('[unhandledRejection]', reason)
 })
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32' && typeof app.setAppUserModelId === 'function') {
+    app.setAppUserModelId(APP_USER_MODEL_ID)
+  }
   diagnosticsController = createDiagnosticsController({
     app,
     packageManifest,
     logger: console
+  })
+  analysisCacheController = createAnalysisCacheController({
+    app,
+    fs,
+    logger: console
+  })
+  windowProgressController = createWindowProgressController({
+    platform: process.platform,
+    getWindows: () => BrowserWindow.getAllWindows(),
+    logger: console,
+    onApply: event => {
+      pushSmokeObserverEvent('windowProgress', event)
+    }
+  })
+  windowAttentionController = createWindowAttentionController({
+    app,
+    nativeImage,
+    appName: packageManifest.productName || packageManifest.name || app.getName() || 'WordZ',
+    platform: process.platform,
+    getWindows: () => BrowserWindow.getAllWindows(),
+    logger: console,
+    onApply: event => {
+      pushSmokeObserverEvent('windowAttention', event)
+    }
+  })
+  systemNotificationController = createSystemNotificationController({
+    NotificationClass: Notification,
+    appName: packageManifest.productName || packageManifest.name || app.getName() || 'WordZ',
+    logger: console,
+    onShow: event => {
+      pushSmokeObserverEvent('notifications', event)
+    },
+    onAction: event => {
+      pushSmokeObserverEvent('notificationActions', event)
+      dispatchSystemNotificationAction(event)
+    }
   })
   logMainDiagnostic('info', 'app', 'WordZ 正在启动。')
 
@@ -581,13 +786,39 @@ app.whenReady().then(async () => {
   }
 
   configureSessionSecurity()
+  setupApplicationMenu()
+  setupPlatformFileIntegration()
   autoUpdateController = createAutoUpdateController({
     app,
     packageManifest,
     getWindows: () => BrowserWindow.getAllWindows(),
+    onProgressStateChange: (state, progressPercent = 0) => {
+      if (!windowProgressController) return
+      if (state === 'checking') {
+        windowProgressController.updateSource('auto-update', {
+          state: 'indeterminate',
+          priority: 90
+        })
+        return
+      }
+      if (state === 'downloading') {
+        const normalizedProgress = Math.min(Math.max(Number(progressPercent) || 0, 0), 100) / 100
+        windowProgressController.updateSource('auto-update', {
+          state: Number.isFinite(normalizedProgress) && normalizedProgress > 0 ? 'normal' : 'indeterminate',
+          progress: normalizedProgress,
+          priority: 90
+        })
+        return
+      }
+      windowProgressController.clearSource('auto-update')
+    },
     logger: console
   })
-  createWindow()
+  handleLaunchActionArgs(process.argv)
+  handleSystemOpenFilePaths(process.argv)
+  if (!getPrimaryWindow()) {
+    createWindow()
+  }
   autoUpdateController.initialize()
   logMainDiagnostic('info', 'app', '主窗口与自动更新已初始化。')
 
@@ -606,5 +837,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   logMainDiagnostic('info', 'app', '应用即将退出。')
+  windowAttentionController?.clearAll?.()
+  windowProgressController?.clearAll?.()
   autoUpdateController?.dispose?.()
 })

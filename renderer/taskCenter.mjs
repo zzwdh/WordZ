@@ -11,6 +11,7 @@ function formatTaskCenterDuration(durationMs) {
 }
 
 function getTaskCenterStatusLabel(status) {
+  if (status === 'queued') return '排队中'
   if (status === 'running') return '进行中'
   if (status === 'success') return '已完成'
   if (status === 'cancelled') return '已取消'
@@ -27,6 +28,7 @@ export function createTaskCenterController({ dom, setButtonLabel }) {
   let entrySequence = 0
   let entries = []
   const activeEntryIds = new Map()
+  let metaSuffix = ''
 
   function updateButtonLabel() {
     if (!dom?.taskCenterButton) return
@@ -45,8 +47,10 @@ export function createTaskCenterController({ dom, setButtonLabel }) {
     if (!dom?.taskCenterList || !dom?.taskCenterMeta) return
 
     const activeCount = entries.filter(entry => entry.status === 'running').length
-    if (activeCount > 0) {
-      dom.taskCenterMeta.textContent = `运行中 ${activeCount} 项，已保留最近 ${entries.length} 条记录。`
+    const queuedCount = entries.filter(entry => entry.status === 'queued').length
+    if (activeCount > 0 || queuedCount > 0) {
+      const suffix = metaSuffix ? `，${metaSuffix}` : ''
+      dom.taskCenterMeta.textContent = `运行中 ${activeCount} 项，排队 ${queuedCount} 项${suffix}，已保留最近 ${entries.length} 条记录。`
     } else if (entries.length > 0) {
       dom.taskCenterMeta.textContent = `最近 ${entries.length} 条分析任务记录。`
     } else {
@@ -88,6 +92,8 @@ export function createTaskCenterController({ dom, setButtonLabel }) {
       meta.className = 'task-center-item-meta'
       meta.textContent = entry.status === 'running'
         ? `开始于 ${timeFormatter.format(new Date(entry.startedAt))}`
+        : entry.status === 'queued'
+          ? `排队于 ${timeFormatter.format(new Date(entry.startedAt))}`
         : `${timeFormatter.format(new Date(entry.finishedAt || entry.startedAt))} · 用时 ${formatTaskCenterDuration(entry.durationMs)}`
 
       article.append(head, detail, meta)
@@ -116,23 +122,46 @@ export function createTaskCenterController({ dom, setButtonLabel }) {
     },
     render,
     setOpen,
+    setMetaSuffix(suffix = '') {
+      metaSuffix = String(suffix || '').trim()
+      render()
+    },
     startEntry(taskKey, title, detail) {
+      return this.startEntryWithStatus(taskKey, title, detail, 'running')
+    },
+    startEntryWithStatus(taskKey, title, detail, status = 'running') {
       const entryId = `task-${++entrySequence}`
+      const normalizedStatus = status === 'queued' ? 'queued' : 'running'
       const entry = {
         id: entryId,
         taskKey,
         title,
         detail,
-        status: 'running',
+        status: normalizedStatus,
         startedAt: Date.now(),
         finishedAt: null,
         durationMs: 0
       }
 
       entries = [entry, ...entries].slice(0, TASK_CENTER_LIMIT)
-      activeEntryIds.set(taskKey, entryId)
+      if (normalizedStatus === 'running') {
+        activeEntryIds.set(taskKey, entryId)
+      }
       render()
       return entryId
+    },
+    promoteQueuedEntry(taskKey, detail = '') {
+      const entry = entries.find(item => item.taskKey === taskKey && item.status === 'queued')
+      if (!entry) return false
+      updateEntry(entry.id, {
+        status: 'running',
+        detail: detail || entry.detail,
+        startedAt: Date.now(),
+        finishedAt: null,
+        durationMs: 0
+      })
+      activeEntryIds.set(taskKey, entry.id)
+      return true
     },
     updateActiveEntry(taskKey, patch) {
       const entryId = activeEntryIds.get(taskKey)
@@ -156,6 +185,23 @@ export function createTaskCenterController({ dom, setButtonLabel }) {
         durationMs: Date.now() - entry.startedAt
       })
       activeEntryIds.delete(taskKey)
+    },
+    cancelQueuedEntries(detail = '已取消排队任务') {
+      const finishedAt = Date.now()
+      let cancelledCount = 0
+      entries = entries.map(entry => {
+        if (entry.status !== 'queued') return entry
+        cancelledCount += 1
+        return {
+          ...entry,
+          status: 'cancelled',
+          detail,
+          finishedAt,
+          durationMs: Math.max(0, finishedAt - entry.startedAt)
+        }
+      })
+      if (cancelledCount > 0) render()
+      return cancelledCount
     }
   }
 }

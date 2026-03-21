@@ -11,6 +11,13 @@ function isAbortError(error) {
 }
 
 export function createAnalysisBridge({ systemStatus, systemStatusText }) {
+  const TASKS_REQUIRING_LOADED_CORPUS = new Set([
+    'compute-stats',
+    'compute-ngrams',
+    'search-kwic',
+    'search-collocates'
+  ])
+
   let analysisWorker = null
   let analysisWorkerDisabled = false
   let analysisRequestSeq = 0
@@ -20,6 +27,7 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
   const analysisRunIds = {
     loadCorpus: 0,
     stats: 0,
+    ngram: 0,
     kwic: 0,
     collocate: 0
   }
@@ -187,7 +195,7 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
       const worker = getAnalysisWorker()
       const workerTask = worker
         ? (async () => {
-            if (type !== 'load-corpus') {
+            if (TASKS_REQUIRING_LOADED_CORPUS.has(type)) {
               await ensureWorkerCorpusLoaded(taskSignal)
             }
             return postAnalysisTask(type, payload, { signal: taskSignal })

@@ -2,9 +2,14 @@ import {
   compareCorpusFrequencies,
   buildTokenMatcher,
   buildCorpusData,
+  computeSegmentedNgramRows,
+  computeSegmentedStats,
   calculateSTTR,
   calculateTTR,
+  calculateChiSquare2x2,
+  countNgramFrequency,
   countWordFrequency,
+  getSortedNgramRows,
   getSortedFrequencyRows,
   normalizeSearchOptions,
   getSortedKWICResults as sortKWICResults,
@@ -39,6 +44,9 @@ import {
 import { dom } from './domRefs.mjs'
 import { createAnalysisBridge } from './analysisBridge.mjs'
 import {
+  renderChiSquareResult as renderChiSquareResultSection
+} from './features/chiSquare.mjs'
+import {
   buildAllCollocateRows as buildAllCollocateRowsData,
   buildCollocateRows as buildCollocateRowsData,
   renderCollocateTable as renderCollocateTableSection
@@ -68,6 +76,11 @@ import {
   buildKWICRows as buildKWICRowsData,
   renderKWICTable as renderKWICTableSection
 } from './features/kwic.mjs'
+import {
+  buildAllNgramRows as buildAllNgramRowsData,
+  buildNgramRows as buildNgramRowsData,
+  renderNgramTable as renderNgramTableSection
+} from './features/ngram.mjs'
 import {
   buildAllFrequencyRows as buildAllFrequencyRowsData,
   buildFrequencyRows as buildFrequencyRowsData,
@@ -107,8 +120,15 @@ import {
   shouldShowFirstRunTutorial
 } from './sessionState.mjs'
 import { createTaskCenterController } from './taskCenter.mjs'
+import {
+  bindLibraryTableEvents,
+  decorateLibraryTableControls,
+  decorateRecycleTableControls
+} from './controllers/libraryTableEvents.mjs'
 
 const {
+  dropImportOverlay,
+  dropImportHint,
   welcomeRestorePrompt,
   welcomeRestoreSummary,
   restoreWorkspaceButton,
@@ -131,6 +151,9 @@ const {
   taskCenterPanel,
   taskCenterMeta,
   taskCenterList,
+  queueToggleButton,
+  retryFailedTaskButton,
+  cancelQueuedTaskButton,
   closeTaskCenterButton,
   kwicButton,
   cancelKwicButton,
@@ -164,7 +187,27 @@ const {
   compareNextPageButton,
   comparePageInfo,
   compareTotalRowsInfo,
+  chiSquareMeta,
+  chiSquareResultWrapper,
+  chiAInput,
+  chiBInput,
+  chiCInput,
+  chiDInput,
+  chiYatesToggle,
+  chiSquareRunButton,
+  chiSquareResetButton,
   wordCloudWrapper,
+  ngramButton,
+  ngramSizeSelect,
+  ngramMeta,
+  ngramWrapper,
+  ngramPageSizeSelect,
+  ngramPrevPageButton,
+  ngramNextPageButton,
+  ngramPageInfo,
+  ngramTotalRowsInfo,
+  exportNgramButton,
+  exportAllNgramButton,
   freqFilterInput,
   searchQueryInputs,
   searchOptionInputs,
@@ -209,7 +252,9 @@ const {
   tabButtons,
   statsSection,
   compareSection,
+  chiSquareSection,
   wordCloudSection,
+  ngramSection,
   kwicSection,
   collocateSection,
   locatorSection,
@@ -239,15 +284,30 @@ const {
   uiFontSizeRange,
   uiFontFamilySelect,
   restoreWorkspaceToggle,
+  windowAttentionToggle,
+  notifyAnalysisCompleteToggle,
+  notifyUpdateDownloadedToggle,
+  notifyDiagnosticsExportToggle,
+  followSystemAccessibilityToggle,
   lightThemeButton,
   darkThemeButton,
+  systemThemeButton,
   debugLoggingToggle,
   diagnosticsStatusText,
   exportDiagnosticsButton,
   reportIssueButton,
+  analysisCacheValue,
+  analysisCacheStatusText,
+  refreshAnalysisCacheButton,
+  rebuildAnalysisCacheButton,
+  clearAnalysisCacheButton,
   resetUiSettingsButton,
   closeUiSettingsButton,
-  feedbackModal
+  feedbackModal,
+  commandPaletteModal,
+  commandPaletteInput,
+  commandPaletteList,
+  closeCommandPaletteButton
 } = dom
 
 const {
@@ -285,7 +345,7 @@ const {
   clampNumber
 })
 const { showAlert, showConfirm, showPrompt, showToast } = createFeedbackController(dom)
-const exportFeedback = { showAlert, showToast }
+const exportFeedback = { showAlert, showToast, notifySystem }
 let currentAppInfo = { ...DEFAULT_APP_INFO }
 let appInfoLoaded = false
 let appInfoPromise = null
@@ -316,6 +376,10 @@ let currentPage = 1
 let pageSize = 10
 let currentComparePage = 1
 let currentComparePageSize = 10
+let currentNgramRows = []
+let currentNgramPage = 1
+let currentNgramPageSize = 10
+let currentNgramSize = 2
 
 let currentKWICResults = []
 let currentKWICPage = 1
@@ -335,6 +399,14 @@ let currentCollocateKeyword = ''
 let currentCollocateLeftWindow = 5
 let currentCollocateRightWindow = 5
 let currentCollocateMinFreq = 1
+let currentChiSquareResult = null
+let currentChiSquareInputValues = {
+  a: '',
+  b: '',
+  c: '',
+  d: '',
+  yates: false
+}
 
 let currentTokenCount = 0
 let currentTypeCount = 0
@@ -354,6 +426,7 @@ let openCorpusMenuOpen = false
 let currentAutoUpdateState = null
 let announcedAvailableVersion = ''
 let promptedDownloadedVersion = ''
+let pendingTaskAttentionCount = 0
 let welcomeOverlayVisible = false
 let welcomeReady = false
 let welcomeTutorialVisible = false
@@ -365,32 +438,472 @@ let workspaceSnapshotReady = false
 let workspaceRestoreInProgress = false
 let recentOpenEntries = []
 let onboardingState = loadOnboardingState(localStorage, ONBOARDING_STORAGE_KEY)
+let systemOpenRequestQueue = Promise.resolve()
+let startupRestoreHandledByCrashWizard = false
+let dropImportDragDepth = 0
+const REMINDER_CATEGORY_SETTING_KEYS = Object.freeze({
+  'analysis-complete': 'notifyAnalysisComplete',
+  'update-downloaded': 'notifyUpdateDownloaded',
+  'diagnostics-export': 'notifyDiagnosticsExport'
+})
+const REMINDER_CATEGORY_LABELS = Object.freeze({
+  'analysis-complete': '分析完成提醒',
+  'update-downloaded': '更新下载完成提醒',
+  'diagnostics-export': '诊断导出完成提醒'
+})
+const AUTO_BUG_FEEDBACK_COOLDOWN_MS = 45 * 1000
+const AUTO_BUG_FEEDBACK_MAX_PROMPTS = 3
+const ANALYSIS_CACHE_SCHEMA_VERSION = 1
+const MAX_ANALYSIS_QUEUE_LENGTH = 12
+const LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD = 1200000
+const SEGMENTED_ANALYSIS_CHUNK_CHARS = 180000
+const MEMORY_PRESSURE_WARN_RATIO = 0.82
+const MEMORY_PRESSURE_WARN_COOLDOWN_MS = 60 * 1000
+let autoBugFeedbackPromptCount = 0
+let autoBugFeedbackLastPromptAt = 0
+let autoBugFeedbackLastSignature = ''
+let autoBugFeedbackInFlight = false
+let currentAnalysisCacheKey = ''
+let currentAnalysisCachePayload = null
+let currentAnalysisMode = 'full'
+let analysisQueuePaused = false
+let analysisQueueRunning = false
+let analysisQueueSeq = 0
+let analysisQueue = []
+let analysisQueueFailedItems = []
+let lastMemoryPressureWarningAt = 0
+let commandPaletteOpen = false
+let commandPaletteActiveIndex = 0
+let commandPaletteFilteredItems = []
+const activeTaskCenterTaskKeys = {
+  stats: 'stats',
+  kwic: 'kwic',
+  collocate: 'collocate'
+}
+let searchContextCache = {
+  query: '',
+  optionsKey: '',
+  context: null
+}
+let visibleFrequencyRowsCache = {
+  rowsRef: null,
+  searchKey: '',
+  result: []
+}
+let visibleCompareRowsCache = {
+  rowsRef: null,
+  searchKey: '',
+  result: []
+}
 
 function invalidateKWICSortCache() {
   currentKWICSortCache = { source: null, mode: 'original', rows: [] }
 }
 
+function buildSearchOptionsKey(options = currentSearchOptions) {
+  const normalized = normalizeSearchOptions(options)
+  return `${normalized.words ? '1' : '0'}${normalized.caseSensitive ? '1' : '0'}${normalized.regex ? '1' : '0'}`
+}
+
+function invalidateSearchCaches({ invalidateSearchContext = false } = {}) {
+  visibleFrequencyRowsCache = {
+    rowsRef: null,
+    searchKey: '',
+    result: []
+  }
+  visibleCompareRowsCache = {
+    rowsRef: null,
+    searchKey: '',
+    result: []
+  }
+  if (invalidateSearchContext) {
+    searchContextCache = {
+      query: '',
+      optionsKey: '',
+      context: null
+    }
+  }
+}
+
 function getCurrentSearchContext() {
-  return buildTokenMatcher(currentSearchQuery, currentSearchOptions)
+  const query = String(currentSearchQuery || '')
+  const optionsKey = buildSearchOptionsKey(currentSearchOptions)
+  if (
+    searchContextCache.context &&
+    searchContextCache.query === query &&
+    searchContextCache.optionsKey === optionsKey
+  ) {
+    return searchContextCache.context
+  }
+  const context = buildTokenMatcher(query, currentSearchOptions)
+  searchContextCache = {
+    query,
+    optionsKey,
+    context
+  }
+  return context
+}
+
+function computeTextFingerprint(text) {
+  const source = String(text || '')
+  let hash = 0x811c9dc5
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index)
+    hash ^= code & 0xff
+    hash = Math.imul(hash, 0x01000193) >>> 0
+    hash ^= (code >>> 8) & 0xff
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+function buildComparisonSignature(comparisonEntries = currentComparisonEntries) {
+  if (!Array.isArray(comparisonEntries) || comparisonEntries.length === 0) return 'none'
+  const signatureParts = comparisonEntries.map(entry => {
+    const corpusId = String(entry?.corpusId || '').trim()
+    const content = String(entry?.content || '')
+    const sample = content.length <= 2048
+      ? content
+      : `${content.slice(0, 1024)}${content.slice(-1024)}`
+    return `${corpusId}:${content.length}:${computeTextFingerprint(sample)}`
+  })
+  return computeTextFingerprint(signatureParts.join('|'))
+}
+
+function buildAnalysisCacheKey(result = {}, text = '') {
+  const mode = String(result?.mode || currentCorpusMode || 'quick').trim() || 'quick'
+  const corpusId = String(result?.corpusId || currentCorpusId || '').trim()
+  const filePath = String(result?.filePath || '').trim()
+  const selectedIds = Array.isArray(result?.selectedItems)
+    ? result.selectedItems.map(item => String(item?.id || '').trim()).filter(Boolean).join(',')
+    : currentSelectedCorpora.map(item => String(item?.id || '').trim()).filter(Boolean).join(',')
+  const comparisonSignature = buildComparisonSignature(
+    Array.isArray(result?.comparisonEntries) ? result.comparisonEntries : currentComparisonEntries
+  )
+  const identity = [mode, corpusId, selectedIds, filePath, comparisonSignature].join('|')
+  return `wordz-v1:${computeTextFingerprint(identity)}:${computeTextFingerprint(text)}`
+}
+
+function normalizeCachedStats(stats) {
+  if (!stats || typeof stats !== 'object') return null
+  if (!Array.isArray(stats.freqRows)) return null
+  return {
+    freqRows: stats.freqRows,
+    tokenCount: Number(stats.tokenCount) || 0,
+    typeCount: Number(stats.typeCount) || 0,
+    ttr: Number(stats.ttr) || 0,
+    sttr: Number(stats.sttr) || 0,
+    compareSignature: String(stats.compareSignature || ''),
+    compareCorpora: Array.isArray(stats.compareCorpora) ? stats.compareCorpora : [],
+    compareRows: Array.isArray(stats.compareRows) ? stats.compareRows : []
+  }
+}
+
+function normalizeAnalysisMode(mode) {
+  return String(mode || '').trim().toLowerCase() === 'segmented' ? 'segmented' : 'full'
+}
+
+function shouldUseSegmentedAnalysis(text) {
+  return String(text || '').length >= LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD
+}
+
+function normalizeAnalysisCachePayload(payload) {
+  if (!payload || typeof payload !== 'object') return null
+  if (Number(payload.schemaVersion) !== ANALYSIS_CACHE_SCHEMA_VERSION) return null
+  const analysisMode = normalizeAnalysisMode(payload.analysisMode)
+  const rawCorpusData = payload.corpusData
+  if (!rawCorpusData || typeof rawCorpusData !== 'object') return null
+  const corpusData = {
+    sentences: Array.isArray(rawCorpusData.sentences) ? rawCorpusData.sentences : [],
+    tokenObjects: Array.isArray(rawCorpusData.tokenObjects) ? rawCorpusData.tokenObjects : [],
+    tokens: Array.isArray(rawCorpusData.tokens) ? rawCorpusData.tokens : []
+  }
+  if (
+    analysisMode === 'full' &&
+    (!Array.isArray(rawCorpusData.sentences) || !Array.isArray(rawCorpusData.tokenObjects) || !Array.isArray(rawCorpusData.tokens))
+  ) {
+    return null
+  }
+  const normalizedNgrams = {}
+  if (payload.ngrams && typeof payload.ngrams === 'object') {
+    for (const [rawSize, rows] of Object.entries(payload.ngrams)) {
+      if (!Array.isArray(rows)) continue
+      const size = Number(rawSize)
+      if (!Number.isFinite(size) || size <= 0) continue
+      normalizedNgrams[String(size)] = rows
+    }
+  }
+  return {
+    schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
+    analysisMode,
+    corpusData,
+    stats: normalizeCachedStats(payload.stats),
+    ngrams: normalizedNgrams
+  }
+}
+
+async function loadAnalysisCachePayload(cacheKey) {
+  const normalizedKey = String(cacheKey || '').trim()
+  if (!normalizedKey || !window.electronAPI?.getAnalysisCache) return null
+  try {
+    const result = await window.electronAPI.getAnalysisCache(normalizedKey)
+    if (!result?.success || !result?.hit) return null
+    return normalizeAnalysisCachePayload(result.payload)
+  } catch (error) {
+    console.warn('[analysis-cache.load]', error)
+    return null
+  }
+}
+
+async function persistAnalysisCachePayload(cacheKey = currentAnalysisCacheKey, payload = currentAnalysisCachePayload) {
+  const normalizedKey = String(cacheKey || '').trim()
+  const normalizedPayload = normalizeAnalysisCachePayload(payload)
+  if (!normalizedKey || !normalizedPayload || !window.electronAPI?.setAnalysisCache) return false
+  try {
+    const result = await window.electronAPI.setAnalysisCache(normalizedKey, normalizedPayload)
+    return result?.success === true
+  } catch (error) {
+    console.warn('[analysis-cache.save]', error)
+    return false
+  }
+}
+
+function updateCurrentAnalysisCache({ stats = null, ngramSize = null, ngramRows = null } = {}) {
+  if (!currentAnalysisCachePayload || typeof currentAnalysisCachePayload !== 'object') return
+
+  if (stats && typeof stats === 'object') {
+    currentAnalysisCachePayload = {
+      ...currentAnalysisCachePayload,
+      stats: {
+        freqRows: Array.isArray(stats.freqRows) ? stats.freqRows : [],
+        tokenCount: Number(stats.tokenCount) || 0,
+        typeCount: Number(stats.typeCount) || 0,
+        ttr: Number(stats.ttr) || 0,
+        sttr: Number(stats.sttr) || 0,
+        compareSignature: String(stats.compareSignature || ''),
+        compareCorpora: Array.isArray(stats.compareCorpora) ? stats.compareCorpora : [],
+        compareRows: Array.isArray(stats.compareRows) ? stats.compareRows : []
+      }
+    }
+  }
+
+  if (Number.isFinite(Number(ngramSize)) && Array.isArray(ngramRows)) {
+    currentAnalysisCachePayload = {
+      ...currentAnalysisCachePayload,
+      ngrams: {
+        ...(currentAnalysisCachePayload.ngrams || {}),
+        [String(Number(ngramSize))]: ngramRows
+      }
+    }
+  }
+}
+
+function formatBytes(value) {
+  const bytes = Math.max(0, Number(value) || 0)
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+function readMemorySnapshot() {
+  const memory = globalThis?.performance?.memory
+  if (!memory) return null
+  const used = Number(memory.usedJSHeapSize) || 0
+  const total = Number(memory.totalJSHeapSize) || 0
+  const limit = Number(memory.jsHeapSizeLimit) || 0
+  if (!used || !limit) return null
+  return {
+    used,
+    total,
+    limit,
+    usedRatio: used / limit
+  }
+}
+
+function maybeWarnMemoryPressure(source = '') {
+  const memorySnapshot = readMemorySnapshot()
+  if (!memorySnapshot) return
+  if (memorySnapshot.usedRatio < MEMORY_PRESSURE_WARN_RATIO) return
+  const now = Date.now()
+  if (now - lastMemoryPressureWarningAt < MEMORY_PRESSURE_WARN_COOLDOWN_MS) return
+  lastMemoryPressureWarningAt = now
+
+  const ratioLabel = `${Math.round(memorySnapshot.usedRatio * 100)}%`
+  const message = `当前内存占用较高（${ratioLabel}，约 ${formatBytes(memorySnapshot.used)} / ${formatBytes(memorySnapshot.limit)}）。建议先完成导出并切换更小语料。`
+  showToast(message, {
+    title: '内存保护提醒',
+    duration: 3200
+  })
+  void recordDiagnostic('warn', 'analysis.memory-pressure', message, {
+    source,
+    usedBytes: memorySnapshot.used,
+    limitBytes: memorySnapshot.limit,
+    usedRatio: memorySnapshot.usedRatio
+  })
+}
+
+function buildAnalysisCachePayloadFromCurrentState() {
+  const existingNgrams =
+    currentAnalysisCachePayload && typeof currentAnalysisCachePayload === 'object' && currentAnalysisCachePayload.ngrams
+      ? currentAnalysisCachePayload.ngrams
+      : {}
+  const hasStats = currentFreqRows.length > 0 || currentTokenCount > 0
+  return normalizeAnalysisCachePayload({
+    schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
+    analysisMode: currentAnalysisMode,
+    corpusData:
+      currentAnalysisMode === 'segmented'
+        ? { sentences: [], tokenObjects: [], tokens: [] }
+        : {
+            sentences: Array.isArray(currentSentenceObjects) ? currentSentenceObjects : [],
+            tokenObjects: Array.isArray(currentTokenObjects) ? currentTokenObjects : [],
+            tokens: Array.isArray(currentTokens) ? currentTokens : []
+          },
+    stats: hasStats
+      ? {
+          freqRows: currentFreqRows,
+          tokenCount: currentTokenCount,
+          typeCount: currentTypeCount,
+          ttr: currentTTR,
+          sttr: currentSTTR,
+          compareSignature: buildComparisonSignature(currentComparisonEntries),
+          compareCorpora: currentComparisonCorpora,
+          compareRows: currentComparisonRows
+        }
+      : null,
+    ngrams: existingNgrams
+  })
+}
+
+async function refreshAnalysisCacheState({ silent = false } = {}) {
+  if (!analysisCacheValue || !analysisCacheStatusText) return null
+  if (!window.electronAPI?.getAnalysisCacheState) {
+    analysisCacheValue.textContent = '不可用'
+    analysisCacheStatusText.textContent = '当前版本未启用分析缓存状态接口。'
+    if (refreshAnalysisCacheButton) refreshAnalysisCacheButton.disabled = true
+    if (clearAnalysisCacheButton) clearAnalysisCacheButton.disabled = true
+    if (rebuildAnalysisCacheButton) rebuildAnalysisCacheButton.disabled = true
+    return null
+  }
+
+  try {
+    const state = await window.electronAPI.getAnalysisCacheState()
+    if (!state?.success) {
+      analysisCacheValue.textContent = '读取失败'
+      analysisCacheStatusText.textContent = state?.message || '分析缓存状态读取失败。'
+      return null
+    }
+    const entryCount = Number(state.entryCount) || 0
+    analysisCacheValue.textContent = `${formatCount(entryCount)} 条`
+    analysisCacheStatusText.textContent = `目录：${state.cacheDir || '未知'} ｜ 总占用：${formatBytes(state.totalBytes)} ｜ 上限：${formatBytes(state.maxTotalBytes)}`
+    if (clearAnalysisCacheButton) clearAnalysisCacheButton.disabled = entryCount === 0
+    if (rebuildAnalysisCacheButton) rebuildAnalysisCacheButton.disabled = !currentAnalysisCacheKey
+    return state
+  } catch (error) {
+    console.warn('[analysis-cache.state]', error)
+    analysisCacheValue.textContent = '读取失败'
+    analysisCacheStatusText.textContent = error?.message || '分析缓存状态读取失败。'
+    if (!silent) {
+      showToast('分析缓存状态读取失败。', {
+        title: '缓存管理'
+      })
+    }
+    return null
+  }
+}
+
+async function rebuildCurrentAnalysisCache({ silent = false } = {}) {
+  const cacheKey = String(currentAnalysisCacheKey || '').trim()
+  if (!cacheKey) {
+    if (!silent) {
+      showToast('当前没有可重建缓存的语料。', {
+        title: '缓存管理'
+      })
+    }
+    return false
+  }
+
+  const nextPayload = buildAnalysisCachePayloadFromCurrentState()
+  if (!nextPayload) {
+    if (!silent) {
+      showToast('当前缓存快照无效，无法重建。', {
+        title: '缓存管理'
+      })
+    }
+    return false
+  }
+
+  currentAnalysisCachePayload = nextPayload
+  const saved = await persistAnalysisCachePayload(cacheKey, nextPayload)
+  if (!saved) {
+    if (!silent) {
+      showToast('重建分析缓存失败。', {
+        title: '缓存管理'
+      })
+    }
+    return false
+  }
+
+  if (window.electronAPI?.pruneAnalysisCache) {
+    try {
+      await window.electronAPI.pruneAnalysisCache()
+    } catch {
+      // ignore prune failures
+    }
+  }
+
+  await refreshAnalysisCacheState({ silent: true })
+  if (!silent) {
+    showToast('已重建当前语料缓存。', {
+      title: '缓存管理',
+      type: 'success'
+    })
+  }
+  return true
 }
 
 function getVisibleFrequencyRows() {
-  const { matcher, normalizedQuery, error } = getCurrentSearchContext()
+  const { matcher, normalizedQuery, options, error } = getCurrentSearchContext()
   if (error) return []
-  if (!normalizedQuery) return currentFreqRows
-  return currentFreqRows.filter(([word]) => matcher(String(word || '')))
+  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}`
+  if (visibleFrequencyRowsCache.rowsRef === currentFreqRows && visibleFrequencyRowsCache.searchKey === searchKey) {
+    return visibleFrequencyRowsCache.result
+  }
+  const rows = !normalizedQuery
+    ? currentFreqRows
+    : currentFreqRows.filter(([word]) => matcher(String(word || '')))
+  visibleFrequencyRowsCache = {
+    rowsRef: currentFreqRows,
+    searchKey,
+    result: rows
+  }
+  return rows
 }
 
 function getVisibleCompareRows() {
-  const { matcher, normalizedQuery, error } = getCurrentSearchContext()
+  const { matcher, normalizedQuery, options, error } = getCurrentSearchContext()
   if (error) return []
-  if (!normalizedQuery) return currentComparisonRows
-  return currentComparisonRows.filter(row => matcher(String(row?.word || '')))
+  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}`
+  if (visibleCompareRowsCache.rowsRef === currentComparisonRows && visibleCompareRowsCache.searchKey === searchKey) {
+    return visibleCompareRowsCache.result
+  }
+  const rows = !normalizedQuery
+    ? currentComparisonRows
+    : currentComparisonRows.filter(row => matcher(String(row?.word || '')))
+  visibleCompareRowsCache = {
+    rowsRef: currentComparisonRows,
+    searchKey,
+    result: rows
+  }
+  return rows
 }
 
 function getTabLabel(tabName) {
   if (tabName === 'compare') return '对比分析'
+  if (tabName === 'chi-square') return '卡方检验'
   if (tabName === 'word-cloud') return '词云'
+  if (tabName === 'ngram') return 'Ngram'
   if (tabName === 'kwic') return 'KWIC 检索'
   if (tabName === 'collocate') return 'Collocate 统计'
   if (tabName === 'locator') return '原文定位'
@@ -427,6 +940,178 @@ function clearRecentOpenEntries() {
   recentOpenEntries = []
   persistRecentOpenEntries()
   renderRecentOpenList()
+}
+
+async function notifySystem({ title, body, subtitle = '', tag = '', silent = false, category = '', action = null } = {}) {
+  const normalizedCategory = String(category || '').trim()
+  if (getCurrentUISettings().systemNotifications === false) {
+    return {
+      success: false,
+      skipped: true
+    }
+  }
+
+  if (!isReminderCategoryEnabled(normalizedCategory)) {
+    return {
+      success: false,
+      skipped: true
+    }
+  }
+
+  if (!window.electronAPI?.showSystemNotification) {
+    return {
+      success: false,
+      unavailable: true
+    }
+  }
+
+  try {
+    return await window.electronAPI.showSystemNotification({
+      title,
+      body,
+      subtitle,
+      tag,
+      silent,
+      action
+    })
+  } catch (error) {
+    console.warn('[system-notification]', error)
+    return {
+      success: false,
+      message: error?.message || '系统通知发送失败'
+    }
+  }
+}
+
+async function setWindowProgressState({ source, state, progress = 0, priority = 0 } = {}) {
+  if (!window.electronAPI?.setWindowProgressState) {
+    return {
+      success: false,
+      unavailable: true
+    }
+  }
+
+  try {
+    return await window.electronAPI.setWindowProgressState({
+      source,
+      state,
+      progress,
+      priority
+    })
+  } catch (error) {
+    console.warn('[window-progress]', error)
+    return {
+      success: false,
+      message: error?.message || '窗口进度条更新失败'
+    }
+  }
+}
+
+async function setWindowAttentionState({ source, state, count = 0, description = '', priority = 0, requestAttention = false, category = '' } = {}) {
+  const normalizedState = String(state || '').trim().toLowerCase()
+  const normalizedCategory = String(category || '').trim()
+  if (normalizedState !== 'none' && getCurrentUISettings().windowAttention === false) {
+    return {
+      success: false,
+      skipped: true
+    }
+  }
+
+  if (normalizedState !== 'none' && !isReminderCategoryEnabled(normalizedCategory)) {
+    return {
+      success: false,
+      skipped: true
+    }
+  }
+
+  if (!window.electronAPI?.setWindowAttentionState) {
+    return {
+      success: false,
+      unavailable: true
+    }
+  }
+
+  try {
+    return await window.electronAPI.setWindowAttentionState({
+      source,
+      state,
+      count,
+      description,
+      priority,
+      requestAttention
+    })
+  } catch (error) {
+    console.warn('[window-attention]', error)
+    return {
+      success: false,
+      message: error?.message || '窗口提醒状态更新失败'
+    }
+  }
+}
+
+function clearTaskCenterAttention() {
+  pendingTaskAttentionCount = 0
+  void setWindowAttentionState({
+    source: 'task-center',
+    state: 'none'
+  })
+}
+
+function isReminderCategoryEnabled(category) {
+  const categoryKey = REMINDER_CATEGORY_SETTING_KEYS[category]
+  if (!categoryKey) return true
+  return getCurrentUISettings()[categoryKey] !== false
+}
+
+function applyReminderCategoryChange(category, checked) {
+  const categoryLabel = REMINDER_CATEGORY_LABELS[category] || category
+  if (!checked) {
+    if (category === 'analysis-complete') {
+      clearTaskCenterAttention()
+    }
+    if (category === 'update-downloaded') {
+      void setWindowAttentionState({
+        source: 'auto-update',
+        state: 'none'
+      })
+    }
+  }
+  void recordDiagnostic(
+    'info',
+    'reminder.category',
+    checked ? `用户已开启${categoryLabel}。` : `用户已关闭${categoryLabel}。`
+  )
+}
+
+function clearAllWindowAttention() {
+  clearTaskCenterAttention()
+  void setWindowAttentionState({
+    source: 'auto-update',
+    state: 'none'
+  })
+}
+
+function pushTaskCenterAttention(title, detail, category = 'analysis-complete') {
+  if (!isReminderCategoryEnabled(category)) return
+  const shouldTrackUnread = !(taskCenter.isOpen() && !document.hidden && document.hasFocus())
+  if (!shouldTrackUnread) return
+  pendingTaskAttentionCount = Math.min(99, pendingTaskAttentionCount + 1)
+  void setWindowAttentionState({
+    source: 'task-center',
+    count: pendingTaskAttentionCount,
+    description: `${title}：${detail}`.slice(0, 120),
+    priority: 45,
+    requestAttention: document.hidden || !document.hasFocus(),
+    category
+  })
+}
+
+function finishTaskEntryWithAttention(taskKey, title, status, detail, category = 'analysis-complete') {
+  taskCenter.finishEntry(taskKey, status, detail)
+  updateAnalysisQueueControls()
+  if (status === 'success' || status === 'failed' || status === 'cancelled') {
+    pushTaskCenterAttention(title, detail, category)
+  }
 }
 
 function setWelcomeRestorePromptSnapshot(snapshot) {
@@ -511,6 +1196,59 @@ function getSearchOptionsSummary() {
   return enabled.length > 0 ? enabled.join(' / ') : '默认匹配'
 }
 
+function syncChiSquareInputsFromState() {
+  if (chiAInput) chiAInput.value = currentChiSquareInputValues.a
+  if (chiBInput) chiBInput.value = currentChiSquareInputValues.b
+  if (chiCInput) chiCInput.value = currentChiSquareInputValues.c
+  if (chiDInput) chiDInput.value = currentChiSquareInputValues.d
+  if (chiYatesToggle) chiYatesToggle.checked = currentChiSquareInputValues.yates === true
+}
+
+function captureChiSquareInputsFromControls() {
+  currentChiSquareInputValues = {
+    a: String(chiAInput?.value || '').trim(),
+    b: String(chiBInput?.value || '').trim(),
+    c: String(chiCInput?.value || '').trim(),
+    d: String(chiDInput?.value || '').trim(),
+    yates: chiYatesToggle?.checked === true
+  }
+}
+
+function getChiSquareInputNumber(control, label) {
+  const rawValue = String(control?.value || '').trim()
+  if (!rawValue) {
+    throw new Error(`${label} 不能为空`)
+  }
+  const value = Number(rawValue)
+  if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+    throw new Error(`${label} 必须是大于等于 0 的整数`)
+  }
+  return value
+}
+
+function readChiSquareInputNumbers() {
+  return {
+    a: getChiSquareInputNumber(chiAInput, 'A（语料 A 目标词）'),
+    b: getChiSquareInputNumber(chiBInput, 'B（语料 A 非目标词）'),
+    c: getChiSquareInputNumber(chiCInput, 'C（语料 B 目标词）'),
+    d: getChiSquareInputNumber(chiDInput, 'D（语料 B 非目标词）'),
+    yates: chiYatesToggle?.checked === true
+  }
+}
+
+function getChiSquareState() {
+  return {
+    currentChiSquareResult
+  }
+}
+
+function renderChiSquareResult() {
+  renderChiSquareResultSection(getChiSquareState(), dom, {
+    escapeHtml,
+    formatCount
+  })
+}
+
 function renderWordCloud() {
   renderWordCloudSection(getStatsState(), dom, {
     escapeHtml,
@@ -545,6 +1283,7 @@ function rerenderSearchDrivenViews() {
 
 function setSharedSearchQuery(value, { rerender = true } = {}) {
   currentSearchQuery = String(value || '')
+  invalidateSearchCaches({ invalidateSearchContext: true })
   syncSharedSearchInputs()
   scheduleWorkspaceSnapshotSave()
   if (rerender) {
@@ -553,9 +1292,12 @@ function setSharedSearchQuery(value, { rerender = true } = {}) {
 }
 
 function setSharedSearchOption(optionName, checked, { rerender = true } = {}) {
-  if (optionName === 'words') currentSearchOptions.words = Boolean(checked)
-  else if (optionName === 'case') currentSearchOptions.caseSensitive = Boolean(checked)
-  else if (optionName === 'regex') currentSearchOptions.regex = Boolean(checked)
+  const nextOptions = { ...currentSearchOptions }
+  if (optionName === 'words') nextOptions.words = Boolean(checked)
+  else if (optionName === 'case') nextOptions.caseSensitive = Boolean(checked)
+  else if (optionName === 'regex') nextOptions.regex = Boolean(checked)
+  currentSearchOptions = normalizeSearchOptions(nextOptions)
+  invalidateSearchCaches({ invalidateSearchContext: true })
   syncSearchOptionInputs()
   scheduleWorkspaceSnapshotSave()
   if (rerender) {
@@ -619,6 +1361,7 @@ function syncComparisonMetadataFromSelection() {
     currentComparisonCorpora = []
     currentComparisonRows = []
     currentComparePage = 1
+    invalidateSearchCaches()
     return
   }
 
@@ -641,6 +1384,7 @@ function syncComparisonMetadataFromSelection() {
     currentComparisonCorpora = []
     currentComparisonRows = []
     currentComparePage = 1
+    invalidateSearchCaches()
     return
   }
 
@@ -675,6 +1419,7 @@ function syncComparisonMetadataFromSelection() {
           })
       : []
   }))
+  invalidateSearchCaches()
 }
 
 function patchCurrentSelectedCorpora(predicate, patch) {
@@ -714,6 +1459,19 @@ function setOpenCorpusMenuOpen(open) {
   if (openCorpusMenuOpen) renderRecentOpenList()
   openCorpusMenuPanel.classList.toggle('hidden', !openCorpusMenuOpen)
   openCorpusMenuButton.setAttribute('aria-expanded', String(openCorpusMenuOpen))
+}
+
+async function revealNativeToolbarOverflowForSmoke() {
+  const overflowNode = document.querySelector('.toolbar-native-overflow')
+  if (!overflowNode || !window.electronAPI?.getSmokeObserverState) return
+  try {
+    const result = await window.electronAPI.getSmokeObserverState()
+    if (!result?.success) return
+    overflowNode.classList.remove('hidden')
+    overflowNode.setAttribute('aria-hidden', 'false')
+  } catch {
+    // ignore smoke probe failures
+  }
 }
 
 function setButtonLabel(button, label) {
@@ -841,6 +1599,24 @@ async function handleAutoUpdateStatus(updateState, { announce = true, promptOnDo
   applyAutoUpdateButtonState(updateState)
   if (!updateState) return
 
+  if (updateState.state === 'downloaded') {
+    void setWindowAttentionState({
+      source: 'auto-update',
+      count: 1,
+      description: updateState.downloadedVersion
+        ? `WordZ ${updateState.downloadedVersion} 已下载完成`
+        : 'WordZ 新版本已下载完成',
+      priority: 80,
+      requestAttention: announce,
+      category: 'update-downloaded'
+    })
+  } else {
+    void setWindowAttentionState({
+      source: 'auto-update',
+      state: 'none'
+    })
+  }
+
   if (announce) {
     if (updateState.state === 'downloading' && updateState.availableVersion && announcedAvailableVersion !== updateState.availableVersion) {
       announcedAvailableVersion = updateState.availableVersion
@@ -858,6 +1634,18 @@ async function handleAutoUpdateStatus(updateState, { announce = true, promptOnDo
         duration: 4200
       })
     }
+  }
+
+  if (announce && updateState.state === 'downloaded') {
+    void notifySystem({
+      title: '更新已下载完成',
+      body: updateState.downloadedVersion
+        ? `WordZ ${updateState.downloadedVersion} 已准备好，重启应用即可安装。`
+        : '新版本已经下载完成，重启应用即可安装。',
+      tag: 'update-downloaded',
+      category: 'update-downloaded',
+      action: 'prompt-install-update'
+    })
   }
 
   if (promptOnDownloaded && updateState.state === 'downloaded') {
@@ -887,9 +1675,21 @@ async function initializeAutoUpdate() {
 
 function updateAnalysisActionButtons() {
   const disablePrimaryActions = isCorpusLoading || Boolean(activeCancelableAnalysis)
+  const segmentedSearchDisabled = currentAnalysisMode === 'segmented'
   countButton.disabled = disablePrimaryActions
-  kwicButton.disabled = disablePrimaryActions
-  collocateButton.disabled = disablePrimaryActions
+  if (ngramButton) ngramButton.disabled = disablePrimaryActions
+  kwicButton.disabled = disablePrimaryActions || segmentedSearchDisabled
+  collocateButton.disabled = disablePrimaryActions || segmentedSearchDisabled
+  if (kwicButton) {
+    kwicButton.title = segmentedSearchDisabled
+      ? '分段分析模式下为保证稳定性，KWIC 暂不可用'
+      : ''
+  }
+  if (collocateButton) {
+    collocateButton.title = segmentedSearchDisabled
+      ? '分段分析模式下为保证稳定性，Collocate 暂不可用'
+      : ''
+  }
 
   const cancelButtonStates = [
     { name: 'stats', button: cancelStatsButton, defaultLabel: '取消统计' },
@@ -917,6 +1717,9 @@ function endCancelableAnalysis(taskName) {
     activeCancelableAnalysis = null
     cancellingAnalysis = null
     updateAnalysisActionButtons()
+    if (!analysisQueuePaused && analysisQueue.length > 0) {
+      void runAnalysisQueueIfNeeded()
+    }
   }
 }
 
@@ -925,7 +1728,8 @@ function requestCancelAnalysis(taskName, busyMessage, cancelMessage) {
   cancellingAnalysis = taskName
   updateAnalysisActionButtons()
   if (systemStatusText) systemStatusText.textContent = busyMessage
-  taskCenter.updateActiveEntry(taskName, { detail: busyMessage })
+  const taskCenterTaskKey = activeTaskCenterTaskKeys[taskName] || taskName
+  taskCenter.updateActiveEntry(taskCenterTaskKey, { detail: busyMessage })
   return cancelAnalysisTask(taskName, cancelMessage)
 }
 
@@ -1088,9 +1892,12 @@ function decorateStaticButtons() {
   decorateButton(cancelKwicButton, 'stop')
   decorateButton(collocateButton, 'stats')
   decorateButton(cancelCollocateButton, 'stop')
+  decorateButton(ngramButton, 'stats')
   decorateButton(copyStatsButton, 'export')
   decorateButton(copyFreqButton, 'export')
   decorateButton(exportAllFreqButton, 'exportAll')
+  decorateButton(exportNgramButton, 'export')
+  decorateButton(exportAllNgramButton, 'exportAll')
   decorateButton(copyCompareButton, 'export')
   decorateButton(exportAllCompareButton, 'exportAll')
   decorateButton(copyKWICButton, 'export')
@@ -1114,34 +1921,40 @@ function decorateStaticButtons() {
   decorateButton(closeRecycleButton, 'close')
   decorateButton(lightThemeButton, 'sun')
   decorateButton(darkThemeButton, 'moon')
+  decorateButton(systemThemeButton, 'systemTheme')
 }
 
 function decorateLibraryControls() {
-  libraryFolderList.querySelectorAll('[data-rename-folder-id]').forEach(button => decorateButton(button, 'edit'))
-  libraryFolderList.querySelectorAll('[data-delete-folder-id]').forEach(button => decorateButton(button, 'delete'))
-  libraryTableWrapper.querySelectorAll('[data-open-corpus-id]').forEach(button => decorateButton(button, 'open'))
-  libraryTableWrapper.querySelectorAll('[data-rename-corpus-id]').forEach(button => decorateButton(button, 'edit'))
-  libraryTableWrapper.querySelectorAll('[data-move-corpus-id]').forEach(button => decorateButton(button, 'move'))
-  libraryTableWrapper.querySelectorAll('[data-delete-corpus-id]').forEach(button => decorateButton(button, 'delete'))
+  decorateLibraryTableControls({
+    libraryFolderList,
+    libraryTableWrapper,
+    decorateButton
+  })
 }
 
 function decorateRecycleControls() {
-  recycleTableWrapper.querySelectorAll('[data-restore-recycle-entry-id]').forEach(button => decorateButton(button, 'restore'))
-  recycleTableWrapper.querySelectorAll('[data-purge-recycle-entry-id]').forEach(button => decorateButton(button, 'delete'))
+  decorateRecycleTableControls({
+    recycleTableWrapper,
+    decorateButton
+  })
 }
 
 function switchTab(tabName) {
   currentTab = tabName || 'stats'
   statsSection.classList.add('hidden')
   compareSection.classList.add('hidden')
+  chiSquareSection.classList.add('hidden')
   wordCloudSection.classList.add('hidden')
+  ngramSection.classList.add('hidden')
   kwicSection.classList.add('hidden')
   collocateSection.classList.add('hidden')
   locatorSection.classList.add('hidden')
   tabButtons.forEach(button => button.classList.remove('active'))
   if (tabName === 'stats') statsSection.classList.remove('hidden')
   else if (tabName === 'compare') compareSection.classList.remove('hidden')
+  else if (tabName === 'chi-square') chiSquareSection.classList.remove('hidden')
   else if (tabName === 'word-cloud') wordCloudSection.classList.remove('hidden')
+  else if (tabName === 'ngram') ngramSection.classList.remove('hidden')
   else if (tabName === 'kwic') kwicSection.classList.remove('hidden')
   else if (tabName === 'collocate') collocateSection.classList.remove('hidden')
   else if (tabName === 'locator') {
@@ -1160,6 +1973,7 @@ tabButtons.forEach(button => {
 function getStatsState() {
   const currentSearchContext = getCurrentSearchContext()
   return {
+    currentAnalysisMode,
     currentCorpusMode,
     currentCorpusDisplayName,
     currentCorpusFolderName,
@@ -1195,6 +2009,14 @@ function getCompareState() {
     currentComparePageSize,
     hasStats: currentFreqRows.length > 0 || currentTokenCount > 0,
     comparisonEligible: currentComparisonEntries.length >= 2
+  }
+}
+
+function getNgramState() {
+  return {
+    currentNgramRows,
+    currentNgramPage,
+    currentNgramPageSize
   }
 }
 
@@ -1246,28 +2068,187 @@ async function recordDiagnostic(level, scope, message, details = null) {
   }
 }
 
+function normalizeDiagnosticError(error) {
+  return error instanceof Error
+    ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack || ''
+      }
+    : {
+        name: 'Error',
+        message: String(error || '未知错误')
+      }
+}
+
 function recordDiagnosticError(scope, error, details = null) {
-  const normalizedError =
-    error instanceof Error
-      ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack || ''
-        }
-      : {
-          name: 'Error',
-          message: String(error || '未知错误')
-        }
+  const normalizedError = normalizeDiagnosticError(error)
   void recordDiagnostic('error', scope, normalizedError.message, {
     ...(details && typeof details === 'object' ? details : {}),
     error: normalizedError
   })
+  return normalizedError
+}
+
+function shouldSkipAutoBugFeedback(normalizedError) {
+  if (!normalizedError || !normalizedError.message) return true
+  const name = String(normalizedError.name || '').toLowerCase()
+  if (name === 'aborterror') return true
+
+  const message = String(normalizedError.message).toLowerCase()
+  return (
+    message.includes('aborted') ||
+    message.includes('cancelled') ||
+    message.includes('用户取消') ||
+    message.includes('operation was aborted')
+  )
+}
+
+function buildAutoBugIssueTitle(scope, normalizedError) {
+  const scopeText = String(scope || 'renderer').trim() || 'renderer'
+  const messageText = String(normalizedError?.message || 'Unknown error').trim() || 'Unknown error'
+  return `[Bug][Auto] ${scopeText}: ${messageText}`.slice(0, 120)
+}
+
+async function exportDiagnosticsForFeedback(rendererState) {
+  if (!window.electronAPI?.exportDiagnosticReportAuto) {
+    return {
+      success: false,
+      unsupported: true,
+      message: '当前版本不支持自动导出诊断包。'
+    }
+  }
+  try {
+    const result = await window.electronAPI.exportDiagnosticReportAuto(rendererState)
+    if (!result?.success || !result.filePath) {
+      return {
+        success: false,
+        message: result?.message || '自动导出诊断包失败。'
+      }
+    }
+    return {
+      success: true,
+      filePath: result.filePath
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error?.message || '自动导出诊断包失败。'
+    }
+  }
+}
+
+async function openGitHubFeedbackIssue({
+  issueTitle = '[Bug] 请简要描述问题',
+  source = 'manual',
+  successTitle = '反馈已准备',
+  successMessage = '已打开 GitHub Issues，新页面里已预填当前会话摘要。',
+  failureTitle = '打开 GitHub 反馈失败',
+  failureMessage = '暂时无法打开 GitHub 反馈页。',
+  autoExportDiagnostics = false,
+  diagnosticsDetails = null
+} = {}) {
+  if (!window.electronAPI?.openGitHubFeedback) {
+    await showMissingBridge('openGitHubFeedback')
+    return false
+  }
+
+  const rendererState = getDiagnosticRendererState()
+  let diagnosticsExportPath = ''
+  if (autoExportDiagnostics) {
+    const exportResult = await exportDiagnosticsForFeedback(rendererState)
+    if (exportResult.success) {
+      diagnosticsExportPath = exportResult.filePath
+      rendererState.autoDiagnosticReportPath = diagnosticsExportPath
+    } else if (!exportResult.unsupported) {
+      void recordDiagnostic('warn', 'diagnostics.auto-export', exportResult.message || '自动导出诊断包失败。', {
+        source
+      })
+    }
+  }
+
+  const result = await window.electronAPI.openGitHubFeedback({
+    issueTitle,
+    rendererState
+  })
+
+  if (!result || !result.success) {
+    await showAlert({
+      title: failureTitle,
+      message: result?.message || failureMessage
+    })
+    return false
+  }
+
+  await refreshDiagnosticsStatusText()
+  void recordDiagnostic('info', 'diagnostics', '用户已打开 GitHub 反馈页。', {
+    source,
+    issueUrl: result.issueUrl,
+    ...(diagnosticsExportPath ? { diagnosticsExportPath } : {}),
+    ...(diagnosticsDetails && typeof diagnosticsDetails === 'object' ? diagnosticsDetails : {})
+  })
+  showToast(successMessage, {
+    title: successTitle,
+    type: 'success',
+    duration: 2600
+  })
+  return true
+}
+
+async function maybePromptAutoBugFeedback(scope, normalizedError, details = null) {
+  if (shouldSkipAutoBugFeedback(normalizedError)) return
+  if (!window.electronAPI?.openGitHubFeedback) return
+  if (autoBugFeedbackInFlight) return
+  if (autoBugFeedbackPromptCount >= AUTO_BUG_FEEDBACK_MAX_PROMPTS) return
+
+  const signature = `${scope}:${normalizedError.name}:${normalizedError.message}`.slice(0, 320)
+  const now = Date.now()
+  if (
+    signature === autoBugFeedbackLastSignature &&
+    now - autoBugFeedbackLastPromptAt < AUTO_BUG_FEEDBACK_COOLDOWN_MS
+  ) {
+    return
+  }
+
+  autoBugFeedbackInFlight = true
+  try {
+    const confirmed = await showConfirm({
+      title: '检测到异常',
+      message: `WordZ 捕获到一个异常：${normalizedError.message}\n\n是否立即打开 GitHub 反馈页？系统会自动附带当前会话诊断信息。`,
+      confirmText: '立即反馈',
+      cancelText: '稍后',
+      danger: true
+    })
+
+    autoBugFeedbackLastSignature = signature
+    autoBugFeedbackLastPromptAt = Date.now()
+
+    if (!confirmed) return
+
+    autoBugFeedbackPromptCount += 1
+    await openGitHubFeedbackIssue({
+      issueTitle: buildAutoBugIssueTitle(scope, normalizedError),
+      source: 'auto-error-capture',
+      successTitle: '反馈页已打开',
+      successMessage: '已打开 GitHub Issues，并自动附带异常上下文与诊断包路径。',
+      autoExportDiagnostics: true,
+      diagnosticsDetails: {
+        scope,
+        autoCaptured: true,
+        error: normalizedError,
+        details: details ?? null
+      }
+    })
+  } finally {
+    autoBugFeedbackInFlight = false
+  }
 }
 
 function getDiagnosticRendererState() {
   return {
     currentTab,
     corpusMode: currentCorpusMode,
+    analysisMode: currentAnalysisMode,
     corpusDisplayName: currentCorpusDisplayName,
     corpusFolderName: currentCorpusFolderName || '',
     selectedCorporaCount: currentSelectedCorpora.length,
@@ -1279,11 +2260,17 @@ function getDiagnosticRendererState() {
     searchOptionsSummary: getSearchOptionsSummary(),
     tokenCount: currentTokenCount,
     typeCount: currentTypeCount,
+    ngramSize: currentNgramSize,
+    ngramResultCount: currentNgramRows.length,
     kwicKeyword: currentKWICKeyword,
     kwicResultCount: currentKWICResults.length,
     kwicScope: currentKWICScopeLabel,
     collocateKeyword: currentCollocateKeyword,
     collocateResultCount: currentCollocateRows.length,
+    chiSquareHasResult: Boolean(currentChiSquareResult),
+    chiSquareInputs: {
+      ...currentChiSquareInputValues
+    },
     locatorSentenceCount: currentSentenceObjects.length,
     taskCenter: taskCenter.getEntries().slice(0, 5).map(entry => ({
       taskKey: entry.taskKey,
@@ -1364,6 +2351,10 @@ function buildWorkspaceSnapshot() {
     compare: {
       pageSize: comparePageSizeSelect?.value || '10'
     },
+    ngram: {
+      pageSize: ngramPageSizeSelect?.value || '10',
+      size: ngramSizeSelect?.value || String(currentNgramSize || 2)
+    },
     kwic: {
       pageSize: kwicPageSizeSelect?.value || '10',
       scope: kwicScopeSelect?.value || 'current',
@@ -1376,6 +2367,13 @@ function buildWorkspaceSnapshot() {
       leftWindow: collocateLeftWindowSelect?.value || String(currentCollocateLeftWindow || DEFAULT_WINDOW_SIZE),
       rightWindow: collocateRightWindowSelect?.value || String(currentCollocateRightWindow || DEFAULT_WINDOW_SIZE),
       minFreq: collocateMinFreqSelect?.value || String(currentCollocateMinFreq || 1)
+    },
+    chiSquare: {
+      a: String(chiAInput?.value || ''),
+      b: String(chiBInput?.value || ''),
+      c: String(chiCInput?.value || ''),
+      d: String(chiDInput?.value || ''),
+      yates: chiYatesToggle?.checked === true
     }
   }
 }
@@ -1429,6 +2427,8 @@ async function restoreWorkspaceFromSnapshot(snapshot = loadStoredWorkspaceSnapsh
 
     applySelectControlValue(pageSizeSelect, snapshot.stats.pageSize, '10')
     applySelectControlValue(comparePageSizeSelect, snapshot.compare.pageSize, '10')
+    applySelectControlValue(ngramPageSizeSelect, snapshot.ngram.pageSize, '10')
+    applySelectControlValue(ngramSizeSelect, snapshot.ngram.size, '2')
     applySelectControlValue(kwicPageSizeSelect, snapshot.kwic.pageSize, '10')
     applySelectControlValue(collocatePageSizeSelect, snapshot.collocate.pageSize, '10')
     applySelectControlValue(kwicSortSelect, snapshot.kwic.sortMode, 'original')
@@ -1456,6 +2456,16 @@ async function restoreWorkspaceFromSnapshot(snapshot = loadStoredWorkspaceSnapsh
       currentCollocateRightWindow = Number(collocateRightWindowSelect.value) || DEFAULT_WINDOW_SIZE
     }
     currentCollocateMinFreq = Number(collocateMinFreqSelect?.value || '1') || 1
+    currentChiSquareInputValues = {
+      a: String(snapshot.chiSquare?.a || ''),
+      b: String(snapshot.chiSquare?.b || ''),
+      c: String(snapshot.chiSquare?.c || ''),
+      d: String(snapshot.chiSquare?.d || ''),
+      yates: snapshot.chiSquare?.yates === true
+    }
+    syncChiSquareInputsFromState()
+    currentChiSquareResult = null
+    renderChiSquareResult()
 
     currentSearchOptions = normalizeSearchOptions(snapshot.search.options)
     syncSearchOptionInputs()
@@ -1463,10 +2473,17 @@ async function restoreWorkspaceFromSnapshot(snapshot = loadStoredWorkspaceSnapsh
 
     pageSize = resolvePageSize(pageSizeSelect?.value || '10', getVisibleFrequencyRows().length)
     currentComparePageSize = resolvePageSize(comparePageSizeSelect?.value || '10', getVisibleCompareRows().length)
+    currentNgramSize = Number(ngramSizeSelect?.value || snapshot.ngram.size || '2') || 2
+    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', currentNgramRows.length)
     currentKWICPageSize = resolvePageSize(kwicPageSizeSelect?.value || '10', currentKWICResults.length)
     currentCollocatePageSize = resolvePageSize(collocatePageSizeSelect?.value || '10', currentCollocateRows.length)
     currentKWICSortMode = kwicSortSelect?.value || 'original'
     currentKWICScope = kwicScopeSelect?.value || 'current'
+    if (currentTokens.length > 0) {
+      await runNgramAnalysis({ silent: true })
+    } else {
+      renderNgramTable()
+    }
 
     switchTab(getRestorableTabFromSnapshot(snapshot))
     updateCurrentCorpusInfo()
@@ -1503,6 +2520,16 @@ function renderFrequencyTable() {
 
 function renderCompareTable() {
   renderCompareSection()
+}
+
+function renderNgramTable() {
+  const result = renderNgramTableSection(getNgramState(), dom, {
+    cancelTableRender,
+    escapeHtml,
+    formatCount,
+    renderTableInChunks
+  })
+  currentNgramPage = result.currentNgramPage
 }
 
 function renderKWICTable() {
@@ -1559,6 +2586,10 @@ function buildFrequencyRows() {
   return buildFrequencyRowsData(getStatsState())
 }
 
+function buildNgramRows() {
+  return buildNgramRowsData(getNgramState())
+}
+
 function buildKWICRows() {
   const result = buildKWICRowsData(getKWICState(), sortKWICResults)
   currentKWICSortCache = result.cache
@@ -1567,6 +2598,10 @@ function buildKWICRows() {
 
 function buildAllFrequencyRows() {
   return buildAllFrequencyRowsData(getStatsState())
+}
+
+function buildAllNgramRows() {
+  return buildAllNgramRowsData(getNgramState())
 }
 
 function buildCompareRows() {
@@ -1653,6 +2688,103 @@ function demoteCurrentSavedCorpusToQuick() {
 
 function getSelectedKWICScope() {
   return kwicScopeSelect?.value || 'current'
+}
+
+function getSelectedNgramSize() {
+  const value = Number(ngramSizeSelect?.value || currentNgramSize || 2)
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value <= 0) return 2
+  return Math.min(9, value)
+}
+
+async function runNgramAnalysis({ switchToTab = false, silent = false } = {}) {
+  const hasNgramCorpus = currentAnalysisMode === 'segmented'
+    ? Boolean(currentText.trim())
+    : currentTokens.length > 0
+  if (!hasNgramCorpus) {
+    currentNgramRows = []
+    currentNgramPage = 1
+    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', 0)
+    ngramMeta.textContent = '请先导入语料后再生成 Ngram。'
+    renderNgramTable()
+    if (!silent) {
+      await showAlert({
+        title: '缺少语料',
+        message: '请先导入一个 txt / docx / pdf 文件'
+      })
+    }
+    return false
+  }
+
+  const n = getSelectedNgramSize()
+  const runId = nextAnalysisRun('ngram')
+
+  try {
+    const cachedRows = Array.isArray(currentAnalysisCachePayload?.ngrams?.[String(n)])
+      ? currentAnalysisCachePayload.ngrams[String(n)]
+      : null
+    const ngramResult = cachedRows
+      ? {
+          n,
+          rows: cachedRows
+        }
+      : await runAnalysisTask(
+          currentAnalysisMode === 'segmented'
+            ? ANALYSIS_TASK_TYPES.computeNgramsSegmented
+            : ANALYSIS_TASK_TYPES.computeNgrams,
+          currentAnalysisMode === 'segmented'
+            ? {
+                n,
+                text: currentText,
+                chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS
+              }
+            : { n },
+          () =>
+            currentAnalysisMode === 'segmented'
+              ? computeSegmentedNgramRows(currentText, n, {
+                  chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS
+                })
+              : (() => {
+                  const freqMap = countNgramFrequency(currentTokens, n)
+                  return {
+                    n,
+                    rows: getSortedNgramRows(freqMap)
+                  }
+                })()
+        )
+    if (!isLatestAnalysisRun('ngram', runId)) return false
+
+    currentNgramSize = Number(ngramResult?.n || n) || n
+    currentNgramRows = Array.isArray(ngramResult?.rows) ? ngramResult.rows : []
+    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', currentNgramRows.length)
+    currentNgramPage = 1
+    ngramMeta.textContent = `${currentNgramSize}-gram · 共 ${formatCount(currentNgramRows.length)} 条结果。`
+    renderNgramTable()
+    if (switchToTab) switchTab('ngram')
+    if (!cachedRows) {
+      updateCurrentAnalysisCache({
+        ngramSize: currentNgramSize,
+        ngramRows: currentNgramRows
+      })
+      void persistAnalysisCachePayload()
+    }
+    void refreshAnalysisCacheState({ silent: true })
+    maybeWarnMemoryPressure('analysis.ngram')
+    scheduleWorkspaceSnapshotSave()
+    return true
+  } catch (error) {
+    recordDiagnosticError('analysis.ngram', error, {
+      n,
+      tokenCount: currentTokens.length,
+      analysisMode: currentAnalysisMode
+    })
+    if (!silent) {
+      await showAlert({
+        title: 'Ngram 生成失败',
+        message: getErrorMessage(error, 'Ngram 生成失败')
+      })
+    }
+    return false
+  }
 }
 
 async function resolveCrossCorpusKWICScope(scope) {
@@ -1809,6 +2941,7 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
   cancelAllAnalysisTasks('已因切换语料取消当前分析任务')
   const runId = nextAnalysisRun('loadCorpus')
   nextAnalysisRun('stats')
+  nextAnalysisRun('ngram')
   nextAnalysisRun('kwic')
   nextAnalysisRun('collocate')
   const endBusyState = beginBusyState('正在解析语料...')
@@ -1853,28 +2986,103 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
             }))
             .filter(entry => entry.corpusId && entry.content.trim())
         : []
-    const corpusData = await runAnalysisTask(
-      ANALYSIS_TASK_TYPES.loadCorpus,
-      { text: currentText },
-      () => buildCorpusData(currentText)
-    )
+    currentAnalysisMode = shouldUseSegmentedAnalysis(currentText) ? 'segmented' : 'full'
+    currentAnalysisCacheKey = buildAnalysisCacheKey(result, currentText)
+    currentAnalysisCachePayload = null
+
+    let corpusData = {
+      sentences: [],
+      tokenObjects: [],
+      tokens: []
+    }
+    let usedCachedCorpusData = false
+    const cachedPayload = await loadAnalysisCachePayload(currentAnalysisCacheKey)
+    if (cachedPayload) {
+      if (cachedPayload.analysisMode === 'segmented') {
+        currentAnalysisMode = 'segmented'
+      }
+      currentAnalysisCachePayload = cachedPayload
+      if (currentAnalysisMode === 'full' && cachedPayload?.corpusData) {
+        corpusData = cachedPayload.corpusData
+        usedCachedCorpusData = true
+      }
+    }
+
+    if (currentAnalysisMode === 'full' && !usedCachedCorpusData) {
+      corpusData = await runAnalysisTask(
+        ANALYSIS_TASK_TYPES.loadCorpus,
+        { text: currentText },
+        () => buildCorpusData(currentText)
+      )
+      currentAnalysisCachePayload = normalizeAnalysisCachePayload({
+        schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
+        analysisMode: 'full',
+        corpusData: {
+          sentences: corpusData?.sentences || [],
+          tokenObjects: corpusData?.tokenObjects || [],
+          tokens: corpusData?.tokens || []
+        },
+        stats: null,
+        ngrams: {}
+      })
+      void persistAnalysisCachePayload()
+    } else if (currentAnalysisMode === 'segmented') {
+      const segmentedPayloadSeed =
+        currentAnalysisCachePayload && typeof currentAnalysisCachePayload === 'object'
+          ? {
+              ...currentAnalysisCachePayload,
+              analysisMode: 'segmented',
+              corpusData: {
+                sentences: [],
+                tokenObjects: [],
+                tokens: []
+              }
+            }
+          : {
+              schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
+              analysisMode: 'segmented',
+              corpusData: {
+                sentences: [],
+                tokenObjects: [],
+                tokens: []
+              },
+              stats: null,
+              ngrams: {}
+            }
+      currentAnalysisCachePayload = normalizeAnalysisCachePayload(
+        segmentedPayloadSeed
+      )
+      if (!cachedPayload) {
+        void persistAnalysisCachePayload()
+      }
+    }
     if (!isLatestAnalysisRun('loadCorpus', runId)) return
 
-    currentSentenceObjects = corpusData.sentences
-    currentTokenObjects = corpusData.tokenObjects
-    currentTokens = corpusData.tokens || currentTokenObjects.map(item => item.token)
+    currentSentenceObjects = Array.isArray(corpusData?.sentences) ? corpusData.sentences : []
+    currentTokenObjects = Array.isArray(corpusData?.tokenObjects) ? corpusData.tokenObjects : []
+    currentTokens =
+      currentAnalysisMode === 'segmented'
+        ? []
+        : (Array.isArray(corpusData?.tokens) ? corpusData.tokens : currentTokenObjects.map(item => item.token))
     currentFreqRows = []
     currentComparisonRows = []
     currentComparisonCorpora = []
+    invalidateSearchCaches()
     setSharedSearchQuery('', { rerender: false })
+    currentNgramRows = []
+    currentNgramPage = 1
+    currentNgramPageSize = 10
+    currentNgramSize = 2
     currentKWICResults = []
     currentCollocateRows = []
     invalidateKWICSortCache()
     currentPage = 1
     currentComparePage = 1
+    currentNgramPage = 1
     currentKWICPage = 1
     currentCollocatePage = 1
     currentComparePageSize = 10
+    currentNgramPageSize = 10
     currentKWICPageSize = 10
     currentCollocatePageSize = 10
     currentKWICSortMode = 'original'
@@ -1901,6 +3109,8 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
     leftWindowSelect.value = '5'
     rightWindowSelect.value = '5'
     comparePageSizeSelect.value = '10'
+    ngramSizeSelect.value = '2'
+    ngramPageSizeSelect.value = '10'
     kwicPageSizeSelect.value = '10'
     collocateLeftWindowSelect.value = '5'
     collocateRightWindowSelect.value = '5'
@@ -1930,17 +3140,32 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
       ? '<div class="empty-tip">这里会在统计完成后显示多语料词频对比表。</div>'
       : '<div class="empty-tip">这里会显示多语料词频对比表</div>'
     renderWordCloud()
+    ngramTotalRowsInfo.textContent = '共 0 条结果'
+    ngramPageInfo.textContent = '第 0 / 0 页'
+    ngramPrevPageButton.disabled = true
+    ngramNextPageButton.disabled = true
+    ngramMeta.textContent =
+      currentAnalysisMode === 'segmented'
+        ? '已启用分段分析模式。可继续生成 Ngram（流式统计）。'
+        : '语料已导入。可选择 2-gram 到 5-gram 后点击“生成 Ngram”。'
+    ngramWrapper.innerHTML = '<div class="empty-tip">这里会显示 Ngram 统计结果</div>'
     kwicTotalRowsInfo.textContent = '共 0 条结果'
     kwicPageInfo.textContent = '第 0 / 0 页'
     kwicPrevPageButton.disabled = true
     kwicNextPageButton.disabled = true
-    kwicMeta.innerHTML = '文本已导入。请输入检索词，选择检索范围，并设置左右窗口大小后点击“KWIC 检索”。<br />支持当前语料、当前文件夹和全部本地语料。'
+    kwicMeta.innerHTML =
+      currentAnalysisMode === 'segmented'
+        ? '当前语料体量较大，已启用分段分析模式。为保证稳定性，KWIC 检索暂不可用。<br />可切换更小语料后再做 KWIC。'
+        : '文本已导入。请输入检索词，选择检索范围，并设置左右窗口大小后点击“KWIC 检索”。<br />支持当前语料、当前文件夹和全部本地语料。'
     kwicWrapper.innerHTML = '<div class="empty-tip">这里会显示关键词前后文结果</div>'
     collocateTotalRowsInfo.textContent = '共 0 条结果'
     collocatePageInfo.textContent = '第 0 / 0 页'
     collocatePrevPageButton.disabled = true
     collocateNextPageButton.disabled = true
-    collocateMeta.innerHTML = '文本已导入。请输入节点词后开始统计 Collocate。'
+    collocateMeta.innerHTML =
+      currentAnalysisMode === 'segmented'
+        ? '当前语料体量较大，已启用分段分析模式。为保证稳定性，Collocate 统计暂不可用。'
+        : '文本已导入。请输入节点词后开始统计 Collocate。'
     collocateWrapper.innerHTML = '<div class="empty-tip">这里会显示 Collocate 统计结果</div>'
     locatorMeta.textContent = '原文已载入。点击任一 KWIC 结果行后，会自动定位并高亮对应原句。'
     sentenceViewer.innerHTML = '<div class="empty-tip">切换到“原文定位”或点击某条 KWIC 结果后，这里会按需加载定位表。</div>'
@@ -1948,11 +3173,23 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
     if (trackRecent) {
       addRecentOpenEntry(buildRecentOpenEntryFromResult(result))
     }
+    if (currentAnalysisMode === 'segmented') {
+      showToast('检测到超大语料，已切换为分段分析模式（统计/Ngram可用，KWIC/Collocate已暂时禁用）。', {
+        title: '内存保护已启用',
+        duration: 3400
+      })
+    }
+    void refreshAnalysisCacheState({ silent: true })
+    maybeWarnMemoryPressure('load-corpus')
+    await showPreflightWarnings(result)
     void recordDiagnostic('info', 'corpus.load', '语料已载入工作区。', {
       mode: currentCorpusMode,
+      analysisMode: currentAnalysisMode,
       corpusName: currentCorpusDisplayName,
       selectedCorporaCount: currentSelectedCorpora.length,
-      tokenCount: currentTokens.length
+      tokenCount: currentTokens.length,
+      textLength: currentText.length,
+      usedCachedCorpusData
     })
   } catch (error) {
     console.error('[loadCorpusResult]', error)
@@ -1970,6 +3207,51 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
     updateAnalysisActionButtons()
     setButtonsBusy([openCorpusMenuButton, quickOpenButton, saveImportButton, importToFolderButton], false)
   }
+}
+
+async function handleSystemOpenFileRequest(payload = {}) {
+  const filePath = String(payload?.filePath || '').trim()
+  if (!filePath) return
+
+  if (!window.electronAPI?.openQuickCorpusAtPath) {
+    await showMissingBridge('openQuickCorpusAtPath')
+    return
+  }
+
+  setOpenCorpusMenuOpen(false)
+  closeHelpCenterModal()
+  closeLibraryModal()
+  closeRecycleModal()
+  hideWelcomeOverlay({ immediate: true })
+
+  const result = await window.electronAPI.openQuickCorpusAtPath(filePath)
+  if (!result?.success) {
+    await showAlert({
+      title: '打开系统文件失败',
+      message: result?.message || `暂时无法打开文件：${filePath}`
+    })
+    return
+  }
+
+  await loadCorpusResult(result)
+  showToast(`已打开：${result.displayName || result.fileName || filePath}`, {
+    title: '已载入',
+    type: 'success',
+    duration: 2200
+  })
+}
+
+function enqueueSystemOpenFileRequest(payload) {
+  systemOpenRequestQueue = systemOpenRequestQueue
+    .then(() => handleSystemOpenFileRequest(payload))
+    .catch(error => {
+      console.error('[system-open-file-request]', error)
+      recordDiagnosticError('system-open-file-request', error, {
+        filePath: String(payload?.filePath || '').trim()
+      })
+    })
+
+  return systemOpenRequestQueue
 }
 
 async function openRecentOpenEntry(entry) {
@@ -2012,11 +3294,731 @@ async function openRecentOpenEntry(entry) {
   await loadCorpusResult(result)
 }
 
+function dismissFloatingOverlaysForPrimaryAction() {
+  setOpenCorpusMenuOpen(false)
+  closeHelpCenterModal()
+  closeRecycleModal()
+  closeCommandPalette()
+  if (taskCenter.isOpen()) taskCenter.setOpen(false)
+  if (welcomeOverlayVisible) hideWelcomeOverlay({ immediate: true })
+}
+
+async function runQuickOpenAction() {
+  dismissFloatingOverlaysForPrimaryAction()
+  if (!window.electronAPI?.openQuickCorpus) {
+    await showMissingBridge('openQuickCorpus')
+    return
+  }
+
+  const result = await window.electronAPI.openQuickCorpus()
+  await loadCorpusResult(result)
+}
+
+async function runImportAndSaveAction() {
+  dismissFloatingOverlaysForPrimaryAction()
+  if (!window.electronAPI?.importAndSaveCorpus) {
+    await showMissingBridge('importAndSaveCorpus')
+    return
+  }
+
+  const result = await window.electronAPI.importAndSaveCorpus(getImportTargetFolder().id)
+  await loadCorpusResult(result)
+  if (!libraryModal.classList.contains('hidden')) {
+    await refreshLibraryModal(currentLibraryFolderId)
+  }
+}
+
+async function runOpenLibraryAction() {
+  dismissFloatingOverlaysForPrimaryAction()
+  await openLibraryModal()
+}
+
+async function runOpenHelpCenterAction() {
+  dismissFloatingOverlaysForPrimaryAction()
+  await ensureAppInfoLoaded()
+  openHelpCenterModal()
+}
+
+async function handleAppMenuAction(payload = {}) {
+  const action = String(payload?.action || '').trim()
+  if (!action) return
+
+  if (action === 'run-stats') {
+    await enqueueOrRunAnalysisTask({
+      type: 'stats',
+      title: '统计结果',
+      detail: '正在统计词频与词汇指标...',
+      run: ({ taskCenterTaskKey }) => executeStatsAnalysis({ taskCenterTaskKey })
+    })
+    return
+  }
+  if (action === 'check-update') {
+    checkUpdateButton?.click()
+    return
+  }
+  if (action === 'open-settings') {
+    openUISettingsModal()
+    void refreshDiagnosticsStatusText()
+    void refreshAnalysisCacheState({ silent: true })
+    return
+  }
+  if (action === 'toggle-task-center') {
+    taskCenter.setOpen(!taskCenter.isOpen())
+    if (taskCenter.isOpen()) {
+      clearTaskCenterAttention()
+    }
+    return
+  }
+  if (action === 'open-command-palette') {
+    openCommandPalette()
+    return
+  }
+  if (action === 'open-quick-corpus') {
+    await runQuickOpenAction()
+    return
+  }
+  if (action === 'import-and-save-corpus') {
+    await runImportAndSaveAction()
+    return
+  }
+  if (action === 'open-library') {
+    await runOpenLibraryAction()
+    return
+  }
+  if (action === 'open-help-center') {
+    await runOpenHelpCenterAction()
+  }
+}
+
+function getCommandPaletteCommands() {
+  return [
+    {
+      id: 'quick-open',
+      title: '快速打开语料',
+      meta: '打开本地 txt / docx / pdf',
+      keywords: 'open quick corpus file txt docx pdf',
+      run: () => runQuickOpenAction()
+    },
+    {
+      id: 'import-save',
+      title: '导入并保存语料',
+      meta: '导入并写入本地语料库',
+      keywords: 'import save corpus library',
+      run: () => runImportAndSaveAction()
+    },
+    {
+      id: 'open-library',
+      title: '打开本地语料库',
+      meta: '管理分类、回收站、备份与修复',
+      keywords: 'library local corpus manage',
+      run: () => runOpenLibraryAction()
+    },
+    {
+      id: 'run-stats',
+      title: '开始统计',
+      meta: '统计词频、Type、TTR、STTR',
+      keywords: 'stats frequency token type ttr sttr',
+      run: () => enqueueOrRunAnalysisTask({
+        type: 'stats',
+        title: '统计结果',
+        detail: '正在统计词频与词汇指标...',
+        run: ({ taskCenterTaskKey }) => executeStatsAnalysis({ taskCenterTaskKey })
+      })
+    },
+    {
+      id: 'run-kwic',
+      title: '运行 KWIC 检索',
+      meta: '按当前 SearchQuery 检索关键词前后文',
+      keywords: 'kwic search query concordance',
+      run: () => enqueueOrRunAnalysisTask({
+        type: 'kwic',
+        title: 'KWIC 检索',
+        detail: `关键词：${String(currentSearchQuery || '').trim() || '(空)'} · SearchQuery：${getSearchOptionsSummary()}`,
+        run: ({ taskCenterTaskKey }) => executeKWICAnalysis({ taskCenterTaskKey })
+      })
+    },
+    {
+      id: 'run-collocate',
+      title: '运行 Collocate 统计',
+      meta: '按当前 SearchQuery 计算搭配词',
+      keywords: 'collocate cooccurrence',
+      run: () => enqueueOrRunAnalysisTask({
+        type: 'collocate',
+        title: 'Collocate 统计',
+        detail: `节点词：${String(currentSearchQuery || '').trim() || '(空)'} · SearchQuery：${getSearchOptionsSummary()}`,
+        run: ({ taskCenterTaskKey }) => executeCollocateAnalysis({ taskCenterTaskKey })
+      })
+    },
+    {
+      id: 'run-ngram',
+      title: '生成 Ngram',
+      meta: '按当前 Ngram 类型统计短语频次',
+      keywords: 'ngram phrase',
+      run: () => runNgramAnalysis({ switchToTab: true })
+    },
+    {
+      id: 'toggle-queue',
+      title: analysisQueuePaused ? '恢复任务队列' : '暂停任务队列',
+      meta: analysisQueuePaused ? '继续按顺序自动执行排队任务' : '暂停自动执行，仅保留排队',
+      keywords: 'queue pause resume',
+      run: async () => {
+        analysisQueuePaused = !analysisQueuePaused
+        updateAnalysisQueueControls()
+        if (!analysisQueuePaused) {
+          void runAnalysisQueueIfNeeded()
+        }
+      }
+    },
+    {
+      id: 'retry-failed',
+      title: '重试失败任务',
+      meta: analysisQueueFailedItems.length > 0 ? `当前有 ${analysisQueueFailedItems.length} 条失败任务` : '当前没有失败任务',
+      keywords: 'queue retry failed',
+      run: async () => {
+        retryFailedQueueTasks()
+      }
+    },
+    {
+      id: 'cancel-queued',
+      title: '取消排队任务',
+      meta: analysisQueue.length > 0 ? `当前有 ${analysisQueue.length} 条排队任务` : '当前没有排队任务',
+      keywords: 'queue cancel clear',
+      run: async () => {
+        const cancelledCount = cancelQueuedAnalysisTasks('已取消排队任务')
+        if (cancelledCount <= 0) {
+          showToast('当前没有可取消的排队任务。', { title: '任务队列' })
+          return
+        }
+        showToast(`已取消 ${formatCount(cancelledCount)} 项排队任务。`, {
+          title: '队列已清理',
+          type: 'success'
+        })
+      }
+    },
+    {
+      id: 'check-update',
+      title: '检查更新',
+      meta: '检查 stable 版本更新',
+      keywords: 'update',
+      run: () => checkUpdateButton?.click()
+    },
+    {
+      id: 'open-settings',
+      title: '打开设置',
+      meta: '主题、字体、日志、提醒与诊断',
+      keywords: 'settings theme font diagnostics',
+      run: () => {
+        openUISettingsModal()
+        void refreshDiagnosticsStatusText()
+        void refreshAnalysisCacheState({ silent: true })
+      }
+    },
+    {
+      id: 'open-task-center',
+      title: taskCenter.isOpen() ? '关闭任务中心' : '打开任务中心',
+      meta: '查看任务状态与排队进度',
+      keywords: 'task center',
+      run: () => {
+        taskCenter.setOpen(!taskCenter.isOpen())
+        if (taskCenter.isOpen()) {
+          clearTaskCenterAttention()
+        }
+      }
+    },
+    {
+      id: 'open-help',
+      title: '打开关于 / 帮助中心',
+      meta: '查看版本、说明与发布信息',
+      keywords: 'about help',
+      run: () => runOpenHelpCenterAction()
+    }
+  ]
+}
+
+function filterCommandPaletteItems(queryText = '') {
+  const normalizedQuery = String(queryText || '').trim().toLowerCase()
+  const commands = getCommandPaletteCommands()
+  if (!normalizedQuery) return commands
+  return commands.filter(item => {
+    const haystack = `${item.title} ${item.meta || ''} ${item.keywords || ''}`.toLowerCase()
+    return haystack.includes(normalizedQuery)
+  })
+}
+
+function setCommandPaletteActiveIndex(nextIndex, { scroll = false } = {}) {
+  if (!Array.isArray(commandPaletteFilteredItems) || commandPaletteFilteredItems.length === 0) {
+    commandPaletteActiveIndex = 0
+    return
+  }
+  const maxIndex = commandPaletteFilteredItems.length - 1
+  commandPaletteActiveIndex = Math.max(0, Math.min(maxIndex, nextIndex))
+  if (!commandPaletteList) return
+  const nodes = Array.from(commandPaletteList.querySelectorAll('[data-command-index]'))
+  for (const node of nodes) {
+    const index = Number(node.dataset.commandIndex)
+    node.classList.toggle('active', index === commandPaletteActiveIndex)
+  }
+  if (scroll) {
+    const activeNode = commandPaletteList.querySelector(`[data-command-index="${commandPaletteActiveIndex}"]`)
+    activeNode?.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+function renderCommandPaletteItems() {
+  if (!commandPaletteList) return
+  commandPaletteList.replaceChildren()
+  if (commandPaletteFilteredItems.length === 0) {
+    const emptyNode = document.createElement('div')
+    emptyNode.className = 'empty-tip'
+    emptyNode.textContent = '没有匹配的命令。'
+    commandPaletteList.append(emptyNode)
+    return
+  }
+
+  const fragment = document.createDocumentFragment()
+  commandPaletteFilteredItems.forEach((item, index) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'command-palette-item'
+    button.dataset.commandIndex = String(index)
+    button.innerHTML = `
+      <span class="command-palette-item-title">${escapeHtml(item.title)}</span>
+      <span class="command-palette-item-meta">${escapeHtml(item.meta || '')}</span>
+    `
+    button.addEventListener('click', () => {
+      void executeCommandPaletteCommand(index)
+    })
+    fragment.append(button)
+  })
+  commandPaletteList.append(fragment)
+  setCommandPaletteActiveIndex(commandPaletteActiveIndex, { scroll: true })
+}
+
+function closeCommandPalette() {
+  if (!commandPaletteModal || !commandPaletteOpen) return
+  commandPaletteOpen = false
+  commandPaletteModal.classList.add('hidden')
+}
+
+function openCommandPalette(initialQuery = '') {
+  if (!commandPaletteModal || !commandPaletteInput) return
+  setOpenCorpusMenuOpen(false)
+  commandPaletteOpen = true
+  commandPaletteModal.classList.remove('hidden')
+  commandPaletteInput.value = String(initialQuery || '')
+  commandPaletteFilteredItems = filterCommandPaletteItems(commandPaletteInput.value)
+  commandPaletteActiveIndex = 0
+  renderCommandPaletteItems()
+  requestAnimationFrame(() => {
+    commandPaletteInput.focus()
+    commandPaletteInput.select()
+  })
+}
+
+async function executeCommandPaletteCommand(index = commandPaletteActiveIndex) {
+  const item = commandPaletteFilteredItems[index]
+  if (!item) return
+  closeCommandPalette()
+  try {
+    await item.run()
+  } catch (error) {
+    await showAlert({
+      title: '命令执行失败',
+      message: getErrorMessage(error, '命令执行失败')
+    })
+  }
+}
+
+function isFileDragEvent(event) {
+  const dataTransfer = event?.dataTransfer
+  if (!dataTransfer) return false
+  return Array.from(dataTransfer.types || []).includes('Files')
+}
+
+function setDropImportOverlayVisible(visible, hintText = '') {
+  if (!dropImportOverlay) return
+  const shouldShow = Boolean(visible)
+  dropImportOverlay.classList.toggle('hidden', !shouldShow)
+  dropImportOverlay.setAttribute('aria-hidden', String(!shouldShow))
+  if (dropImportHint && hintText) {
+    dropImportHint.textContent = hintText
+  }
+}
+
+function extractDroppedPathsFromEvent(event) {
+  const dataTransfer = event?.dataTransfer
+  if (!dataTransfer) return []
+  const paths = []
+  const pushPath = value => {
+    const filePath = String(value || '').trim()
+    if (!filePath) return
+    paths.push(filePath)
+  }
+
+  for (const file of Array.from(dataTransfer.files || [])) {
+    pushPath(file?.path)
+  }
+  for (const item of Array.from(dataTransfer.items || [])) {
+    if (item?.kind !== 'file') continue
+    const file = item.getAsFile?.()
+    pushPath(file?.path)
+  }
+
+  return [...new Set(paths)]
+}
+
+function buildSkippedEntriesSummary(skippedEntries = []) {
+  if (!Array.isArray(skippedEntries) || skippedEntries.length === 0) return ''
+  const lines = skippedEntries.slice(0, 12).map((entry, index) => {
+    const sourcePath = String(entry?.sourcePath || '').trim() || '未知路径'
+    const reason = String(entry?.reason || '已跳过').trim()
+    return `${index + 1}. ${sourcePath}\n原因：${reason}`
+  })
+  const extraCount = skippedEntries.length - lines.length
+  if (extraCount > 0) {
+    lines.push(`... 还有 ${formatCount(extraCount)} 条跳过记录`)
+  }
+  return lines.join('\n\n')
+}
+
+function normalizePreflightWarningEntries(result = {}) {
+  const warnings = Array.isArray(result?.preflightWarnings)
+    ? result.preflightWarnings.map(item => String(item || '').trim()).filter(Boolean)
+    : []
+  const warningEntries = Array.isArray(result?.preflightWarningEntries)
+    ? result.preflightWarningEntries
+        .map(entry => {
+          const sourcePath = String(entry?.sourcePath || '').trim()
+          const entryWarnings = Array.isArray(entry?.warnings)
+            ? entry.warnings.map(item => String(item || '').trim()).filter(Boolean)
+            : []
+          if (!sourcePath || entryWarnings.length === 0) return null
+          return { sourcePath, warnings: entryWarnings }
+        })
+        .filter(Boolean)
+    : []
+  return {
+    warnings,
+    warningEntries
+  }
+}
+
+function buildPreflightWarningsSummary(result = {}) {
+  const { warnings, warningEntries } = normalizePreflightWarningEntries(result)
+  const lines = []
+  if (warnings.length > 0) {
+    for (let index = 0; index < Math.min(4, warnings.length); index += 1) {
+      lines.push(`${index + 1}. ${warnings[index]}`)
+    }
+  }
+  if (warningEntries.length > 0) {
+    const remaining = Math.max(0, 10 - lines.length)
+    for (let index = 0; index < Math.min(remaining, warningEntries.length); index += 1) {
+      const entry = warningEntries[index]
+      lines.push(`${lines.length + 1}. ${entry.sourcePath}\n提示：${entry.warnings.join('；')}`)
+    }
+  }
+  return lines.join('\n\n')
+}
+
+async function showPreflightWarnings(result = {}) {
+  const normalizedWarnings = normalizePreflightWarningEntries(result)
+  const warningCount =
+    Number(result?.preflightWarningCount) ||
+    normalizedWarnings.warnings.length +
+      normalizedWarnings.warningEntries.reduce((sum, entry) => sum + entry.warnings.length, 0)
+
+  if (warningCount <= 0) return
+
+  showToast(`导入前体检给出 ${formatCount(warningCount)} 条提示。`, {
+    title: '导入前体检',
+    type: 'success',
+    duration: 2600
+  })
+
+  const warningSummary = buildPreflightWarningsSummary(result)
+  if (warningSummary) {
+    await showAlert({
+      title: '导入前体检提示',
+      message: warningSummary
+    })
+  }
+}
+
+async function handleDropImportPaths(paths) {
+  if (!window.electronAPI?.importCorpusPaths) {
+    await showMissingBridge('importCorpusPaths')
+    return
+  }
+
+  const droppedPaths = Array.isArray(paths)
+    ? [...new Set(paths.map(item => String(item || '').trim()).filter(Boolean))]
+    : []
+  if (droppedPaths.length === 0) {
+    showToast('未检测到可导入的文件或文件夹路径。', {
+      title: '拖拽导入'
+    })
+    return
+  }
+
+  dismissFloatingOverlaysForPrimaryAction()
+  const endBusyState = beginBusyState('正在导入拖拽语料...')
+  setButtonsBusy([openCorpusMenuButton, quickOpenButton, saveImportButton, importToFolderButton], true)
+  void setWindowProgressState({
+    source: 'drag-import',
+    state: 'indeterminate',
+    priority: 42
+  })
+  try {
+    const importTargetFolder = getImportTargetFolder()
+    const result = await window.electronAPI.importCorpusPaths(droppedPaths, {
+      folderId: importTargetFolder.id,
+      preserveHierarchy: true
+    })
+    if (!result?.success) {
+      const skippedSummary = buildSkippedEntriesSummary(result?.skippedEntries)
+      await showAlert({
+        title: '拖拽导入失败',
+        message: [
+          result?.message || '暂时无法导入拖拽语料',
+          skippedSummary ? `\n${skippedSummary}` : ''
+        ].join('')
+      })
+      return
+    }
+
+    await loadCorpusResult(result)
+    if (!libraryModal.classList.contains('hidden')) {
+      await refreshLibraryModal(currentLibraryFolderId)
+    }
+
+    const importedCount = Number(result.importedCount) || 1
+    const skippedCount = Number(result.skippedCount) || 0
+    showToast(
+      skippedCount > 0
+        ? `已导入 ${formatCount(importedCount)} 条语料，跳过 ${formatCount(skippedCount)} 条。`
+        : `已导入 ${formatCount(importedCount)} 条语料。`,
+      {
+        title: '拖拽导入完成',
+        type: 'success',
+        duration: 2600
+      }
+    )
+
+    if (skippedCount > 0) {
+      const skippedSummary = buildSkippedEntriesSummary(result?.skippedEntries)
+      await showAlert({
+        title: '部分路径已跳过',
+        message: skippedSummary || `共有 ${formatCount(skippedCount)} 条路径被跳过。`
+      })
+    }
+    void recordDiagnostic('info', 'drag-import', '拖拽导入已完成。', {
+      importedCount,
+      skippedCount,
+      pathCount: droppedPaths.length
+    })
+  } finally {
+    endBusyState()
+    setButtonsBusy([openCorpusMenuButton, quickOpenButton, saveImportButton, importToFolderButton], false)
+    void setWindowProgressState({
+      source: 'drag-import',
+      state: 'none'
+    })
+  }
+}
+
+async function handleDropImportEvent(event) {
+  const droppedPaths = extractDroppedPathsFromEvent(event)
+  await handleDropImportPaths(droppedPaths)
+}
+
+function bindDropImportHandlers() {
+  window.addEventListener('dragenter', event => {
+    if (!isFileDragEvent(event)) return
+    event.preventDefault()
+    dropImportDragDepth += 1
+    setDropImportOverlayVisible(true, '松开鼠标后将自动导入语料，并按文件夹层级归类。')
+  })
+
+  window.addEventListener('dragover', event => {
+    if (!isFileDragEvent(event)) return
+    event.preventDefault()
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy'
+    }
+    setDropImportOverlayVisible(true, '松开鼠标后将自动导入语料，并按文件夹层级归类。')
+  })
+
+  window.addEventListener('dragleave', event => {
+    if (!isFileDragEvent(event)) return
+    event.preventDefault()
+    dropImportDragDepth = Math.max(0, dropImportDragDepth - 1)
+    if (dropImportDragDepth === 0) {
+      setDropImportOverlayVisible(false)
+    }
+  })
+
+  window.addEventListener('drop', event => {
+    if (!isFileDragEvent(event)) return
+    event.preventDefault()
+    dropImportDragDepth = 0
+    setDropImportOverlayVisible(false)
+    void handleDropImportEvent(event).catch(error => {
+      console.error('[drop-import]', error)
+      recordDiagnosticError('drop-import', error)
+    })
+  })
+
+  window.addEventListener('dragend', () => {
+    dropImportDragDepth = 0
+    setDropImportOverlayVisible(false)
+  })
+}
+
+async function handleSystemNotificationAction(payload = {}) {
+  const actionId = String(payload?.actionId || '').trim()
+  if (!actionId) return
+
+  if (actionId === 'open-stats-tab') {
+    switchTab('stats')
+    showToast('已从系统通知切换到统计结果。', {
+      title: '系统通知'
+    })
+    return
+  }
+
+  if (actionId === 'open-kwic-tab') {
+    switchTab('kwic')
+    showToast('已从系统通知切换到 KWIC 检索。', {
+      title: '系统通知'
+    })
+    return
+  }
+
+  if (actionId === 'open-collocate-tab') {
+    switchTab('collocate')
+    showToast('已从系统通知切换到 Collocate 统计。', {
+      title: '系统通知'
+    })
+    return
+  }
+
+  if (actionId === 'prompt-install-update') {
+    await promptInstallDownloadedUpdate(currentAutoUpdateState, { force: true })
+    return
+  }
+
+  if (actionId === 'reveal-path') {
+    const targetPath = String(payload?.actionPayload?.path || payload?.actionPayload?.filePath || '').trim()
+    if (!targetPath || !window.electronAPI?.showPathInFolder) return
+    const showResult = await window.electronAPI.showPathInFolder(targetPath)
+    if (!showResult?.success) {
+      showToast(showResult?.message || '无法在系统文件管理器中打开该路径。', {
+        title: '系统通知',
+        type: 'error'
+      })
+    }
+  }
+}
+
+function buildCrashRecoverySummary(recoveryState) {
+  const source = String(recoveryState?.source || 'unknown')
+  const errorMessage = String(recoveryState?.error?.message || '未知错误')
+  const recordedAt = String(recoveryState?.recordedAt || '')
+  return [
+    `异常来源：${source}`,
+    `异常信息：${errorMessage}`,
+    recordedAt ? `记录时间：${recordedAt}` : ''
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+async function runCrashRecoveryWizard() {
+  if (!window.electronAPI?.consumeCrashRecoveryState) return
+  const result = await window.electronAPI.consumeCrashRecoveryState()
+  if (!result?.success || !result.recoveryState) return
+
+  const recoveryState = result.recoveryState
+  await showAlert({
+    title: '检测到上次异常退出',
+    message: `${buildCrashRecoverySummary(recoveryState)}\n\n你可以恢复上次会话，或导出诊断并反馈到 GitHub。`
+  })
+
+  const workspaceSnapshot = loadStoredWorkspaceSnapshot()
+  if (getCurrentUISettings().restoreWorkspace !== false && hasMeaningfulWorkspaceSnapshot(workspaceSnapshot)) {
+    const shouldRestore = await showConfirm({
+      title: '恢复上次会话',
+      message: `${getWorkspaceSnapshotSummary(workspaceSnapshot, { getTabLabel })}\n\n是否立即恢复？`,
+      confirmText: '恢复上次会话',
+      cancelText: '暂不恢复'
+    })
+    startupRestoreHandledByCrashWizard = true
+    if (shouldRestore) {
+      await restoreWorkspaceFromSnapshot(workspaceSnapshot)
+    } else {
+      void recordDiagnostic('info', 'workspace.restore', '崩溃恢复向导中用户选择暂不恢复上次工作区。')
+    }
+  }
+
+  const shouldExportDiagnostics = await showConfirm({
+    title: '导出诊断报告',
+    message: '是否现在导出一份诊断报告，便于定位问题？',
+    confirmText: '导出诊断',
+    cancelText: '跳过'
+  })
+  if (shouldExportDiagnostics) {
+    if (!window.electronAPI?.exportDiagnosticReport) {
+      await showMissingBridge('exportDiagnosticReport')
+    } else {
+      const exportResult = await window.electronAPI.exportDiagnosticReport(getDiagnosticRendererState())
+      if (exportResult?.success) {
+        await refreshDiagnosticsStatusText()
+        showToast(`诊断报告已导出到：${exportResult.filePath}`, {
+          title: '崩溃恢复',
+          type: 'success'
+        })
+        void notifySystem({
+          title: '诊断报告已导出',
+          body: exportResult.filePath,
+          tag: 'diagnostics-export',
+          category: 'diagnostics-export',
+          action: {
+            actionId: 'reveal-path',
+            payload: { path: exportResult.filePath }
+          }
+        })
+      } else if (!exportResult?.canceled) {
+        await showAlert({
+          title: '导出诊断报告失败',
+          message: exportResult?.message || '诊断报告导出失败，请稍后重试。'
+        })
+      }
+    }
+  }
+
+  const shouldOpenGitHubIssue = await showConfirm({
+    title: '反馈到 GitHub',
+    message: '是否现在打开 GitHub Issues 反馈页面？系统会自动带上当前会话摘要。',
+    confirmText: '打开反馈页面',
+    cancelText: '稍后'
+  })
+  if (shouldOpenGitHubIssue) {
+    await openGitHubFeedbackIssue({
+      issueTitle: `[Bug][CrashRecovery] ${String(recoveryState?.source || 'unknown crash')}`.slice(0, 120),
+      source: 'crash-recovery-wizard'
+    })
+  }
+}
+
 decorateStaticButtons()
 updateAnalysisActionButtons()
 setPreviewCollapsed(true)
 taskCenter.render()
+updateAnalysisQueueControls()
 setOpenCorpusMenuOpen(false)
+bindDropImportHandlers()
+void revealNativeToolbarOverflowForSmoke()
 const initialUISettings = initUISettings()
 recentOpenEntries = loadRecentOpenEntriesFromStorage(localStorage, RECENT_OPEN_STORAGE_KEY)
 renderWorkspaceOverview()
@@ -2025,12 +4027,16 @@ updateLoadSelectedCorporaButton()
 renderRecentOpenList()
 syncSharedSearchInputs()
 syncSearchOptionInputs()
+syncChiSquareInputsFromState()
 renderCompareSection()
 renderWordCloud()
+renderNgramTable()
+renderChiSquareResult()
 applyAppInfoToShell()
 applyAutoUpdateButtonState(null)
 syncWelcomePreferenceCheckboxes()
 void refreshDiagnosticsStatusText()
+void refreshAnalysisCacheState({ silent: true })
 const showFirstRunTutorial = shouldShowFirstRunTutorial(onboardingState)
 if (initialUISettings.showWelcomeScreen !== false || showFirstRunTutorial) {
   showWelcomeOverlay({
@@ -2048,30 +4054,78 @@ void recordDiagnostic('info', 'app', 'Renderer 已完成初始化。', {
   showWelcomeScreen: initialUISettings.showWelcomeScreen !== false
 })
 
+if (window.electronAPI?.onSystemOpenFileRequest) {
+  window.electronAPI.onSystemOpenFileRequest(payload => {
+    void enqueueSystemOpenFileRequest(payload)
+  })
+}
+
+if (window.electronAPI?.onAppMenuAction) {
+  window.electronAPI.onAppMenuAction(payload => {
+    void handleAppMenuAction(payload).catch(error => {
+      console.error('[app-menu-action]', error)
+      recordDiagnosticError('app-menu-action', error, {
+        action: String(payload?.action || '').trim()
+      })
+    })
+  })
+}
+
+if (window.electronAPI?.onSystemNotificationAction) {
+  window.electronAPI.onSystemNotificationAction(payload => {
+    void handleSystemNotificationAction(payload).catch(error => {
+      console.error('[system-notification-action]', error)
+      recordDiagnosticError('system-notification-action', error, {
+        actionId: String(payload?.actionId || '').trim()
+      })
+    })
+  })
+}
+
 window.addEventListener('error', event => {
-  recordDiagnosticError('renderer.error', event.error || new Error(event.message || '未捕获错误'), {
+  const errorDetails = {
     filename: event.filename || '',
     lineno: event.lineno || 0,
     colno: event.colno || 0
-  })
+  }
+  const normalizedError = recordDiagnosticError(
+    'renderer.error',
+    event.error || new Error(event.message || '未捕获错误'),
+    errorDetails
+  )
+  void maybePromptAutoBugFeedback('renderer.error', normalizedError, errorDetails)
 })
 
 window.addEventListener('unhandledrejection', event => {
-  recordDiagnosticError(
+  const rejectionError =
+    event.reason instanceof Error ? event.reason : new Error(String(event.reason || '未处理 Promise 拒绝'))
+  const rejectionDetails = {
+    reason: event.reason instanceof Error ? event.reason.message : String(event.reason || '')
+  }
+  const normalizedError = recordDiagnosticError(
     'renderer.unhandledrejection',
-    event.reason instanceof Error ? event.reason : new Error(String(event.reason || '未处理 Promise 拒绝')),
-    {
-      reason: event.reason instanceof Error ? event.reason.message : String(event.reason || '')
-    }
+    rejectionError,
+    rejectionDetails
   )
+  void maybePromptAutoBugFeedback('renderer.unhandledrejection', normalizedError, rejectionDetails)
 })
 
 void (async () => {
   setWelcomeProgress(32, '正在同步版本信息...', '正在读取当前版本')
   await ensureAppInfoLoaded()
+  if (window.electronAPI?.consumePendingSystemOpenFiles) {
+    const pendingOpenResult = await window.electronAPI.consumePendingSystemOpenFiles()
+    if (pendingOpenResult?.success && Array.isArray(pendingOpenResult.filePaths)) {
+      for (const filePath of pendingOpenResult.filePaths) {
+        await enqueueSystemOpenFileRequest({ filePath })
+      }
+    }
+  }
   setWelcomeProgress(58, '正在初始化自动更新...', '正在连接桌面更新能力')
   await initializeAutoUpdate()
-  if (getCurrentUISettings().restoreWorkspace !== false) {
+  setWelcomeProgress(68, '正在检查异常恢复状态...', '正在准备恢复向导')
+  await runCrashRecoveryWizard()
+  if (getCurrentUISettings().restoreWorkspace !== false && !startupRestoreHandledByCrashWizard) {
     const workspaceSnapshot = loadStoredWorkspaceSnapshot()
     if (hasMeaningfulWorkspaceSnapshot(workspaceSnapshot)) {
       const shouldRestoreWorkspace = await requestWorkspaceRestoreDecision(workspaceSnapshot)
@@ -2242,10 +4296,39 @@ closeHelpCenterButton?.addEventListener('click', () => {
 
 taskCenterButton?.addEventListener('click', () => {
   taskCenter.setOpen(!taskCenter.isOpen())
+  if (taskCenter.isOpen()) {
+    clearTaskCenterAttention()
+  }
 })
 
 closeTaskCenterButton?.addEventListener('click', () => {
   taskCenter.setOpen(false)
+})
+
+queueToggleButton?.addEventListener('click', () => {
+  analysisQueuePaused = !analysisQueuePaused
+  updateAnalysisQueueControls()
+  if (!analysisQueuePaused) {
+    void runAnalysisQueueIfNeeded()
+  }
+})
+
+retryFailedTaskButton?.addEventListener('click', () => {
+  retryFailedQueueTasks()
+})
+
+cancelQueuedTaskButton?.addEventListener('click', () => {
+  const cancelledCount = cancelQueuedAnalysisTasks('已取消排队任务')
+  if (cancelledCount <= 0) {
+    showToast('当前没有可取消的排队任务。', {
+      title: '任务队列'
+    })
+    return
+  }
+  showToast(`已取消 ${formatCount(cancelledCount)} 项排队任务。`, {
+    title: '队列已清理',
+    type: 'success'
+  })
 })
 
 document.addEventListener('click', event => {
@@ -2264,6 +4347,16 @@ document.addEventListener('click', event => {
 })
 
 document.addEventListener('keydown', event => {
+  const isCommandPaletteShortcut = (event.metaKey || event.ctrlKey) && !event.altKey && String(event.key || '').toLowerCase() === 'k'
+  if (isCommandPaletteShortcut) {
+    event.preventDefault()
+    openCommandPalette()
+    return
+  }
+  if (event.key === 'Escape' && commandPaletteOpen) {
+    closeCommandPalette()
+    return
+  }
   if (event.key === 'Escape' && openCorpusMenuOpen) {
     setOpenCorpusMenuOpen(false)
     return
@@ -2286,6 +4379,18 @@ document.addEventListener('keydown', event => {
   }
 })
 
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && pendingTaskAttentionCount > 0) {
+    clearTaskCenterAttention()
+  }
+})
+
+window.addEventListener('focus', () => {
+  if (pendingTaskAttentionCount > 0) {
+    clearTaskCenterAttention()
+  }
+})
+
 helpCenterModal?.addEventListener('click', (event) => {
   if (event.target === helpCenterModal) closeHelpCenterModal()
 })
@@ -2293,6 +4398,7 @@ helpCenterModal?.addEventListener('click', (event) => {
 uiSettingsButton.addEventListener('click', () => {
   openUISettingsModal()
   void refreshDiagnosticsStatusText()
+  void refreshAnalysisCacheState({ silent: true })
 })
 
 closeUiSettingsButton.addEventListener('click', () => {
@@ -2312,6 +4418,10 @@ lightThemeButton.addEventListener('click', () => {
 
 darkThemeButton.addEventListener('click', () => {
   applyTheme('dark')
+})
+
+systemThemeButton?.addEventListener('click', () => {
+  applyTheme('system')
 })
 
 uiZoomRange.addEventListener('input', () => {
@@ -2349,14 +4459,57 @@ debugLoggingToggle?.addEventListener('change', () => {
   void recordDiagnostic('info', 'diagnostics', debugLoggingToggle.checked ? '用户已开启调试日志。' : '用户已关闭调试日志。')
 })
 
+windowAttentionToggle?.addEventListener('change', () => {
+  applyUISettingsFromControls()
+  if (windowAttentionToggle.checked) {
+    void recordDiagnostic('info', 'window-attention', '用户已开启 Dock/任务栏提醒。')
+    return
+  }
+  clearAllWindowAttention()
+  void recordDiagnostic('info', 'window-attention', '用户已关闭 Dock/任务栏提醒。')
+})
+
+followSystemAccessibilityToggle?.addEventListener('change', () => {
+  applyUISettingsFromControls()
+  void recordDiagnostic(
+    'info',
+    'ui.accessibility',
+    followSystemAccessibilityToggle.checked ? '用户已开启系统可访问性跟随。' : '用户已关闭系统可访问性跟随。'
+  )
+})
+
+notifyAnalysisCompleteToggle?.addEventListener('change', () => {
+  applyUISettingsFromControls()
+  applyReminderCategoryChange('analysis-complete', notifyAnalysisCompleteToggle.checked)
+})
+
+notifyUpdateDownloadedToggle?.addEventListener('change', () => {
+  applyUISettingsFromControls()
+  applyReminderCategoryChange('update-downloaded', notifyUpdateDownloadedToggle.checked)
+})
+
+notifyDiagnosticsExportToggle?.addEventListener('change', () => {
+  applyUISettingsFromControls()
+  applyReminderCategoryChange('diagnostics-export', notifyDiagnosticsExportToggle.checked)
+})
+
 exportDiagnosticsButton?.addEventListener('click', async () => {
   if (!window.electronAPI?.exportDiagnosticReport) {
     await showMissingBridge('exportDiagnosticReport')
     return
   }
 
+  void setWindowProgressState({
+    source: 'diagnostics-export',
+    state: 'indeterminate',
+    priority: 30
+  })
   const result = await window.electronAPI.exportDiagnosticReport(getDiagnosticRendererState())
   if (!result || !result.success) {
+    void setWindowProgressState({
+      source: 'diagnostics-export',
+      state: 'none'
+    })
     if (result?.canceled) {
       showToast('已取消导出诊断报告。', {
         title: '未导出'
@@ -2377,62 +4530,131 @@ exportDiagnosticsButton?.addEventListener('click', async () => {
     type: 'success',
     duration: 2600
   })
+  void setWindowProgressState({
+    source: 'diagnostics-export',
+    state: 'none'
+  })
+  void notifySystem({
+    title: '诊断报告已导出',
+    body: result.filePath,
+    tag: 'diagnostics-export',
+    category: 'diagnostics-export',
+    action: {
+      actionId: 'reveal-path',
+      payload: { path: result.filePath }
+    }
+  })
 })
 
 reportIssueButton?.addEventListener('click', async () => {
-  if (!window.electronAPI?.openGitHubFeedback) {
-    await showMissingBridge('openGitHubFeedback')
+  await openGitHubFeedbackIssue({
+    issueTitle: '[Bug] 请简要描述问题',
+    source: 'manual',
+    autoExportDiagnostics: true,
+    successMessage: '已打开 GitHub Issues，并自动附带当前会话诊断包路径。'
+  })
+})
+
+refreshAnalysisCacheButton?.addEventListener('click', () => {
+  void refreshAnalysisCacheState()
+})
+
+rebuildAnalysisCacheButton?.addEventListener('click', () => {
+  void rebuildCurrentAnalysisCache()
+})
+
+clearAnalysisCacheButton?.addEventListener('click', async () => {
+  if (!window.electronAPI?.clearAnalysisCache) {
+    await showMissingBridge('clearAnalysisCache')
     return
   }
 
-  const result = await window.electronAPI.openGitHubFeedback({
-    issueTitle: '[Bug] 请简要描述问题',
-    rendererState: getDiagnosticRendererState()
+  const confirmed = await showConfirm({
+    title: '清空分析缓存',
+    message: '这会清空全部统计缓存，下一次统计会重新计算。确定继续吗？',
+    confirmText: '清空缓存',
+    cancelText: '取消'
   })
+  if (!confirmed) return
 
-  if (!result || !result.success) {
+  const result = await window.electronAPI.clearAnalysisCache()
+  if (!result?.success) {
     await showAlert({
-      title: '打开 GitHub 反馈失败',
-      message: result?.message || '暂时无法打开 GitHub 反馈页。'
+      title: '清空缓存失败',
+      message: result?.message || '当前无法清空分析缓存。'
     })
     return
   }
 
-  await refreshDiagnosticsStatusText()
-  void recordDiagnostic('info', 'diagnostics', '用户已打开 GitHub 反馈页。', { issueUrl: result.issueUrl })
-  showToast('已打开 GitHub Issues，新页面里已预填当前会话摘要。', {
-    title: '反馈已准备',
-    type: 'success',
-    duration: 2600
+  currentAnalysisCachePayload = normalizeAnalysisCachePayload({
+    schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
+    analysisMode: currentAnalysisMode,
+    corpusData:
+      currentAnalysisMode === 'segmented'
+        ? { sentences: [], tokenObjects: [], tokens: [] }
+        : {
+            sentences: currentSentenceObjects,
+            tokenObjects: currentTokenObjects,
+            tokens: currentTokens
+          },
+    stats: null,
+    ngrams: {}
   })
+  showToast(`已清空 ${formatCount(result.removedCount || 0)} 条缓存。`, {
+    title: '缓存已清理',
+    type: 'success'
+  })
+  await refreshAnalysisCacheState({ silent: true })
 })
 
 uiSettingsModal.addEventListener('click', (event) => {
   if (event.target === uiSettingsModal) closeUISettingsModal()
 })
 
-quickOpenButton.addEventListener('click', async () => {
-  setOpenCorpusMenuOpen(false)
-  if (!window.electronAPI?.openQuickCorpus) {
-    await showMissingBridge('openQuickCorpus')
+commandPaletteModal?.addEventListener('click', event => {
+  if (event.target === commandPaletteModal) {
+    closeCommandPalette()
+  }
+})
+
+closeCommandPaletteButton?.addEventListener('click', () => {
+  closeCommandPalette()
+})
+
+commandPaletteInput?.addEventListener('input', () => {
+  commandPaletteFilteredItems = filterCommandPaletteItems(commandPaletteInput.value)
+  commandPaletteActiveIndex = 0
+  renderCommandPaletteItems()
+})
+
+commandPaletteInput?.addEventListener('keydown', event => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    setCommandPaletteActiveIndex(commandPaletteActiveIndex + 1, { scroll: true })
     return
   }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    setCommandPaletteActiveIndex(commandPaletteActiveIndex - 1, { scroll: true })
+    return
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    void executeCommandPaletteCommand()
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeCommandPalette()
+  }
+})
 
-  const result = await window.electronAPI.openQuickCorpus()
-  await loadCorpusResult(result)
+quickOpenButton.addEventListener('click', async () => {
+  await runQuickOpenAction()
 })
 
 saveImportButton.addEventListener('click', async () => {
-  setOpenCorpusMenuOpen(false)
-  if (!window.electronAPI?.importAndSaveCorpus) {
-    await showMissingBridge('importAndSaveCorpus')
-    return
-  }
-  const result = await window.electronAPI.importAndSaveCorpus(getImportTargetFolder().id)
-  await loadCorpusResult(result)
-  if (!libraryModal.classList.contains('hidden')) {
-    await refreshLibraryModal(currentLibraryFolderId)
-  }
+  await runImportAndSaveAction()
 })
 
 selectSavedCorporaButton?.addEventListener('click', async () => {
@@ -2441,8 +4663,7 @@ selectSavedCorporaButton?.addEventListener('click', async () => {
 })
 
 libraryButton.addEventListener('click', () => {
-  setOpenCorpusMenuOpen(false)
-  openLibraryModal()
+  void runOpenLibraryAction()
 })
 
 closeLibraryButton.addEventListener('click', () => {
@@ -2532,6 +4753,11 @@ backupLibraryButton.addEventListener('click', async () => {
 
   const endBusyState = beginBusyState('正在创建语料库备份...')
   setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], true)
+  void setWindowProgressState({
+    source: 'library-maintenance',
+    state: 'indeterminate',
+    priority: 35
+  })
   try {
     const result = await window.electronAPI.backupCorpusLibrary()
     if (!result.success) {
@@ -2550,9 +4776,18 @@ backupLibraryButton.addEventListener('click', async () => {
       title: '备份完成',
       message: buildBackupSummaryMessage(result)
     })
+    void notifySystem({
+      title: '语料库备份完成',
+      body: result.backupPath || '本地语料库备份已创建完成。',
+      tag: 'library-backup'
+    })
   } finally {
     endBusyState()
     setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], false)
+    void setWindowProgressState({
+      source: 'library-maintenance',
+      state: 'none'
+    })
   }
 })
 
@@ -2572,6 +4807,11 @@ restoreLibraryButton.addEventListener('click', async () => {
 
   const endBusyState = beginBusyState('正在从备份恢复语料库...')
   setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], true)
+  void setWindowProgressState({
+    source: 'library-maintenance',
+    state: 'indeterminate',
+    priority: 35
+  })
   try {
     const result = await window.electronAPI.restoreCorpusLibrary()
     if (!result.success) {
@@ -2591,9 +4831,18 @@ restoreLibraryButton.addEventListener('click', async () => {
       title: '恢复完成',
       message: buildRestoreSummaryMessage(result)
     })
+    void notifySystem({
+      title: '语料库恢复完成',
+      body: result.restoredFrom || '本地语料库已从备份恢复完成。',
+      tag: 'library-restore'
+    })
   } finally {
     endBusyState()
     setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], false)
+    void setWindowProgressState({
+      source: 'library-maintenance',
+      state: 'none'
+    })
   }
 })
 
@@ -2613,6 +4862,11 @@ repairLibraryButton.addEventListener('click', async () => {
 
   const endBusyState = beginBusyState('正在检查并修复本地语料库...')
   setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], true)
+  void setWindowProgressState({
+    source: 'library-maintenance',
+    state: 'indeterminate',
+    priority: 35
+  })
   try {
     const result = await window.electronAPI.repairCorpusLibrary()
     if (!result.success) {
@@ -2628,9 +4882,18 @@ repairLibraryButton.addEventListener('click', async () => {
       title: '修复完成',
       message: buildRepairSummaryMessage(result)
     })
+    void notifySystem({
+      title: '语料库修复完成',
+      body: `已修复 ${formatCount(result.repairedCorpusCount || 0)} 条语料，隔离 ${formatCount(result.quarantinedEntryCount || 0)} 个异常项目。`,
+      tag: 'library-repair'
+    })
   } finally {
     endBusyState()
     setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], false)
+    void setWindowProgressState({
+      source: 'library-maintenance',
+      state: 'none'
+    })
   }
 })
 
@@ -2713,250 +4976,331 @@ libraryFolderList.addEventListener('click', async (event) => {
   }
 })
 
-libraryTableWrapper.addEventListener('change', event => {
-  const target = event.target
-  if (!(target instanceof Element)) return
-  const checkbox = target.closest('[data-select-corpus-id]')
-  if (!(checkbox instanceof HTMLInputElement)) return
-
-  const corpusId = checkbox.dataset.selectCorpusId || ''
-  if (!corpusId) return
-
-  if (checkbox.checked) selectedLibraryCorpusIds.add(corpusId)
-  else selectedLibraryCorpusIds.delete(corpusId)
-
-  updateLoadSelectedCorporaButton()
-  updateLibraryMetaText()
+bindLibraryTableEvents({
+  libraryTableWrapper,
+  recycleTableWrapper,
+  getSelectedLibraryCorpusIds: () => selectedLibraryCorpusIds,
+  updateLoadSelectedCorporaButton,
+  updateLibraryMetaText,
+  closeLibraryModal,
+  loadCorpusResult,
+  showMissingBridge,
+  showAlert,
+  showConfirm,
+  showToast,
+  promptForName,
+  electronAPI: window.electronAPI,
+  getCurrentCorpusId: () => currentCorpusId,
+  setCurrentCorpusDisplayName: name => {
+    currentCorpusDisplayName = name
+  },
+  setCurrentCorpusFolder: (folderId, folderName) => {
+    currentCorpusFolderId = folderId
+    currentCorpusFolderName = folderName
+  },
+  updateCurrentCorpusInfo,
+  patchCurrentSelectedCorpora,
+  removeCurrentSelectedCorpora,
+  getCurrentLibraryFolderId: () => currentLibraryFolderId,
+  refreshLibraryModal,
+  refreshRecycleBinModal,
+  isRecycleModalVisible: () => !recycleModal.classList.contains('hidden'),
+  isLibraryModalVisible: () => !libraryModal.classList.contains('hidden')
 })
 
-libraryTableWrapper.addEventListener('click', async (event) => {
-  const openButton = event.target.closest('[data-open-corpus-id]')
-  const renameButton = event.target.closest('[data-rename-corpus-id]')
-  const moveButton = event.target.closest('[data-move-corpus-id]')
-  const deleteButton = event.target.closest('[data-delete-corpus-id]')
+function ensureTaskCenterRunningEntry(taskKey, title, detail) {
+  if (!taskKey) return
+  if (!taskCenter.promoteQueuedEntry(taskKey, detail)) {
+    taskCenter.startEntryWithStatus(taskKey, title, detail, 'running')
+  }
+}
 
-  if (openButton) {
-    const corpusId = openButton.dataset.openCorpusId
-    const result = await window.electronAPI.openSavedCorpus(corpusId)
-    closeLibraryModal()
-    await loadCorpusResult(result)
-    return
+function inferTaskTypeFromTaskCenterEntry(entry) {
+  const taskKey = String(entry?.taskKey || '')
+  if (taskKey.includes('stats')) return 'stats'
+  if (taskKey.includes('kwic')) return 'kwic'
+  if (taskKey.includes('collocate')) return 'collocate'
+  return ''
+}
+
+function formatEstimatedDuration(durationMs) {
+  const safeDuration = Math.max(0, Number(durationMs) || 0)
+  if (safeDuration < 1000) return '<1s'
+  if (safeDuration < 60000) return `${Math.round(safeDuration / 1000)}s`
+  const minutes = Math.floor(safeDuration / 60000)
+  const seconds = Math.round((safeDuration % 60000) / 1000)
+  return `${minutes}m ${seconds}s`
+}
+
+function estimateAnalysisQueueDurationMs() {
+  if (analysisQueue.length === 0) return 0
+  const completedEntries = taskCenter
+    .getEntries()
+    .filter(entry => entry.status === 'success' && Number(entry.durationMs) > 0)
+  const durationBuckets = {
+    stats: [],
+    kwic: [],
+    collocate: []
+  }
+  for (const entry of completedEntries) {
+    const taskType = inferTaskTypeFromTaskCenterEntry(entry)
+    if (!taskType || !durationBuckets[taskType]) continue
+    durationBuckets[taskType].push(Number(entry.durationMs) || 0)
   }
 
-  if (renameButton) {
-    const corpusId = renameButton.dataset.renameCorpusId
-    const currentName = renameButton.dataset.currentName || ''
-    const newName = await promptForName({
-      title: '重命名语料',
-      message: '请输入新的语料名称。',
-      defaultValue: currentName,
-      placeholder: '请输入语料名称',
-      confirmText: '保存',
-      label: '语料名称'
+  const fallbackDurationByTaskType = {
+    stats: 3500,
+    kwic: 4800,
+    collocate: 5200
+  }
+  let totalEstimatedMs = 0
+  for (const task of analysisQueue) {
+    const taskType = String(task?.type || '').trim()
+    const bucket = durationBuckets[taskType] || []
+    const averageDuration = bucket.length > 0
+      ? bucket.reduce((sum, value) => sum + value, 0) / bucket.length
+      : (fallbackDurationByTaskType[taskType] || 4000)
+    totalEstimatedMs += averageDuration
+  }
+  return Math.max(0, totalEstimatedMs)
+}
+
+function retryFailedQueueTasks() {
+  if (analysisQueueFailedItems.length === 0) {
+    showToast('当前没有失败任务可重试。', {
+      title: '任务队列'
     })
-    if (newName === null) return
-    const result = await window.electronAPI.renameSavedCorpus(corpusId, newName)
-    if (!result.success) {
-      await showAlert({
-        title: '重命名语料失败',
-        message: result.message || '重命名失败'
-      })
-      return
-    }
-    if (currentCorpusId === corpusId) {
-      currentCorpusDisplayName = result.item.name
-      updateCurrentCorpusInfo()
-    }
-    patchCurrentSelectedCorpora(
-      item => item.id === corpusId,
-      item => ({ ...item, name: result.item.name })
+    return 0
+  }
+
+  const failedTasks = analysisQueueFailedItems.slice()
+  analysisQueueFailedItems = []
+  for (const task of failedTasks.reverse()) {
+    const queueTaskKey = `queue-${task.type}-${++analysisQueueSeq}`
+    const detail = `${task.detail}（重试）`
+    analysisQueue.push({
+      type: task.type,
+      title: task.title,
+      detail,
+      queueTaskKey,
+      run: task.run
+    })
+    taskCenter.startEntryWithStatus(queueTaskKey, task.title, detail, 'queued')
+  }
+  updateAnalysisQueueControls()
+  if (!analysisQueuePaused) {
+    void runAnalysisQueueIfNeeded()
+  }
+  return failedTasks.length
+}
+
+function cancelQueuedAnalysisTasks(detail = '已取消排队任务') {
+  const queuedCount = analysisQueue.length
+  analysisQueue = []
+  const cancelledCount = taskCenter.cancelQueuedEntries(detail)
+  updateAnalysisQueueControls()
+  return Math.max(queuedCount, cancelledCount)
+}
+
+function updateAnalysisQueueControls() {
+  const queuedCount = analysisQueue.length
+  const failedCount = analysisQueueFailedItems.length
+
+  if (cancelQueuedTaskButton) {
+    cancelQueuedTaskButton.disabled = queuedCount === 0
+    setButtonLabel(
+      cancelQueuedTaskButton,
+      queuedCount > 0 ? `取消排队任务（${queuedCount}）` : '取消排队任务'
     )
-    await refreshLibraryModal(currentLibraryFolderId)
-    return
   }
-
-  if (moveButton) {
-    const corpusId = moveButton.dataset.moveCorpusId
-    const row = moveButton.closest('tr')
-    const select = row ? row.querySelector(`[data-move-folder-select="${corpusId}"]`) : null
-    const targetFolderId = select ? select.value : ''
-    const result = await window.electronAPI.moveSavedCorpus(corpusId, targetFolderId)
-    if (!result.success) {
-      await showAlert({
-        title: '移动语料失败',
-        message: result.message || '移动语料失败'
-      })
-      return
-    }
-
-    if (currentCorpusId === corpusId) {
-      currentCorpusFolderId = result.item.folderId
-      currentCorpusFolderName = result.item.folderName
-      updateCurrentCorpusInfo()
-    }
-    patchCurrentSelectedCorpora(
-      item => item.id === corpusId,
-      item => ({
-        ...item,
-        folderId: result.item.folderId,
-        folderName: result.item.folderName
-      })
+  if (queueToggleButton) {
+    const label = analysisQueuePaused ? '恢复队列' : '暂停队列'
+    setButtonLabel(queueToggleButton, label)
+    queueToggleButton.disabled = !analysisQueuePaused && queuedCount === 0 && !analysisQueueRunning
+  }
+  if (retryFailedTaskButton) {
+    retryFailedTaskButton.disabled = failedCount === 0
+    setButtonLabel(
+      retryFailedTaskButton,
+      failedCount > 0 ? `重试失败任务（${failedCount}）` : '重试失败任务'
     )
+  }
+  if (queuedCount > 0) {
+    const etaMs = estimateAnalysisQueueDurationMs()
+    taskCenter.setMetaSuffix(`预计排队耗时 ${formatEstimatedDuration(etaMs)}`)
+  } else {
+    taskCenter.setMetaSuffix('')
+  }
+}
 
-    await refreshLibraryModal(currentLibraryFolderId)
+function appendFailedQueueTask(task, status = 'failed') {
+  if (!task) return
+  analysisQueueFailedItems = [
+    {
+      type: task.type,
+      title: task.title,
+      detail: task.detail,
+      run: task.run,
+      status,
+      failedAt: Date.now()
+    },
+    ...analysisQueueFailedItems
+  ].slice(0, MAX_ANALYSIS_QUEUE_LENGTH)
+}
+
+async function runAnalysisQueueIfNeeded() {
+  if (analysisQueuePaused || analysisQueueRunning || activeCancelableAnalysis) return
+  const nextTask = analysisQueue.shift()
+  if (!nextTask) {
+    updateAnalysisQueueControls()
     return
   }
 
-  if (deleteButton) {
-    const corpusId = deleteButton.dataset.deleteCorpusId
-    const corpusName = deleteButton.dataset.corpusName || '该语料'
-    const confirmed = await showConfirm({
-      title: '删除语料',
-      message: `确定要删除语料「${corpusName}」吗？它会先移入回收站，你之后仍可恢复。`,
-      confirmText: '移入回收站',
-      cancelText: '取消',
-      danger: true
+  analysisQueueRunning = true
+  updateAnalysisQueueControls()
+  ensureTaskCenterRunningEntry(nextTask.queueTaskKey, nextTask.title, nextTask.detail)
+
+  try {
+    const status = await nextTask.run({
+      taskCenterTaskKey: nextTask.queueTaskKey,
+      fromQueue: true
     })
-    if (!confirmed) return
-
-    const result = await window.electronAPI.deleteSavedCorpus(corpusId)
-    if (!result.success) {
-      await showAlert({
-        title: '删除语料失败',
-        message: result.message || '删除语料失败'
-      })
-      return
+    if (status === 'failed') {
+      appendFailedQueueTask(nextTask, status)
     }
-
-    if (selectedLibraryCorpusIds.has(corpusId)) {
-      selectedLibraryCorpusIds.delete(corpusId)
-      updateLoadSelectedCorporaButton()
-      updateLibraryMetaText()
+  } catch (error) {
+    appendFailedQueueTask(nextTask, 'failed')
+    finishTaskEntryWithAttention(
+      nextTask.queueTaskKey,
+      nextTask.title,
+      'failed',
+      getErrorMessage(error, '队列任务执行失败'),
+      'analysis-complete'
+    )
+    recordDiagnosticError('analysis.queue.run', error, { type: nextTask.type })
+  } finally {
+    analysisQueueRunning = false
+    updateAnalysisQueueControls()
+    if (!analysisQueuePaused && analysisQueue.length > 0) {
+      void runAnalysisQueueIfNeeded()
     }
-    removeCurrentSelectedCorpora(item => item.id === corpusId)
-
-    await refreshLibraryModal(currentLibraryFolderId)
-    if (!recycleModal.classList.contains('hidden')) {
-      await refreshRecycleBinModal()
-    }
-    showToast(`语料「${corpusName}」已移入回收站。`, {
-      title: '可恢复删除',
-      type: 'success'
-    })
   }
-})
+}
 
-recycleTableWrapper?.addEventListener('click', async event => {
-  const restoreButton = event.target.closest('[data-restore-recycle-entry-id]')
-  const purgeButton = event.target.closest('[data-purge-recycle-entry-id]')
-
-  if (restoreButton) {
-    const recycleEntryId = restoreButton.dataset.restoreRecycleEntryId
-    const entryName = restoreButton.dataset.recycleEntryName || '该项目'
-    const entryType = restoreButton.dataset.recycleEntryType === 'folder' ? '文件夹' : '语料'
-    const confirmed = await showConfirm({
-      title: `恢复${entryType}`,
-      message:
-        entryType === '文件夹'
-          ? `确定要恢复文件夹「${entryName}」吗？如果原位置已存在同 ID 文件夹，会自动恢复为新的文件夹。`
-          : `确定要恢复语料「${entryName}」吗？如果原位置已不存在，会恢复到“未分类”或保留的新位置。`,
-      confirmText: '恢复',
-      cancelText: '取消'
-    })
-    if (!confirmed) return
-
-    const result = await window.electronAPI.restoreRecycleEntry(recycleEntryId)
-    if (!result.success) {
-      await showAlert({
-        title: '恢复失败',
-        message: result.message || `恢复${entryType}失败`
-      })
-      return
-    }
-
-    await refreshRecycleBinModal()
-    if (!libraryModal.classList.contains('hidden')) {
-      await refreshLibraryModal(currentLibraryFolderId)
-    }
-
-    const restoredMessage =
-      result.restoredType === 'folder'
-        ? (result.restoredAsNewFolder ? `文件夹「${entryName}」已恢复，并因冲突保存为新的文件夹。` : `文件夹「${entryName}」已恢复。`)
-        : (result.restoredToOriginalFolder === false ? `语料「${entryName}」已恢复到可用文件夹。` : `语料「${entryName}」已恢复。`)
-    showToast(restoredMessage, {
-      title: '恢复完成',
-      type: 'success'
-    })
-    return
+async function enqueueOrRunAnalysisTask({ type, title, detail, run }) {
+  if (!type || typeof run !== 'function') return 'failed'
+  if (!analysisQueuePaused && !analysisQueueRunning && !activeCancelableAnalysis && analysisQueue.length === 0) {
+    return run({ taskCenterTaskKey: type, fromQueue: false })
   }
 
-  if (purgeButton) {
-    const recycleEntryId = purgeButton.dataset.purgeRecycleEntryId
-    const entryName = purgeButton.dataset.recycleEntryName || '该项目'
-    const entryType = purgeButton.dataset.recycleEntryType === 'folder' ? '文件夹' : '语料'
-    const confirmed = await showConfirm({
-      title: `彻底删除${entryType}`,
-      message: `确定要彻底删除${entryType}「${entryName}」吗？删除后将无法再从回收站恢复。`,
-      confirmText: '彻底删除',
-      cancelText: '取消',
-      danger: true
+  if (analysisQueue.length >= MAX_ANALYSIS_QUEUE_LENGTH) {
+    await showAlert({
+      title: '任务队列已满',
+      message: `当前最多允许排队 ${MAX_ANALYSIS_QUEUE_LENGTH} 项，请先等待部分任务完成。`
     })
-    if (!confirmed) return
-
-    const result = await window.electronAPI.purgeRecycleEntry(recycleEntryId)
-    if (!result.success) {
-      await showAlert({
-        title: '彻底删除失败',
-        message: result.message || `彻底删除${entryType}失败`
-      })
-      return
-    }
-
-    await refreshRecycleBinModal()
-    showToast(`${entryType}「${entryName}」已从回收站彻底删除。`, {
-      title: '删除完成',
-      type: 'success'
-    })
+    return 'failed'
   }
-})
 
-countButton.addEventListener('click', async () => {
+  const queueTaskKey = `queue-${type}-${++analysisQueueSeq}`
+  const queuedTask = {
+    type,
+    title,
+    detail,
+    queueTaskKey,
+    run
+  }
+  analysisQueue.push(queuedTask)
+  taskCenter.startEntryWithStatus(queueTaskKey, title, detail, 'queued')
+  updateAnalysisQueueControls()
+  showToast(`${title} 已加入任务队列。`, {
+    title: analysisQueuePaused ? '队列已暂停' : '已排队',
+    duration: 1800
+  })
+  if (!analysisQueuePaused) {
+    void runAnalysisQueueIfNeeded()
+  }
+  return 'queued'
+}
+
+async function executeStatsAnalysis({ taskCenterTaskKey = 'stats' } = {}) {
   if (!currentText.trim()) {
+    if (taskCenterTaskKey !== 'stats') {
+      finishTaskEntryWithAttention(taskCenterTaskKey, '统计结果', 'failed', '缺少语料', 'analysis-complete')
+    }
     await showAlert({
       title: '缺少语料',
       message: '请先导入一个 txt / docx / pdf 文件'
     })
-    return
+    return 'failed'
   }
+
   const runId = nextAnalysisRun('stats')
   const endBusyState = beginBusyState('正在统计词频与词汇指标...')
   beginCancelableAnalysis('stats')
-  taskCenter.startEntry('stats', '统计结果', '正在统计词频与词汇指标...')
+  void setWindowProgressState({
+    source: 'analysis',
+    state: 'indeterminate',
+    priority: 40
+  })
+  activeTaskCenterTaskKeys.stats = taskCenterTaskKey
+  ensureTaskCenterRunningEntry(taskCenterTaskKey, '统计结果', '正在统计词频与词汇指标...')
   try {
+    const segmentedMode = currentAnalysisMode === 'segmented'
     const shouldCompareAcrossCorpora = currentComparisonEntries.length >= 2
-    const statsResult = await runAnalysisTask(
-      ANALYSIS_TASK_TYPES.computeStats,
-      {
-        comparisonEntries: shouldCompareAcrossCorpora ? currentComparisonEntries : []
-      },
-      () => {
-        const freqMap = countWordFrequency(currentTokens)
-        const comparison = shouldCompareAcrossCorpora
-          ? compareCorpusFrequencies(currentComparisonEntries)
-          : { corpora: [], rows: [] }
-        return {
-          freqRows: getSortedFrequencyRows(freqMap),
-          tokenCount: currentTokens.length,
-          typeCount: Object.keys(freqMap).length,
-          ttr: calculateTTR(currentTokens),
-          sttr: calculateSTTR(currentTokens, 1000),
-          freqMap,
-          compareCorpora: comparison.corpora,
-          compareRows: comparison.rows
-        }
-      },
-      { taskName: 'stats' }
-    )
+    const compareSignature = shouldCompareAcrossCorpora
+      ? buildComparisonSignature(currentComparisonEntries)
+      : 'none'
+    const cachedStats = normalizeCachedStats(currentAnalysisCachePayload?.stats)
+    const canUseCachedStats =
+      cachedStats &&
+      Array.isArray(cachedStats.freqRows) &&
+      cachedStats.compareSignature === compareSignature
+
+    const statsResult = canUseCachedStats
+      ? cachedStats
+      : await runAnalysisTask(
+          segmentedMode ? ANALYSIS_TASK_TYPES.computeStatsSegmented : ANALYSIS_TASK_TYPES.computeStats,
+          segmentedMode
+            ? {
+                text: currentText,
+                chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS,
+                sttrChunkSize: 1000,
+                compareSignature,
+                comparisonEntries: shouldCompareAcrossCorpora ? currentComparisonEntries : []
+              }
+            : {
+                comparisonEntries: shouldCompareAcrossCorpora ? currentComparisonEntries : []
+              },
+          () => {
+            const comparison = shouldCompareAcrossCorpora
+              ? compareCorpusFrequencies(currentComparisonEntries)
+              : { corpora: [], rows: [] }
+            if (segmentedMode) {
+              const segmentedStats = computeSegmentedStats(currentText, {
+                chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS,
+                sttrChunkSize: 1000
+              })
+              return {
+                ...segmentedStats,
+                compareCorpora: comparison.corpora,
+                compareRows: comparison.rows,
+                compareSignature
+              }
+            }
+            const freqMap = countWordFrequency(currentTokens)
+            return {
+              freqRows: getSortedFrequencyRows(freqMap),
+              tokenCount: currentTokens.length,
+              typeCount: Object.keys(freqMap).length,
+              ttr: calculateTTR(currentTokens),
+              sttr: calculateSTTR(currentTokens, 1000),
+              compareCorpora: comparison.corpora,
+              compareRows: comparison.rows,
+              compareSignature
+            }
+          },
+          { taskName: 'stats' }
+        )
     if (!isLatestAnalysisRun('stats', runId)) return
 
     currentFreqRows = statsResult.freqRows || []
@@ -2966,6 +5310,23 @@ countButton.addEventListener('click', async () => {
     currentSTTR = statsResult.sttr || 0
     currentComparisonCorpora = Array.isArray(statsResult.compareCorpora) ? statsResult.compareCorpora : []
     currentComparisonRows = Array.isArray(statsResult.compareRows) ? statsResult.compareRows : []
+    invalidateSearchCaches()
+    const normalizedCompareSignature = String(statsResult.compareSignature || compareSignature || 'none')
+    if (!canUseCachedStats) {
+      updateCurrentAnalysisCache({
+        stats: {
+          freqRows: currentFreqRows,
+          tokenCount: currentTokenCount,
+          typeCount: currentTypeCount,
+          ttr: currentTTR,
+          sttr: currentSTTR,
+          compareCorpora: currentComparisonCorpora,
+          compareRows: currentComparisonRows,
+          compareSignature: normalizedCompareSignature
+        }
+      })
+      void persistAnalysisCachePayload()
+    }
     renderStatsSummaryTable()
     pageSize = resolvePageSize(pageSizeSelect.value, getVisibleFrequencyRows().length)
     currentPage = 1
@@ -2974,23 +5335,41 @@ countButton.addEventListener('click', async () => {
     renderFrequencyTable()
     renderCompareTable()
     renderWordCloud()
+    await runNgramAnalysis({ silent: true })
     switchTab('stats')
-    taskCenter.finishEntry('stats', 'success', `Token ${formatCount(currentTokenCount)} / Type ${formatCount(currentTypeCount)}`)
+    finishTaskEntryWithAttention(
+      taskCenterTaskKey,
+      '统计结果',
+      'success',
+      `Token ${formatCount(currentTokenCount)} / Type ${formatCount(currentTypeCount)}`,
+      'analysis-complete'
+    )
     void recordDiagnostic('info', 'analysis.stats', '统计任务完成。', {
       tokenCount: currentTokenCount,
-      typeCount: currentTypeCount
+      typeCount: currentTypeCount,
+      analysisMode: currentAnalysisMode
     })
+    void notifySystem({
+      title: '统计完成',
+      body: `${currentCorpusDisplayName || '当前语料'} 已完成统计。Token ${formatCount(currentTokenCount)} / Type ${formatCount(currentTypeCount)}`,
+      tag: 'stats-finished',
+      category: 'analysis-complete',
+      action: 'open-stats-tab'
+    })
+    void refreshAnalysisCacheState({ silent: true })
+    maybeWarnMemoryPressure('analysis.stats')
+    return 'success'
   } catch (error) {
     if (isAbortError(error)) {
-      taskCenter.finishEntry('stats', 'cancelled', error.message || '统计任务已取消')
+      finishTaskEntryWithAttention(taskCenterTaskKey, '统计结果', 'cancelled', error.message || '统计任务已取消', 'analysis-complete')
       void recordDiagnostic('warn', 'analysis.stats', error.message || '统计任务已取消')
       showToast(error.message || '已取消统计任务', {
         title: '统计已取消',
         duration: 2200
       })
-      return
+      return 'cancelled'
     }
-    taskCenter.finishEntry('stats', 'failed', getErrorMessage(error, '统计失败'))
+    finishTaskEntryWithAttention(taskCenterTaskKey, '统计结果', 'failed', getErrorMessage(error, '统计失败'), 'analysis-complete')
     console.error('[countButton]', error)
     recordDiagnosticError('analysis.stats', error, {
       tokenCount: currentTokens.length
@@ -2999,10 +5378,27 @@ countButton.addEventListener('click', async () => {
       title: '统计失败',
       message: getErrorMessage(error, '统计失败')
     })
+    return 'failed'
   } finally {
     endBusyState()
     endCancelableAnalysis('stats')
+    if (activeTaskCenterTaskKeys.stats === taskCenterTaskKey) {
+      activeTaskCenterTaskKeys.stats = 'stats'
+    }
+    void setWindowProgressState({
+      source: 'analysis',
+      state: 'none'
+    })
   }
+}
+
+countButton.addEventListener('click', async () => {
+  await enqueueOrRunAnalysisTask({
+    type: 'stats',
+    title: '统计结果',
+    detail: '正在统计词频与词汇指标...',
+    run: ({ taskCenterTaskKey }) => executeStatsAnalysis({ taskCenterTaskKey })
+  })
 })
 
 cancelStatsButton.addEventListener('click', () => {
@@ -3039,6 +5435,73 @@ for (const input of searchOptionInputs || []) {
     setSharedSearchOption(optionName, input.checked)
   })
 }
+
+for (const control of [chiAInput, chiBInput, chiCInput, chiDInput]) {
+  control?.addEventListener('input', () => {
+    captureChiSquareInputsFromControls()
+    scheduleWorkspaceSnapshotSave()
+  })
+}
+
+chiYatesToggle?.addEventListener('change', () => {
+  captureChiSquareInputsFromControls()
+  if (currentChiSquareResult) {
+    try {
+      currentChiSquareResult = calculateChiSquare2x2(readChiSquareInputNumbers())
+    } catch {
+      currentChiSquareResult = null
+    }
+    renderChiSquareResult()
+  }
+  scheduleWorkspaceSnapshotSave()
+})
+
+chiSquareRunButton?.addEventListener('click', async () => {
+  try {
+    const inputValues = readChiSquareInputNumbers()
+    currentChiSquareInputValues = {
+      a: String(inputValues.a),
+      b: String(inputValues.b),
+      c: String(inputValues.c),
+      d: String(inputValues.d),
+      yates: inputValues.yates
+    }
+    syncChiSquareInputsFromState()
+    currentChiSquareResult = calculateChiSquare2x2(inputValues)
+    renderChiSquareResult()
+    switchTab('chi-square')
+    scheduleWorkspaceSnapshotSave()
+    showToast('卡方检验已完成。', {
+      title: '统计工具',
+      type: 'success',
+      duration: 2200
+    })
+    void recordDiagnostic('info', 'analysis.chi-square', '卡方检验已完成。', {
+      chiSquare: currentChiSquareResult.chiSquare,
+      pValue: currentChiSquareResult.pValue,
+      yates: currentChiSquareResult.yatesCorrection
+    })
+  } catch (error) {
+    await showAlert({
+      title: '卡方检验输入无效',
+      message: getErrorMessage(error, '请填写合法的 2×2 列联表频数')
+    })
+  }
+})
+
+chiSquareResetButton?.addEventListener('click', () => {
+  currentChiSquareInputValues = {
+    a: '',
+    b: '',
+    c: '',
+    d: '',
+    yates: false
+  }
+  currentChiSquareResult = null
+  syncChiSquareInputsFromState()
+  renderChiSquareResult()
+  scheduleWorkspaceSnapshotSave()
+})
 
 for (const control of [leftWindowSelect, rightWindowSelect, collocateLeftWindowSelect, collocateRightWindowSelect]) {
   control.addEventListener('change', () => {
@@ -3081,14 +5544,61 @@ compareNextPageButton?.addEventListener('click', () => {
   }
 })
 
-kwicButton.addEventListener('click', async () => {
+ngramButton?.addEventListener('click', async () => {
+  await runNgramAnalysis({ switchToTab: true })
+})
+
+ngramSizeSelect?.addEventListener('change', () => {
+  currentNgramSize = getSelectedNgramSize()
+  scheduleWorkspaceSnapshotSave()
+  if (currentTokens.length > 0) {
+    void runNgramAnalysis({ silent: true })
+  }
+})
+
+ngramPageSizeSelect?.addEventListener('change', () => {
+  currentNgramPageSize = resolvePageSize(ngramPageSizeSelect.value, currentNgramRows.length)
+  currentNgramPage = 1
+  renderNgramTable()
+  scheduleWorkspaceSnapshotSave()
+})
+
+ngramPrevPageButton?.addEventListener('click', () => {
+  if (currentNgramPage > 1) {
+    currentNgramPage -= 1
+    renderNgramTable()
+  }
+})
+
+ngramNextPageButton?.addEventListener('click', () => {
+  const totalPages = Math.ceil(currentNgramRows.length / currentNgramPageSize)
+  if (currentNgramPage < totalPages) {
+    currentNgramPage += 1
+    renderNgramTable()
+  }
+})
+
+async function executeKWICAnalysis({ taskCenterTaskKey = 'kwic' } = {}) {
   const keyword = String(currentSearchQuery || '').trim()
   if (!keyword) {
+    if (taskCenterTaskKey !== 'kwic') {
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'KWIC 检索', 'failed', '缺少检索词', 'analysis-complete')
+    }
     await showAlert({
       title: '缺少检索词',
       message: '请输入要检索的词'
     })
-    return
+    return 'failed'
+  }
+  if (currentAnalysisMode === 'segmented') {
+    if (taskCenterTaskKey !== 'kwic') {
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'KWIC 检索', 'failed', '分段模式暂不支持 KWIC', 'analysis-complete')
+    }
+    await showAlert({
+      title: 'KWIC 暂不可用',
+      message: '当前语料体量较大，已启用分段分析模式。为保证稳定性，KWIC 检索暂不可用，请切换更小语料后继续。'
+    })
+    return 'failed'
   }
   let leftWindowSize = DEFAULT_WINDOW_SIZE
   let rightWindowSize = DEFAULT_WINDOW_SIZE
@@ -3100,7 +5610,7 @@ kwicButton.addEventListener('click', async () => {
       title: 'KWIC 设置无效',
       message: getErrorMessage(error, '请输入合法的 KWIC 窗口大小')
     })
-    return
+    return 'failed'
   }
   const kwicScope = getSelectedKWICScope()
   const searchOptions = { ...currentSearchOptions }
@@ -3112,15 +5622,23 @@ kwicButton.addEventListener('click', async () => {
 
   if (kwicScope === 'current') {
     if (!currentText.trim()) {
+      if (taskCenterTaskKey !== 'kwic') {
+        finishTaskEntryWithAttention(taskCenterTaskKey, 'KWIC 检索', 'failed', '缺少语料', 'analysis-complete')
+      }
       await showAlert({
         title: '缺少语料',
         message: '请先导入一个 txt / docx / pdf 文件，或把检索范围切到“全部本地语料”。'
       })
-      return
+      return 'failed'
     }
   } else {
     const scopeContext = await resolveCrossCorpusKWICScope(kwicScope)
-    if (!scopeContext) return
+    if (!scopeContext) {
+      if (taskCenterTaskKey !== 'kwic') {
+        finishTaskEntryWithAttention(taskCenterTaskKey, 'KWIC 检索', 'failed', '检索范围不可用', 'analysis-complete')
+      }
+      return 'failed'
+    }
     kwicScopeLabel = scopeContext.scopeLabel
     searchedCorpusCount = scopeContext.corpora.length
     kwicTaskType = ANALYSIS_TASK_TYPES.searchLibraryKWIC
@@ -3137,7 +5655,17 @@ kwicButton.addEventListener('click', async () => {
   const runId = nextAnalysisRun('kwic')
   const endBusyState = beginBusyState('正在执行 KWIC 检索...')
   beginCancelableAnalysis('kwic')
-  taskCenter.startEntry('kwic', 'KWIC 检索', `${kwicScopeLabel} · 关键词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`)
+  void setWindowProgressState({
+    source: 'analysis',
+    state: 'indeterminate',
+    priority: 40
+  })
+  activeTaskCenterTaskKeys.kwic = taskCenterTaskKey
+  ensureTaskCenterRunningEntry(
+    taskCenterTaskKey,
+    'KWIC 检索',
+    `${kwicScopeLabel} · 关键词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`
+  )
   try {
     currentKWICKeyword = keyword
     currentKWICLeftWindow = leftWindowSize
@@ -3158,15 +5686,29 @@ kwicButton.addEventListener('click', async () => {
     currentKWICPage = 1
     renderKWICTable()
     switchTab('kwic')
-    taskCenter.finishEntry('kwic', 'success', `${kwicScopeLabel} · 关键词：${keyword} · ${formatCount(currentKWICResults.length)} 条结果`)
+    finishTaskEntryWithAttention(
+      taskCenterTaskKey,
+      'KWIC 检索',
+      'success',
+      `${kwicScopeLabel} · 关键词：${keyword} · ${formatCount(currentKWICResults.length)} 条结果`,
+      'analysis-complete'
+    )
     void recordDiagnostic('info', 'analysis.kwic', 'KWIC 检索完成。', {
       keyword,
       scope: kwicScopeLabel,
       resultCount: currentKWICResults.length
     })
+    void notifySystem({
+      title: 'KWIC 检索完成',
+      body: `${kwicScopeLabel} · ${keyword} · ${formatCount(currentKWICResults.length)} 条结果`,
+      tag: 'kwic-finished',
+      category: 'analysis-complete',
+      action: 'open-kwic-tab'
+    })
+    return 'success'
   } catch (error) {
     if (isAbortError(error)) {
-      taskCenter.finishEntry('kwic', 'cancelled', error.message || 'KWIC 检索已取消')
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'KWIC 检索', 'cancelled', error.message || 'KWIC 检索已取消', 'analysis-complete')
       void recordDiagnostic('warn', 'analysis.kwic', error.message || 'KWIC 检索已取消', {
         keyword
       })
@@ -3174,9 +5716,9 @@ kwicButton.addEventListener('click', async () => {
         title: 'KWIC 已取消',
         duration: 2200
       })
-      return
+      return 'cancelled'
     }
-    taskCenter.finishEntry('kwic', 'failed', getErrorMessage(error, 'KWIC 检索失败'))
+    finishTaskEntryWithAttention(taskCenterTaskKey, 'KWIC 检索', 'failed', getErrorMessage(error, 'KWIC 检索失败'), 'analysis-complete')
     console.error('[kwicButton]', error)
     recordDiagnosticError('analysis.kwic', error, {
       keyword,
@@ -3186,10 +5728,27 @@ kwicButton.addEventListener('click', async () => {
       title: 'KWIC 检索失败',
       message: getErrorMessage(error, 'KWIC 检索失败')
     })
+    return 'failed'
   } finally {
     endBusyState()
     endCancelableAnalysis('kwic')
+    if (activeTaskCenterTaskKeys.kwic === taskCenterTaskKey) {
+      activeTaskCenterTaskKeys.kwic = 'kwic'
+    }
+    void setWindowProgressState({
+      source: 'analysis',
+      state: 'none'
+    })
   }
+}
+
+kwicButton.addEventListener('click', async () => {
+  await enqueueOrRunAnalysisTask({
+    type: 'kwic',
+    title: 'KWIC 检索',
+    detail: `关键词：${String(currentSearchQuery || '').trim() || '(空)'} · SearchQuery：${getSearchOptionsSummary()}`,
+    run: ({ taskCenterTaskKey }) => executeKWICAnalysis({ taskCenterTaskKey })
+  })
 })
 
 cancelKwicButton.addEventListener('click', () => {
@@ -3234,21 +5793,37 @@ kwicNextPageButton.addEventListener('click', () => {
   }
 })
 
-collocateButton.addEventListener('click', async () => {
+async function executeCollocateAnalysis({ taskCenterTaskKey = 'collocate' } = {}) {
   if (!currentText.trim()) {
+    if (taskCenterTaskKey !== 'collocate') {
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'Collocate 统计', 'failed', '缺少语料', 'analysis-complete')
+    }
     await showAlert({
       title: '缺少语料',
       message: '请先导入一个 txt / docx / pdf 文件'
     })
-    return
+    return 'failed'
+  }
+  if (currentAnalysisMode === 'segmented') {
+    if (taskCenterTaskKey !== 'collocate') {
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'Collocate 统计', 'failed', '分段模式暂不支持 Collocate', 'analysis-complete')
+    }
+    await showAlert({
+      title: 'Collocate 暂不可用',
+      message: '当前语料体量较大，已启用分段分析模式。为保证稳定性，Collocate 统计暂不可用，请切换更小语料后继续。'
+    })
+    return 'failed'
   }
   const keyword = String(currentSearchQuery || '').trim()
   if (!keyword) {
+    if (taskCenterTaskKey !== 'collocate') {
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'Collocate 统计', 'failed', '缺少节点词', 'analysis-complete')
+    }
     await showAlert({
       title: '缺少节点词',
       message: '请输入节点词'
     })
-    return
+    return 'failed'
   }
   let leftWindowSize = DEFAULT_WINDOW_SIZE
   let rightWindowSize = DEFAULT_WINDOW_SIZE
@@ -3260,14 +5835,24 @@ collocateButton.addEventListener('click', async () => {
       title: 'Collocate 设置无效',
       message: getErrorMessage(error, '请输入合法的 Collocate 窗口大小')
     })
-    return
+    return 'failed'
   }
   const minFreq = Number(collocateMinFreqSelect.value)
   const searchOptions = { ...currentSearchOptions }
   const runId = nextAnalysisRun('collocate')
   const endBusyState = beginBusyState('正在计算搭配词结果...')
   beginCancelableAnalysis('collocate')
-  taskCenter.startEntry('collocate', 'Collocate 统计', `节点词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`)
+  void setWindowProgressState({
+    source: 'analysis',
+    state: 'indeterminate',
+    priority: 40
+  })
+  activeTaskCenterTaskKeys.collocate = taskCenterTaskKey
+  ensureTaskCenterRunningEntry(
+    taskCenterTaskKey,
+    'Collocate 统计',
+    `节点词：${keyword} · 范围：${leftWindowSize}L ${rightWindowSize}R · ${getSearchOptionsSummary()}`
+  )
   try {
     currentCollocateKeyword = keyword
     currentCollocateLeftWindow = leftWindowSize
@@ -3285,15 +5870,29 @@ collocateButton.addEventListener('click', async () => {
     collocateMeta.innerHTML = `节点词：${escapeHtml(keyword)} ｜ 范围：${leftWindowSize}L ${rightWindowSize}R ｜ 最低共现次数：${minFreq} ｜ SearchQuery：${escapeHtml(getSearchOptionsSummary())}<br />结果按共现次数降序排列。`
     renderCollocateTable()
     switchTab('collocate')
-    taskCenter.finishEntry('collocate', 'success', `节点词：${keyword} · ${formatCount(currentCollocateRows.length)} 条结果`)
+    finishTaskEntryWithAttention(
+      taskCenterTaskKey,
+      'Collocate 统计',
+      'success',
+      `节点词：${keyword} · ${formatCount(currentCollocateRows.length)} 条结果`,
+      'analysis-complete'
+    )
     void recordDiagnostic('info', 'analysis.collocate', 'Collocate 统计完成。', {
       keyword,
       resultCount: currentCollocateRows.length,
       minFreq
     })
+    void notifySystem({
+      title: 'Collocate 统计完成',
+      body: `${keyword} · ${formatCount(currentCollocateRows.length)} 条结果`,
+      tag: 'collocate-finished',
+      category: 'analysis-complete',
+      action: 'open-collocate-tab'
+    })
+    return 'success'
   } catch (error) {
     if (isAbortError(error)) {
-      taskCenter.finishEntry('collocate', 'cancelled', error.message || 'Collocate 统计已取消')
+      finishTaskEntryWithAttention(taskCenterTaskKey, 'Collocate 统计', 'cancelled', error.message || 'Collocate 统计已取消', 'analysis-complete')
       void recordDiagnostic('warn', 'analysis.collocate', error.message || 'Collocate 统计已取消', {
         keyword
       })
@@ -3301,9 +5900,9 @@ collocateButton.addEventListener('click', async () => {
         title: 'Collocate 已取消',
         duration: 2200
       })
-      return
+      return 'cancelled'
     }
-    taskCenter.finishEntry('collocate', 'failed', getErrorMessage(error, 'Collocate 统计失败'))
+    finishTaskEntryWithAttention(taskCenterTaskKey, 'Collocate 统计', 'failed', getErrorMessage(error, 'Collocate 统计失败'), 'analysis-complete')
     console.error('[collocateButton]', error)
     recordDiagnosticError('analysis.collocate', error, {
       keyword,
@@ -3313,10 +5912,27 @@ collocateButton.addEventListener('click', async () => {
       title: 'Collocate 统计失败',
       message: getErrorMessage(error, 'Collocate 统计失败')
     })
+    return 'failed'
   } finally {
     endBusyState()
     endCancelableAnalysis('collocate')
+    if (activeTaskCenterTaskKeys.collocate === taskCenterTaskKey) {
+      activeTaskCenterTaskKeys.collocate = 'collocate'
+    }
+    void setWindowProgressState({
+      source: 'analysis',
+      state: 'none'
+    })
   }
+}
+
+collocateButton.addEventListener('click', async () => {
+  await enqueueOrRunAnalysisTask({
+    type: 'collocate',
+    title: 'Collocate 统计',
+    detail: `节点词：${String(currentSearchQuery || '').trim() || '(空)'} · SearchQuery：${getSearchOptionsSummary()}`,
+    run: ({ taskCenterTaskKey }) => executeCollocateAnalysis({ taskCenterTaskKey })
+  })
 })
 
 cancelCollocateButton.addEventListener('click', () => {
@@ -3397,6 +6013,14 @@ copyFreqButton.addEventListener('click', async () => {
 
 exportAllFreqButton.addEventListener('click', async () => {
   await saveTableFile('词频表_全部', buildAllFrequencyRows(), exportFeedback)
+})
+
+exportNgramButton?.addEventListener('click', async () => {
+  await saveTableFile(`Ngram_${currentNgramSize}gram_当前页`, buildNgramRows(), exportFeedback)
+})
+
+exportAllNgramButton?.addEventListener('click', async () => {
+  await saveTableFile(`Ngram_${currentNgramSize}gram_全部`, buildAllNgramRows(), exportFeedback)
 })
 
 copyCompareButton?.addEventListener('click', async () => {

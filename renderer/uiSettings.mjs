@@ -6,7 +6,69 @@ export function createUISettingsController({
   fontFamilies,
   clampNumber
 }) {
+  const THEME_STORAGE_KEY = 'corpus-theme'
+  const THEME_MODE_SET = new Set(['light', 'dark', 'system'])
   let currentUISettings = { ...defaultSettings }
+  let currentThemeMode = defaultTheme === 'dark' ? 'dark' : 'light'
+  let systemThemeMediaQuery = null
+  let themeMediaUnsubscriber = null
+  let accessibilityMediaUnsubscribers = []
+  let hasBoundSystemThemeListener = false
+
+  function addMediaChangeListener(mediaQuery, listener) {
+    if (!mediaQuery || typeof listener !== 'function') return () => {}
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', listener)
+      return () => {
+        mediaQuery.removeEventListener('change', listener)
+      }
+    }
+    if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(listener)
+      return () => {
+        mediaQuery.removeListener(listener)
+      }
+    }
+    return () => {}
+  }
+
+  function getSystemThemeMediaQuery() {
+    if (systemThemeMediaQuery || typeof window.matchMedia !== 'function') return systemThemeMediaQuery
+    systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    return systemThemeMediaQuery
+  }
+
+  function resolveThemeMode(value) {
+    const normalizedValue = String(value || '').trim().toLowerCase()
+    if (THEME_MODE_SET.has(normalizedValue)) return normalizedValue
+    const normalizedDefault = String(defaultTheme || '').trim().toLowerCase()
+    return normalizedDefault === 'dark' ? 'dark' : 'light'
+  }
+
+  function resolveEffectiveTheme(themeMode) {
+    if (themeMode === 'dark') return 'dark'
+    if (themeMode === 'system') {
+      const mediaQuery = getSystemThemeMediaQuery()
+      return mediaQuery?.matches ? 'dark' : 'light'
+    }
+    return 'light'
+  }
+
+  function applyAccessibilityPreferences() {
+    if (!document.body) return
+    const followsSystem = currentUISettings.followSystemAccessibility !== false
+    if (!followsSystem || typeof window.matchMedia !== 'function') {
+      document.body.classList.remove('reduce-motion')
+      document.body.classList.remove('high-contrast')
+      return
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const prefersHighContrast = window.matchMedia('(prefers-contrast: more)').matches
+    const forcedColorsEnabled = window.matchMedia('(forced-colors: active)').matches
+    document.body.classList.toggle('reduce-motion', prefersReducedMotion)
+    document.body.classList.toggle('high-contrast', prefersHighContrast || forcedColorsEnabled)
+  }
 
   function normalizeUISettings(settings = {}) {
     const fontFamily = fontFamilies[settings.fontFamily] ? settings.fontFamily : defaultSettings.fontFamily
@@ -16,6 +78,12 @@ export function createUISettingsController({
       fontFamily,
       showWelcomeScreen: settings.showWelcomeScreen !== false,
       restoreWorkspace: settings.restoreWorkspace !== false,
+      systemNotifications: settings.systemNotifications !== false,
+      windowAttention: settings.windowAttention !== false,
+      notifyAnalysisComplete: settings.notifyAnalysisComplete !== false,
+      notifyUpdateDownloaded: settings.notifyUpdateDownloaded !== false,
+      notifyDiagnosticsExport: settings.notifyDiagnosticsExport !== false,
+      followSystemAccessibility: settings.followSystemAccessibility !== false,
       debugLogging: settings.debugLogging === true
     }
   }
@@ -34,6 +102,24 @@ export function createUISettingsController({
     }
     if (dom.restoreWorkspaceToggle) {
       dom.restoreWorkspaceToggle.checked = settings.restoreWorkspace !== false
+    }
+    if (dom.systemNotificationsToggle) {
+      dom.systemNotificationsToggle.checked = settings.systemNotifications !== false
+    }
+    if (dom.windowAttentionToggle) {
+      dom.windowAttentionToggle.checked = settings.windowAttention !== false
+    }
+    if (dom.notifyAnalysisCompleteToggle) {
+      dom.notifyAnalysisCompleteToggle.checked = settings.notifyAnalysisComplete !== false
+    }
+    if (dom.notifyUpdateDownloadedToggle) {
+      dom.notifyUpdateDownloadedToggle.checked = settings.notifyUpdateDownloaded !== false
+    }
+    if (dom.notifyDiagnosticsExportToggle) {
+      dom.notifyDiagnosticsExportToggle.checked = settings.notifyDiagnosticsExport !== false
+    }
+    if (dom.followSystemAccessibilityToggle) {
+      dom.followSystemAccessibilityToggle.checked = settings.followSystemAccessibility !== false
     }
     if (dom.debugLoggingToggle) {
       dom.debugLoggingToggle.checked = settings.debugLogging === true
@@ -65,6 +151,7 @@ export function createUISettingsController({
     if (window.electronAPI?.setDiagnosticLoggingEnabled && previousDebugLogging !== (normalizedSettings.debugLogging === true)) {
       void window.electronAPI.setDiagnosticLoggingEnabled(normalizedSettings.debugLogging === true)
     }
+    applyAccessibilityPreferences()
     if (syncControls) syncUISettingControls(normalizedSettings)
     if (persist) persistUISettings(normalizedSettings)
   }
@@ -94,26 +181,82 @@ export function createUISettingsController({
       fontFamily: dom.uiFontFamilySelect.value,
       showWelcomeScreen: dom.showWelcomeScreenToggle?.checked !== false,
       restoreWorkspace: dom.restoreWorkspaceToggle?.checked !== false,
+      systemNotifications: dom.systemNotificationsToggle?.checked !== false,
+      windowAttention: dom.windowAttentionToggle?.checked !== false,
+      notifyAnalysisComplete: dom.notifyAnalysisCompleteToggle?.checked !== false,
+      notifyUpdateDownloaded: dom.notifyUpdateDownloadedToggle?.checked !== false,
+      notifyDiagnosticsExport: dom.notifyDiagnosticsExportToggle?.checked !== false,
+      followSystemAccessibility: dom.followSystemAccessibilityToggle?.checked !== false,
       debugLogging: dom.debugLoggingToggle?.checked === true
     })
   }
 
-  function applyTheme(theme) {
-    const normalizedTheme = theme === 'dark' ? 'dark' : defaultTheme
-    if (normalizedTheme === 'dark') {
+  function applyTheme(themeMode, options = {}) {
+    const { persist = true } = options
+    const normalizedThemeMode = resolveThemeMode(themeMode)
+    const effectiveTheme = resolveEffectiveTheme(normalizedThemeMode)
+    currentThemeMode = normalizedThemeMode
+    if (effectiveTheme === 'dark') {
       document.body.setAttribute('data-theme', 'dark')
     } else {
       document.body.removeAttribute('data-theme')
     }
-    dom.themeModeValue.textContent = normalizedTheme === 'dark' ? '深色模式' : '浅色模式'
-    dom.lightThemeButton.classList.toggle('active', normalizedTheme === 'light')
-    dom.darkThemeButton.classList.toggle('active', normalizedTheme === 'dark')
-    localStorage.setItem('corpus-theme', normalizedTheme)
+    if (document.body) {
+      document.body.setAttribute('data-theme-mode', normalizedThemeMode)
+    }
+    if (dom.themeModeValue) {
+      dom.themeModeValue.textContent = normalizedThemeMode === 'system'
+        ? `跟随系统（当前${effectiveTheme === 'dark' ? '深色' : '浅色'}）`
+        : (effectiveTheme === 'dark' ? '深色模式' : '浅色模式')
+    }
+    dom.lightThemeButton?.classList.toggle('active', normalizedThemeMode === 'light')
+    dom.darkThemeButton?.classList.toggle('active', normalizedThemeMode === 'dark')
+    dom.systemThemeButton?.classList.toggle('active', normalizedThemeMode === 'system')
+    if (persist) {
+      localStorage.setItem(THEME_STORAGE_KEY, normalizedThemeMode)
+    }
+  }
+
+  function bindSystemPreferenceListeners() {
+    if (hasBoundSystemThemeListener) return
+    hasBoundSystemThemeListener = true
+
+    const themeQuery = getSystemThemeMediaQuery()
+    themeMediaUnsubscriber = addMediaChangeListener(themeQuery, () => {
+      if (currentThemeMode === 'system') {
+        applyTheme('system', { persist: false })
+      }
+    })
+
+    if (typeof window.matchMedia === 'function') {
+      const accessibilityQueries = [
+        window.matchMedia('(prefers-reduced-motion: reduce)'),
+        window.matchMedia('(prefers-contrast: more)'),
+        window.matchMedia('(forced-colors: active)')
+      ]
+      accessibilityMediaUnsubscribers = accessibilityQueries.map(mediaQuery =>
+        addMediaChangeListener(mediaQuery, () => {
+          applyAccessibilityPreferences()
+        })
+      )
+    }
+  }
+
+  function clearSystemPreferenceListeners() {
+    themeMediaUnsubscriber?.()
+    themeMediaUnsubscriber = null
+    for (const unsubscribe of accessibilityMediaUnsubscribers) {
+      unsubscribe()
+    }
+    accessibilityMediaUnsubscribers = []
+    hasBoundSystemThemeListener = false
   }
 
   function init() {
-    const savedTheme = localStorage.getItem('corpus-theme') || defaultTheme
-    applyTheme(savedTheme)
+    clearSystemPreferenceListeners()
+    bindSystemPreferenceListeners()
+    const savedThemeMode = resolveThemeMode(localStorage.getItem(THEME_STORAGE_KEY) || defaultTheme)
+    applyTheme(savedThemeMode, { persist: false })
     applyUISettings(loadStoredUISettings(), { persist: false })
     return { ...currentUISettings }
   }

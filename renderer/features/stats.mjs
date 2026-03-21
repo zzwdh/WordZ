@@ -12,6 +12,7 @@ export function renderWorkspaceOverview(state, dom, { formatCount }) {
   }
 
   const hasStats = state.currentTokenCount > 0 || state.currentFreqRows.length > 0
+  const segmentedMode = state.currentAnalysisMode === 'segmented'
   const selectedCount = Array.isArray(state.currentSelectedCorpora) ? state.currentSelectedCorpora.length : 0
   const corpusModeLabel =
     state.currentCorpusMode === 'saved-multi'
@@ -32,14 +33,22 @@ export function renderWorkspaceOverview(state, dom, { formatCount }) {
       ? `${corpusModeLabel} · 已选 ${formatCount(selectedCount)} 条 · ${folderLabel}`
       : `${corpusModeLabel} · ${folderLabel}`
 
-  dom.workspaceModeValue.textContent = hasStats ? '分析就绪' : '语料已载入'
-  dom.workspaceModeNote.textContent = hasStats
-    ? '当前语料已经完成统计，可继续做 KWIC / Collocate / 定位。'
-    : '可以先点击“开始统计”，再进入更细的检索与搭配分析。'
+  dom.workspaceModeValue.textContent = segmentedMode
+    ? '分段分析'
+    : hasStats
+      ? '分析就绪'
+      : '语料已载入'
+  dom.workspaceModeNote.textContent = segmentedMode
+    ? '已启用超大语料内存保护：统计与 Ngram 可用，KWIC / Collocate 暂不可用。'
+    : hasStats
+      ? '当前语料已经完成统计，可继续做 KWIC / Collocate / 定位。'
+      : '可以先点击“开始统计”，再进入更细的检索与搭配分析。'
 
   dom.workspaceTokenValue.textContent = `${formatCount(tokenCount)} / ${typeValue}`
   dom.workspaceTokenNote.textContent = hasStats
-    ? `Token ${formatCount(tokenCount)} · Type ${formatCount(state.currentTypeCount)}`
+    ? segmentedMode
+      ? `Token ${formatCount(tokenCount)} · Type ${formatCount(state.currentTypeCount)}（分段统计）`
+      : `Token ${formatCount(tokenCount)} · Type ${formatCount(state.currentTypeCount)}`
     : `Token ${formatCount(tokenCount)} · Type 待统计`
 
   if (hasStats) {

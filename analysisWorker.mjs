@@ -1,9 +1,13 @@
 import {
   buildCorpusData,
+  computeSegmentedNgramRows,
+  computeSegmentedStats,
   compareCorpusFrequencies,
+  countNgramFrequency,
   countWordFrequency,
   calculateTTR,
   calculateSTTR,
+  getSortedNgramRows,
   getSortedFrequencyRows,
   searchKWIC,
   searchLibraryKWIC,
@@ -14,10 +18,12 @@ const workerUrl = new URL(self.location.href)
 const smokeDelayMs = Math.max(0, Number(workerUrl.searchParams.get('delayMs') || 0))
 
 const analysisState = {
+  rawText: '',
   sentences: [],
   tokenObjects: [],
   tokens: [],
-  freqMap: null
+  freqMap: null,
+  ngramMapBySize: new Map()
 }
 
 function sleep(ms) {
@@ -25,11 +31,14 @@ function sleep(ms) {
 }
 
 function setCorpus(text) {
-  const corpusData = buildCorpusData(text)
+  const normalizedText = String(text || '')
+  const corpusData = buildCorpusData(normalizedText)
+  analysisState.rawText = normalizedText
   analysisState.sentences = corpusData.sentences
   analysisState.tokenObjects = corpusData.tokenObjects
   analysisState.tokens = corpusData.tokens
   analysisState.freqMap = null
+  analysisState.ngramMapBySize = new Map()
   return corpusData
 }
 
@@ -57,6 +66,47 @@ function computeStats(payload = {}) {
   }
 }
 
+function computeStatsSegmented(payload = {}) {
+  const segmentedStats = computeSegmentedStats(payload?.text || analysisState.rawText || '', {
+    chunkCharSize: payload?.chunkCharSize,
+    sttrChunkSize: payload?.sttrChunkSize
+  })
+  const comparison =
+    Array.isArray(payload?.comparisonEntries) && payload.comparisonEntries.length >= 2
+      ? compareCorpusFrequencies(payload.comparisonEntries)
+      : { corpora: [], rows: [] }
+  return {
+    ...segmentedStats,
+    compareCorpora: comparison.corpora,
+    compareRows: comparison.rows,
+    compareSignature: String(payload?.compareSignature || '')
+  }
+}
+
+function computeNgrams(payload = {}) {
+  const n = Number(payload?.n || 2)
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+    throw new Error('Ngram 的 N 必须是正整数')
+  }
+
+  let ngramMap = analysisState.ngramMapBySize.get(n)
+  if (!ngramMap) {
+    ngramMap = countNgramFrequency(analysisState.tokens, n)
+    analysisState.ngramMapBySize.set(n, ngramMap)
+  }
+
+  return {
+    n,
+    rows: getSortedNgramRows(ngramMap)
+  }
+}
+
+function computeNgramsSegmented(payload = {}) {
+  return computeSegmentedNgramRows(payload?.text || analysisState.rawText || '', payload?.n || 2, {
+    chunkCharSize: payload?.chunkCharSize
+  })
+}
+
 self.onmessage = async event => {
   const { id, type, payload } = event.data || {}
 
@@ -71,6 +121,12 @@ self.onmessage = async event => {
       result = setCorpus(payload?.text || '')
     } else if (type === 'compute-stats') {
       result = computeStats(payload)
+    } else if (type === 'compute-stats-segmented') {
+      result = computeStatsSegmented(payload)
+    } else if (type === 'compute-ngrams') {
+      result = computeNgrams(payload)
+    } else if (type === 'compute-ngrams-segmented') {
+      result = computeNgramsSegmented(payload)
     } else if (type === 'search-kwic') {
       result = searchKWIC(
         analysisState.tokenObjects,

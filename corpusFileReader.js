@@ -5,6 +5,15 @@ const iconv = require('iconv-lite')
 const mammoth = require('mammoth')
 const { PDFParse } = require('pdf-parse')
 
+const SUPPORTED_CORPUS_EXTENSIONS = new Set(['.txt', '.docx', '.pdf'])
+const DEFAULT_PREFLIGHT_OPTIONS = Object.freeze({
+  warningSizeBytes: 20 * 1024 * 1024,
+  blockingSizeBytes: 200 * 1024 * 1024,
+  txtSampleBytes: 8192,
+  txtBinaryZeroByteRatio: 0.01,
+  txtBinaryControlRatio: 0.25
+})
+
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
 const UTF16LE_BOM = Buffer.from([0xff, 0xfe])
 const UTF16BE_BOM = Buffer.from([0xfe, 0xff])
@@ -180,6 +189,155 @@ async function extractPdfText(buffer) {
   }
 }
 
+function normalizePreflightOptions(options = {}) {
+  const warningSizeBytes = Number(options?.warningSizeBytes)
+  const blockingSizeBytes = Number(options?.blockingSizeBytes)
+  const txtSampleBytes = Number(options?.txtSampleBytes)
+  const txtBinaryZeroByteRatio = Number(options?.txtBinaryZeroByteRatio)
+  const txtBinaryControlRatio = Number(options?.txtBinaryControlRatio)
+
+  return {
+    warningSizeBytes:
+      Number.isFinite(warningSizeBytes) && warningSizeBytes > 0
+        ? Math.floor(warningSizeBytes)
+        : DEFAULT_PREFLIGHT_OPTIONS.warningSizeBytes,
+    blockingSizeBytes:
+      Number.isFinite(blockingSizeBytes) && blockingSizeBytes > 0
+        ? Math.floor(blockingSizeBytes)
+        : DEFAULT_PREFLIGHT_OPTIONS.blockingSizeBytes,
+    txtSampleBytes:
+      Number.isFinite(txtSampleBytes) && txtSampleBytes > 0
+        ? Math.floor(txtSampleBytes)
+        : DEFAULT_PREFLIGHT_OPTIONS.txtSampleBytes,
+    txtBinaryZeroByteRatio:
+      Number.isFinite(txtBinaryZeroByteRatio) && txtBinaryZeroByteRatio > 0
+        ? txtBinaryZeroByteRatio
+        : DEFAULT_PREFLIGHT_OPTIONS.txtBinaryZeroByteRatio,
+    txtBinaryControlRatio:
+      Number.isFinite(txtBinaryControlRatio) && txtBinaryControlRatio > 0
+        ? txtBinaryControlRatio
+        : DEFAULT_PREFLIGHT_OPTIONS.txtBinaryControlRatio
+  }
+}
+
+function inspectTextSampleBuffer(buffer, options = {}) {
+  const sampleBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.alloc(0)
+  if (sampleBuffer.length === 0) {
+    return {
+      zeroByteRatio: 0,
+      controlCharRatio: 0,
+      likelyBinary: false
+    }
+  }
+
+  let zeroByteCount = 0
+  let controlCharCount = 0
+
+  for (let index = 0; index < sampleBuffer.length; index += 1) {
+    const byte = sampleBuffer[index]
+    if (byte === 0) zeroByteCount += 1
+    if ((byte >= 1 && byte <= 8) || byte === 11 || byte === 12 || (byte >= 14 && byte <= 31) || byte === 127) {
+      controlCharCount += 1
+    }
+  }
+
+  const zeroByteRatio = zeroByteCount / sampleBuffer.length
+  const controlCharRatio = controlCharCount / sampleBuffer.length
+  const likelyBinary =
+    zeroByteRatio >= options.txtBinaryZeroByteRatio ||
+    controlCharRatio >= options.txtBinaryControlRatio
+
+  return {
+    zeroByteRatio,
+    controlCharRatio,
+    likelyBinary
+  }
+}
+
+async function inspectCorpusFilePreflight(filePath, options = {}) {
+  const normalizedPath = String(filePath || '').trim()
+  const ext = path.extname(normalizedPath).toLowerCase()
+  const normalizedOptions = normalizePreflightOptions(options)
+  const result = {
+    ok: true,
+    filePath: normalizedPath,
+    fileName: path.basename(normalizedPath),
+    extension: ext,
+    sourceType: ext === '.docx' ? 'docx' : ext === '.pdf' ? 'pdf' : 'txt',
+    sizeBytes: 0,
+    warnings: [],
+    errors: [],
+    details: {}
+  }
+
+  if (!normalizedPath) {
+    result.errors.push('路径不能为空')
+    result.ok = false
+    return result
+  }
+
+  if (!SUPPORTED_CORPUS_EXTENSIONS.has(ext)) {
+    result.errors.push(`不支持的文件类型：${ext || '(无扩展名)'}`)
+    result.ok = false
+    return result
+  }
+
+  let stats
+  try {
+    stats = await fs.stat(normalizedPath)
+  } catch (error) {
+    result.errors.push(error?.message || '文件不可读取')
+    result.ok = false
+    return result
+  }
+
+  if (!stats.isFile()) {
+    result.errors.push('仅支持导入文件，当前路径不是普通文件')
+    result.ok = false
+    return result
+  }
+
+  result.sizeBytes = Number(stats.size) || 0
+
+  if (result.sizeBytes <= 0) {
+    result.errors.push('文件为空，无法导入')
+    result.ok = false
+    return result
+  }
+
+  if (result.sizeBytes >= normalizedOptions.blockingSizeBytes) {
+    result.errors.push(
+      `文件体积过大（${Math.round(result.sizeBytes / 1024 / 1024)} MB），已超过导入上限 ${Math.round(normalizedOptions.blockingSizeBytes / 1024 / 1024)} MB`
+    )
+    result.ok = false
+    return result
+  }
+
+  if (result.sizeBytes >= normalizedOptions.warningSizeBytes) {
+    result.warnings.push(
+      `文件较大（${Math.round(result.sizeBytes / 1024 / 1024)} MB），导入与分析可能耗时较长`
+    )
+  }
+
+  if (ext === '.txt') {
+    const fileHandle = await fs.open(normalizedPath, 'r')
+    try {
+      const sampleSize = Math.min(normalizedOptions.txtSampleBytes, result.sizeBytes)
+      const sampleBuffer = Buffer.alloc(sampleSize)
+      await fileHandle.read(sampleBuffer, 0, sampleSize, 0)
+      const inspectDetails = inspectTextSampleBuffer(sampleBuffer, normalizedOptions)
+      result.details.textSample = inspectDetails
+      if (inspectDetails.likelyBinary) {
+        result.warnings.push('该 txt 文件疑似包含较多二进制控制字符，导入结果可能异常')
+      }
+    } finally {
+      await fileHandle.close().catch(() => {})
+    }
+  }
+
+  return result
+}
+
 async function readCorpusFile(filePath) {
   const ext = path.extname(filePath).toLowerCase()
 
@@ -207,6 +365,7 @@ module.exports = {
   detectLegacyEncoding,
   detectUtf16Encoding,
   extractPdfText,
+  inspectCorpusFilePreflight,
   normalizeCorpusText,
   normalizePdfText,
   readCorpusFile

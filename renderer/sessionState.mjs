@@ -1,7 +1,7 @@
 import { normalizeSearchOptions } from '../analysisCore.mjs'
 import { WORKSPACE_SNAPSHOT_VERSION } from './constants.mjs'
 
-const VALID_RESTORABLE_TABS = new Set(['stats', 'compare', 'word-cloud', 'kwic', 'collocate', 'locator'])
+const VALID_RESTORABLE_TABS = new Set(['stats', 'compare', 'chi-square', 'word-cloud', 'ngram', 'kwic', 'collocate', 'locator'])
 
 function saveOnboardingState(storage, storageKey, state) {
   storage.setItem(storageKey, JSON.stringify(state))
@@ -103,6 +103,10 @@ export function normalizeWorkspaceSnapshot(rawSnapshot) {
     compare: {
       pageSize: String(rawSnapshot.compare?.pageSize || '10')
     },
+    ngram: {
+      pageSize: String(rawSnapshot.ngram?.pageSize || '10'),
+      size: String(rawSnapshot.ngram?.size || '2')
+    },
     kwic: {
       pageSize: String(rawSnapshot.kwic?.pageSize || '10'),
       scope: String(rawSnapshot.kwic?.scope || 'current'),
@@ -115,6 +119,13 @@ export function normalizeWorkspaceSnapshot(rawSnapshot) {
       leftWindow: String(rawSnapshot.collocate?.leftWindow || '5'),
       rightWindow: String(rawSnapshot.collocate?.rightWindow || '5'),
       minFreq: String(rawSnapshot.collocate?.minFreq || '1')
+    },
+    chiSquare: {
+      a: String(rawSnapshot.chiSquare?.a || ''),
+      b: String(rawSnapshot.chiSquare?.b || ''),
+      c: String(rawSnapshot.chiSquare?.c || ''),
+      d: String(rawSnapshot.chiSquare?.d || ''),
+      yates: rawSnapshot.chiSquare?.yates === true
     }
   }
 }

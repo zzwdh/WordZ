@@ -386,11 +386,23 @@ async function writeFile(outputPath, buffer) {
   process.stdout.write(`${path.relative(projectRoot, outputPath)}\n`)
 }
 
+async function pathExists(targetPath) {
+  try {
+    await fs.access(targetPath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function generateIcns(iconImage) {
   if (process.platform !== 'darwin') return false
 
   const iconsetDir = path.join(buildDir, 'icon.iconset')
+  const outputPath = path.join(buildDir, 'icon.icns')
+  const tempOutputPath = path.join(buildDir, 'icon.generated.icns')
   await fs.rm(iconsetDir, { recursive: true, force: true }).catch(() => {})
+  await fs.rm(tempOutputPath, { force: true }).catch(() => {})
   await fs.mkdir(iconsetDir, { recursive: true })
 
   const iconsetEntries = [
@@ -410,14 +422,24 @@ async function generateIcns(iconImage) {
     await fs.writeFile(path.join(iconsetDir, filename), encodePng(resizeImage(iconImage, size, size)))
   }
 
-  const outputPath = path.join(buildDir, 'icon.icns')
-  execFileSync('iconutil', ['-c', 'icns', iconsetDir, '-o', outputPath], {
-    cwd: projectRoot,
-    stdio: 'inherit'
-  })
-  await fs.rm(iconsetDir, { recursive: true, force: true })
-  process.stdout.write(`${path.relative(projectRoot, outputPath)}\n`)
-  return true
+  try {
+    execFileSync('iconutil', ['-c', 'icns', iconsetDir, '-o', tempOutputPath], {
+      cwd: projectRoot,
+      stdio: 'inherit'
+    })
+    await fs.rename(tempOutputPath, outputPath)
+    process.stdout.write(`${path.relative(projectRoot, outputPath)}\n`)
+    return true
+  } catch (error) {
+    await fs.rm(tempOutputPath, { force: true }).catch(() => {})
+    if (await pathExists(outputPath)) {
+      console.warn('[generate-build-assets] iconutil 生成 icns 失败，已保留现有 build/icon.icns。')
+      return false
+    }
+    throw error
+  } finally {
+    await fs.rm(iconsetDir, { recursive: true, force: true }).catch(() => {})
+  }
 }
 
 async function main() {

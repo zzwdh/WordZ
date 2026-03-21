@@ -9,6 +9,8 @@ function installCorpusStorageShared(
     SAFE_STORAGE_ID_PATTERN
   }
 ) {
+  const STORAGE_WRITE_VERIFY_LIMIT_BYTES = 4 * 1024 * 1024
+
   Object.assign(CorpusStorage.prototype, {
     async prepareImpl() {
       const paths = this.getPaths()
@@ -169,11 +171,41 @@ function installCorpusStorageShared(
       }
     },
 
+    async enqueueStorageWrite(task) {
+      const runTask = async () => task()
+      const currentQueue = this.storageWriteQueue || Promise.resolve()
+      const nextQueue = currentQueue
+        .catch(() => {})
+        .then(runTask)
+      this.storageWriteQueue = nextQueue.catch(() => {})
+      return nextQueue
+    },
+
     async writeTextFileAtomic(filePath, content) {
-      await this.ensureDirectory(path.dirname(filePath))
-      const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
-      await fs.writeFile(tempPath, content, 'utf-8')
-      await fs.rename(tempPath, filePath)
+      const normalizedContent = String(content ?? '')
+      return this.enqueueStorageWrite(async () => {
+        await this.ensureDirectory(path.dirname(filePath))
+        const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
+        const expectedBytes = Buffer.byteLength(normalizedContent, 'utf8')
+        try {
+          await fs.writeFile(tempPath, normalizedContent, 'utf-8')
+          await fs.rename(tempPath, filePath)
+          const writtenStats = await fs.stat(filePath)
+          const writtenBytes = Number(writtenStats?.size) || 0
+          if (writtenBytes !== expectedBytes) {
+            throw new Error(`写入校验失败：${path.basename(filePath)} 字节数不一致`)
+          }
+          if (expectedBytes <= STORAGE_WRITE_VERIFY_LIMIT_BYTES) {
+            const readBackContent = await fs.readFile(filePath, 'utf-8')
+            if (readBackContent !== normalizedContent) {
+              throw new Error(`写入校验失败：${path.basename(filePath)} 内容不一致`)
+            }
+          }
+        } catch (error) {
+          await fs.rm(tempPath, { force: true }).catch(() => {})
+          throw error
+        }
+      })
     },
 
     async writeJsonFileAtomic(filePath, data) {

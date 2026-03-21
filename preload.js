@@ -60,9 +60,60 @@ function normalizeBoolean(value) {
   return ['1', 'true', 'yes', 'on'].includes(String(value ?? '').trim().toLowerCase())
 }
 
+function normalizeNotificationAction(action) {
+  if (!action) return null
+  if (typeof action === 'string') {
+    const actionId = normalizeTextInput(action, 80)
+    return actionId ? { actionId, actionPayload: null } : null
+  }
+  if (typeof action !== 'object') return null
+  const actionId = normalizeTextInput(action.actionId ?? action.id, 80)
+  if (!actionId) return null
+  return {
+    actionId,
+    actionPayload: action.actionPayload ?? action.payload ?? null
+  }
+}
+
 const electronAPI = Object.freeze({
   getAppInfo: () =>
     ipcRenderer.invoke('get-app-info'),
+
+  consumePendingSystemOpenFiles: () =>
+    ipcRenderer.invoke('consume-pending-system-open-files'),
+
+  onSystemOpenFileRequest: (callback) => {
+    if (typeof callback !== 'function') return () => {}
+    const listener = (_event, payload) => {
+      callback(payload)
+    }
+    ipcRenderer.on('system-open-file-request', listener)
+    return () => {
+      ipcRenderer.removeListener('system-open-file-request', listener)
+    }
+  },
+
+  onAppMenuAction: (callback) => {
+    if (typeof callback !== 'function') return () => {}
+    const listener = (_event, payload) => {
+      callback(payload)
+    }
+    ipcRenderer.on('app-menu-action', listener)
+    return () => {
+      ipcRenderer.removeListener('app-menu-action', listener)
+    }
+  },
+
+  onSystemNotificationAction: (callback) => {
+    if (typeof callback !== 'function') return () => {}
+    const listener = (_event, payload) => {
+      callback(payload)
+    }
+    ipcRenderer.on('system-notification-action', listener)
+    return () => {
+      ipcRenderer.removeListener('system-notification-action', listener)
+    }
+  },
 
   getDiagnosticState: () =>
     ipcRenderer.invoke('get-diagnostic-state'),
@@ -81,14 +132,79 @@ const electronAPI = Object.freeze({
   exportDiagnosticReport: (rendererState) =>
     ipcRenderer.invoke('export-diagnostic-report', rendererState ?? {}),
 
+  exportDiagnosticReportAuto: (rendererState) =>
+    ipcRenderer.invoke('export-diagnostic-report-auto', rendererState ?? {}),
+
   openGitHubFeedback: ({ issueTitle, rendererState } = {}) =>
     ipcRenderer.invoke('open-github-feedback', {
       issueTitle: normalizeTextInput(issueTitle, 120),
       rendererState: rendererState ?? {}
     }),
 
+  getAnalysisCache: (cacheKey) =>
+    ipcRenderer.invoke('analysis-cache-get', {
+      cacheKey: normalizeTextInput(cacheKey, 320)
+    }),
+
+  setAnalysisCache: (cacheKey, entry) =>
+    ipcRenderer.invoke('analysis-cache-set', {
+      cacheKey: normalizeTextInput(cacheKey, 320),
+      entry: entry ?? null
+    }),
+
+  deleteAnalysisCache: (cacheKey) =>
+    ipcRenderer.invoke('analysis-cache-delete', {
+      cacheKey: normalizeTextInput(cacheKey, 320)
+    }),
+
+  clearAnalysisCache: () =>
+    ipcRenderer.invoke('analysis-cache-clear'),
+
+  getAnalysisCacheState: () =>
+    ipcRenderer.invoke('analysis-cache-state'),
+
+  pruneAnalysisCache: () =>
+    ipcRenderer.invoke('analysis-cache-prune'),
+
   openExternalUrl: (url) =>
     ipcRenderer.invoke('open-external-url', normalizeTextInput(url, 4096)),
+
+  showPathInFolder: (targetPath) =>
+    ipcRenderer.invoke('show-path-in-folder', normalizeTextInput(targetPath, 4096)),
+
+  consumeCrashRecoveryState: () =>
+    ipcRenderer.invoke('consume-crash-recovery-state'),
+
+  showSystemNotification: ({ title, body, subtitle, tag, silent, action } = {}) =>
+    ipcRenderer.invoke('show-system-notification', {
+      title: normalizeTextInput(title, 80),
+      body: normalizeTextInput(body, 240),
+      subtitle: normalizeTextInput(subtitle, 80),
+      tag: normalizeTextInput(tag, 64),
+      silent: normalizeBoolean(silent),
+      action: normalizeNotificationAction(action)
+    }),
+
+  setWindowProgressState: ({ source, state, progress, priority } = {}) =>
+    ipcRenderer.invoke('set-window-progress-state', {
+      source: normalizeTextInput(source, 40),
+      state: normalizeTextInput(state, 20),
+      progress: Number(progress),
+      priority: Number(priority)
+    }),
+
+  setWindowAttentionState: ({ source, state, count, description, priority, requestAttention } = {}) =>
+    ipcRenderer.invoke('set-window-attention-state', {
+      source: normalizeTextInput(source, 40),
+      state: normalizeTextInput(state, 20),
+      count: Number(count),
+      description: normalizeTextInput(description, 120),
+      priority: Number(priority),
+      requestAttention: normalizeBoolean(requestAttention)
+    }),
+
+  getSmokeObserverState: () =>
+    ipcRenderer.invoke('get-smoke-observer-state'),
 
   getAutoUpdateState: () =>
     ipcRenderer.invoke('get-auto-update-state'),
@@ -125,6 +241,18 @@ const electronAPI = Object.freeze({
   importAndSaveCorpus: (folderId) =>
     ipcRenderer.invoke('import-and-save-corpus', {
       folderId: normalizeIdentifier(folderId, { allowEmpty: true })
+    }),
+
+  importCorpusPaths: (paths, { folderId = '', preserveHierarchy = true } = {}) =>
+    ipcRenderer.invoke('import-corpus-paths', {
+      paths: Array.isArray(paths)
+        ? paths
+            .map(item => normalizeTextInput(item, 4096))
+            .filter(Boolean)
+            .slice(0, 500)
+        : [],
+      folderId: normalizeIdentifier(folderId, { allowEmpty: true }),
+      preserveHierarchy: normalizeBoolean(preserveHierarchy)
     }),
 
   backupCorpusLibrary: () =>
@@ -166,6 +294,12 @@ const electronAPI = Object.freeze({
 
   deleteCorpusFolder: (folderId) =>
     ipcRenderer.invoke('delete-corpus-folder', normalizeIdentifier(folderId)),
+
+  showSavedCorpusInFolder: (corpusId) =>
+    ipcRenderer.invoke('show-saved-corpus-in-folder', normalizeIdentifier(corpusId)),
+
+  showRecycleEntryInFolder: (recycleEntryId) =>
+    ipcRenderer.invoke('show-recycle-entry-in-folder', normalizeIdentifier(recycleEntryId)),
 
   openSavedCorpus: (corpusId) =>
     ipcRenderer.invoke('open-saved-corpus', normalizeIdentifier(corpusId)),

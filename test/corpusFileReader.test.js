@@ -6,7 +6,7 @@ const path = require('path')
 const iconv = require('iconv-lite')
 const { buildSimplePdfBuffer } = require('../support/pdfFixture')
 
-const { decodeTxtBuffer, readCorpusFile } = require('../corpusFileReader')
+const { decodeTxtBuffer, inspectCorpusFilePreflight, readCorpusFile } = require('../corpusFileReader')
 
 async function createTempDir(t) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wordz-file-reader-'))
@@ -63,4 +63,47 @@ test('readCorpusFile reads pdf files end-to-end', async t => {
   const result = await readCorpusFile(filePath)
   assert.equal(result.encoding, 'pdf')
   assert.equal(result.content, 'rose bloom bright\nsecond line')
+})
+
+test('inspectCorpusFilePreflight blocks empty files', async t => {
+  const tempDir = await createTempDir(t)
+  const filePath = path.join(tempDir, 'empty.txt')
+  await fs.writeFile(filePath, '')
+
+  const result = await inspectCorpusFilePreflight(filePath)
+  assert.equal(result.ok, false)
+  assert.equal(result.errors.length > 0, true)
+  assert.match(result.errors[0], /文件为空/)
+})
+
+test('inspectCorpusFilePreflight warns for likely binary txt sample', async t => {
+  const tempDir = await createTempDir(t)
+  const filePath = path.join(tempDir, 'binary-like.txt')
+  await fs.writeFile(filePath, Buffer.from([0, 1, 2, 3, 4, 0, 7, 9, 10, 13, 0, 255]))
+
+  const result = await inspectCorpusFilePreflight(filePath)
+  assert.equal(result.ok, true)
+  assert.equal(result.warnings.length > 0, true)
+  assert.match(result.warnings[0], /二进制/)
+})
+
+test('inspectCorpusFilePreflight supports custom size limits', async t => {
+  const tempDir = await createTempDir(t)
+  const filePath = path.join(tempDir, 'large.txt')
+  await fs.writeFile(filePath, Buffer.alloc(2048, 65))
+
+  const warningResult = await inspectCorpusFilePreflight(filePath, {
+    warningSizeBytes: 1024,
+    blockingSizeBytes: 4096
+  })
+  assert.equal(warningResult.ok, true)
+  assert.equal(warningResult.warnings.length > 0, true)
+
+  const blockedResult = await inspectCorpusFilePreflight(filePath, {
+    warningSizeBytes: 1024,
+    blockingSizeBytes: 1025
+  })
+  assert.equal(blockedResult.ok, false)
+  assert.equal(blockedResult.errors.length > 0, true)
+  assert.match(blockedResult.errors[0], /文件体积过大/)
 })

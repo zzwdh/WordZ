@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -19,8 +19,9 @@
     "release:github:win:arm64": "npm run build:assets && node scripts/github-release.mjs --win --arm64",
     "release:notes": "node scripts/generate-release-notes.mjs",
     "release:doctor": "node scripts/release-doctor.mjs",
+    "release:verify": "node scripts/release-verify.mjs",
     "deps:check": "node scripts/dependency-health.mjs",
-    "check:syntax": "node --check main.js && node --check main/helpers/appInfo.js && node --check main/helpers/dialogSupport.js && node --check main/helpers/inputGuards.js && node --check main/helpers/userDataMigration.js && node --check autoUpdate.js && node --check autoUpdate/config.js && node --check corpusFileReader.js && node --check corpusStorage.js && node --check storage/shared.js && node --check storage/legacy.js && node --check storage/recycle.js && node --check diagnostics.js && node --check diagnostics/format.js && node --check diagnostics/controller.js && node --check preload.js && node --check renderer.js && node --check renderer/app.mjs && node --check renderer/appInfo.mjs && node --check renderer/constants.mjs && node --check renderer/domRefs.mjs && node --check renderer/recentOpen.mjs && node --check renderer/sessionState.mjs && node --check renderer/taskCenter.mjs && node --check renderer/utils.mjs && node --check renderer/feedback.mjs && node --check renderer/analysisBridge.mjs && node --check renderer/tableRender.mjs && node --check renderer/uiSettings.mjs && node --check renderer/features/stats.mjs && node --check renderer/features/compare.mjs && node --check renderer/features/kwic.mjs && node --check renderer/features/collocate.mjs && node --check renderer/features/library.mjs && node --check renderer/features/locator.mjs && node --check analysisCore.mjs && node --check analysisWorker.mjs && node --check smoke/electron.smoke.mjs && node --check scripts/dependency-health.mjs && node --check scripts/github-release.mjs && node --check scripts/generate-build-assets.mjs && node --check scripts/generate-release-notes.mjs && node --check scripts/release-doctor.mjs",
+    "check:syntax": "node --check main.js && node --check main/helpers/analysisCache.js && node --check main/helpers/appInfo.js && node --check main/helpers/dialogSupport.js && node --check main/helpers/fileOpenSupport.js && node --check main/helpers/inputGuards.js && node --check main/helpers/systemNotifications.js && node --check main/helpers/userDataMigration.js && node --check main/helpers/windowAttention.js && node --check main/helpers/windowProgress.js && node --check autoUpdate.js && node --check autoUpdate/config.js && node --check corpusFileReader.js && node --check corpusStorage.js && node --check storage/shared.js && node --check storage/legacy.js && node --check storage/recycle.js && node --check diagnostics.js && node --check diagnostics/format.js && node --check diagnostics/controller.js && node --check preload.js && node --check renderer.js && node --check renderer/app.mjs && node --check renderer/appInfo.mjs && node --check renderer/constants.mjs && node --check renderer/domRefs.mjs && node --check renderer/recentOpen.mjs && node --check renderer/sessionState.mjs && node --check renderer/taskCenter.mjs && node --check renderer/utils.mjs && node --check renderer/feedback.mjs && node --check renderer/analysisBridge.mjs && node --check renderer/tableRender.mjs && node --check renderer/uiSettings.mjs && node --check renderer/features/stats.mjs && node --check renderer/features/compare.mjs && node --check renderer/features/chiSquare.mjs && node --check renderer/features/ngram.mjs && node --check renderer/features/kwic.mjs && node --check renderer/features/collocate.mjs && node --check renderer/features/library.mjs && node --check renderer/features/locator.mjs && node --check analysisCore.mjs && node --check analysisWorker.mjs && node --check smoke/electron.smoke.mjs && node --check scripts/dependency-health.mjs && node --check scripts/github-release.mjs && node --check scripts/generate-build-assets.mjs && node --check scripts/generate-release-notes.mjs && node --check scripts/release-doctor.mjs && node --check scripts/release-verify.mjs",
     "test": "node --test",
     "test:smoke": "node --test smoke/electron.smoke.mjs",
     "verify": "npm run check:syntax && npm test",
@@ -29,9 +30,10 @@
   "author": "邹羽轩",
   "wordz": {
     "help": [
-      "使用“打开语料”菜单可快速打开 txt / docx / pdf，或导入并保存到本地语料库。",
+      "使用“打开语料”菜单可快速打开 txt / docx / pdf，或导入并保存到本地语料库；安装版也支持从系统最近文档或双击关联文件进入 WordZ。",
       "使用“本地语料库”可以按分类管理语料，也可以恢复、修复或从回收站找回误删内容。",
       "先点击“开始统计”，再进行 KWIC、Collocate 和原文定位查看，会得到更完整的分析结果。",
+      "卡方检验工具支持 2×2 列联表，可直接比较两个语料中的目标词频率差异，并输出 χ²、p 值、Phi 效应量和期望频数。",
       "建议定期使用“备份语料库”创建外部备份；如果目录异常，可使用“修复语料库”检查并隔离坏数据。",
       "自动更新默认走 GitHub Releases；使用 GitHub Actions 发布工作流时，会自动把当前仓库 owner/repo 注入到打包结果里。"
     ],
@@ -53,9 +55,9 @@
       "channel": "stable"
     },
     "releaseNotes": [
-      "新增更完整的工作区体验：支持启动时询问是否恢复上次会话、最近打开列表，以及帮助中心内再次查看首次教程。",
-      "新增多语料对比分析，并继续完善诊断反馈、任务与工作区相关能力，让日常语料分析流程更顺手。",
-      "底层继续完成一轮架构清理：主进程、存储层、自动更新与诊断模块进一步拆分，稳定性与后续可维护性更好。"
+      "新增超大语料分段分析模式：自动启用内存保护，统计与 Ngram 可继续稳定运行，并给出内存压力提醒。",
+      "任务中心增强：支持取消排队任务、重试失败任务以及排队耗时预估（ETA），并同步优化提醒与状态显示。",
+      "缓存与存储稳定性进一步加固：设置中新增分析缓存可视化管理（查看/清空/重建），存储写入加入串行队列与原子写校验。"
     ]
   },
   "license": "MIT",
@@ -80,19 +82,60 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "compression": "maximum",
+    "electronLanguages": [
+      "en"
+    ],
     "files": [
-      "**/*",
-      "!dist{,/**}",
-      "!out{,/**}",
-      "!coverage{,/**}",
-      "!smoke{,/**}",
-      "!test{,/**}",
-      "!.git{,/**}",
-      "!.DS_Store",
-      "!*.log"
+      "package.json",
+      "index.html",
+      "styles.css",
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "analysisCore.mjs",
+      "analysisWorker.mjs",
+      "autoUpdate.js",
+      "autoUpdate/**/*",
+      "corpusFileReader.js",
+      "corpusStorage.js",
+      "diagnostics.js",
+      "diagnostics/**/*",
+      "storage/**/*",
+      "main/helpers/**/*",
+      "main/ipc/**/*",
+      "renderer/**/*",
+      "node_modules/**/*",
+      "!**/{test,tests,smoke,scripts,coverage,.github}/**",
+      "!**/*.map",
+      "!**/.DS_Store",
+      "!**/*.log"
     ],
     "asar": true,
     "npmRebuild": false,
+    "fileAssociations": [
+      {
+        "ext": "txt",
+        "name": "WordZ Text Corpus",
+        "description": "使用 WordZ 打开文本语料文件",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "docx",
+        "name": "WordZ DOCX Corpus",
+        "description": "使用 WordZ 打开 DOCX 语料文件",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": "pdf",
+        "name": "WordZ PDF Corpus",
+        "description": "使用 WordZ 打开 PDF 语料文件",
+        "role": "Viewer",
+        "rank": "Alternate"
+      }
+    ],
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity",
@@ -126,12 +169,12 @@
       "legalTrademarks": "WordZ · 邹羽轩",
       "requestedExecutionLevel": "asInvoker",
       "target": [
-        "nsis",
-        "zip"
+        "nsis"
       ]
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,

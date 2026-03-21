@@ -87,6 +87,13 @@
     </div>
   </div>
 
+  <div class="drop-import-overlay hidden" id="dropImportOverlay" aria-live="polite" aria-hidden="true">
+    <div class="drop-import-panel">
+      <div class="drop-import-title">拖拽导入语料</div>
+      <p class="drop-import-hint" id="dropImportHint">把 txt / docx / pdf 文件或文件夹拖到这里，自动导入并保留文件夹层级分类。</p>
+    </div>
+  </div>
+
   <div class="app-shell">
     <header class="topbar">
       <div class="topbar-main">
@@ -97,35 +104,39 @@
       </div>
       <div class="topbar-actions-shell">
         <div class="toolbar-actions-group primary">
-          <div class="toolbar-menu">
-            <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
-            <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
-              <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
-              <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
-              <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
-              <div class="toolbar-menu-divider"></div>
-              <section class="toolbar-menu-section hidden" id="recentOpenSection" aria-live="polite">
-                <div class="toolbar-menu-section-head">
-                  <strong>最近打开</strong>
-                  <button class="button small gray menu-inline-button" id="clearRecentOpenButton" type="button">清空</button>
-                </div>
-                <div class="recent-open-list" id="recentOpenList">
-                  <div class="recent-open-empty">最近打开的语料会显示在这里。</div>
-                </div>
-              </section>
-            </div>
-          </div>
           <button class="button" id="countButton">统计</button>
           <button class="button small gray hidden" id="cancelStatsButton">取消统计</button>
         </div>
         <div class="toolbar-actions-group secondary">
-          <button class="button small gray" id="checkUpdateButton">更新</button>
-          <button class="button small gray" id="aboutButton">关于</button>
-          <button class="button small gray" id="uiSettingsButton">设置</button>
-          <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务</button>
+          <span class="toolbar-info native-menu-hint">其余操作已移至系统菜单（macOS 顶部菜单 / Windows 菜单栏）</span>
         </div>
       </div>
     </header>
+
+    <div class="toolbar-native-overflow hidden" aria-hidden="true">
+      <div class="toolbar-menu">
+        <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
+        <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
+          <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
+          <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
+          <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
+          <div class="toolbar-menu-divider"></div>
+          <section class="toolbar-menu-section hidden" id="recentOpenSection" aria-live="polite">
+            <div class="toolbar-menu-section-head">
+              <strong>最近打开</strong>
+              <button class="button small gray menu-inline-button" id="clearRecentOpenButton" type="button">清空</button>
+            </div>
+            <div class="recent-open-list" id="recentOpenList">
+              <div class="recent-open-empty">最近打开的语料会显示在这里。</div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <button class="button small gray" id="checkUpdateButton">更新</button>
+      <button class="button small gray" id="aboutButton">关于</button>
+      <button class="button small gray" id="uiSettingsButton">设置</button>
+      <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务</button>
+    </div>
 
     <div class="system-status hidden" id="systemStatus">
       <span class="system-status-spinner" aria-hidden="true"></span>
@@ -138,7 +149,12 @@
           <strong>任务中心</strong>
           <div class="task-center-meta" id="taskCenterMeta">最近的分析任务会显示在这里。</div>
         </div>
-        <button class="button small gray" id="closeTaskCenterButton" type="button">关闭</button>
+        <div class="task-center-header-actions">
+          <button class="button small gray" id="queueToggleButton" type="button">暂停队列</button>
+          <button class="button small gray" id="cancelQueuedTaskButton" type="button">取消排队任务</button>
+          <button class="button small gray" id="retryFailedTaskButton" type="button">重试失败任务</button>
+          <button class="button small gray" id="closeTaskCenterButton" type="button">关闭</button>
+        </div>
       </div>
       <div class="task-center-list" id="taskCenterList">
         <div class="task-center-empty">最近的统计、KWIC 和 Collocate 任务会显示在这里。</div>
@@ -232,7 +248,9 @@
           <div class="tab-bar">
             <button class="tab-button active" data-tab="stats">统计结果</button>
             <button class="tab-button" data-tab="compare">对比分析</button>
+            <button class="tab-button" data-tab="chi-square">卡方检验</button>
             <button class="tab-button" data-tab="word-cloud">词云</button>
+            <button class="tab-button" data-tab="ngram">Ngram</button>
             <button class="tab-button" data-tab="kwic">KWIC 检索</button>
             <button class="tab-button" data-tab="collocate">Collocate 统计</button>
             <button class="tab-button" data-tab="locator">原文定位</button>
@@ -338,6 +356,60 @@
             </div>
           </div>
 
+          <div class="section tab-section hidden" id="chiSquareSection">
+            <div class="section-head">
+              <div>
+                <h3>卡方检验（2×2）</h3>
+                <div class="section-note">用于比较两个语料中同一目标词的出现频率是否存在统计显著差异。输入四个频数后会自动计算 χ²、p 值、效应量（Phi）和期望频数。</div>
+              </div>
+            </div>
+
+            <div class="section-sticky-stack">
+              <div class="search-row sticky-toolbar sticky-toolbar-top chi-square-input-row">
+                <label class="chi-input-field" for="chiAInput">
+                  <span class="toolbar-label">A：语料 A 目标词</span>
+                  <input class="input chi-value-input" id="chiAInput" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 35" />
+                </label>
+                <label class="chi-input-field" for="chiBInput">
+                  <span class="toolbar-label">B：语料 A 非目标词</span>
+                  <input class="input chi-value-input" id="chiBInput" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 965" />
+                </label>
+                <label class="chi-input-field" for="chiCInput">
+                  <span class="toolbar-label">C：语料 B 目标词</span>
+                  <input class="input chi-value-input" id="chiCInput" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 18" />
+                </label>
+                <label class="chi-input-field" for="chiDInput">
+                  <span class="toolbar-label">D：语料 B 非目标词</span>
+                  <input class="input chi-value-input" id="chiDInput" type="number" inputmode="numeric" min="0" step="1" placeholder="例如 982" />
+                </label>
+                <label class="search-query-option chi-yates-option" for="chiYatesToggle">
+                  <input id="chiYatesToggle" type="checkbox" />
+                  Yates 连续性校正
+                </label>
+                <button class="button" id="chiSquareRunButton" type="button">计算卡方</button>
+                <button class="button small gray" id="chiSquareResetButton" type="button">清空</button>
+              </div>
+
+              <div class="kwic-meta sticky-meta" id="chiSquareMeta">请输入 2×2 列联表的四个频数，然后点击“计算卡方”。</div>
+            </div>
+
+            <div class="table-scroll" id="chiSquareResultWrapper">
+              <div class="empty-tip">这里会显示卡方检验统计量、显著性结论、效应量和观察/期望频数表。</div>
+            </div>
+
+            <section class="chi-guide-card">
+              <div class="help-center-card-label">使用说明</div>
+              <div class="chi-guide-title">如何填写 2×2 列联表</div>
+              <ol class="chi-guide-list">
+                <li>先确定目标词（例如 cyber）。</li>
+                <li>A 填“语料 A 中目标词频次”，B 填“语料 A 中其余词频次”。</li>
+                <li>C、D 同理填写语料 B 的目标词与非目标词频次。</li>
+                <li>点击“计算卡方”后，查看 p 值是否小于 0.05，并结合 Phi 与原始频数解释差异强度。</li>
+              </ol>
+              <p class="chi-guide-note">计算公式：χ² = Σ((O - E)² / E)。当期望频数过小（例如 < 5）时，结果会给出稳定性提示。</p>
+            </section>
+          </div>
+
           <div class="section tab-section hidden" id="wordCloudSection">
             <div class="section-head">
               <div>
@@ -356,6 +428,55 @@
               <div class="word-cloud-wrapper" id="wordCloudWrapper">
                 <div class="empty-tip">这里会显示当前语料的高频词云。</div>
               </div>
+            </div>
+          </div>
+
+          <div class="section tab-section hidden" id="ngramSection">
+            <div class="section-head">
+              <div>
+                <h3>Ngram</h3>
+                <div class="section-note">展示当前语料的连续词组频次，适合快速观察短语模式。默认支持 2-gram 到 5-gram，并支持分页与导出。</div>
+              </div>
+            </div>
+
+            <div class="section-sticky-stack">
+              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+                <div class="toolbar-left">
+                  <span class="toolbar-label">Ngram 类型</span>
+                  <select class="select" id="ngramSizeSelect">
+                    <option value="2">2-gram</option>
+                    <option value="3">3-gram</option>
+                    <option value="4">4-gram</option>
+                    <option value="5">5-gram</option>
+                  </select>
+                  <button class="button" id="ngramButton">生成 Ngram</button>
+                  <span class="toolbar-info" id="ngramMeta">请先导入语料后点击“生成 Ngram”。</span>
+                </div>
+              </div>
+
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+                <div class="toolbar-left">
+                  <button class="button small" id="exportNgramButton">导出当前页 Ngram</button>
+                  <button class="button small gray" id="exportAllNgramButton">导出全部 Ngram</button>
+                  <span class="toolbar-label">每页显示</span>
+                  <select class="select" id="ngramPageSizeSelect">
+                    <option value="10">10 条</option>
+                    <option value="100">100 条</option>
+                    <option value="1000">1000 条</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span class="toolbar-info" id="ngramTotalRowsInfo">共 0 条结果</span>
+                </div>
+                <div class="toolbar-right">
+                  <button class="button small gray" id="ngramPrevPageButton">上一页</button>
+                  <span class="page-info" id="ngramPageInfo">第 0 / 0 页</span>
+                  <button class="button small gray" id="ngramNextPageButton">下一页</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-scroll" id="ngramWrapper">
+              <div class="empty-tip">这里会显示 Ngram 统计结果</div>
             </div>
           </div>
 
@@ -606,8 +727,9 @@
             <div class="settings-theme-group">
               <button class="button small gray settings-theme-button" type="button" id="lightThemeButton">浅色模式</button>
               <button class="button small gray settings-theme-button" type="button" id="darkThemeButton">深色模式</button>
+              <button class="button small gray settings-theme-button" type="button" id="systemThemeButton">跟随系统</button>
             </div>
-            <div class="settings-note">在浅色和深色界面之间切换，按钮图标会自动跟随当前主题颜色。</div>
+            <div class="settings-note">支持浅色、深色和跟随系统主题。选择“跟随系统”后会在系统切换时自动同步。</div>
           </div>
 
           <label class="settings-field" for="uiZoomRange">
@@ -670,6 +792,62 @@
             <div class="settings-note">只恢复可稳定重建的已保存工作区；Quick Corpus 不会自动重新打开原始外部文件。</div>
           </label>
 
+          <label class="settings-field settings-toggle-field" for="systemNotificationsToggle">
+            <div class="settings-field-head">
+              <span class="settings-label">系统通知</span>
+              <span class="settings-value">默认开启</span>
+            </div>
+            <div class="settings-toggle-row">
+              <input id="systemNotificationsToggle" type="checkbox" checked />
+              <span>在统计完成、导出完成、备份/修复完成和更新下载完成时显示系统通知</span>
+            </div>
+            <div class="settings-note">适合在切到别的窗口时继续接收 WordZ 的关键完成提醒；关闭后仍会保留应用内 toast。</div>
+          </label>
+
+          <label class="settings-field settings-toggle-field" for="windowAttentionToggle">
+            <div class="settings-field-head">
+              <span class="settings-label">Dock / 任务栏提醒</span>
+              <span class="settings-value">默认开启</span>
+            </div>
+            <div class="settings-toggle-row">
+              <input id="windowAttentionToggle" type="checkbox" checked />
+              <span>在任务完成或更新下载完成后，显示 macOS Dock 徽标 / Windows 任务栏角标提醒</span>
+            </div>
+            <div class="settings-note">关闭后会立即清除当前角标与提醒状态，不影响统计、导出和系统通知能力。</div>
+          </label>
+
+          <div class="settings-field">
+            <div class="settings-field-head">
+              <span class="settings-label">提醒分类</span>
+              <span class="settings-value">可单独控制</span>
+            </div>
+            <label class="settings-toggle-row" for="notifyAnalysisCompleteToggle">
+              <input id="notifyAnalysisCompleteToggle" type="checkbox" checked />
+              <span>分析完成（统计 / KWIC / Collocate）</span>
+            </label>
+            <label class="settings-toggle-row" for="notifyUpdateDownloadedToggle">
+              <input id="notifyUpdateDownloadedToggle" type="checkbox" checked />
+              <span>更新下载完成</span>
+            </label>
+            <label class="settings-toggle-row" for="notifyDiagnosticsExportToggle">
+              <input id="notifyDiagnosticsExportToggle" type="checkbox" checked />
+              <span>诊断导出完成</span>
+            </label>
+            <div class="settings-note">这三项会同时影响系统通知和 Dock/任务栏提醒（若对应能力已开启）。</div>
+          </div>
+
+          <label class="settings-field settings-toggle-field" for="followSystemAccessibilityToggle">
+            <div class="settings-field-head">
+              <span class="settings-label">跟随系统可访问性</span>
+              <span class="settings-value">推荐开启</span>
+            </div>
+            <div class="settings-toggle-row">
+              <input id="followSystemAccessibilityToggle" type="checkbox" checked />
+              <span>跟随系统“减少动态效果”和“高对比度”偏好</span>
+            </div>
+            <div class="settings-note">开启后，系统级可访问性变化会实时同步到 WordZ 界面。</div>
+          </label>
+
           <div class="settings-field">
             <div class="settings-field-head">
               <span class="settings-label">诊断与反馈</span>
@@ -683,6 +861,19 @@
             <div class="settings-action-row">
               <button class="button small gray" type="button" id="exportDiagnosticsButton">导出诊断报告</button>
               <button class="button small gray" type="button" id="reportIssueButton">反馈到 GitHub</button>
+            </div>
+          </div>
+
+          <div class="settings-field">
+            <div class="settings-field-head">
+              <span class="settings-label">分析缓存</span>
+              <span class="settings-value" id="analysisCacheValue">读取中...</span>
+            </div>
+            <div class="settings-note" id="analysisCacheStatusText">用于加速重复统计和 Ngram。你可以在这里查看占用、清空或重建当前语料缓存。</div>
+            <div class="settings-action-row">
+              <button class="button small gray" type="button" id="refreshAnalysisCacheButton">刷新状态</button>
+              <button class="button small gray" type="button" id="rebuildAnalysisCacheButton">重建当前缓存</button>
+              <button class="button small gray" type="button" id="clearAnalysisCacheButton">清空缓存</button>
             </div>
           </div>
         </div>
@@ -780,6 +971,30 @@
       <div class="modal-footer feedback-actions">
         <button class="button small gray" type="button" id="feedbackCancelButton">取消</button>
         <button class="button small" type="button" id="feedbackConfirmButton">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="commandPaletteModal">
+    <div class="modal-panel command-palette-panel" role="dialog" aria-modal="true" aria-labelledby="commandPaletteTitle">
+      <div class="modal-header">
+        <strong id="commandPaletteTitle">Command Palette</strong>
+      </div>
+      <div class="modal-body command-palette-body">
+        <input
+          class="input command-palette-input"
+          id="commandPaletteInput"
+          type="search"
+          autocomplete="off"
+          placeholder="输入命令，例如：快速打开 / KWIC / 导出 / 设置（Cmd/Ctrl+K）"
+        />
+        <div class="command-palette-list" id="commandPaletteList" aria-live="polite">
+          <div class="empty-tip">可执行命令会显示在这里。</div>
+        </div>
+      </div>
+      <div class="modal-footer command-palette-footer">
+        <span class="toolbar-info">↑ ↓ 选择，Enter 执行，Esc 关闭</span>
+        <button class="button small gray" type="button" id="closeCommandPaletteButton">关闭</button>
       </div>
     </div>
   </div>

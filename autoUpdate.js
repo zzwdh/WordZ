@@ -9,6 +9,7 @@ function createAutoUpdateController({
   env = process.env,
   platform = process.platform,
   getWindows = () => [],
+  onProgressStateChange = () => {},
   logger = console
 }) {
   const config = resolveAutoUpdateConfig({
@@ -61,6 +62,11 @@ function createAutoUpdateController({
       ...status,
       ...patch,
       releaseNotes: Array.isArray(patch.releaseNotes) ? [...patch.releaseNotes] : status.releaseNotes
+    }
+    try {
+      onProgressStateChange(status.state, status.progressPercent)
+    } catch (error) {
+      logger.warn?.('[auto-update.progress-state]', error)
     }
     broadcastStatus()
   }

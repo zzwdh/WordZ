@@ -20,6 +20,7 @@ function createDiagnosticsController({ app, packageManifest = {}, logger = conso
   const appVersion = typeof app?.getVersion === 'function' ? app.getVersion() : String(packageManifest.version || '')
   const sessionId = createSessionId()
   const diagnosticsDir = path.join(app?.getPath?.('userData') || process.cwd(), 'diagnostics')
+  const crashMarkerPath = path.join(diagnosticsDir, 'crash-recovery.json')
   let recentEvents = []
   let recentErrors = []
   let debugLoggingEnabled = false
@@ -149,12 +150,45 @@ function createDiagnosticsController({ app, packageManifest = {}, logger = conso
     return url
   }
 
+  async function markCrashRecoveryState(source, error, details = null) {
+    const serializedError = serializeError(error)
+    const payload = {
+      sessionId,
+      recordedAt: formatTimestamp(),
+      source: truncateText(source || 'unknown', 120),
+      error: serializedError,
+      details: sanitizeDiagnosticValue(details)
+    }
+
+    try {
+      await fs.mkdir(diagnosticsDir, { recursive: true })
+      await fs.writeFile(crashMarkerPath, JSON.stringify(payload, null, 2), 'utf8')
+    } catch (writeError) {
+      logger.warn?.('[diagnostics.crash-marker.write]', writeError)
+    }
+
+    return payload
+  }
+
+  async function consumeCrashRecoveryState() {
+    try {
+      const content = await fs.readFile(crashMarkerPath, 'utf8')
+      const payload = JSON.parse(content)
+      await fs.rm(crashMarkerPath, { force: true })
+      return payload && typeof payload === 'object' ? payload : null
+    } catch {
+      return null
+    }
+  }
+
   return {
     captureError,
     exportReport,
     getGitHubIssueUrl,
     getSnapshot,
     log,
+    markCrashRecoveryState,
+    consumeCrashRecoveryState,
     setDebugLoggingEnabled
   }
 }

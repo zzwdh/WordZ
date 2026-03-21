@@ -22,18 +22,82 @@ function runJsonNpmCommand(args, allowedExitCodes) {
   }
 
   const stdout = (result.stdout || '').trim()
-  return stdout ? JSON.parse(stdout) : {}
+  if (!stdout) return {}
+
+  try {
+    return JSON.parse(stdout)
+  } catch {
+    const firstBrace = stdout.indexOf('{')
+    const lastBrace = stdout.lastIndexOf('}')
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      const maybeJson = stdout.slice(firstBrace, lastBrace + 1)
+      try {
+        return JSON.parse(maybeJson)
+      } catch {
+        // ignore and throw below
+      }
+    }
+    throw new Error(`${npmCommand} ${args.join(' ')} 输出不是有效 JSON`)
+  }
 }
 
 function printHeading(title) {
   console.log(`\n=== ${title} ===`)
 }
 
-function printOutdatedSummary(outdatedPackages) {
+function normalizeOutdatedPackages(rawOutdatedPackages) {
+  const normalizedPackages = {}
+  const diagnostics = []
+
+  if (!rawOutdatedPackages || typeof rawOutdatedPackages !== 'object') {
+    return {
+      packages: normalizedPackages,
+      diagnostics
+    }
+  }
+
+  for (const [name, info] of Object.entries(rawOutdatedPackages)) {
+    if (!info || typeof info !== 'object' || Array.isArray(info)) {
+      if (name === 'error' || name === 'message') {
+        diagnostics.push(`${name}: ${String(info)}`)
+      }
+      continue
+    }
+
+    const hasVersionShape = 'current' in info || 'wanted' in info || 'latest' in info
+    if (hasVersionShape) {
+      normalizedPackages[name] = info
+      continue
+    }
+
+    if ('code' in info || 'summary' in info || 'detail' in info) {
+      diagnostics.push(`${name}: ${JSON.stringify(info)}`)
+    }
+  }
+
+  return {
+    packages: normalizedPackages,
+    diagnostics
+  }
+}
+
+function printOutdatedSummary(rawOutdatedPackages) {
+  const { packages: outdatedPackages, diagnostics } = normalizeOutdatedPackages(rawOutdatedPackages)
   const packageNames = Object.keys(outdatedPackages)
+
+  if (diagnostics.length > 0) {
+    console.log('依赖更新检查返回了异常信息：')
+    for (const line of diagnostics) {
+      console.log(`- ${line}`)
+    }
+  }
+
   if (packageNames.length === 0) {
     console.log('依赖已是最新可用版本。')
-    return false
+    return {
+      hasOutdatedPackages: false,
+      hasCheckErrors: diagnostics.length > 0
+    }
   }
 
   console.log(`发现 ${packageNames.length} 个可升级依赖：`)
@@ -41,7 +105,10 @@ function printOutdatedSummary(outdatedPackages) {
     const info = outdatedPackages[packageName] || {}
     console.log(`- ${packageName}: current=${info.current} wanted=${info.wanted} latest=${info.latest}`)
   }
-  return true
+  return {
+    hasOutdatedPackages: true,
+    hasCheckErrors: diagnostics.length > 0
+  }
 }
 
 function printAuditSummary(auditReport) {
@@ -67,17 +134,23 @@ console.log(`engines.npm: ${packageJson.engines?.npm || '未设置'}`)
 
 printHeading('Outdated')
 const outdatedPackages = runJsonNpmCommand(['outdated', '--json'], [0, 1])
-const hasOutdatedPackages = printOutdatedSummary(outdatedPackages)
+const {
+  hasOutdatedPackages,
+  hasCheckErrors: hasOutdatedCheckErrors
+} = printOutdatedSummary(outdatedPackages)
 
 printHeading('Audit')
 const auditReport = runJsonNpmCommand(['audit', '--json'], [0, 1])
 const hasAuditIssues = printAuditSummary(auditReport)
 
 printHeading('Result')
-if (!hasOutdatedPackages && !hasAuditIssues) {
+if (!hasOutdatedPackages && !hasAuditIssues && !hasOutdatedCheckErrors) {
   console.log('依赖状态健康。')
   process.exit(0)
 }
 
+if (hasOutdatedCheckErrors) {
+  console.log('依赖更新检查存在异常，请先修复网络或 registry 配置后再重试。')
+}
 console.log('依赖巡检未通过，请处理上面的升级或安全问题。')
 process.exit(1)

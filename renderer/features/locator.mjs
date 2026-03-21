@@ -41,6 +41,7 @@ export function renderSentenceViewer(state, dom, helpers) {
     rows: state.currentSentenceObjects,
     headerHtml: '<tr><th class="numeric-cell">句号</th><th>原句</th><th>左窗口词</th><th>节点词</th><th>右窗口词</th><th>状态</th></tr>',
     rowUnit: '句',
+    virtualize: false,
     emptyHtml: '<div class="empty-tip">这里会显示原文定位表</div>',
     renderRow: sentence => {
       const info = getSentenceHighlightInfo(sentence, state.currentHighlight)

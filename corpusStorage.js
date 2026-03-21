@@ -13,6 +13,7 @@ class CorpusStorage {
   constructor(baseDir) {
     this.baseDir = baseDir
     this.preparePromise = null
+    this.storageWriteQueue = Promise.resolve()
   }
 
   async prepare() {

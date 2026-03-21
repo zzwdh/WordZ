@@ -76,6 +76,7 @@ export async function saveTableFile(defaultBaseName, rows, feedback = {}) {
       if (message) console.warn(message)
     }
   const showToast = typeof feedback.showToast === 'function' ? feedback.showToast : () => {}
+  const notifySystem = typeof feedback.notifySystem === 'function' ? feedback.notifySystem : () => {}
 
   if (!rows || rows.length === 0) {
     showToast('没有可导出的内容', { title: '暂无导出数据' })
@@ -104,5 +105,12 @@ export async function saveTableFile(defaultBaseName, rows, feedback = {}) {
     title: '导出完成',
     type: 'success',
     duration: 4200
+  })
+  void notifySystem({
+    title: '导出完成',
+    body: result.filePath
+      ? `${defaultBaseName} 已导出到：${result.filePath}`
+      : `${defaultBaseName} 已导出完成`,
+    tag: 'export'
   })
 }
