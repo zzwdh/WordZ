@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using WordZ.Windows.Contracts;
@@ -24,6 +24,8 @@ public sealed class EngineClient : IAsyncDisposable
     private Task? _stderrPump;
 
     public bool IsStarted => _process is { HasExited: false } && _stdin is not null && _stdout is not null;
+    public string? ResolvedNodePath { get; private set; }
+    public string? ResolvedEngineEntryPath { get; private set; }
 
     public event EventHandler<EngineNotificationEventArgs>? NotificationReceived;
     public event EventHandler<string>? EngineErrorReceived;
@@ -35,40 +37,34 @@ public sealed class EngineClient : IAsyncDisposable
             return;
         }
 
-        var engineEntry = Path.Combine(
-            AppContext.BaseDirectory,
-            "packages",
-            "wordz-engine-js",
-            "src",
-            "index.mjs"
-        );
-        if (!File.Exists(engineEntry))
-        {
-            throw new FileNotFoundException("WordZ engine entry was not found.", engineEntry);
-        }
-
-        var args = new StringBuilder();
-        args.Append('"').Append(engineEntry).Append('"');
-
-        if (!string.IsNullOrWhiteSpace(userDataDir))
-        {
-            args.Append(" --user-data-dir=").Append('"').Append(userDataDir).Append('"');
-        }
+        var engineEntry = ResolveEngineEntryPath();
+        var nodeExecutable = ResolveNodeExecutable();
+        ResolvedEngineEntryPath = engineEntry;
+        ResolvedNodePath = nodeExecutable;
 
         _process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "node",
-                Arguments = args.ToString(),
+                FileName = nodeExecutable,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardInputEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(engineEntry) ?? AppContext.BaseDirectory
             },
             EnableRaisingEvents = true
         };
+        _process.StartInfo.ArgumentList.Add(engineEntry);
+        if (!string.IsNullOrWhiteSpace(userDataDir))
+        {
+            _process.StartInfo.ArgumentList.Add($"--user-data-dir={userDataDir}");
+        }
+        _process.Exited += HandleProcessExited;
 
         _process.Start();
         _stdin = _process.StandardInput;
@@ -77,7 +73,13 @@ public sealed class EngineClient : IAsyncDisposable
         _stdoutPump = Task.Run(() => ReadStdoutLoopAsync(_stdout, _lifetimeCts.Token), CancellationToken.None);
         _stderrPump = Task.Run(() => DrainErrorsAsync(_process.StandardError, _lifetimeCts.Token), CancellationToken.None);
 
-        await Task.CompletedTask.ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromMilliseconds(150), cancellationToken).ConfigureAwait(false);
+        if (_process.HasExited)
+        {
+            throw new InvalidOperationException(
+                $"The WordZ engine exited before initialization completed. Exit code: {_process.ExitCode}."
+            );
+        }
     }
 
     public async Task<JsonDocument?> InvokeAsync(string method, object? parameters = null, CancellationToken cancellationToken = default)
@@ -129,7 +131,11 @@ public sealed class EngineClient : IAsyncDisposable
                 var line = await stdout.ReadLineAsync(cancellationToken);
                 if (string.IsNullOrWhiteSpace(line))
                 {
-                    if (line is null) break;
+                    if (line is null)
+                    {
+                        break;
+                    }
+
                     continue;
                 }
 
@@ -164,6 +170,7 @@ public sealed class EngineClient : IAsyncDisposable
                         {
                             parameters = paramsElement.Clone();
                         }
+
                         NotificationReceived?.Invoke(this, new EngineNotificationEventArgs(methodName, parameters, line));
                     }
                 }
@@ -193,6 +200,124 @@ public sealed class EngineClient : IAsyncDisposable
                 EngineErrorReceived?.Invoke(this, line);
             }
         }
+    }
+
+    private void HandleProcessExited(object? sender, EventArgs args)
+    {
+        if (_process is null)
+        {
+            return;
+        }
+
+        EngineErrorReceived?.Invoke(this, $"Engine process exited with code {_process.ExitCode}.");
+        CompletePendingRequests(new IOException($"WordZ engine exited with code {_process.ExitCode}."));
+    }
+
+    private static string ResolveEngineEntryPath()
+    {
+        foreach (var searchRoot in EnumerateSearchRoots(AppContext.BaseDirectory))
+        {
+            var candidate = Path.Combine(searchRoot, "packages", "wordz-engine-js", "src", "index.mjs");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new FileNotFoundException(
+            "WordZ engine entry was not found under the native shell output or repository root.",
+            Path.Combine(AppContext.BaseDirectory, "packages", "wordz-engine-js", "src", "index.mjs")
+        );
+    }
+
+    private static IEnumerable<string> EnumerateSearchRoots(string baseDirectory)
+    {
+        var current = new DirectoryInfo(baseDirectory);
+        for (var depth = 0; current is not null && depth < 8; depth++, current = current.Parent)
+        {
+            yield return current.FullName;
+        }
+    }
+
+    private static string ResolveNodeExecutable()
+    {
+        var overridePath = Environment.GetEnvironmentVariable("WORDZ_NODE_EXE");
+        if (!string.IsNullOrWhiteSpace(overridePath))
+        {
+            var fullOverridePath = Path.GetFullPath(overridePath.Trim('"'));
+            if (File.Exists(fullOverridePath))
+            {
+                return fullOverridePath;
+            }
+        }
+
+        foreach (var candidate in BuildNodeCandidatePaths())
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        var pathCandidate = ResolveFromPath("node.exe");
+        if (!string.IsNullOrWhiteSpace(pathCandidate))
+        {
+            return pathCandidate;
+        }
+
+        throw new FileNotFoundException(
+            "Node.js was not found. Install Node.js 24.x or set WORDZ_NODE_EXE to node.exe.",
+            "node.exe"
+        );
+    }
+
+    private static IEnumerable<string> BuildNodeCandidatePaths()
+    {
+        yield return Path.Combine(AppContext.BaseDirectory, "node.exe");
+
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if (!string.IsNullOrWhiteSpace(programFiles))
+        {
+            yield return Path.Combine(programFiles, "nodejs", "node.exe");
+        }
+
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        if (!string.IsNullOrWhiteSpace(programFilesX86))
+        {
+            yield return Path.Combine(programFilesX86, "nodejs", "node.exe");
+        }
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrWhiteSpace(localAppData))
+        {
+            yield return Path.Combine(localAppData, "Programs", "nodejs", "node.exe");
+        }
+    }
+
+    private static string? ResolveFromPath(string fileName)
+    {
+        var pathValue = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(pathValue))
+        {
+            return null;
+        }
+
+        foreach (var rawSegment in pathValue.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var segment = rawSegment.Trim('"');
+            if (string.IsNullOrWhiteSpace(segment))
+            {
+                continue;
+            }
+
+            var candidate = Path.Combine(segment, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private void CompletePendingRequests(Exception exception)
@@ -238,6 +363,12 @@ public sealed class EngineClient : IAsyncDisposable
         {
             _process.Kill(entireProcessTree: true);
         }
+
+        if (_process is not null)
+        {
+            _process.Exited -= HandleProcessExited;
+        }
+
         _process?.Dispose();
         _lifetimeCts?.Dispose();
     }

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\WordZ.Windows\Contracts\EngineContracts.cs" Link="Contracts\EngineContracts.cs" />
+    <Compile Include="..\WordZ.Windows\Services\EngineClient.cs" Link="Services\EngineClient.cs" />
+    <Compile Include="..\WordZ.Windows\Services\NativeShellService.cs" Link="Services\NativeShellService.cs" />
+  </ItemGroup>
+</Project>

@@ -5,6 +5,6 @@ public sealed class UpdateService
     public Task<(bool Supported, string Message)> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult((false, "MSIX 更新链尚未接入。"));
+        return Task.FromResult((false, "MSIX update integration is staged for a later milestone."));
     }
 }

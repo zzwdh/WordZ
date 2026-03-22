@@ -6,94 +6,71 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Title="WordZ">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <NavigationView
+        x:Name="ShellNavigation"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        OpenPaneLength="180"
+        PaneDisplayMode="Left"
+        PaneTitle="WordZ"
+        SelectionChanged="OnNavigationSelectionChanged">
+        <NavigationView.MenuItems>
+            <NavigationViewItem x:Name="LibraryNavItem" Content="&#x672C;&#x5730;&#x8BED;&#x6599;&#x5E93;" Tag="library" />
+            <NavigationViewItem Content="&#x7EDF;&#x8BA1;" Tag="stats" />
+            <NavigationViewItem Content="KWIC" Tag="kwic" />
+            <NavigationViewItem Content="Collocate" Tag="collocate" />
+            <NavigationViewItem Content="Compare" Tag="compare" />
+            <NavigationViewItem Content="Chi-square" Tag="chi-square" />
+            <NavigationViewItem Content="WordCloud" Tag="word-cloud" />
+            <NavigationViewItem Content="Ngram" Tag="ngram" />
+            <NavigationViewItem Content="Locator" Tag="locator" />
+        </NavigationView.MenuItems>
 
-        <CommandBar Grid.Row="0" DefaultLabelPosition="Right">
-            <AppBarButton Label="快速打开" />
-            <AppBarButton Label="导入并保存" />
-            <AppBarButton Label="本地语料库" />
-            <AppBarSeparator />
-            <AppBarButton Label="统计" />
-            <AppBarButton Label="设置" />
-            <AppBarButton Label="帮助" />
-        </CommandBar>
+        <Grid Padding="12" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-        <NavigationView Grid.Row="1" IsBackButtonVisible="Collapsed" PaneDisplayMode="Left">
-            <NavigationView.MenuItems>
-                <NavigationViewItem Content="统计" />
-                <NavigationViewItem Content="对比" />
-                <NavigationViewItem Content="卡方" />
-                <NavigationViewItem Content="词云" />
-                <NavigationViewItem Content="Ngram" />
-                <NavigationViewItem Content="KWIC" />
-                <NavigationViewItem Content="Collocate" />
-                <NavigationViewItem Content="定位" />
-            </NavigationView.MenuItems>
-
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="300" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Spacing="12" Padding="16">
-                    <TextBlock Text="{Binding VersionText}" Style="{StaticResource SubtitleTextBlockStyle}" />
-                    <TextBlock Text="当前语料与会话" Style="{StaticResource TitleTextBlockStyle}" />
-                    <TextBlock Text="{Binding WorkspaceSummary}" TextWrapping="Wrap" />
-                    <TextBox Header="SearchQuery" PlaceholderText="SearchQuery" />
-                    <ComboBox Header="KWIC Scope">
-                        <x:String>当前语料</x:String>
-                        <x:String>当前文件夹</x:String>
-                        <x:String>全部本地语料</x:String>
-                    </ComboBox>
-                    <InfoBar
-                        IsOpen="True"
-                        Severity="Informational"
-                        Title="Engine 状态"
-                        Message="{Binding EngineStatus}" />
-                </StackPanel>
-
-                <Grid Grid.Column="1" Padding="16">
+            <Border Padding="8" BorderBrush="#FFD0D0D0" BorderThickness="1">
+                <Grid ColumnSpacing="10" RowSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <InfoBar
-                        Title="WordZ Windows Native"
-                        Message="{Binding BuildSummary}"
-                        IsOpen="True"
-                        Severity="Informational" />
-                    <TabView Grid.Row="1">
-                        <TabViewItem Header="统计">
-                            <Grid Padding="8">
-                                <TextBlock Text="统计结果 DataGrid 将在这里挂载。" />
-                            </Grid>
-                        </TabViewItem>
-                        <TabViewItem Header="KWIC">
-                            <Grid Padding="8">
-                                <TextBlock Text="KWIC DataGrid 将在这里挂载。" />
-                            </Grid>
-                        </TabViewItem>
-                        <TabViewItem Header="Collocate">
-                            <Grid Padding="8">
-                                <TextBlock Text="Collocate DataGrid 将在这里挂载。" />
-                            </Grid>
-                        </TabViewItem>
-                    </TabView>
-                </Grid>
-            </Grid>
-        </NavigationView>
 
-        <InfoBar
-            Grid.Row="2"
-            IsOpen="True"
-            Severity="Informational"
-            Title="WordZ Native Shell"
-            Message="{Binding EngineStatus}" />
-    </Grid>
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock FontSize="20" FontWeight="SemiBold" Text="WordZ Windows Native" />
+                        <TextBlock Text="{Binding Shell.VersionText}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock FontWeight="SemiBold" Text="Engine" />
+                        <TextBlock Text="{Binding Shell.EngineStatus}" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        Text="{Binding Shell.WorkspaceSummary}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Text="{Binding Shell.RuntimeSummary}"
+                        TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+
+            <ContentControl
+                x:Name="PageHost"
+                Grid.Row="1"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch" />
+        </Grid>
+    </NavigationView>
 </Window>
