@@ -1,3 +1,88 @@
+const CHECKBOX_FALLBACK_IDS = new Set([
+  'welcomeDisableCheckbox',
+  'chiYatesToggle',
+  'showWelcomeScreenToggle',
+  'restoreWorkspaceToggle',
+  'systemNotificationsToggle',
+  'windowAttentionToggle',
+  'notifyAnalysisCompleteToggle',
+  'notifyUpdateDownloadedToggle',
+  'notifyDiagnosticsExportToggle',
+  'followSystemAccessibilityToggle',
+  'debugLoggingToggle'
+])
+
+const RANGE_FALLBACK_IDS = new Set([
+  'uiZoomRange',
+  'uiFontSizeRange'
+])
+
+const NUMBER_INPUT_FALLBACK_IDS = new Set([
+  'chiAInput',
+  'chiBInput',
+  'chiCInput',
+  'chiDInput'
+])
+
+function getFallbackRoot() {
+  let root = document.getElementById('wordzFallbackDomRefsRoot')
+  if (root) return root
+  root = document.createElement('div')
+  root.id = 'wordzFallbackDomRefsRoot'
+  root.className = 'hidden'
+  root.setAttribute('aria-hidden', 'true')
+  root.style.display = 'none'
+  ;(document.body || document.documentElement).appendChild(root)
+  return root
+}
+
+function createFallbackNode(id) {
+  let tagName = 'div'
+
+  if (id.endsWith('Button')) {
+    tagName = 'button'
+  } else if (id.endsWith('Select')) {
+    tagName = 'select'
+  } else if (id === 'feedbackInput') {
+    tagName = 'textarea'
+  } else if (id.endsWith('Url')) {
+    tagName = 'a'
+  } else if (CHECKBOX_FALLBACK_IDS.has(id) || id.endsWith('Checkbox')) {
+    tagName = 'input'
+  } else if (RANGE_FALLBACK_IDS.has(id) || NUMBER_INPUT_FALLBACK_IDS.has(id) || id.endsWith('Input')) {
+    tagName = 'input'
+  }
+
+  const node = document.createElement(tagName)
+  node.id = id
+  node.classList.add('hidden')
+  node.setAttribute('aria-hidden', 'true')
+  node.setAttribute('data-wordz-fallback-node', '1')
+
+  if (tagName === 'button') {
+    node.type = 'button'
+  } else if (tagName === 'input') {
+    if (CHECKBOX_FALLBACK_IDS.has(id) || id.endsWith('Checkbox')) {
+      node.type = 'checkbox'
+    } else if (RANGE_FALLBACK_IDS.has(id)) {
+      node.type = 'range'
+    } else if (NUMBER_INPUT_FALLBACK_IDS.has(id)) {
+      node.type = 'number'
+    } else {
+      node.type = 'text'
+    }
+  } else if (tagName === 'a') {
+    node.href = '#'
+  }
+
+  getFallbackRoot().appendChild(node)
+  return node
+}
+
+function ensureDomNode(id, existingNode) {
+  return existingNode || createFallbackNode(id)
+}
+
 export const dom = {
   welcomeOverlay: document.getElementById('welcomeOverlay'),
   dropImportOverlay: document.getElementById('dropImportOverlay'),
@@ -191,6 +276,7 @@ export const dom = {
   followSystemAccessibilityToggle: document.getElementById('followSystemAccessibilityToggle'),
   debugLoggingToggle: document.getElementById('debugLoggingToggle'),
   diagnosticsStatusText: document.getElementById('diagnosticsStatusText'),
+  resetWindowsCompatButton: document.getElementById('resetWindowsCompatButton'),
   exportDiagnosticsButton: document.getElementById('exportDiagnosticsButton'),
   reportIssueButton: document.getElementById('reportIssueButton'),
   analysisCacheValue: document.getElementById('analysisCacheValue'),
@@ -217,4 +303,32 @@ export const dom = {
   commandPaletteList: document.getElementById('commandPaletteList'),
   closeCommandPaletteButton: document.getElementById('closeCommandPaletteButton'),
   toastViewport: document.getElementById('toastViewport')
+}
+
+for (const [key, value] of Object.entries(dom)) {
+  if (Array.isArray(value)) continue
+  dom[key] = ensureDomNode(key, value)
+}
+
+if (!dom.searchQueryInputs.length) {
+  const fallbackInput = createFallbackNode('sharedSearchInput')
+  fallbackInput.setAttribute('data-shared-search-input', '')
+  dom.searchQueryInputs = [fallbackInput]
+}
+
+if (!dom.searchOptionInputs.length) {
+  const options = ['words', 'case', 'regex'].map(option => {
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    input.classList.add('hidden')
+    input.setAttribute('aria-hidden', 'true')
+    input.setAttribute('data-wordz-fallback-node', '1')
+    input.setAttribute('data-search-option', option)
+    if (option === 'words') {
+      input.checked = true
+    }
+    getFallbackRoot().appendChild(input)
+    return input
+  })
+  dom.searchOptionInputs = options
 }

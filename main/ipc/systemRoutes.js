@@ -2,10 +2,12 @@ function registerSystemIpcRoutes({
   registerSafeIpcHandler,
   fs,
   path,
-  ExcelJS,
+  getExcelJS,
   app,
   packageManifest,
   getAppInfo,
+  getRendererShellMarkup,
+  reportRendererReady,
   showSaveDialogForApp,
   normalizeTextInput,
   normalizeTableRows,
@@ -18,11 +20,14 @@ function registerSystemIpcRoutes({
   getWindowProgressController,
   getWindowAttentionController,
   isSmokeEnv,
+  getPackagedSmokeConfig,
+  writePackagedSmokeResult,
   getSmokeObserverState,
   markSystemOpenBridgeReady,
   consumePendingSystemOpenFilePaths,
   getAutoUpdateController,
   getDiagnosticsController,
+  getWindowsCompatController,
   getAnalysisCacheController,
   shell
 }) {
@@ -77,6 +82,7 @@ function registerSystemIpcRoutes({
       }
     }
 
+    const ExcelJS = getExcelJS()
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('Sheet1')
     worksheet.addRows(normalizedRows)
@@ -97,6 +103,18 @@ function registerSystemIpcRoutes({
         autoUpdateController: getAutoUpdateController()
       })
     }
+  })
+
+  registerSafeIpcHandler('get-renderer-shell-markup', async () => {
+    const markup = await getRendererShellMarkup()
+    return {
+      success: true,
+      markup
+    }
+  })
+
+  registerSafeIpcHandler('report-renderer-ready', async (event, payload = {}) => {
+    return reportRendererReady(event, payload)
   })
 
   registerSafeIpcHandler('show-system-notification', async (event, payload = {}) => {
@@ -196,6 +214,58 @@ function registerSystemIpcRoutes({
     }
   })
 
+  registerSafeIpcHandler('get-packaged-smoke-config', async () => {
+    if (!isSmokeEnv) {
+      return {
+        success: false,
+        message: '当前不是 smoke 测试环境。'
+      }
+    }
+
+    return {
+      success: true,
+      config: getPackagedSmokeConfig?.() || {
+        enabled: false,
+        autoRun: false
+      }
+    }
+  })
+
+  registerSafeIpcHandler('report-packaged-smoke-result', async (event, payload = {}) => {
+    if (!isSmokeEnv) {
+      return {
+        success: false,
+        message: '当前不是 smoke 测试环境。'
+      }
+    }
+
+    const status = normalizeTextInput(payload?.status, { fallback: '', maxLength: 24 })
+    const stage = normalizeTextInput(payload?.stage, { fallback: '', maxLength: 80 })
+    const message = normalizeTextInput(payload?.message, { fallback: '', maxLength: 600 })
+    const corpusName = normalizeTextInput(payload?.corpusName, { fallback: '', maxLength: 160 })
+    const statsRowCount = Number(payload?.statsRowCount)
+    const kwicResultCount = Number(payload?.kwicResultCount)
+    const runtime = payload?.runtime && typeof payload.runtime === 'object'
+      ? {
+          analysisMode: normalizeTextInput(payload.runtime.analysisMode, { fallback: '', maxLength: 24 }),
+          searchQuery: normalizeTextInput(payload.runtime.searchQuery, { fallback: '', maxLength: 160 })
+        }
+      : null
+
+    return writePackagedSmokeResult?.({
+      status,
+      stage,
+      message,
+      corpusName,
+      statsRowCount: Number.isFinite(statsRowCount) ? statsRowCount : 0,
+      kwicResultCount: Number.isFinite(kwicResultCount) ? kwicResultCount : 0,
+      runtime
+    }) || {
+      success: false,
+      message: 'packaged smoke 结果写入器不可用。'
+    }
+  })
+
   registerSafeIpcHandler('consume-pending-system-open-files', async () => {
     markSystemOpenBridgeReady()
     return {
@@ -227,9 +297,29 @@ function registerSystemIpcRoutes({
   })
 
   registerSafeIpcHandler('get-diagnostic-state', async () => {
+    const windowsCompat = getWindowsCompatController?.()?.getSnapshot?.() || null
     return {
       success: true,
-      diagnostics: getDiagnosticsController()?.getSnapshot?.() || null
+      diagnostics: getDiagnosticsController()?.getSnapshot?.() || null,
+      windowsCompat
+    }
+  })
+
+  registerSafeIpcHandler('reset-windows-compat-profile', async () => {
+    const windowsCompatController = getWindowsCompatController?.()
+    if (!windowsCompatController?.isSupported?.()) {
+      return {
+        success: false,
+        message: '当前平台不支持 Windows 兼容模式。'
+      }
+    }
+
+    await windowsCompatController.clearPersistedState('manual-reset')
+    windowsCompatController.clearSessionOverride?.()
+
+    return {
+      success: true,
+      windowsCompat: windowsCompatController.getSnapshot?.() || null
     }
   })
 

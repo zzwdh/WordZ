@@ -7,12 +7,32 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 
-const REQUIRED_ASSETS = Object.freeze([
+const COMMON_REQUIRED_ASSETS = Object.freeze([
   'build/icon.png',
   'build/icon.ico',
   'build/icon.icns',
+  'build/installer.nsh'
+])
+
+const TARGET_REQUIRED_ASSETS = Object.freeze({
+  mac: [
+    'build/background.png',
+    'build/entitlements.mac.plist',
+    'build/entitlements.mac.inherit.plist'
+  ],
+  win: [
+    'build/installer-sidebar.bmp',
+    'build/installer-header.bmp',
+    'build/license_zh_CN.txt',
+    'build/license_en.txt'
+  ]
+})
+
+const ALL_TARGET_REQUIRED_ASSETS = Object.freeze([
+  ...COMMON_REQUIRED_ASSETS,
   'build/installer-sidebar.bmp',
   'build/installer-header.bmp',
+  'build/background.png',
   'build/license_zh_CN.txt',
   'build/license_en.txt',
   'build/entitlements.mac.plist',
@@ -40,11 +60,33 @@ function normalizeText(value, fallback = '') {
 }
 
 function parseArgs(argv) {
+  const targetArg = argv.find(argument => argument.startsWith('--target='))
   return {
     strict: argv.includes('--strict'),
     json: argv.includes('--json'),
-    noGithub: argv.includes('--no-github')
+    noGithub: argv.includes('--no-github'),
+    target: normalizeText(targetArg?.slice('--target='.length), 'all').toLowerCase()
   }
+}
+
+function resolveTarget(target) {
+  if (target === 'current') {
+    return process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'all'
+  }
+  if (target === 'mac' || target === 'win' || target === 'all') {
+    return target
+  }
+  return 'all'
+}
+
+function getRequiredAssets(target) {
+  if (target === 'mac') {
+    return [...COMMON_REQUIRED_ASSETS, ...TARGET_REQUIRED_ASSETS.mac]
+  }
+  if (target === 'win') {
+    return [...COMMON_REQUIRED_ASSETS, ...TARGET_REQUIRED_ASSETS.win]
+  }
+  return ALL_TARGET_REQUIRED_ASSETS
 }
 
 function parseRepositorySlug(repository) {
@@ -86,9 +128,10 @@ function evaluateLocalSecrets(env = process.env) {
   }
 }
 
-async function evaluateBuildAssets(rootDir = projectRoot) {
+async function evaluateBuildAssets(rootDir = projectRoot, target = 'all') {
+  const requiredAssets = getRequiredAssets(target)
   const results = await Promise.all(
-    REQUIRED_ASSETS.map(async relativePath => {
+    requiredAssets.map(async relativePath => {
       try {
         await fs.access(path.join(rootDir, relativePath))
         return { path: relativePath, present: true }
@@ -102,6 +145,17 @@ async function evaluateBuildAssets(rootDir = projectRoot) {
     ok: results.every(item => item.present),
     items: results
   }
+}
+
+function isStrictTargetReady(target, assets, localSecrets) {
+  if (!assets.ok) return false
+  if (target === 'mac') {
+    return localSecrets.macCertificate && localSecrets.macNotarization
+  }
+  if (target === 'win') {
+    return localSecrets.windowsCertificate
+  }
+  return localSecrets.windowsCertificate && localSecrets.macCertificate && localSecrets.macNotarization
 }
 
 function listGitHubSecrets(repositorySlug) {
@@ -175,9 +229,10 @@ function printSection(title, lines) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2))
+  const target = resolveTarget(options.target)
   const packageManifest = JSON.parse(await fs.readFile(path.join(projectRoot, 'package.json'), 'utf-8'))
   const repositorySlug = parseRepositorySlug(packageManifest.repository)
-  const assets = await evaluateBuildAssets(projectRoot)
+  const assets = await evaluateBuildAssets(projectRoot, target)
   const localSecrets = evaluateLocalSecrets(process.env)
   const githubSecretsResult = options.noGithub
     ? { ok: false, available: [], reason: '已跳过 GitHub secrets 检查。' }
@@ -188,6 +243,7 @@ async function main() {
     repository: repositorySlug,
     version: normalizeText(packageManifest.version, '0.0.0'),
     releaseChannel: 'stable',
+    target,
     assets,
     localSecrets,
     githubSecretsResult,
@@ -200,7 +256,8 @@ async function main() {
     printSection('WordZ Release Doctor', [
       `仓库：${repositorySlug || '未配置'}`,
       `版本：${summary.version}`,
-      '发布渠道：稳定版'
+      '发布渠道：稳定版',
+      `检查目标：${target}`
     ])
 
     printSection('构建资源', summary.assets.items.map(item => `${item.present ? '已就绪' : '缺失'} ${item.path}`))
@@ -228,7 +285,7 @@ async function main() {
 
   if (
     options.strict &&
-    (!assets.ok || !localSecrets.windowsCertificate || !localSecrets.macCertificate || !localSecrets.macNotarization)
+    !isStrictTargetReady(target, assets, localSecrets)
   ) {
     process.exitCode = 1
   }

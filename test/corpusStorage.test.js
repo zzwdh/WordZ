@@ -164,7 +164,8 @@ test('lists searchable corpora for current folder and full library scopes', asyn
   assert.equal(folderScope.selectedFolderName, folder.folder.name)
   assert.equal(folderScope.totalCount, 1)
   assert.equal(folderScope.corpora[0].corpusName, 'folder-search')
-  assert.equal(folderScope.corpora[0].content, 'rose bloom bright')
+  assert.equal(folderScope.corpora[0].content, undefined)
+  assert.equal(folderScope.corpora[0].contentLength, undefined)
 
   const allScope = await storage.listSearchableCorpora('all')
   assert.equal(allScope.success, true)

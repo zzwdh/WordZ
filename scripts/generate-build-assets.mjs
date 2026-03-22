@@ -143,6 +143,18 @@ function compositeImage(targetImage, sourceImage, offsetX, offsetY) {
   }
 }
 
+function scaleImageAlpha(image, factor) {
+  const output = new Uint8Array(image.data)
+  for (let index = 3; index < output.length; index += 4) {
+    output[index] = Math.round(output[index] * clamp(factor))
+  }
+  return {
+    width: image.width,
+    height: image.height,
+    data: output
+  }
+}
+
 function renderBackground(nx, ny, maskAmount = 1) {
   const diagonal = clamp(0.15 + nx * 0.6 + (1 - ny) * 0.35)
   let color = mixColor(BRAND.deepAlt, BRAND.accent, diagonal)
@@ -256,6 +268,83 @@ function renderInstallerHeader(width = 150, height = 57, iconImage) {
   compositeImage(header, icon, 12, Math.round((height - icon.height) / 2))
 
   return header
+}
+
+function renderDmgBackground(width = 540, height = 380, iconImage) {
+  const background = createImage(width, height, (x, y, totalWidth, totalHeight) => {
+    const nx = (x + 0.5) / totalWidth
+    const ny = (y + 0.5) / totalHeight
+    const px = nx * 2 - 1
+    const py = ny * 2 - 1
+
+    const base = renderBackground(nx * 0.96, ny * 0.9 + 0.05, 1)
+    const output = [...base]
+
+    const glow = Math.pow(Math.max(0, 1 - Math.hypot(nx - 0.5, ny - 0.08) / 0.92), 1.8)
+    output[0] = Math.round(mix(output[0], BRAND.paper[0], glow * 0.08))
+    output[1] = Math.round(mix(output[1], BRAND.paper[1], glow * 0.08))
+    output[2] = Math.round(mix(output[2], BRAND.paper[2], glow * 0.08))
+
+    const sweep = Math.pow(Math.max(0, Math.sin((nx * 1.18 + ny * 0.32) * Math.PI * 1.65)), 2)
+    output[0] = Math.round(mix(output[0], BRAND.accentSoft[0], sweep * 0.05))
+    output[1] = Math.round(mix(output[1], BRAND.accentSoft[1], sweep * 0.05))
+    output[2] = Math.round(mix(output[2], BRAND.accentSoft[2], sweep * 0.05))
+
+    const leftCard = clamp((0.02 - roundedRectSdf(px + 0.42, py - 0.02, 0.24, 0.28, 0.1)) / 0.03)
+    const rightCard = clamp((0.02 - roundedRectSdf(px - 0.42, py - 0.02, 0.24, 0.28, 0.1)) / 0.03)
+    const cardBorder = Math.max(
+      clamp((0.004 - Math.abs(roundedRectSdf(px + 0.42, py - 0.02, 0.24, 0.28, 0.1))) / 0.016),
+      clamp((0.004 - Math.abs(roundedRectSdf(px - 0.42, py - 0.02, 0.24, 0.28, 0.1))) / 0.016)
+    )
+
+    const cardHighlight = mixColor(BRAND.paper, BRAND.white, 0.35)
+    const cardAmount = Math.max(leftCard, rightCard)
+    if (cardAmount > 0) {
+      output[0] = Math.round(mix(output[0], cardHighlight[0], cardAmount * 0.92))
+      output[1] = Math.round(mix(output[1], cardHighlight[1], cardAmount * 0.92))
+      output[2] = Math.round(mix(output[2], cardHighlight[2], cardAmount * 0.92))
+    }
+    if (cardBorder > 0) {
+      output[0] = Math.round(mix(output[0], BRAND.white[0], cardBorder * 0.18))
+      output[1] = Math.round(mix(output[1], BRAND.white[1], cardBorder * 0.18))
+      output[2] = Math.round(mix(output[2], BRAND.white[2], cardBorder * 0.18))
+    }
+
+    const guideLine = Math.max(
+      strokeCoverage(px, py, -0.1, 0.04, 0.18, 0.04, 0.034, 0.024),
+      strokeCoverage(px, py, 0.18, 0.04, 0.28, 0.12, 0.03, 0.024),
+      strokeCoverage(px, py, 0.18, 0.04, 0.28, -0.04, 0.03, 0.024)
+    )
+    const guideStart = circleCoverage(px, py, -0.1, 0.04, 0.045, 0.02)
+    const guideGlow = Math.pow(Math.max(0, 1 - Math.hypot(px - 0.02, py - 0.04) / 0.38), 2.2)
+    const guideAmount = Math.max(guideLine, guideStart)
+
+    if (guideGlow > 0) {
+      output[0] = Math.round(mix(output[0], BRAND.accentSoft[0], guideGlow * 0.12))
+      output[1] = Math.round(mix(output[1], BRAND.accentSoft[1], guideGlow * 0.12))
+      output[2] = Math.round(mix(output[2], BRAND.accentSoft[2], guideGlow * 0.12))
+    }
+
+    if (guideAmount > 0) {
+      output[0] = Math.round(mix(output[0], BRAND.white[0], guideAmount * 0.8))
+      output[1] = Math.round(mix(output[1], BRAND.white[1], guideAmount * 0.8))
+      output[2] = Math.round(mix(output[2], BRAND.white[2], guideAmount * 0.8))
+    }
+
+    const capsule = clamp((0.016 - roundedRectSdf(px, py + 0.78, 0.2, 0.05, 0.05)) / 0.025)
+    if (capsule > 0) {
+      output[0] = Math.round(mix(output[0], BRAND.paper[0], capsule * 0.12))
+      output[1] = Math.round(mix(output[1], BRAND.paper[1], capsule * 0.12))
+      output[2] = Math.round(mix(output[2], BRAND.paper[2], capsule * 0.12))
+    }
+
+    return output
+  })
+
+  const badge = scaleImageAlpha(resizeImage(iconImage, 52, 52), 0.2)
+  compositeImage(background, badge, Math.round((width - badge.width) / 2), 28)
+
+  return background
 }
 
 const CRC_TABLE = (() => {
@@ -446,12 +535,14 @@ async function main() {
   const iconImage = renderWordzIcon()
   const sidebarImage = renderInstallerSidebar(164, 314, iconImage)
   const headerImage = renderInstallerHeader(150, 57, iconImage)
+  const dmgBackgroundImage = renderDmgBackground(540, 380, iconImage)
 
   await writeFile(path.join(buildDir, 'icon.png'), encodePng(iconImage))
   await writeFile(
     path.join(buildDir, 'icon.ico'),
     encodeIco([16, 24, 32, 48, 64, 128, 256].map(size => resizeImage(iconImage, size, size)))
   )
+  await writeFile(path.join(buildDir, 'background.png'), encodePng(dmgBackgroundImage))
   await writeFile(path.join(buildDir, 'installer-sidebar.bmp'), encodeBmp(sidebarImage))
   await writeFile(path.join(buildDir, 'installer-header.bmp'), encodeBmp(headerImage))
   await generateIcns(iconImage)

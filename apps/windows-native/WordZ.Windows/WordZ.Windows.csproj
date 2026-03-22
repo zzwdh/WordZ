@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>WordZ.Windows</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;arm64</Platforms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>MSIX</WindowsPackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.DataGrid" Version="7.0.3" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Content Include="..\..\..\package.json" Link="package.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\analysisCore.mjs" Link="analysisCore.mjs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\analysisWorker.mjs" Link="analysisWorker.mjs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\corpusStorage.js" Link="corpusStorage.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\corpusFileReader.js" Link="corpusFileReader.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\diagnostics\**\*.js" Link="diagnostics\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\storage\**\*.js" Link="storage\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\main\helpers\inputGuards.js" Link="main\helpers\inputGuards.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\packages\wordz-contracts\src\**\*.mjs" Link="packages\wordz-contracts\src\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\packages\wordz-engine-js\src\**\*.mjs" Link="packages\wordz-engine-js\src\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\node_modules\**\*" Exclude="..\..\..\node_modules\**\*.map;..\..\..\node_modules\**\test\**;..\..\..\node_modules\**\tests\**;..\..\..\node_modules\**\__tests__\**;..\..\..\node_modules\**\docs\**;..\..\..\node_modules\**\examples\**;..\..\..\node_modules\**\*.md" Link="node_modules\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

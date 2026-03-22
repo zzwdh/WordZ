@@ -74,7 +74,16 @@ jobs:
         run: npm run build:assets
 
       - name: Run verification
-        run: npm run verify
+        run: npm run release:verify -- --target=mac
+
+      - name: Build macOS artifacts
+        run: npm run dist:mac
+
+      - name: Verify macOS build artifacts
+        run: npm run release:artifacts -- --target=mac
+
+      - name: Run packaged macOS smoke
+        run: npm run test:packaged-smoke
 
       - name: Publish macOS release
         env:
@@ -117,7 +126,16 @@ jobs:
         run: npm run build:assets
 
       - name: Run verification
-        run: npm run verify
+        run: npm run release:verify -- --target=win
+
+      - name: Build Windows artifacts
+        run: npm run dist:win
+
+      - name: Verify Windows build artifacts
+        run: npm run release:artifacts -- --target=win
+
+      - name: Run packaged Windows smoke
+        run: npm run test:packaged-smoke
 
       - name: Publish Windows release
         env:

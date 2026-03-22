@@ -1,5 +1,6 @@
 ;(function bootstrapLoader() {
   const DIAGNOSTIC_MODES = new Set(['full', 'styles', 'renderer-no-style', 'minimal'])
+  const FULL_PROBE_MODES = new Set(['safe-style', 'delay-renderer-start'])
 
   function normalizeDiagnosticMode(rawMode) {
     const normalizedMode = String(rawMode || '').trim().toLowerCase()
@@ -7,15 +8,27 @@
     return 'full'
   }
 
-  const mode = normalizeDiagnosticMode(new URLSearchParams(window.location.search || '').get('diag'))
+  function normalizeFullProbeMode(rawMode) {
+    const normalizedMode = String(rawMode || '').trim().toLowerCase()
+    if (FULL_PROBE_MODES.has(normalizedMode)) return normalizedMode
+    return ''
+  }
+
+  const searchParams = new URLSearchParams(window.location.search || '')
+  const mode = normalizeDiagnosticMode(searchParams.get('diag'))
+  const fullProbeMode = mode === 'full'
+    ? normalizeFullProbeMode(searchParams.get('fullProbe'))
+    : ''
   const loaderState = {
     mode,
+    fullProbeMode,
     status: 'booting',
     startedAt: new Date().toISOString(),
     completedAt: '',
     errorMessage: ''
   }
   window.__WORDZ_STARTUP_LOADER_STATE__ = loaderState
+  window.__WORDZ_FULL_PROBE_MODE__ = fullProbeMode
 
   function writeLoaderLog(scope, details) {
     try {
@@ -33,7 +46,8 @@
     loaderState.status = 'completed'
     loaderState.completedAt = new Date().toISOString()
     writeLoaderLog('completed', {
-      mode
+      mode,
+      fullProbeMode
     })
   }
 
@@ -43,7 +57,75 @@
     loaderState.errorMessage = error instanceof Error ? error.message : String(error || '')
     console.error('[startup.loader] failed', {
       mode,
+      fullProbeMode,
       message: loaderState.errorMessage
+    })
+  }
+
+  function applyFullProbeConfig() {
+    if (fullProbeMode !== 'safe-style') return
+    document.documentElement.classList.add('wordz-probe-safe-style')
+    if (document.body) {
+      document.body.classList.add('wordz-probe-safe-style')
+    }
+    if (document.getElementById('wordzSafeStyleProbeOverrides')) return
+    const style = document.createElement('style')
+    style.id = 'wordzSafeStyleProbeOverrides'
+    style.textContent = `
+html.wordz-probe-safe-style,
+html.wordz-probe-safe-style body {
+  background: #f4efe7 !important;
+  color: #182131 !important;
+}
+html.wordz-probe-safe-style body::before,
+html.wordz-probe-safe-style body::after {
+  content: none !important;
+  display: none !important;
+}
+html.wordz-probe-safe-style *,
+html.wordz-probe-safe-style *::before,
+html.wordz-probe-safe-style *::after {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+html.wordz-probe-safe-style .app-shell,
+html.wordz-probe-safe-style .topbar,
+html.wordz-probe-safe-style .welcome-panel,
+html.wordz-probe-safe-style .drop-import-panel,
+html.wordz-probe-safe-style [id$="Modal"],
+html.wordz-probe-safe-style .task-center-panel,
+html.wordz-probe-safe-style .command-palette,
+html.wordz-probe-safe-style .toast-viewport,
+html.wordz-probe-safe-style .table-shell {
+  background: #fffaf3 !important;
+  background-image: none !important;
+  border-color: rgba(88, 75, 55, 0.18) !important;
+}
+html.wordz-probe-safe-style .topbar,
+html.wordz-probe-safe-style .table-toolbar,
+html.wordz-probe-safe-style .stats-summary,
+html.wordz-probe-safe-style thead th,
+html.wordz-probe-safe-style .kwic-meta,
+html.wordz-probe-safe-style .compare-meta {
+  position: static !important;
+}
+html.wordz-probe-safe-style .welcome-overlay,
+html.wordz-probe-safe-style .drop-import-overlay,
+html.wordz-probe-safe-style .task-center-panel,
+html.wordz-probe-safe-style [id$="Modal"],
+html.wordz-probe-safe-style .toast-viewport {
+  position: static !important;
+  inset: auto !important;
+}
+`
+    document.head.appendChild(style)
+    writeLoaderLog('full-probe.safe-style-applied', {
+      mode,
+      fullProbeMode
     })
   }
 
@@ -175,14 +257,14 @@
       sheet.href = './styles.css'
       sheet.dataset.wordzLoader = 'styles'
       sheet.onload = () => {
-        writeLoaderLog('styles.loaded', { mode })
+        writeLoaderLog('styles.loaded', { mode, fullProbeMode })
         resolve()
       }
       sheet.onerror = () => {
         reject(new Error('styles.css 加载失败'))
       }
       document.head.appendChild(sheet)
-      writeLoaderLog('styles.loading', { mode })
+      writeLoaderLog('styles.loading', { mode, fullProbeMode })
     })
   }
 
@@ -199,21 +281,22 @@
       script.async = false
       script.dataset.wordzLoader = 'renderer'
       script.onload = () => {
-        writeLoaderLog('renderer.loaded', { mode })
+        writeLoaderLog('renderer.loaded', { mode, fullProbeMode })
         resolve()
       }
       script.onerror = () => {
         reject(new Error('renderer.js 加载失败'))
       }
       document.body.appendChild(script)
-      writeLoaderLog('renderer.loading', { mode })
+      writeLoaderLog('renderer.loading', { mode, fullProbeMode })
     })
   }
 
   async function runLoader() {
-    writeLoaderLog('started', { mode })
+    writeLoaderLog('started', { mode, fullProbeMode })
     appendDiagnosticModeBadge()
     appendMinimalModePanel()
+    applyFullProbeConfig()
 
     if (mode === 'minimal') {
       markLoaderCompleted()

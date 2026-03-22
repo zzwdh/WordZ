@@ -1,0 +1,10 @@
+{
+  "name": "@wordz/engine-js",
+  "version": "1.0.21",
+  "private": true,
+  "type": "module",
+  "description": "Node.js sidecar engine for the native Windows WordZ shell.",
+  "bin": {
+    "wordz-engine-js": "./src/index.mjs"
+  }
+}

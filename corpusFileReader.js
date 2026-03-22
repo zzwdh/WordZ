@@ -2,9 +2,9 @@ const fs = require('fs/promises')
 const path = require('path')
 const { isUtf8 } = require('node:buffer')
 const iconv = require('iconv-lite')
-const mammoth = require('mammoth')
 
 let cachedPDFParseClass = null
+let cachedMammothModule = null
 
 const SUPPORTED_CORPUS_EXTENSIONS = new Set(['.txt', '.docx', '.pdf'])
 const DEFAULT_PREFLIGHT_OPTIONS = Object.freeze({
@@ -19,19 +19,180 @@ const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
 const UTF16LE_BOM = Buffer.from([0xff, 0xfe])
 const UTF16BE_BOM = Buffer.from([0xfe, 0xff])
 const LEGACY_TEXT_ENCODINGS = ['gb18030', 'big5']
+const PDF_CANVAS_WARNING_SNIPPET = 'Cannot load "@napi-rs/canvas" package'
+
+function createDOMMatrixFallback() {
+  return class DOMMatrixFallback {
+    constructor(init) {
+      const values = Array.isArray(init) ? init : [1, 0, 0, 1, 0, 0]
+      this.a = values[0] ?? 1
+      this.b = values[1] ?? 0
+      this.c = values[2] ?? 0
+      this.d = values[3] ?? 1
+      this.e = values[4] ?? 0
+      this.f = values[5] ?? 0
+      this.is2D = true
+      this.isIdentity =
+        this.a === 1 &&
+        this.b === 0 &&
+        this.c === 0 &&
+        this.d === 1 &&
+        this.e === 0 &&
+        this.f === 0
+    }
+
+    static fromMatrix(matrix) {
+      return new DOMMatrixFallback([
+        matrix?.a ?? 1,
+        matrix?.b ?? 0,
+        matrix?.c ?? 0,
+        matrix?.d ?? 1,
+        matrix?.e ?? 0,
+        matrix?.f ?? 0
+      ])
+    }
+
+    static fromFloat32Array(values) {
+      return new DOMMatrixFallback(values)
+    }
+
+    static fromFloat64Array(values) {
+      return new DOMMatrixFallback(values)
+    }
+
+    multiplySelf() {
+      return this
+    }
+
+    preMultiplySelf() {
+      return this
+    }
+
+    translateSelf(x = 0, y = 0) {
+      this.e += x
+      this.f += y
+      return this
+    }
+
+    scaleSelf() {
+      return this
+    }
+
+    rotateSelf() {
+      return this
+    }
+
+    multiply() {
+      return DOMMatrixFallback.fromMatrix(this)
+    }
+
+    translate(x = 0, y = 0) {
+      return DOMMatrixFallback.fromMatrix(this).translateSelf(x, y)
+    }
+
+    scale() {
+      return DOMMatrixFallback.fromMatrix(this)
+    }
+
+    rotate() {
+      return DOMMatrixFallback.fromMatrix(this)
+    }
+
+    inverse() {
+      return DOMMatrixFallback.fromMatrix(this)
+    }
+
+    invertSelf() {
+      return this
+    }
+
+    transformPoint(point = { x: 0, y: 0 }) {
+      return {
+        x: point.x ?? 0,
+        y: point.y ?? 0,
+        z: point.z ?? 0,
+        w: point.w ?? 1
+      }
+    }
+
+    toFloat32Array() {
+      return Float32Array.from([
+        this.a,
+        this.b,
+        0,
+        0,
+        this.c,
+        this.d,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        this.e,
+        this.f,
+        0,
+        1
+      ])
+    }
+
+    toFloat64Array() {
+      return Float64Array.from([
+        this.a,
+        this.b,
+        0,
+        0,
+        this.c,
+        this.d,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        this.e,
+        this.f,
+        0,
+        1
+      ])
+    }
+  }
+}
+
+function createImageDataFallback() {
+  return class ImageDataFallback {
+    constructor(data = new Uint8ClampedArray(), width = 0, height = 0) {
+      this.data = data
+      this.width = width
+      this.height = height
+    }
+  }
+}
+
+function createPath2DFallback() {
+  return class Path2DFallback {
+    addPath() {}
+  }
+}
 
 function ensurePdfRuntimeGlobals() {
   let canvasModule = null
   try {
     canvasModule = require('@napi-rs/canvas')
   } catch {
-    return
+    canvasModule = null
+  }
+
+  const fallbackGlobals = {
+    DOMMatrix: createDOMMatrixFallback(),
+    ImageData: createImageDataFallback(),
+    Path2D: createPath2DFallback()
   }
 
   const runtimeGlobals = [
-    ['DOMMatrix', canvasModule.DOMMatrix],
-    ['ImageData', canvasModule.ImageData],
-    ['Path2D', canvasModule.Path2D]
+    ['DOMMatrix', canvasModule?.DOMMatrix || fallbackGlobals.DOMMatrix],
+    ['ImageData', canvasModule?.ImageData || fallbackGlobals.ImageData],
+    ['Path2D', canvasModule?.Path2D || fallbackGlobals.Path2D]
   ]
 
   for (const [globalName, globalValue] of runtimeGlobals) {
@@ -46,13 +207,44 @@ function getPDFParseClass() {
 
   ensurePdfRuntimeGlobals()
 
-  const pdfParseModule = require('pdf-parse')
+  const originalConsoleWarn = console.warn
+  console.warn = (...args) => {
+    const message = args
+      .map((part) => {
+        if (typeof part === 'string') return part
+        if (part instanceof Error) return part.message
+        return String(part ?? '')
+      })
+      .join(' ')
+    if (message.includes(PDF_CANVAS_WARNING_SNIPPET)) {
+      return
+    }
+    originalConsoleWarn.apply(console, args)
+  }
+
+  let pdfParseModule
+  try {
+    pdfParseModule = require('pdf-parse')
+  } finally {
+    console.warn = originalConsoleWarn
+  }
+
   if (typeof pdfParseModule?.PDFParse !== 'function') {
     throw new Error('PDF 解析器初始化失败：未找到可用的 PDFParse 构造器')
   }
 
   cachedPDFParseClass = pdfParseModule.PDFParse
   return cachedPDFParseClass
+}
+
+function getMammothModule() {
+  if (cachedMammothModule) return cachedMammothModule
+  const moduleExports = require('mammoth')
+  if (typeof moduleExports?.extractRawText !== 'function') {
+    throw new Error('DOCX 解析器初始化失败：未找到 extractRawText')
+  }
+  cachedMammothModule = moduleExports
+  return cachedMammothModule
 }
 
 function normalizeCorpusText(text) {
@@ -383,6 +575,7 @@ async function readCorpusFile(filePath) {
   }
 
   if (ext === '.docx') {
+    const mammoth = getMammothModule()
     const result = await mammoth.extractRawText({ path: filePath })
     return {
       content: normalizeCorpusText(result.value),
@@ -405,5 +598,6 @@ module.exports = {
   inspectCorpusFilePreflight,
   normalizeCorpusText,
   normalizePdfText,
-  readCorpusFile
+  readCorpusFile,
+  SUPPORTED_CORPUS_EXTENSIONS
 }

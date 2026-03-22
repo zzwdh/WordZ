@@ -566,6 +566,23 @@ function registerLibraryIpcRoutes({
     )
   })
 
+  registerSafeIpcHandler('search-library-kwic', async (event, payload = {}) => {
+    return getCorpusStorage().searchLibraryKWIC({
+      folderId:
+        normalizeIdentifier(payload?.folderId, {
+          fieldName: '文件夹 ID',
+          allowAll: true,
+          allowEmpty: true
+        }) || 'all',
+      keyword: normalizeTextInput(payload?.keyword, { fallback: '', maxLength: 320 }),
+      leftWindowSize: Number(payload?.leftWindowSize),
+      rightWindowSize: Number(payload?.rightWindowSize),
+      searchOptions: payload?.searchOptions && typeof payload.searchOptions === 'object'
+        ? payload.searchOptions
+        : {}
+    })
+  })
+
   registerSafeIpcHandler('list-recycle-bin', async () => {
     return getCorpusStorage().listRecycleBin()
   })

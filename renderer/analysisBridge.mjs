@@ -235,6 +235,55 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
     }
   }
 
+  async function runCancelableTask(fallback, { taskName } = {}) {
+    let releaseTask = () => {}
+    let taskSignal = null
+
+    if (taskName) {
+      const controller = new AbortController()
+      const cancel = (message = '任务已取消') => {
+        if (!controller.signal.aborted) {
+          controller.abort(createAbortError(message))
+        }
+      }
+      activeAnalysisTasks.set(taskName, { cancel })
+      taskSignal = controller.signal
+      releaseTask = () => {
+        const activeTask = activeAnalysisTasks.get(taskName)
+        if (activeTask?.cancel === cancel) {
+          activeAnalysisTasks.delete(taskName)
+        }
+      }
+    }
+
+    try {
+      await yieldToUI()
+      if (taskSignal?.aborted) {
+        throw taskSignal.reason instanceof Error ? taskSignal.reason : createAbortError()
+      }
+      const taskPromise = Promise.resolve().then(() => fallback({ signal: taskSignal }))
+      if (!taskSignal) {
+        return await taskPromise
+      }
+      let abortListener = null
+      const abortPromise = new Promise((_, reject) => {
+        abortListener = () => {
+          reject(taskSignal.reason instanceof Error ? taskSignal.reason : createAbortError())
+        }
+        taskSignal.addEventListener('abort', abortListener, { once: true })
+      })
+      try {
+        return await Promise.race([taskPromise, abortPromise])
+      } finally {
+        if (abortListener) {
+          taskSignal.removeEventListener('abort', abortListener)
+        }
+      }
+    } finally {
+      releaseTask()
+    }
+  }
+
   function cancelAnalysisTask(taskName, message = '任务已取消') {
     const activeTask = activeAnalysisTasks.get(taskName)
     if (!activeTask) return false
@@ -259,6 +308,7 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
     nextAnalysisRun,
     isLatestAnalysisRun,
     runAnalysisTask,
+    runCancelableTask,
     cancelAnalysisTask,
     cancelAllAnalysisTasks,
     isAnalysisTaskActive,

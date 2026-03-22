@@ -8,6 +8,153 @@
     content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
   />
   <title>WordZ</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #f4efe7;
+      color: #182131;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .app-shell {
+      display: block;
+      padding: 12px;
+    }
+
+    .topbar,
+    .panel,
+    .task-center,
+    .system-status {
+      margin-bottom: 12px;
+      padding: 12px;
+      border: 1px solid #d5c7b3;
+      border-radius: 10px;
+      background: #fffaf3;
+    }
+
+    .main-layout {
+      display: block;
+    }
+
+    .sidebar,
+    .content-stack {
+      display: block;
+    }
+
+    .panel-header,
+    .panel-body,
+    .toolbar,
+    .toolbar-left,
+    .toolbar-right,
+    .status-row,
+    .welcome-actions,
+    .welcome-restore-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .panel-header {
+      margin-bottom: 10px;
+    }
+
+    .panel-header h2,
+    .panel-header h3,
+    .topbar h1 {
+      margin: 0;
+    }
+
+    .button,
+    .panel-toggle,
+    .tab-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 6px 12px;
+      border: 1px solid #aeb8c6;
+      border-radius: 8px;
+      background: #e7ecf3;
+      color: #182131;
+      cursor: pointer;
+    }
+
+    .button.gray,
+    .panel-toggle,
+    .tab-button {
+      background: #f3ece2;
+    }
+
+    .button.danger {
+      background: #f7d8c8;
+      border-color: #e3b097;
+    }
+
+    input,
+    select,
+    textarea,
+    .preview-box,
+    .table-scroll,
+    .compact-table-scroll {
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+
+    th,
+    td {
+      border: 1px solid #d5c7b3;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+      background: #fff;
+    }
+
+    .modal-overlay,
+    .welcome-overlay,
+    .drop-import-overlay {
+      position: fixed;
+      inset: 0;
+      overflow: auto;
+      padding: 18px;
+      background: rgba(24, 33, 49, 0.2);
+    }
+
+    .welcome-panel,
+    .drop-import-panel,
+    .modal-panel {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px;
+      border: 1px solid #d5c7b3;
+      border-radius: 12px;
+      background: #fffaf3;
+    }
+  </style>
 </head>
 <body>
   <div class="welcome-overlay hidden" id="welcomeOverlay" aria-live="polite">
@@ -858,6 +1005,7 @@
             </label>
             <div class="settings-note" id="diagnosticsStatusText">默认仅保留轻量错误摘要。开启后会把当前会话的关键操作和错误写入诊断日志，便于导出或反馈到 GitHub。</div>
             <div class="settings-action-row">
+              <button class="button small gray" type="button" id="resetWindowsCompatButton" hidden>重置 Windows 兼容模式</button>
               <button class="button small gray" type="button" id="exportDiagnosticsButton">导出诊断报告</button>
               <button class="button small gray" type="button" id="reportIssueButton">反馈到 GitHub</button>
             </div>
@@ -999,6 +1147,6 @@
   </div>
 
   <div class="toast-viewport" id="toastViewport" aria-live="polite" aria-atomic="true"></div>
-  <script src="./renderer/bootstrapLoader.js"></script>
+  <script src="./renderer.js"></script>
 </body>
 </html>

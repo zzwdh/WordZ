@@ -1,0 +1,10 @@
+{
+  "name": "@wordz/contracts",
+  "version": "1.0.21",
+  "private": true,
+  "type": "module",
+  "description": "Shared JSON-RPC contracts for the WordZ native engine bridge.",
+  "exports": {
+    ".": "./src/index.mjs"
+  }
+}

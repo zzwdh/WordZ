@@ -8,6 +8,30 @@ const CORPUS_LIBRARY_SCHEMA_VERSION = 3
 const DEFAULT_FOLDER_ID = 'uncategorized'
 const DEFAULT_FOLDER_NAME = '未分类'
 const SAFE_STORAGE_ID_PATTERN = /^[A-Za-z0-9_-]{1,160}$/
+let analysisCoreModulePromise = null
+
+function computeTextFingerprint(text) {
+  const source = String(text || '')
+  let hash = 0x811c9dc5
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index)
+    hash ^= code & 0xff
+    hash = Math.imul(hash, 0x01000193) >>> 0
+    hash ^= (code >>> 8) & 0xff
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+async function getAnalysisCoreModule() {
+  if (!analysisCoreModulePromise) {
+    analysisCoreModulePromise = import('./analysisCore.mjs').catch(error => {
+      analysisCoreModulePromise = null
+      throw error
+    })
+  }
+  return analysisCoreModulePromise
+}
 
 class CorpusStorage {
   constructor(baseDir) {
@@ -204,7 +228,7 @@ class CorpusStorage {
     }
   }
 
-  async listSearchableCorpora(folderId = 'all') {
+  async listSearchableCorpora(folderId = 'all', { includeContent = false } = {}) {
     await this.prepare()
     const snapshot = await this.buildCorpusLibrarySnapshot(folderId)
     const selectedFolder =
@@ -219,21 +243,26 @@ class CorpusStorage {
         continue
       }
 
-      const content = this.normalizeCorpusText(await fs.readFile(recordPaths.contentPath, 'utf-8'))
-      if (!content) {
-        continue
-      }
-
-      corpora.push({
+      const corpusEntry = {
         corpusId: item.id,
         corpusName: item.name,
         folderId: item.folderId,
         folderName: item.folderName,
         sourceType: this.normalizeSourceType(item.sourceType),
-        content,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt
-      })
+      }
+
+      if (includeContent) {
+        const content = this.normalizeCorpusText(await fs.readFile(recordPaths.contentPath, 'utf-8'))
+        if (!content) {
+          continue
+        }
+        corpusEntry.content = content
+        corpusEntry.contentLength = content.length
+      }
+
+      corpora.push(corpusEntry)
     }
 
     return {
@@ -242,6 +271,33 @@ class CorpusStorage {
       selectedFolderName: selectedFolder ? selectedFolder.name : '全部本地语料',
       totalCount: corpora.length,
       corpora
+    }
+  }
+
+  async searchLibraryKWIC({
+    folderId = 'all',
+    keyword = '',
+    leftWindowSize = 5,
+    rightWindowSize = 5,
+    searchOptions = {}
+  } = {}) {
+    await this.prepare()
+    const searchableSnapshot = await this.listSearchableCorpora(folderId, { includeContent: true })
+    const { searchLibraryKWIC } = await getAnalysisCoreModule()
+    const results = searchLibraryKWIC(
+      searchableSnapshot.corpora,
+      keyword,
+      leftWindowSize,
+      rightWindowSize,
+      searchOptions
+    )
+
+    return {
+      success: true,
+      selectedFolderId: searchableSnapshot.selectedFolderId,
+      selectedFolderName: searchableSnapshot.selectedFolderName,
+      searchedCorpusCount: searchableSnapshot.totalCount,
+      results
     }
   }
 
@@ -275,6 +331,7 @@ class CorpusStorage {
       displayName: record.meta.name,
       folderId: record.folder.id,
       folderName: record.folder.name,
+      sourceType: this.normalizeSourceType(record.meta.sourceType),
       content
     }
   }
@@ -310,7 +367,9 @@ class CorpusStorage {
         folderId: record.folder.id,
         folderName: record.folder.name,
         sourceType: this.normalizeSourceType(record.meta.sourceType),
-        filePath: record.recordPaths.contentPath
+        filePath: record.recordPaths.contentPath,
+        contentLength: content.length,
+        contentFingerprint: computeTextFingerprint(content)
       })
       contents.push(content)
     }
@@ -333,16 +392,22 @@ class CorpusStorage {
       displayName: items.length === 1 ? items[0].name : `已选 ${items.length} 条语料`,
       folderId: items.length === 1 ? items[0].folderId : '',
       folderName: folderLabel,
-      content: contents.join('\n\n'),
+      sourceType: items.length === 1 ? items[0].sourceType : '',
+      content: items.length === 1 ? (contents[0] || '') : '',
       selectedItems: items,
-      comparisonEntries: items.map((item, index) => ({
-        corpusId: item.id,
-        corpusName: item.name,
-        folderId: item.folderId,
-        folderName: item.folderName,
-        sourceType: item.sourceType,
-        content: contents[index] || ''
-      }))
+      comparisonEntries:
+        items.length >= 2
+          ? items.map((item, index) => ({
+              corpusId: item.id,
+              corpusName: item.name,
+              folderId: item.folderId,
+              folderName: item.folderName,
+              sourceType: item.sourceType,
+              contentLength: item.contentLength,
+              contentFingerprint: item.contentFingerprint,
+              content: contents[index] || ''
+            }))
+          : []
     }
   }
 
