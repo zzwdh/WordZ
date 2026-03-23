@@ -70,6 +70,7 @@ export function renderKWICTable(state, dom, helpers) {
 
   if (totalRows === 0) {
     helpers.cancelTableRender(dom.kwicWrapper)
+    dom.kwicWrapper.classList.remove('show-all-results')
     dom.kwicTotalRowsInfo.textContent = '共 0 条结果'
     dom.kwicPageInfo.textContent = '第 0 / 0 页'
     dom.kwicPrevPageButton.disabled = true
@@ -80,6 +81,7 @@ export function renderKWICTable(state, dom, helpers) {
   }
 
   const isShowingAllRows = dom.kwicPageSizeSelect.value === 'all'
+  dom.kwicWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.kwicTotalRowsInfo.textContent = `共 ${totalRows} 条结果`
   dom.kwicPageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentKWICPage} / ${totalPages} 页`
   dom.kwicPrevPageButton.disabled = isShowingAllRows || currentKWICPage === 1
@@ -92,6 +94,7 @@ export function renderKWICTable(state, dom, helpers) {
       ? '<tr><th class="library-name-cell">语料</th><th class="library-folder-cell">分类</th><th>左侧上下文</th><th>节点词</th><th>右侧上下文</th><th class="numeric-cell">文件内句号</th></tr>'
       : '<tr><th>左侧上下文</th><th>节点词</th><th>右侧上下文</th><th class="numeric-cell">句号</th></tr>',
     rowUnit: '结果',
+    virtualize: !isShowingAllRows,
     emptyHtml: '<div class="empty-tip">没有找到匹配结果</div>',
     renderRow: item => `
       <tr data-sentence-id="${item.sentenceId}" data-node-index="${item.sentenceTokenIndex}" data-left-window="${item.leftWindowSize}" data-right-window="${item.rightWindowSize}"${item.corpusId ? ` data-corpus-id="${helpers.escapeHtml(item.corpusId)}"` : ''}>

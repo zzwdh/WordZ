@@ -154,6 +154,7 @@ export function renderFrequencyTable(state, dom, helpers) {
 
   if (totalRows === 0) {
     helpers.cancelTableRender(dom.tableWrapper)
+    dom.tableWrapper.classList.remove('show-all-results')
     if (state.currentSearchError) {
       dom.totalRowsInfo.textContent = 'SearchQuery 无效'
     } else {
@@ -167,6 +168,7 @@ export function renderFrequencyTable(state, dom, helpers) {
   }
 
   const isShowingAllRows = dom.pageSizeSelect.value === 'all'
+  dom.tableWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.totalRowsInfo.textContent = hasFilter
     ? `共 ${allRowsCount} 个单词（匹配 ${totalRows} 个）`
     : `共 ${totalRows} 个单词`
@@ -179,6 +181,7 @@ export function renderFrequencyTable(state, dom, helpers) {
     tableClassName: 'fit-data-table',
     headerHtml: '<tr><th>词</th><th class="numeric-cell">频次</th><th class="numeric-cell">相对频率</th></tr>',
     rowUnit: '词条',
+    virtualize: !isShowingAllRows,
     emptyHtml: `<div class="empty-tip">${emptyMessage}</div>`,
     renderRow: ([word, count]) => {
       const relativeFreq = ((count / state.currentTokens.length) * 100).toFixed(2) + '%'

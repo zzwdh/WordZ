@@ -1,4 +1,6 @@
-const PRELOAD_API_CATALOG = Object.freeze({
+// Keep a renderer-safe copy of the host API catalog here so the mac renderer
+// does not import CommonJS preload modules at runtime.
+const HOST_API_CATALOG = Object.freeze({
   getAppInfo: { kind: 'invoke' },
   consumePendingSystemOpenFiles: { kind: 'invoke' },
   onSystemOpenFileRequest: { kind: 'subscribe' },
@@ -53,19 +55,60 @@ const PRELOAD_API_CATALOG = Object.freeze({
   renameSavedCorpus: { kind: 'invoke' },
   moveSavedCorpus: { kind: 'invoke' },
   deleteSavedCorpus: { kind: 'invoke' },
-  getSmokeAnalysisDelayMs: { kind: 'sync', fallbackValue: 0 },
-  setZoomFactor: { kind: 'sync', fallbackValue: undefined },
-  getZoomFactor: { kind: 'sync', fallbackValue: 1 }
+  getSmokeAnalysisDelayMs: { kind: 'sync' },
+  setZoomFactor: { kind: 'sync' },
+  getZoomFactor: { kind: 'sync' }
 })
 
-const CRITICAL_PRELOAD_METHODS = Object.freeze([
-  'getDiagnosticState',
-  'exportDiagnosticReportAuto',
-  'openGitHubFeedback',
-  'consumeCrashRecoveryState'
-])
+const SYNC_FALLBACKS = Object.freeze({
+  getSmokeAnalysisDelayMs: 0,
+  getZoomFactor: 1,
+  setZoomFactor: undefined
+})
 
-module.exports = {
-  CRITICAL_PRELOAD_METHODS,
-  PRELOAD_API_CATALOG
+function getInvokeFallbackResult(methodName) {
+  return {
+    success: false,
+    message: `${methodName} is unavailable in the current desktop host.`
+  }
+}
+
+function bindHostMethod(sourceApi, methodName, descriptor = {}) {
+  const rawMethod = sourceApi && typeof sourceApi[methodName] === 'function'
+    ? sourceApi[methodName].bind(sourceApi)
+    : null
+
+  if (descriptor.kind === 'subscribe') {
+    if (rawMethod) {
+      return (...args) => {
+        const unsubscribe = rawMethod(...args)
+        return typeof unsubscribe === 'function' ? unsubscribe : () => {}
+      }
+    }
+    return () => () => {}
+  }
+
+  if (descriptor.kind === 'sync') {
+    if (rawMethod) {
+      return (...args) => rawMethod(...args)
+    }
+    return () => SYNC_FALLBACKS[methodName]
+  }
+
+  if (rawMethod) {
+    return (...args) => rawMethod(...args)
+  }
+
+  return async () => getInvokeFallbackResult(methodName)
+}
+
+export function createMacHost(sourceApi = globalThis.window?.electronAPI) {
+  const host = {}
+  for (const [methodName, descriptor] of Object.entries(HOST_API_CATALOG)) {
+    host[methodName] = bindHostMethod(sourceApi, methodName, descriptor)
+  }
+
+  host.isMethodAvailable = methodName => typeof sourceApi?.[methodName] === 'function'
+  host.raw = sourceApi || null
+  return Object.freeze(host)
 }

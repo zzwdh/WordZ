@@ -8,6 +8,7 @@
     content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
   />
   <title>WordZ</title>
+  <link rel="stylesheet" href="./styles.css" />
   <style>
     html,
     body {
@@ -39,121 +40,6 @@
     .hidden {
       display: none !important;
     }
-
-    .app-shell {
-      display: block;
-      padding: 12px;
-    }
-
-    .topbar,
-    .panel,
-    .task-center,
-    .system-status {
-      margin-bottom: 12px;
-      padding: 12px;
-      border: 1px solid #d5c7b3;
-      border-radius: 10px;
-      background: #fffaf3;
-    }
-
-    .main-layout {
-      display: block;
-    }
-
-    .sidebar,
-    .content-stack {
-      display: block;
-    }
-
-    .panel-header,
-    .panel-body,
-    .toolbar,
-    .toolbar-left,
-    .toolbar-right,
-    .status-row,
-    .welcome-actions,
-    .welcome-restore-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .panel-header {
-      margin-bottom: 10px;
-    }
-
-    .panel-header h2,
-    .panel-header h3,
-    .topbar h1 {
-      margin: 0;
-    }
-
-    .button,
-    .panel-toggle,
-    .tab-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 32px;
-      padding: 6px 12px;
-      border: 1px solid #aeb8c6;
-      border-radius: 8px;
-      background: #e7ecf3;
-      color: #182131;
-      cursor: pointer;
-    }
-
-    .button.gray,
-    .panel-toggle,
-    .tab-button {
-      background: #f3ece2;
-    }
-
-    .button.danger {
-      background: #f7d8c8;
-      border-color: #e3b097;
-    }
-
-    input,
-    select,
-    textarea,
-    .preview-box,
-    .table-scroll,
-    .compact-table-scroll {
-      margin-top: 6px;
-      margin-bottom: 6px;
-    }
-
-    th,
-    td {
-      border: 1px solid #d5c7b3;
-      padding: 6px 8px;
-      text-align: left;
-      vertical-align: top;
-      background: #fff;
-    }
-
-    .modal-overlay,
-    .welcome-overlay,
-    .drop-import-overlay {
-      position: fixed;
-      inset: 0;
-      overflow: auto;
-      padding: 18px;
-      background: rgba(24, 33, 49, 0.2);
-    }
-
-    .welcome-panel,
-    .drop-import-panel,
-    .modal-panel {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 16px;
-      border: 1px solid #d5c7b3;
-      border-radius: 12px;
-      background: #fffaf3;
-    }
   </style>
 </head>
 <body>
@@ -163,28 +49,28 @@
         <div class="welcome-kicker">Welcome to WordZ</div>
         <div class="welcome-version" id="welcomeVersionBadge">正在读取版本...</div>
         <h2 class="welcome-title" id="welcomeTitle">欢迎使用 WordZ</h2>
-        <p class="welcome-subtitle" id="welcomeSubtitle">正在为你准备语料分析工作台。</p>
+        <p class="welcome-subtitle" id="welcomeSubtitle">正在为你准备本地语料分析工作台。</p>
       </div>
       <div class="welcome-feature-grid">
-        <section class="welcome-card">
-          <div class="welcome-card-label">工具栏左侧概览</div>
-          <div class="welcome-card-title">本地桌面语料工作台</div>
-          <p class="welcome-card-note" id="welcomeFeatureSummary">支持 Quick Corpus、本地语料库、词频统计、多语料对比分析、跨语料库 KWIC、Collocate、原文定位和自动更新。</p>
-          <div class="status-row welcome-status-row">
-            <span class="chip primary">桌面语料工作台</span>
-            <span class="chip">词频 / 对比 / KWIC / Collocate / 定位</span>
-            <span class="chip">支持 txt / docx / pdf</span>
-          </div>
+        <section class="welcome-card welcome-card-primary">
+          <div class="welcome-card-label">Quick Start</div>
+          <div class="welcome-card-title">桌面语料分析工作台</div>
+          <p class="welcome-card-note" id="welcomeFeatureSummary">快速打开或导入 txt / docx / pdf，随后在同一工作台里完成统计、对比、KWIC、Collocate 和原文定位。</p>
+          <ul class="welcome-compact-list">
+            <li>先打开语料，再点击统计生成基础结果。</li>
+            <li>统计、KWIC、Collocate 会共享同一 SearchQuery 语境。</li>
+            <li>本地语料库支持回收站、备份、恢复和修复。</li>
+          </ul>
         </section>
-        <section class="welcome-card">
-          <div class="welcome-card-label">当前正在准备</div>
+        <section class="welcome-card welcome-card-secondary">
+          <div class="welcome-card-label">Ready State</div>
           <div class="welcome-card-title" id="welcomeProgressTitle">正在载入界面设置</div>
-          <p class="welcome-card-note">欢迎使用 WordZ。你可以直接开始快速打开语料、导入并保存，或者进入本地语料库继续工作。</p>
+          <p class="welcome-card-note">主界面只保留工作相关内容；这张欢迎页负责首次说明、恢复会话和启动进度。</p>
         </section>
       </div>
       <section class="welcome-tutorial hidden" id="welcomeTutorialBlock" aria-live="polite">
         <div class="welcome-card-label">首次使用教程</div>
-        <div class="welcome-tutorial-title">建议按这个顺序上手 WordZ</div>
+        <div class="welcome-tutorial-title">建议按这个顺序上手</div>
         <ol class="welcome-tutorial-list">
           <li>
             <strong>打开语料</strong>
@@ -245,7 +131,7 @@
       <div class="topbar-main">
         <div class="topbar-brand-inline">
           <h1 id="appTitleHeading">WordZ</h1>
-          <p class="subtitle compact-subtitle" id="appSubtitle">本地语料工作台</p>
+          <p class="subtitle compact-subtitle" id="appSubtitle">Corpus Workbench</p>
         </div>
       </div>
       <div class="topbar-actions-shell">
@@ -254,34 +140,43 @@
           <button class="button small gray hidden" id="cancelStatsButton">取消统计</button>
         </div>
         <div class="toolbar-actions-group secondary">
-          <span class="toolbar-info native-menu-hint">其余操作已移至系统菜单（macOS 顶部菜单 / Windows 菜单栏）</span>
+          <span class="toolbar-info native-menu-hint">常驻命令条</span>
         </div>
       </div>
     </header>
 
-    <div class="toolbar-native-overflow hidden" aria-hidden="true">
-      <div class="toolbar-menu">
-        <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
-        <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
-          <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
-          <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
-          <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
-          <div class="toolbar-menu-divider"></div>
-          <section class="toolbar-menu-section hidden" id="recentOpenSection" aria-live="polite">
-            <div class="toolbar-menu-section-head">
-              <strong>最近打开</strong>
-              <button class="button small gray menu-inline-button" id="clearRecentOpenButton" type="button">清空</button>
-            </div>
-            <div class="recent-open-list" id="recentOpenList">
-              <div class="recent-open-empty">最近打开的语料会显示在这里。</div>
-            </div>
-          </section>
+    <div class="toolbar-native-overflow">
+      <div class="command-strip-group">
+        <div class="command-strip-label">File</div>
+        <div class="toolbar-menu">
+          <button class="button menu-trigger" id="openCorpusMenuButton" type="button" aria-expanded="false" aria-controls="openCorpusMenuPanel">打开语料</button>
+          <div class="toolbar-menu-panel hidden" id="openCorpusMenuPanel">
+            <button class="button menu-action" id="quickOpenButton" type="button">快速打开</button>
+            <button class="button menu-action" id="saveImportButton" type="button">导入并保存</button>
+            <button class="button menu-action" id="libraryButton" type="button">本地语料库</button>
+            <div class="toolbar-menu-divider"></div>
+            <section class="toolbar-menu-section hidden" id="recentOpenSection" aria-live="polite">
+              <div class="toolbar-menu-section-head">
+                <strong>最近打开</strong>
+                <button class="button small gray menu-inline-button" id="clearRecentOpenButton" type="button">清空</button>
+              </div>
+              <div class="recent-open-list" id="recentOpenList">
+                <div class="recent-open-empty">最近打开的语料会显示在这里。</div>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
-      <button class="button small gray" id="checkUpdateButton">更新</button>
-      <button class="button small gray" id="aboutButton">关于</button>
-      <button class="button small gray" id="uiSettingsButton">设置</button>
-      <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务</button>
+      <div class="command-strip-group">
+        <div class="command-strip-label">Workspace</div>
+        <button class="button small gray" id="taskCenterButton" type="button" aria-expanded="false" aria-controls="taskCenterPanel">任务</button>
+        <button class="button small gray" id="uiSettingsButton">设置</button>
+      </div>
+      <div class="command-strip-group">
+        <div class="command-strip-label">Support</div>
+        <button class="button small gray" id="checkUpdateButton">更新</button>
+        <button class="button small gray" id="aboutButton">关于</button>
+      </div>
     </div>
 
     <div class="system-status hidden" id="systemStatus">
@@ -309,25 +204,49 @@
 
     <main class="main-layout">
       <aside class="sidebar">
-        <section class="panel">
-          <div class="panel-header panel-header-inline">
+        <section class="panel panel-corpus-summary">
+          <div class="panel-header panel-header-inline panel-header-compact">
             <div>
+              <div class="panel-kicker">Target Corpus</div>
               <h2>当前语料</h2>
-              <div class="panel-subtitle">支持单条或多条已保存语料联合分析；下表会始终显示当前载入对象。</div>
+              <div class="panel-subtitle">固定显示当前工作语料、词数概览和已载入语料集合。</div>
             </div>
             <button class="button small gray" id="selectSavedCorporaButton" type="button">选择已保存语料</button>
           </div>
-          <div class="panel-body meta-stack">
-            <div class="meta-item">
-              <div class="meta-label">当前语料状态</div>
-              <div class="meta-value" id="fileInfo">尚未选择文件</div>
-            </div>
-            <div class="meta-item">
-              <div class="meta-label">预览说明</div>
-              <div class="meta-value">Quick Corpus 为临时打开；“导入并保存”会复制到应用本地语料库中，方便后续再次打开与重命名。</div>
-            </div>
-            <div class="meta-item">
-              <div class="meta-label">已载入语料列表</div>
+          <div class="panel-body">
+            <div class="corpus-inline-status" id="fileInfo">尚未选择文件</div>
+            <dl class="corpus-readout-list">
+              <div class="corpus-readout-row emphasis">
+                <dt>Name</dt>
+                <dd>
+                  <div class="corpus-readout-main" id="workspaceCorpusValue">未载入</div>
+                  <div class="corpus-readout-note" id="workspaceCorpusNote">导入语料后会在这里显示当前分析对象。</div>
+                </dd>
+              </div>
+              <div class="corpus-readout-row">
+                <dt>Status</dt>
+                <dd>
+                  <div class="corpus-readout-main" id="workspaceModeValue">待载入</div>
+                  <div class="corpus-readout-note" id="workspaceModeNote">目前还没有可分析的语料。</div>
+                </dd>
+              </div>
+              <div class="corpus-readout-row">
+                <dt>Tokens</dt>
+                <dd>
+                  <div class="corpus-readout-main mono-readout" id="workspaceTokenValue">0 / 0</div>
+                  <div class="corpus-readout-note" id="workspaceTokenNote">点击“统计”后会同步更新摘要。</div>
+                </dd>
+              </div>
+              <div class="corpus-readout-row">
+                <dt>Lexical</dt>
+                <dd>
+                  <div class="corpus-readout-main mono-readout" id="workspaceMetricValue">--</div>
+                  <div class="corpus-readout-note" id="workspaceMetricNote">TTR / STTR 待计算。</div>
+                </dd>
+              </div>
+            </dl>
+            <div class="panel-subgroup">
+              <div class="subpanel-title">Loaded Set</div>
               <div class="table-scroll compact-table-scroll" id="selectedCorporaWrapper">
                 <div class="empty-tip">当前还没有已保存语料被加入工作区。</div>
               </div>
@@ -336,10 +255,11 @@
         </section>
 
         <section class="panel">
-          <div class="panel-header panel-header-inline">
+          <div class="panel-header panel-header-inline panel-header-compact">
             <div>
+              <div class="panel-kicker">Preview</div>
               <h3>文本预览</h3>
-              <div class="panel-subtitle">默认收起，需要时再展开查看语料片段。</div>
+              <div class="panel-subtitle">默认收起，展开后查看当前语料片段。</div>
             </div>
             <button class="panel-toggle" id="previewToggleButton" type="button" aria-expanded="false" aria-controls="previewPanelBody">展开预览</button>
           </div>
@@ -349,16 +269,15 @@
         </section>
 
         <section class="panel">
-          <div class="panel-header">
-            <h3>基础统计摘要</h3>
-            <div class="panel-subtitle">Token / Type / TTR / STTR 始终固定在左侧，适合边看右侧分析边对照全局指标。</div>
+          <div class="panel-header panel-header-inline panel-header-compact">
+            <div>
+              <div class="panel-kicker">Summary</div>
+              <h3>基础统计摘要</h3>
+              <div class="panel-subtitle">Token / Type / TTR / STTR 始终固定在左侧，便于和右侧结果联动对照。</div>
+            </div>
+            <button class="button small gray" id="copyStatsButton">导出摘要</button>
           </div>
           <div class="panel-body">
-            <div class="toolbar">
-              <div class="toolbar-left">
-                <button class="button small" id="copyStatsButton">导出统计摘要</button>
-              </div>
-            </div>
             <div class="table-scroll" id="statsSummaryWrapper">
               <div class="empty-tip">请先导入文本并点击“开始统计”</div>
             </div>
@@ -367,26 +286,18 @@
       </aside>
 
       <section class="workspace">
-        <div class="workspace-overview">
-          <div class="overview-card accent">
-            <div class="overview-label">当前语料</div>
-            <div class="overview-value" id="workspaceCorpusValue">未载入</div>
-            <div class="overview-note" id="workspaceCorpusNote">导入语料后会在这里显示当前分析对象。</div>
+        <div class="workspace-header-strip">
+          <div class="workspace-header-copy">
+            <div class="workspace-header-kicker">Analysis Workbench</div>
+            <h2>结果工作台</h2>
+            <div class="workspace-header-note">把统计、对比、KWIC、Collocate 和原文定位都集中在一个连续工作区里。</div>
           </div>
-          <div class="overview-card">
-            <div class="overview-label">工作状态</div>
-            <div class="overview-value" id="workspaceModeValue">待载入</div>
-            <div class="overview-note" id="workspaceModeNote">目前还没有可分析的语料。</div>
-          </div>
-          <div class="overview-card">
-            <div class="overview-label">Token / Type</div>
-            <div class="overview-value mono-readout" id="workspaceTokenValue">0 / 0</div>
-            <div class="overview-note" id="workspaceTokenNote">点击“开始统计”后会同步更新摘要。</div>
-          </div>
-          <div class="overview-card">
-            <div class="overview-label">词汇指标</div>
-            <div class="overview-value mono-readout" id="workspaceMetricValue">--</div>
-            <div class="overview-note" id="workspaceMetricNote">TTR / STTR 待计算。</div>
+          <div class="workspace-header-summary">
+            <span class="workspace-header-chip">Frequency</span>
+            <span class="workspace-header-chip">Compare</span>
+            <span class="workspace-header-chip">KWIC</span>
+            <span class="workspace-header-chip">Collocate</span>
+            <span class="workspace-header-chip">Locator</span>
           </div>
         </div>
 
@@ -402,7 +313,7 @@
             <button class="tab-button" data-tab="locator">原文定位</button>
           </div>
 
-          <div class="section tab-section" id="statsSection">
+          <div class="section tab-section result-section" id="statsSection">
             <div class="section-head">
               <div>
                 <h3>统计结果</h3>
@@ -410,15 +321,15 @@
               </div>
             </div>
 
-            <div class="section-sticky-stack">
-              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+            <div class="section-sticky-stack result-toolbar-stack">
+              <div class="toolbar sticky-toolbar sticky-toolbar-top result-toolbar result-toolbar-primary">
                 <div class="toolbar-left">
                   <button class="button small" id="copyFreqButton">导出当前页词频</button>
                   <button class="button small gray" id="exportAllFreqButton">导出全部词频</button>
                 </div>
               </div>
 
-              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub result-toolbar result-toolbar-secondary">
                 <div class="toolbar-left">
                   <input class="input compact-input" id="freqFilterInput" data-shared-search-input="stats" type="search" placeholder="检索某个词，例如 rose" />
                   <div class="search-query-group">
@@ -444,12 +355,12 @@
               </div>
             </div>
 
-            <div class="table-scroll" id="tableWrapper">
+            <div class="table-scroll result-table-shell" id="tableWrapper">
               <div class="empty-tip">请先导入文本，再点击“开始统计”</div>
             </div>
           </div>
 
-          <div class="section tab-section hidden" id="compareSection">
+          <div class="section tab-section hidden result-section" id="compareSection">
             <div class="section-head">
               <div>
                 <h3>对比分析</h3>
@@ -461,15 +372,15 @@
               <div class="empty-tip">载入两条以上已保存语料后，这里会显示多语料对比摘要。</div>
             </div>
 
-            <div class="section-sticky-stack">
-              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+            <div class="section-sticky-stack result-toolbar-stack">
+              <div class="toolbar sticky-toolbar sticky-toolbar-top result-toolbar result-toolbar-primary">
                 <div class="toolbar-left">
                   <button class="button small" id="copyCompareButton">导出当前页对比</button>
                   <button class="button small gray" id="exportAllCompareButton">导出全部对比</button>
                 </div>
               </div>
 
-              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub result-toolbar result-toolbar-secondary">
                 <div class="toolbar-left">
                   <input class="input compact-input" id="compareFilterInput" data-shared-search-input="compare" type="search" placeholder="检索某个词，例如 rose" />
                   <div class="search-query-group">
@@ -494,10 +405,10 @@
                 </div>
               </div>
 
-              <div class="kwic-meta sticky-meta" id="compareMeta">这里会在载入两条以上已保存语料后显示“多语料对比分析”。</div>
+              <div class="kwic-meta sticky-meta result-meta-strip" id="compareMeta">这里会在载入两条以上已保存语料后显示“多语料对比分析”。</div>
             </div>
 
-            <div class="table-scroll" id="compareWrapper">
+            <div class="table-scroll result-table-shell" id="compareWrapper">
               <div class="empty-tip">这里会显示多语料词频对比表</div>
             </div>
           </div>
@@ -577,7 +488,7 @@
             </div>
           </div>
 
-          <div class="section tab-section hidden" id="ngramSection">
+          <div class="section tab-section hidden result-section" id="ngramSection">
             <div class="section-head">
               <div>
                 <h3>Ngram</h3>
@@ -585,8 +496,8 @@
               </div>
             </div>
 
-            <div class="section-sticky-stack">
-              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+            <div class="section-sticky-stack result-toolbar-stack">
+              <div class="toolbar sticky-toolbar sticky-toolbar-top result-toolbar result-toolbar-primary">
                 <div class="toolbar-left">
                   <span class="toolbar-label">Ngram 类型</span>
                   <select class="select" id="ngramSizeSelect">
@@ -600,7 +511,7 @@
                 </div>
               </div>
 
-              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub result-toolbar result-toolbar-secondary">
                 <div class="toolbar-left">
                   <button class="button small" id="exportNgramButton">导出当前页 Ngram</button>
                   <button class="button small gray" id="exportAllNgramButton">导出全部 Ngram</button>
@@ -621,12 +532,12 @@
               </div>
             </div>
 
-            <div class="table-scroll" id="ngramWrapper">
+            <div class="table-scroll result-table-shell" id="ngramWrapper">
               <div class="empty-tip">这里会显示 Ngram 统计结果</div>
             </div>
           </div>
 
-          <div class="section tab-section hidden" id="kwicSection">
+          <div class="section tab-section hidden result-section" id="kwicSection">
             <div class="section-head">
               <div>
                 <h3>KWIC 检索</h3>
@@ -634,8 +545,8 @@
               </div>
             </div>
 
-            <div class="section-sticky-stack">
-              <div class="search-row sticky-toolbar sticky-toolbar-top">
+            <div class="section-sticky-stack result-toolbar-stack">
+              <div class="search-row sticky-toolbar sticky-toolbar-top result-toolbar result-toolbar-primary">
                 <input class="input" id="kwicInput" data-shared-search-input="kwic" type="text" placeholder="请输入要检索的词，例如 rose" />
                 <div class="search-query-group">
                   <span class="toolbar-label">SearchQuery</span>
@@ -663,9 +574,9 @@
                 <button class="button small gray hidden" id="cancelKwicButton">取消 KWIC</button>
               </div>
 
-              <div class="kwic-meta sticky-meta" id="kwicMeta">请输入一个检索词，并选择检索范围。支持当前语料、当前文件夹和全部本地语料；点击任一 KWIC 结果行可定位或打开对应原句。</div>
+              <div class="kwic-meta sticky-meta result-meta-strip" id="kwicMeta">请输入一个检索词，并选择检索范围。支持当前语料、当前文件夹和全部本地语料；点击任一 KWIC 结果行可定位或打开对应原句。</div>
 
-              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub result-toolbar result-toolbar-secondary">
                 <div class="toolbar-left">
                   <button class="button small" id="copyKWICButton">导出当前页 KWIC</button>
                   <button class="button small gray" id="exportAllKWICButton">导出全部 KWIC</button>
@@ -694,12 +605,12 @@
               </div>
             </div>
 
-            <div class="table-scroll" id="kwicWrapper">
+            <div class="table-scroll result-table-shell" id="kwicWrapper">
               <div class="empty-tip">这里会显示关键词前后文结果</div>
             </div>
           </div>
 
-          <div class="section tab-section hidden" id="collocateSection">
+          <div class="section tab-section hidden result-section" id="collocateSection">
             <div class="section-head">
               <div>
                 <h3>Collocate 统计</h3>
@@ -707,8 +618,8 @@
               </div>
             </div>
 
-            <div class="section-sticky-stack">
-              <div class="search-row sticky-toolbar sticky-toolbar-top">
+            <div class="section-sticky-stack result-toolbar-stack">
+              <div class="search-row sticky-toolbar sticky-toolbar-top result-toolbar result-toolbar-primary">
                 <input class="input" id="collocateInput" data-shared-search-input="collocate" type="text" placeholder="请输入节点词，例如 rose" />
                 <div class="search-query-group">
                   <span class="toolbar-label">SearchQuery</span>
@@ -736,9 +647,9 @@
                 <button class="button small gray hidden" id="cancelCollocateButton">取消 Collocate</button>
               </div>
 
-              <div class="kwic-meta sticky-meta" id="collocateMeta">请先导入文本，并输入节点词后开始统计 Collocate。</div>
+              <div class="kwic-meta sticky-meta result-meta-strip" id="collocateMeta">请先导入文本，并输入节点词后开始统计 Collocate。</div>
 
-              <div class="toolbar sticky-toolbar sticky-toolbar-sub">
+              <div class="toolbar sticky-toolbar sticky-toolbar-sub result-toolbar result-toolbar-secondary">
                 <div class="toolbar-left">
                   <button class="button small" id="exportCollocateButton">导出当前页 Collocate</button>
                   <button class="button small gray" id="exportAllCollocateButton">导出全部 Collocate</button>
@@ -759,12 +670,12 @@
               </div>
             </div>
 
-            <div class="table-scroll" id="collocateWrapper">
+            <div class="table-scroll result-table-shell" id="collocateWrapper">
               <div class="empty-tip">这里会显示 Collocate 统计结果</div>
             </div>
           </div>
 
-          <div class="section tab-section hidden" id="locatorSection">
+          <div class="section tab-section hidden result-section" id="locatorSection">
             <div class="section-head">
               <div>
                 <h3>原文定位</h3>
@@ -772,15 +683,15 @@
               </div>
             </div>
 
-            <div class="section-sticky-stack">
-              <div class="locator-meta sticky-meta" id="locatorMeta">导入文本后，这里会显示原文定位表。点击任一 KWIC 结果行后，会自动定位并高亮对应原句。</div>
-              <div class="toolbar sticky-toolbar sticky-toolbar-top">
+            <div class="section-sticky-stack result-toolbar-stack">
+              <div class="locator-meta sticky-meta result-meta-strip" id="locatorMeta">导入文本后，这里会显示原文定位表。点击任一 KWIC 结果行后，会自动定位并高亮对应原句。</div>
+              <div class="toolbar sticky-toolbar sticky-toolbar-top result-toolbar result-toolbar-primary">
                 <div class="toolbar-left">
                   <button class="button small" id="copyLocatorButton">导出原文定位表</button>
                 </div>
               </div>
             </div>
-            <div class="table-scroll" id="sentenceViewer">
+            <div class="table-scroll result-table-shell" id="sentenceViewer">
               <div class="empty-tip">这里会显示原文定位表</div>
             </div>
           </div>
@@ -1005,7 +916,6 @@
             </label>
             <div class="settings-note" id="diagnosticsStatusText">默认仅保留轻量错误摘要。开启后会把当前会话的关键操作和错误写入诊断日志，便于导出或反馈到 GitHub。</div>
             <div class="settings-action-row">
-              <button class="button small gray" type="button" id="resetWindowsCompatButton" hidden>重置 Windows 兼容模式</button>
               <button class="button small gray" type="button" id="exportDiagnosticsButton">导出诊断报告</button>
               <button class="button small gray" type="button" id="reportIssueButton">反馈到 GitHub</button>
             </div>

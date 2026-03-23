@@ -43,7 +43,6 @@ test('buildElectronApi degrades gracefully and still exposes every method', asyn
           getDiagnosticState: async () => ({ success: true, diagnostics: { sessionId: 'ok' } }),
           exportDiagnosticReportAuto: async () => ({ success: true, filePath: '/tmp/report.md' }),
           openGitHubFeedback: async () => ({ success: true, issueUrl: 'https://example.com' }),
-          resetWindowsCompatProfile: async () => ({ success: true }),
           consumeCrashRecoveryState: async () => ({ success: true, recoveryState: null })
         })
       },

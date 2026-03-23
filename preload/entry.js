@@ -51,147 +51,36 @@ try {
   fallbackWritePreloadError('logging-module-failed', error)
 }
 
-const EMERGENCY_SYNC_FALLBACKS = Object.freeze({
-  getSmokeAnalysisDelayMs: 0,
-  getZoomFactor: 1,
-  setZoomFactor: undefined
-})
-
-const EMERGENCY_METHOD_NAMES = Object.freeze([
-  'getAppInfo',
-  'consumePendingSystemOpenFiles',
-  'onSystemOpenFileRequest',
-  'onAppMenuAction',
-  'onSystemNotificationAction',
-  'getDiagnosticState',
-  'setDiagnosticLoggingEnabled',
-  'writeDiagnosticLog',
-  'exportDiagnosticReport',
-  'exportDiagnosticReportAuto',
-  'resetWindowsCompatProfile',
-  'openGitHubFeedback',
-  'getAnalysisCache',
-  'setAnalysisCache',
-  'deleteAnalysisCache',
-  'clearAnalysisCache',
-  'getAnalysisCacheState',
-  'pruneAnalysisCache',
-  'openExternalUrl',
-  'showPathInFolder',
-  'consumeCrashRecoveryState',
-  'showSystemNotification',
-  'setWindowProgressState',
-  'setWindowAttentionState',
-  'getSmokeObserverState',
-  'getPackagedSmokeConfig',
-  'reportPackagedSmokeResult',
-  'getAutoUpdateState',
-  'checkForUpdates',
-  'installDownloadedUpdate',
-  'onAutoUpdateStatus',
-  'saveTableFile',
-  'openQuickCorpus',
-  'openQuickCorpusAtPath',
-  'importAndSaveCorpus',
-  'importCorpusPaths',
-  'backupCorpusLibrary',
-  'restoreCorpusLibrary',
-  'repairCorpusLibrary',
-  'listSavedCorpora',
-  'listSearchableCorpora',
-  'searchLibraryKWIC',
-  'listRecycleBin',
-  'restoreRecycleEntry',
-  'purgeRecycleEntry',
-  'createCorpusFolder',
-  'renameCorpusFolder',
-  'deleteCorpusFolder',
-  'showSavedCorpusInFolder',
-  'showRecycleEntryInFolder',
-  'openSavedCorpus',
-  'openSavedCorpora',
-  'renameSavedCorpus',
-  'moveSavedCorpus',
-  'deleteSavedCorpus',
-  'getSmokeAnalysisDelayMs',
-  'setZoomFactor',
-  'getZoomFactor'
-])
-
-function createEmergencyFallbackMethod(methodName, methodConfig = null) {
-  if (methodConfig?.kind === 'subscribe' || methodName.startsWith('on')) {
-    return () => () => {}
-  }
-  if (methodConfig?.kind === 'sync' || Object.prototype.hasOwnProperty.call(EMERGENCY_SYNC_FALLBACKS, methodName)) {
-    return () => EMERGENCY_SYNC_FALLBACKS[methodName]
-  }
-  return async () => ({
-    success: false,
-    message: 'bridge unavailable',
-    method: methodName
-  })
-}
-
-function createEmergencyPreservedMethods(ipcRenderer) {
+function createEmergencyElectronApi(ipcRenderer) {
   try {
-    const { createIpcClient } = require('./shared/ipcClient')
-    const guards = require('./shared/guards')
-    const { createDiagnosticsBridge } = require('./bridges/diagnosticsBridge')
-    const ipcClient = createIpcClient({
+    const { createEmergencyElectronApi: createFallbackApi } = require('./shared/fallbackApi')
+    return createFallbackApi({
       ipcRenderer,
       writeLog: writePreloadLog,
       writeError: writePreloadError
     })
-    return createDiagnosticsBridge({
-      ipcClient,
-      ...guards
-    })
   } catch (error) {
-    writePreloadError('emergency-diagnostics-failed', error)
-    return {}
-  }
-}
-
-function createEmergencyElectronApi(ipcRenderer) {
-  let apiCatalog = null
-  try {
-    apiCatalog = require('./shared/apiCatalog').PRELOAD_API_CATALOG
-  } catch (error) {
-    writePreloadError('api-catalog-failed', error)
-  }
-
-  const preservedMethods = createEmergencyPreservedMethods(ipcRenderer)
-  const methodNames = apiCatalog
-    ? Object.keys(apiCatalog)
-    : EMERGENCY_METHOD_NAMES
-  const electronApi = {}
-
-  for (const methodName of methodNames) {
-    const preservedMethod = preservedMethods[methodName]
-    electronApi[methodName] = typeof preservedMethod === 'function'
-      ? preservedMethod
-      : createEmergencyFallbackMethod(methodName, apiCatalog?.[methodName] ?? null)
-  }
-
-  return {
-    electronApi: Object.freeze(electronApi),
-    preloadState: {
-      platform: process.platform,
-      sandboxed: Boolean(process.sandboxed),
-      status: 'degraded',
-      degraded: true,
-      sharedReady: false,
-      bridgesReady: false,
-      exposed: false,
-      methodCount: Object.keys(electronApi).length,
-      failedBridges: [
-        {
-          bridge: 'preload-entry',
-          message: 'buildElectronApi failed'
-        }
-      ],
-      duplicateMethods: [],
-      missingMethods: []
+    writePreloadError('emergency-fallback-failed', error)
+    return {
+      electronApi: Object.freeze({}),
+      preloadState: {
+        platform: process.platform,
+        sandboxed: Boolean(process.sandboxed),
+        status: 'degraded',
+        degraded: true,
+        sharedReady: false,
+        bridgesReady: false,
+        exposed: false,
+        methodCount: 0,
+        failedBridges: [
+          {
+            bridge: 'preload-entry',
+            message: 'emergency fallback failed'
+          }
+        ],
+        duplicateMethods: [],
+        missingMethods: []
+      }
     }
   }
 }

@@ -24,9 +24,6 @@ function createDiagnosticsBridge({
     exportDiagnosticReportAuto: rendererState =>
       ipcClient.invoke('export-diagnostic-report-auto', rendererState ?? {}),
 
-    resetWindowsCompatProfile: () =>
-      ipcClient.invoke('reset-windows-compat-profile'),
-
     openGitHubFeedback: ({ issueTitle, rendererState } = {}) =>
       ipcClient.invoke('open-github-feedback', {
         issueTitle: normalizeTextInput(issueTitle, 120),

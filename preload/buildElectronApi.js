@@ -1,63 +1,15 @@
 const { PRELOAD_API_CATALOG, CRITICAL_PRELOAD_METHODS } = require('./shared/apiCatalog')
-const { createAppBridge } = require('./bridges/appBridge')
-const { createDiagnosticsBridge } = require('./bridges/diagnosticsBridge')
-const { createLibraryBridge } = require('./bridges/libraryBridge')
-const { createWindowBridge } = require('./bridges/windowBridge')
-const { createUpdateBridge } = require('./bridges/updateBridge')
-const { createSmokeBridge } = require('./bridges/smokeBridge')
+const { DEFAULT_BRIDGE_FACTORIES } = require('./bridgeRegistry')
+const {
+  createDegradedElectronApi,
+  pickCriticalMethods
+} = require('./shared/fallbackApi')
 const { createIpcClient } = require('./shared/ipcClient')
+const { createPreloadState, finalizePreloadState } = require('./shared/preloadState')
 const guards = require('./shared/guards')
-
-const DEFAULT_BRIDGE_FACTORIES = Object.freeze([
-  { name: 'appBridge', factory: createAppBridge },
-  { name: 'diagnosticsBridge', factory: createDiagnosticsBridge },
-  { name: 'libraryBridge', factory: createLibraryBridge },
-  { name: 'windowBridge', factory: createWindowBridge },
-  { name: 'updateBridge', factory: createUpdateBridge },
-  { name: 'smokeBridge', factory: createSmokeBridge }
-])
 
 function normalizeFailureError(error) {
   return error instanceof Error ? error : new Error(String(error || 'Unknown preload bridge failure'))
-}
-
-function buildFailureResult(methodName) {
-  return {
-    success: false,
-    message: 'bridge unavailable',
-    method: methodName
-  }
-}
-
-function createFallbackMethod(methodName, methodConfig = {}) {
-  if (methodConfig.kind === 'subscribe') {
-    return () => () => {}
-  }
-  if (methodConfig.kind === 'sync') {
-    return () => methodConfig.fallbackValue
-  }
-  return async () => buildFailureResult(methodName)
-}
-
-function createDegradedElectronApi({ preservedMethods = {} } = {}) {
-  const electronApi = {}
-  for (const [methodName, methodConfig] of Object.entries(PRELOAD_API_CATALOG)) {
-    const preservedMethod = preservedMethods[methodName]
-    electronApi[methodName] = typeof preservedMethod === 'function'
-      ? preservedMethod
-      : createFallbackMethod(methodName, methodConfig)
-  }
-  return electronApi
-}
-
-function pickCriticalMethods(methods = {}) {
-  const criticalMethods = {}
-  for (const methodName of CRITICAL_PRELOAD_METHODS) {
-    if (typeof methods[methodName] === 'function') {
-      criticalMethods[methodName] = methods[methodName]
-    }
-  }
-  return criticalMethods
 }
 
 function buildElectronApi({
@@ -70,19 +22,10 @@ function buildElectronApi({
   writePreloadError = () => {},
   bridgeFactories = DEFAULT_BRIDGE_FACTORIES
 }) {
-  const preloadState = {
+  const preloadState = createPreloadState({
     platform,
-    sandboxed,
-    status: 'booting',
-    degraded: false,
-    sharedReady: false,
-    bridgesReady: false,
-    exposed: false,
-    methodCount: 0,
-    failedBridges: [],
-    duplicateMethods: [],
-    missingMethods: []
-  }
+    sandboxed
+  })
 
   const sharedContext = {
     ipcClient: createIpcClient({
@@ -132,26 +75,26 @@ function buildElectronApi({
     }
   }
 
-  preloadState.missingMethods = Object.keys(PRELOAD_API_CATALOG).filter(
+  const missingMethods = Object.keys(PRELOAD_API_CATALOG).filter(
     methodName => !Object.prototype.hasOwnProperty.call(successfulBridgeMethods, methodName)
   )
 
-  const hasDuplicateMethods = preloadState.duplicateMethods.length > 0
-  const hasBridgeFailures = preloadState.failedBridges.length > 0
-  const hasMissingMethods = preloadState.missingMethods.length > 0
-  preloadState.degraded = hasDuplicateMethods || hasBridgeFailures || hasMissingMethods
-  preloadState.bridgesReady = true
+  const duplicateMethods = [...preloadState.duplicateMethods]
+  const failedBridges = [...preloadState.failedBridges]
+  const hasDuplicateMethods = duplicateMethods.length > 0
+  const hasBridgeFailures = failedBridges.length > 0
+  const hasMissingMethods = missingMethods.length > 0
 
   let electronApi = null
   if (hasDuplicateMethods) {
-    preloadState.failedBridges.push({
+    failedBridges.push({
       bridge: 'bridge-aggregate',
-      message: `duplicate methods: ${preloadState.duplicateMethods.join(', ')}`
+      message: `duplicate methods: ${duplicateMethods.join(', ')}`
     })
     electronApi = createDegradedElectronApi({
-      preservedMethods: pickCriticalMethods(successfulBridgeMethods)
+      preservedMethods: pickCriticalMethods(successfulBridgeMethods, CRITICAL_PRELOAD_METHODS)
     })
-  } else if (preloadState.degraded) {
+  } else if (hasBridgeFailures || hasMissingMethods) {
     electronApi = createDegradedElectronApi({
       preservedMethods: successfulBridgeMethods
     })
@@ -159,8 +102,12 @@ function buildElectronApi({
     electronApi = successfulBridgeMethods
   }
 
-  preloadState.methodCount = Object.keys(electronApi).length
-  preloadState.status = preloadState.degraded ? 'degraded' : 'ready'
+  finalizePreloadState(preloadState, {
+    electronApi,
+    failedBridges,
+    duplicateMethods,
+    missingMethods
+  })
 
   writePreloadLog('bridges-ready', {
     methodCount: preloadState.methodCount,

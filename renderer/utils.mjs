@@ -70,6 +70,7 @@ export function setButtonsBusy(buttons, busy) {
 }
 
 export async function saveTableFile(defaultBaseName, rows, feedback = {}) {
+  const electronAPI = feedback.electronAPI || globalThis.window?.electronAPI
   const showAlert = typeof feedback.showAlert === 'function'
     ? feedback.showAlert
     : async ({ message }) => {
@@ -82,14 +83,14 @@ export async function saveTableFile(defaultBaseName, rows, feedback = {}) {
     showToast('没有可导出的内容', { title: '暂无导出数据' })
     return
   }
-  if (!window.electronAPI?.saveTableFile) {
+  if (!electronAPI?.saveTableFile) {
     await showAlert({
       title: '导出不可用',
       message: '当前 preload.js 还没有接好 saveTableFile'
     })
     return
   }
-  const result = await window.electronAPI.saveTableFile(defaultBaseName, rows)
+  const result = await electronAPI.saveTableFile(defaultBaseName, rows)
   if (!result.success) {
     if (result.canceled) {
       showToast('已取消导出保存', { title: '未导出文件' })

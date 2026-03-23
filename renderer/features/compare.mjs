@@ -159,6 +159,7 @@ export function renderCompareSection(state, dom, helpers) {
 
   if (!state.comparisonEligible || !state.hasStats) {
     helpers.cancelTableRender(dom.compareWrapper)
+    dom.compareWrapper.classList.remove('show-all-results')
     dom.compareTotalRowsInfo.textContent = !state.comparisonEligible ? '至少需要 2 条语料' : '等待统计结果'
     dom.comparePageInfo.textContent = '第 0 / 0 页'
     dom.comparePrevPageButton.disabled = true
@@ -173,6 +174,7 @@ export function renderCompareSection(state, dom, helpers) {
 
   if (state.currentSearchError) {
     helpers.cancelTableRender(dom.compareWrapper)
+    dom.compareWrapper.classList.remove('show-all-results')
     dom.compareTotalRowsInfo.textContent = 'SearchQuery 无效'
     dom.comparePageInfo.textContent = '第 0 / 0 页'
     dom.comparePrevPageButton.disabled = true
@@ -183,6 +185,7 @@ export function renderCompareSection(state, dom, helpers) {
 
   if (totalRows === 0) {
     helpers.cancelTableRender(dom.compareWrapper)
+    dom.compareWrapper.classList.remove('show-all-results')
     dom.compareTotalRowsInfo.textContent = state.currentSearchQuery ? '匹配 0 个词条' : '共 0 个词条'
     dom.comparePageInfo.textContent = '第 0 / 0 页'
     dom.comparePrevPageButton.disabled = true
@@ -196,6 +199,7 @@ export function renderCompareSection(state, dom, helpers) {
   }
 
   const isShowingAllRows = dom.comparePageSizeSelect.value === 'all'
+  dom.compareWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.compareTotalRowsInfo.textContent = state.currentSearchQuery
     ? `共 ${helpers.formatCount(state.currentComparisonRows.length)} 个词条（匹配 ${helpers.formatCount(totalRows)} 个）`
     : `共 ${helpers.formatCount(totalRows)} 个词条`
@@ -209,6 +213,7 @@ export function renderCompareSection(state, dom, helpers) {
     tableClassName: 'fit-data-table compare-table',
     headerHtml: buildCompareHeaderHtml(state, helpers),
     rowUnit: '词条',
+    virtualize: !isShowingAllRows,
     emptyHtml: '<div class="empty-tip">当前多语料工作区还没有可显示的对比结果</div>',
     renderRow: (item, index) => buildCompareRowHtml(item, index, startIndex, state, helpers)
   })

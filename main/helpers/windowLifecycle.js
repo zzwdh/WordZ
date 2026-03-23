@@ -5,11 +5,6 @@ function createMainBrowserWindow({
   preloadPath,
   appEntryUrl,
   startupMode,
-  probeMode,
-  startupProbe,
-  fullProbe,
-  compatProfile,
-  compatProfileSource,
   rendererSandboxDisabled,
   preloadEnabled = true,
   indexExists,
@@ -22,11 +17,6 @@ function createMainBrowserWindow({
     preloadPath,
     appEntryUrl,
     startupMode,
-    probeMode,
-    startupProbe,
-    fullProbe,
-    compatProfile,
-    compatProfileSource,
     rendererSandboxDisabled,
     preloadEnabled,
     indexExists,
@@ -80,9 +70,6 @@ function attachMainWindowLifecycleHandlers({
   loadMainWindow,
   loadRendererCrashFallback,
   recoverFromRendererCrash,
-  handleRenderProcessGone,
-  isWindowsRenderDiagnosticEnabled,
-  windowsRenderDiagnosticModeSequence,
   windowDiagnosticState
 }) {
   win.once('ready-to-show', () => {
@@ -129,53 +116,14 @@ function attachMainWindowLifecycleHandlers({
 
     windowDiagnosticState.renderCrashCount += 1
 
-    if (typeof handleRenderProcessGone === 'function') {
-      const handled = handleRenderProcessGone({
-        win,
-        error,
-        details,
-        windowDiagnosticState
-      })
-      if (handled) return
-    }
-
-    if (
-      isWindowsRenderDiagnosticEnabled &&
-      windowDiagnosticState.windowsRenderDiagnosticModeIndex < windowsRenderDiagnosticModeSequence.length - 1
-    ) {
-      windowDiagnosticState.windowsRenderDiagnosticModeIndex += 1
-      windowDiagnosticState.currentWindowStartupMode =
-        windowsRenderDiagnosticModeSequence[windowDiagnosticState.windowsRenderDiagnosticModeIndex]
-
-      appendEarlyCrashLog('window.render-probe.next-mode', 'switching windows render diagnostic mode', {
-        reason: details?.reason || '',
-        exitCode: Number(details?.exitCode),
-        renderCrashCount: windowDiagnosticState.renderCrashCount,
-        startupMode: windowDiagnosticState.currentWindowStartupMode,
-        startupModeIndex: windowDiagnosticState.windowsRenderDiagnosticModeIndex
-      })
-
+    if (windowDiagnosticState.renderCrashCount === 1) {
       void recoverFromRendererCrash({
         win,
         reason: 'render-process-gone',
         error,
         details,
         startupMode: windowDiagnosticState.currentWindowStartupMode,
-        renderCrashCount: windowDiagnosticState.renderCrashCount,
-        windowsRenderDiagnosticModeIndex: windowDiagnosticState.windowsRenderDiagnosticModeIndex
-      })
-      return
-    }
-
-    if (!isWindowsRenderDiagnosticEnabled && windowDiagnosticState.renderCrashCount === 1) {
-      void recoverFromRendererCrash({
-        win,
-        reason: 'render-process-gone',
-        error,
-        details,
-        startupMode: windowDiagnosticState.currentWindowStartupMode,
-        renderCrashCount: windowDiagnosticState.renderCrashCount,
-        windowsRenderDiagnosticModeIndex: windowDiagnosticState.windowsRenderDiagnosticModeIndex
+        renderCrashCount: windowDiagnosticState.renderCrashCount
       })
       return
     }

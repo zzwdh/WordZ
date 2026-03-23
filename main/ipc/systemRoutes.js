@@ -6,8 +6,6 @@ function registerSystemIpcRoutes({
   app,
   packageManifest,
   getAppInfo,
-  getRendererShellMarkup,
-  reportRendererReady,
   showSaveDialogForApp,
   normalizeTextInput,
   normalizeTableRows,
@@ -27,7 +25,6 @@ function registerSystemIpcRoutes({
   consumePendingSystemOpenFilePaths,
   getAutoUpdateController,
   getDiagnosticsController,
-  getWindowsCompatController,
   getAnalysisCacheController,
   shell
 }) {
@@ -103,18 +100,6 @@ function registerSystemIpcRoutes({
         autoUpdateController: getAutoUpdateController()
       })
     }
-  })
-
-  registerSafeIpcHandler('get-renderer-shell-markup', async () => {
-    const markup = await getRendererShellMarkup()
-    return {
-      success: true,
-      markup
-    }
-  })
-
-  registerSafeIpcHandler('report-renderer-ready', async (event, payload = {}) => {
-    return reportRendererReady(event, payload)
   })
 
   registerSafeIpcHandler('show-system-notification', async (event, payload = {}) => {
@@ -297,29 +282,9 @@ function registerSystemIpcRoutes({
   })
 
   registerSafeIpcHandler('get-diagnostic-state', async () => {
-    const windowsCompat = getWindowsCompatController?.()?.getSnapshot?.() || null
     return {
       success: true,
-      diagnostics: getDiagnosticsController()?.getSnapshot?.() || null,
-      windowsCompat
-    }
-  })
-
-  registerSafeIpcHandler('reset-windows-compat-profile', async () => {
-    const windowsCompatController = getWindowsCompatController?.()
-    if (!windowsCompatController?.isSupported?.()) {
-      return {
-        success: false,
-        message: '当前平台不支持 Windows 兼容模式。'
-      }
-    }
-
-    await windowsCompatController.clearPersistedState('manual-reset')
-    windowsCompatController.clearSessionOverride?.()
-
-    return {
-      success: true,
-      windowsCompat: windowsCompatController.getSnapshot?.() || null
+      diagnostics: getDiagnosticsController()?.getSnapshot?.() || null
     }
   })
 

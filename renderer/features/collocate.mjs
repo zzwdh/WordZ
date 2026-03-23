@@ -20,6 +20,7 @@ export function renderCollocateTable(state, dom, helpers) {
 
   if (totalRows === 0) {
     helpers.cancelTableRender(dom.collocateWrapper)
+    dom.collocateWrapper.classList.remove('show-all-results')
     dom.collocateTotalRowsInfo.textContent = '共 0 条结果'
     dom.collocatePageInfo.textContent = '第 0 / 0 页'
     dom.collocatePrevPageButton.disabled = true
@@ -29,6 +30,7 @@ export function renderCollocateTable(state, dom, helpers) {
   }
 
   const isShowingAllRows = dom.collocatePageSizeSelect.value === 'all'
+  dom.collocateWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.collocateTotalRowsInfo.textContent = `共 ${totalRows} 条结果`
   dom.collocatePageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentCollocatePage} / ${totalPages} 页`
   dom.collocatePrevPageButton.disabled = isShowingAllRows || currentCollocatePage === 1
@@ -39,6 +41,7 @@ export function renderCollocateTable(state, dom, helpers) {
     tableClassName: 'fit-data-table',
     headerHtml: '<tr><th class="numeric-cell">Rank</th><th>搭配词</th><th class="numeric-cell">FreqLR</th><th class="numeric-cell">FreqL</th><th class="numeric-cell">FreqR</th><th class="numeric-cell">搭配词词频</th><th class="numeric-cell">节点词词频</th><th class="numeric-cell">共现率</th></tr>',
     rowUnit: '结果',
+    virtualize: !isShowingAllRows,
     emptyHtml: '<div class="empty-tip">没有找到符合条件的 Collocate 结果</div>',
     renderRow: (item, index) => `<tr><td class="numeric-cell mono-readout">${helpers.formatCount(startIndex + index + 1)}</td><td>${helpers.escapeHtml(item.word)}</td><td class="numeric-cell mono-readout">${helpers.formatCount(item.total)}</td><td class="numeric-cell mono-readout">${helpers.formatCount(item.left)}</td><td class="numeric-cell mono-readout">${helpers.formatCount(item.right)}</td><td class="numeric-cell mono-readout">${helpers.formatCount(item.wordFreq)}</td><td class="numeric-cell mono-readout">${helpers.formatCount(item.keywordFreq)}</td><td class="numeric-cell mono-readout">${item.rate.toFixed(4)}</td></tr>`
   })

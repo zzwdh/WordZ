@@ -10,7 +10,7 @@ function isAbortError(error) {
   return error?.name === 'AbortError'
 }
 
-export function createAnalysisBridge({ systemStatus, systemStatusText }) {
+export function createAnalysisBridge({ systemStatus, systemStatusText, electronAPI }) {
   const TASKS_REQUIRING_LOADED_CORPUS = new Set([
     'compute-stats',
     'compute-ngrams',
@@ -88,7 +88,7 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
 
     try {
       const workerUrl = new URL('../analysisWorker.mjs', import.meta.url)
-      const smokeDelayMs = Number(window.electronAPI?.getSmokeAnalysisDelayMs?.() || 0)
+      const smokeDelayMs = Number(electronAPI?.getSmokeAnalysisDelayMs?.() || 0)
       if (Number.isFinite(smokeDelayMs) && smokeDelayMs > 0) {
         workerUrl.searchParams.set('delayMs', String(smokeDelayMs))
       }

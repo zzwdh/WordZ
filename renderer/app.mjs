@@ -24,16 +24,11 @@ import {
   DEFAULT_UI_SETTINGS,
   DEFAULT_WINDOW_SIZE,
   LARGE_TABLE_THRESHOLD,
-  LIBRARY_FOLDER_STORAGE_KEY,
-  ONBOARDING_STORAGE_KEY,
   PREVIEW_CHAR_LIMIT,
   RECENT_OPEN_LIMIT,
-  RECENT_OPEN_STORAGE_KEY,
   TABLE_RENDER_CHUNK_SIZE,
   UI_FONT_FAMILIES,
-  UI_SETTINGS_STORAGE_KEY,
   WORKSPACE_SNAPSHOT_VERSION,
-  WORKSPACE_STATE_STORAGE_KEY
 } from './constants.mjs'
 import {
   applyAppInfoToShell as applyAppInfoToShellView,
@@ -46,44 +41,25 @@ import {
   renderChiSquareResult as renderChiSquareResultSection
 } from './features/chiSquare.mjs'
 import {
-  buildAllCollocateRows as buildAllCollocateRowsData,
-  buildCollocateRows as buildCollocateRowsData,
   renderCollocateTable as renderCollocateTableSection
 } from './features/collocate.mjs'
 import {
-  buildAllCompareRows as buildAllCompareRowsData,
-  buildCompareRows as buildCompareRowsData,
   renderCompareSection as renderCompareSectionData
 } from './features/compare.mjs'
 import { createFeedbackController } from './feedback.mjs'
 import {
   buildSelectedCorporaTable,
-  buildRecycleBinTable,
-  buildLibraryFolderList,
-  buildLibraryTable,
   getFolderById as getFolderByIdFromList,
   getImportTargetFolder as getImportTargetFolderForState,
   getLibraryTargetChipText
 } from './features/library.mjs'
 import {
-  buildLocatorHighlight,
-  buildLocatorRows as buildLocatorRowsData,
-  renderSentenceViewer as renderSentenceViewerSection
-} from './features/locator.mjs'
-import {
-  buildAllKWICRows as buildAllKWICRowsData,
-  buildKWICRows as buildKWICRowsData,
   renderKWICTable as renderKWICTableSection
 } from './features/kwic.mjs'
 import {
-  buildAllNgramRows as buildAllNgramRowsData,
-  buildNgramRows as buildNgramRowsData,
   renderNgramTable as renderNgramTableSection
 } from './features/ngram.mjs'
 import {
-  buildAllFrequencyRows as buildAllFrequencyRowsData,
-  buildFrequencyRows as buildFrequencyRowsData,
-  buildStatsRows as buildStatsRowsData,
   renderFrequencyTable as renderFrequencyTableSection,
   renderStatsSummary as renderStatsSummarySection,
   renderWordCloud as renderWordCloudSection,
@@ -99,35 +75,34 @@ import {
   normalizeWindowSizeInput,
   readWindowSizeInput,
   resolvePageSize,
-  saveTableFile,
   setButtonsBusy
 } from './utils.mjs'
 import {
   buildRecentOpenEntryFromResult,
-  loadRecentOpenEntries as loadRecentOpenEntriesFromStorage,
-  normalizeRecentOpenEntry,
-  persistRecentOpenEntries as persistRecentOpenEntriesToStorage,
-  renderRecentOpenList as renderRecentOpenListView
 } from './recentOpen.mjs'
 import {
-  getRestorableTabFromSnapshot,
   getWorkspaceSnapshotSummary,
   hasMeaningfulWorkspaceSnapshot,
-  loadOnboardingState,
-  loadStoredWorkspaceSnapshot as loadStoredWorkspaceSnapshotFromStorage,
-  markOnboardingTutorialCompleted,
   shouldShowFirstRunTutorial
 } from './sessionState.mjs'
 import { createTaskCenterController } from './taskCenter.mjs'
-import {
-  bindLibraryTableEvents,
-  decorateLibraryTableControls,
-  decorateRecycleTableControls
-} from './controllers/libraryTableEvents.mjs'
+import { createAnalysisCacheController } from './controllers/analysisCacheController.mjs'
+import { createAnalysisQueueController } from './controllers/analysisQueueController.mjs'
+import { createDiagnosticsController } from './controllers/diagnosticsController.mjs'
+import { createLibraryManagerController } from './controllers/libraryManagerController.mjs'
+import { createLocatorController } from './controllers/locatorController.mjs'
 import { createOpenCommandController } from './controllers/openCommandController.mjs'
+import { createSearchTabsController } from './controllers/searchTabsController.mjs'
+import { createTableActionsController } from './controllers/tableActionsController.mjs'
 import { createWelcomeUpdateController } from './controllers/welcomeUpdateController.mjs'
+import { createWorkspaceController } from './controllers/workspaceController.mjs'
+import { createMacHost } from './macHost.mjs'
+import { createPersistedStateStore } from './persistedState.mjs'
 import { runDeferredRendererStartup, runInitialRendererSetup } from './startup/flow.mjs'
 import { createStartupPhaseRunner } from './startup/phaseRunner.mjs'
+
+const electronAPI = createMacHost(globalThis.window?.electronAPI)
+const persistedState = createPersistedStateStore(globalThis.localStorage)
 
 function resolveRendererFullProbeMode() {
   try {
@@ -161,7 +136,7 @@ const fullProbeMode = resolveRendererFullProbeMode()
 writeStartupAppLog('top-level.begin', {
   fullProbeMode,
   readyState: document.readyState,
-  hasElectronAPI: Boolean(window.electronAPI)
+  hasElectronAPI: Boolean(electronAPI.raw)
 })
 
 const {
@@ -332,7 +307,6 @@ const {
   systemThemeButton,
   debugLoggingToggle,
   diagnosticsStatusText,
-  resetWindowsCompatButton,
   exportDiagnosticsButton,
   reportIssueButton,
   analysisCacheValue,
@@ -368,7 +342,8 @@ const {
   isAbortError
 } = createAnalysisBridge({
   systemStatus,
-  systemStatusText
+  systemStatusText,
+  electronAPI
 })
 const { cancelTableRender, renderTableInChunks } = createTableRenderer({
   formatCount,
@@ -385,14 +360,34 @@ const {
   openUISettingsModal
 } = createUISettingsController({
   dom,
+  electronAPI,
+  stateStore: persistedState,
   defaultTheme: DEFAULT_THEME,
-  storageKey: UI_SETTINGS_STORAGE_KEY,
   defaultSettings: DEFAULT_UI_SETTINGS,
   fontFamilies: UI_FONT_FAMILIES,
   clampNumber
 })
 const { showAlert, showConfirm, showPrompt, showToast } = createFeedbackController(dom)
-const exportFeedback = { showAlert, showToast, notifySystem }
+const {
+  bindDiagnosticsEvents,
+  maybePromptAutoBugFeedback,
+  openGitHubFeedbackIssue,
+  recordDiagnostic,
+  recordDiagnosticError,
+  refreshDiagnosticsStatusText
+} = createDiagnosticsController({
+  dom,
+  electronAPI,
+  getCurrentUISettings,
+  getDiagnosticRendererState,
+  showMissingBridge,
+  showAlert,
+  showConfirm,
+  showToast,
+  notifySystem,
+  setWindowProgressState
+})
+const exportFeedback = { showAlert, showToast, notifySystem, electronAPI }
 let currentAppInfo = { ...DEFAULT_APP_INFO }
 let appInfoLoaded = false
 let appInfoPromise = null
@@ -403,7 +398,7 @@ let currentCorpusDisplayName = ''
 let currentCorpusFolderId = null
 let currentCorpusFolderName = ''
 let currentSelectedCorpora = []
-let currentLibraryFolderId = localStorage.getItem(LIBRARY_FOLDER_STORAGE_KEY) || 'all'
+let currentLibraryFolderId = persistedState.getLibraryFolderId()
 let currentLibraryFolders = []
 let selectedLibraryCorpusIds = new Set()
 let currentLibraryVisibleCount = 0
@@ -470,13 +465,8 @@ let activeCancelableAnalysis = null
 let cancellingAnalysis = null
 let isCorpusLoading = false
 let pendingTaskAttentionCount = 0
-let workspaceSnapshotTimer = null
-let workspaceSnapshotReady = false
-let workspaceRestoreInProgress = false
-let recentOpenEntries = []
-let onboardingState = loadOnboardingState(localStorage, ONBOARDING_STORAGE_KEY)
+let onboardingState = persistedState.loadOnboardingState()
 let systemOpenRequestQueue = Promise.resolve()
-let startupRestoreHandledByCrashWizard = false
 const startupPhaseEvents = []
 const REMINDER_CATEGORY_SETTING_KEYS = Object.freeze({
   'analysis-complete': 'notifyAnalysisComplete',
@@ -488,26 +478,15 @@ const REMINDER_CATEGORY_LABELS = Object.freeze({
   'update-downloaded': '更新下载完成提醒',
   'diagnostics-export': '诊断导出完成提醒'
 })
-const AUTO_BUG_FEEDBACK_COOLDOWN_MS = 45 * 1000
-const AUTO_BUG_FEEDBACK_MAX_PROMPTS = 3
 const ANALYSIS_CACHE_SCHEMA_VERSION = 1
 const MAX_ANALYSIS_QUEUE_LENGTH = 12
 const LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD = 1200000
 const SEGMENTED_ANALYSIS_CHUNK_CHARS = 180000
 const MEMORY_PRESSURE_WARN_RATIO = 0.82
 const MEMORY_PRESSURE_WARN_COOLDOWN_MS = 60 * 1000
-let autoBugFeedbackPromptCount = 0
-let autoBugFeedbackLastPromptAt = 0
-let autoBugFeedbackLastSignature = ''
-let autoBugFeedbackInFlight = false
 let currentAnalysisCacheKey = ''
 let currentAnalysisCachePayload = null
 let currentAnalysisMode = 'full'
-let analysisQueuePaused = false
-let analysisQueueRunning = false
-let analysisQueueSeq = 0
-let analysisQueue = []
-let analysisQueueFailedItems = []
 let lastMemoryPressureWarningAt = 0
 const activeTaskCenterTaskKeys = {
   stats: 'stats',
@@ -529,6 +508,8 @@ let visibleCompareRowsCache = {
   searchKey: '',
   result: []
 }
+let renderSentenceViewer = () => {}
+let scheduleWorkspaceSnapshotSave = () => {}
 
 writeStartupAppLog('state.ready', {
   fullProbeMode,
@@ -640,132 +621,8 @@ function resolveCorpusText(result, comparisonEntries = []) {
   return comparisonEntries.map(entry => entry.content).filter(Boolean).join('\n\n')
 }
 
-function buildAnalysisCacheKey(result = {}, text = '') {
-  const mode = String(result?.mode || currentCorpusMode || 'quick').trim() || 'quick'
-  const corpusId = String(result?.corpusId || currentCorpusId || '').trim()
-  const filePath = String(result?.filePath || '').trim()
-  const selectedIds = Array.isArray(result?.selectedItems)
-    ? result.selectedItems.map(item => String(item?.id || '').trim()).filter(Boolean).join(',')
-    : currentSelectedCorpora.map(item => String(item?.id || '').trim()).filter(Boolean).join(',')
-  const comparisonSignature = buildComparisonSignature(
-    Array.isArray(result?.comparisonEntries) ? result.comparisonEntries : currentComparisonEntries
-  )
-  const identity = [mode, corpusId, selectedIds, filePath, comparisonSignature].join('|')
-  return `wordz-v1:${computeTextFingerprint(identity)}:${computeTextFingerprint(text)}`
-}
-
-function normalizeCachedStats(stats) {
-  if (!stats || typeof stats !== 'object') return null
-  if (!Array.isArray(stats.freqRows)) return null
-  return {
-    freqRows: stats.freqRows,
-    tokenCount: Number(stats.tokenCount) || 0,
-    typeCount: Number(stats.typeCount) || 0,
-    ttr: Number(stats.ttr) || 0,
-    sttr: Number(stats.sttr) || 0,
-    compareSignature: String(stats.compareSignature || ''),
-    compareCorpora: Array.isArray(stats.compareCorpora) ? stats.compareCorpora : [],
-    compareRows: Array.isArray(stats.compareRows) ? stats.compareRows : []
-  }
-}
-
-function normalizeAnalysisMode(mode) {
-  return String(mode || '').trim().toLowerCase() === 'segmented' ? 'segmented' : 'full'
-}
-
 function shouldUseSegmentedAnalysis(text) {
   return String(text || '').length >= LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD
-}
-
-function normalizeAnalysisCachePayload(payload) {
-  if (!payload || typeof payload !== 'object') return null
-  if (Number(payload.schemaVersion) !== ANALYSIS_CACHE_SCHEMA_VERSION) return null
-  const analysisMode = normalizeAnalysisMode(payload.analysisMode)
-  const rawCorpusData = payload.corpusData
-  if (!rawCorpusData || typeof rawCorpusData !== 'object') return null
-  const corpusData = {
-    sentences: Array.isArray(rawCorpusData.sentences) ? rawCorpusData.sentences : [],
-    tokenObjects: Array.isArray(rawCorpusData.tokenObjects) ? rawCorpusData.tokenObjects : [],
-    tokens: Array.isArray(rawCorpusData.tokens) ? rawCorpusData.tokens : []
-  }
-  if (
-    analysisMode === 'full' &&
-    (!Array.isArray(rawCorpusData.sentences) || !Array.isArray(rawCorpusData.tokenObjects) || !Array.isArray(rawCorpusData.tokens))
-  ) {
-    return null
-  }
-  const normalizedNgrams = {}
-  if (payload.ngrams && typeof payload.ngrams === 'object') {
-    for (const [rawSize, rows] of Object.entries(payload.ngrams)) {
-      if (!Array.isArray(rows)) continue
-      const size = Number(rawSize)
-      if (!Number.isFinite(size) || size <= 0) continue
-      normalizedNgrams[String(size)] = rows
-    }
-  }
-  return {
-    schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
-    analysisMode,
-    corpusData,
-    stats: normalizeCachedStats(payload.stats),
-    ngrams: normalizedNgrams
-  }
-}
-
-async function loadAnalysisCachePayload(cacheKey) {
-  const normalizedKey = String(cacheKey || '').trim()
-  if (!normalizedKey || !window.electronAPI?.getAnalysisCache) return null
-  try {
-    const result = await window.electronAPI.getAnalysisCache(normalizedKey)
-    if (!result?.success || !result?.hit) return null
-    return normalizeAnalysisCachePayload(result.payload)
-  } catch (error) {
-    console.warn('[analysis-cache.load]', error)
-    return null
-  }
-}
-
-async function persistAnalysisCachePayload(cacheKey = currentAnalysisCacheKey, payload = currentAnalysisCachePayload) {
-  const normalizedKey = String(cacheKey || '').trim()
-  const normalizedPayload = normalizeAnalysisCachePayload(payload)
-  if (!normalizedKey || !normalizedPayload || !window.electronAPI?.setAnalysisCache) return false
-  try {
-    const result = await window.electronAPI.setAnalysisCache(normalizedKey, normalizedPayload)
-    return result?.success === true
-  } catch (error) {
-    console.warn('[analysis-cache.save]', error)
-    return false
-  }
-}
-
-function updateCurrentAnalysisCache({ stats = null, ngramSize = null, ngramRows = null } = {}) {
-  if (!currentAnalysisCachePayload || typeof currentAnalysisCachePayload !== 'object') return
-
-  if (stats && typeof stats === 'object') {
-    currentAnalysisCachePayload = {
-      ...currentAnalysisCachePayload,
-      stats: {
-        freqRows: Array.isArray(stats.freqRows) ? stats.freqRows : [],
-        tokenCount: Number(stats.tokenCount) || 0,
-        typeCount: Number(stats.typeCount) || 0,
-        ttr: Number(stats.ttr) || 0,
-        sttr: Number(stats.sttr) || 0,
-        compareSignature: String(stats.compareSignature || ''),
-        compareCorpora: Array.isArray(stats.compareCorpora) ? stats.compareCorpora : [],
-        compareRows: Array.isArray(stats.compareRows) ? stats.compareRows : []
-      }
-    }
-  }
-
-  if (Number.isFinite(Number(ngramSize)) && Array.isArray(ngramRows)) {
-    currentAnalysisCachePayload = {
-      ...currentAnalysisCachePayload,
-      ngrams: {
-        ...(currentAnalysisCachePayload.ngrams || {}),
-        [String(Number(ngramSize))]: ngramRows
-      }
-    }
-  }
 }
 
 function formatBytes(value) {
@@ -775,6 +632,109 @@ function formatBytes(value) {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
+
+const {
+  buildAnalysisCacheKey,
+  loadAnalysisCachePayload,
+  normalizeAnalysisCachePayload,
+  normalizeCachedStats,
+  persistAnalysisCachePayload,
+  rebuildCurrentAnalysisCache,
+  refreshAnalysisCacheState,
+  updateCurrentAnalysisCache
+} = createAnalysisCacheController({
+  electronAPI,
+  dom,
+  analysisCacheSchemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
+  formatBytes,
+  formatCount,
+  showToast,
+  buildComparisonSignature,
+  computeTextFingerprint,
+  getCurrentCorpusMode: () => currentCorpusMode,
+  getCurrentCorpusId: () => currentCorpusId,
+  getCurrentSelectedCorpora: () => currentSelectedCorpora,
+  getCurrentComparisonEntries: () => currentComparisonEntries,
+  getCurrentAnalysisSnapshot: () => ({
+    analysisMode: currentAnalysisMode,
+    sentenceObjects: currentSentenceObjects,
+    tokenObjects: currentTokenObjects,
+    tokens: currentTokens,
+    freqRows: currentFreqRows,
+    tokenCount: currentTokenCount,
+    typeCount: currentTypeCount,
+    ttr: currentTTR,
+    sttr: currentSTTR,
+    comparisonEntries: currentComparisonEntries,
+    comparisonCorpora: currentComparisonCorpora,
+    comparisonRows: currentComparisonRows
+  }),
+  getCurrentCacheKey: () => currentAnalysisCacheKey,
+  getCurrentCachePayload: () => currentAnalysisCachePayload,
+  setCurrentCachePayload: nextPayload => {
+    currentAnalysisCachePayload = nextPayload
+  }
+})
+
+const {
+  refreshLibraryModal,
+  openLibraryModal,
+  closeLibraryModal,
+  refreshRecycleBinModal,
+  openRecycleModal,
+  closeRecycleModal,
+  isLibraryModalVisible,
+  bindLibraryManagerEvents
+} = createLibraryManagerController({
+  electronAPI,
+  dom,
+  escapeHtml,
+  formatCount,
+  beginBusyState,
+  setButtonsBusy,
+  showMissingBridge,
+  showAlert,
+  showConfirm,
+  showToast,
+  notifySystem,
+  promptForName,
+  loadCorpusResult,
+  setWindowProgressState,
+  buildBackupSummaryMessage,
+  buildRestoreSummaryMessage,
+  buildRepairSummaryMessage,
+  syncLibrarySelectionWithCurrentCorpora,
+  updateLoadSelectedCorporaButton,
+  updateLibraryMetaText,
+  updateLibraryTargetChip,
+  setLibraryFolderSelection,
+  getCurrentLibraryFolderId: () => currentLibraryFolderId,
+  setCurrentLibraryFolders: nextFolders => {
+    currentLibraryFolders = nextFolders
+  },
+  setCurrentLibraryVisibleCount: nextVisibleCount => {
+    currentLibraryVisibleCount = nextVisibleCount
+  },
+  setCurrentLibraryTotalCount: nextTotalCount => {
+    currentLibraryTotalCount = nextTotalCount
+  },
+  getSelectedLibraryCorpusIds: () => selectedLibraryCorpusIds,
+  getImportTargetFolder,
+  getCurrentCorpusId: () => currentCorpusId,
+  getCurrentCorpusMode: () => currentCorpusMode,
+  getCurrentCorpusFolderId: () => currentCorpusFolderId,
+  setCurrentCorpusDisplayName: name => {
+    currentCorpusDisplayName = name
+  },
+  setCurrentCorpusFolder: (folderId, folderName) => {
+    currentCorpusFolderId = folderId
+    currentCorpusFolderName = folderName
+  },
+  updateCurrentCorpusInfo,
+  patchCurrentSelectedCorpora,
+  removeCurrentSelectedCorpora,
+  decorateButton
+})
 
 function readMemorySnapshot() {
   const memory = globalThis?.performance?.memory
@@ -813,126 +773,6 @@ function maybeWarnMemoryPressure(source = '') {
   })
 }
 
-function buildAnalysisCachePayloadFromCurrentState() {
-  const existingNgrams =
-    currentAnalysisCachePayload && typeof currentAnalysisCachePayload === 'object' && currentAnalysisCachePayload.ngrams
-      ? currentAnalysisCachePayload.ngrams
-      : {}
-  const hasStats = currentFreqRows.length > 0 || currentTokenCount > 0
-  return normalizeAnalysisCachePayload({
-    schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
-    analysisMode: currentAnalysisMode,
-    corpusData:
-      currentAnalysisMode === 'segmented'
-        ? { sentences: [], tokenObjects: [], tokens: [] }
-        : {
-            sentences: Array.isArray(currentSentenceObjects) ? currentSentenceObjects : [],
-            tokenObjects: Array.isArray(currentTokenObjects) ? currentTokenObjects : [],
-            tokens: Array.isArray(currentTokens) ? currentTokens : []
-          },
-    stats: hasStats
-      ? {
-          freqRows: currentFreqRows,
-          tokenCount: currentTokenCount,
-          typeCount: currentTypeCount,
-          ttr: currentTTR,
-          sttr: currentSTTR,
-          compareSignature: buildComparisonSignature(currentComparisonEntries),
-          compareCorpora: currentComparisonCorpora,
-          compareRows: currentComparisonRows
-        }
-      : null,
-    ngrams: existingNgrams
-  })
-}
-
-async function refreshAnalysisCacheState({ silent = false } = {}) {
-  if (!analysisCacheValue || !analysisCacheStatusText) return null
-  if (!window.electronAPI?.getAnalysisCacheState) {
-    analysisCacheValue.textContent = '不可用'
-    analysisCacheStatusText.textContent = '当前版本未启用分析缓存状态接口。'
-    if (refreshAnalysisCacheButton) refreshAnalysisCacheButton.disabled = true
-    if (clearAnalysisCacheButton) clearAnalysisCacheButton.disabled = true
-    if (rebuildAnalysisCacheButton) rebuildAnalysisCacheButton.disabled = true
-    return null
-  }
-
-  try {
-    const state = await window.electronAPI.getAnalysisCacheState()
-    if (!state?.success) {
-      analysisCacheValue.textContent = '读取失败'
-      analysisCacheStatusText.textContent = state?.message || '分析缓存状态读取失败。'
-      return null
-    }
-    const entryCount = Number(state.entryCount) || 0
-    analysisCacheValue.textContent = `${formatCount(entryCount)} 条`
-    analysisCacheStatusText.textContent = `目录：${state.cacheDir || '未知'} ｜ 总占用：${formatBytes(state.totalBytes)} ｜ 上限：${formatBytes(state.maxTotalBytes)}`
-    if (clearAnalysisCacheButton) clearAnalysisCacheButton.disabled = entryCount === 0
-    if (rebuildAnalysisCacheButton) rebuildAnalysisCacheButton.disabled = !currentAnalysisCacheKey
-    return state
-  } catch (error) {
-    console.warn('[analysis-cache.state]', error)
-    analysisCacheValue.textContent = '读取失败'
-    analysisCacheStatusText.textContent = error?.message || '分析缓存状态读取失败。'
-    if (!silent) {
-      showToast('分析缓存状态读取失败。', {
-        title: '缓存管理'
-      })
-    }
-    return null
-  }
-}
-
-async function rebuildCurrentAnalysisCache({ silent = false } = {}) {
-  const cacheKey = String(currentAnalysisCacheKey || '').trim()
-  if (!cacheKey) {
-    if (!silent) {
-      showToast('当前没有可重建缓存的语料。', {
-        title: '缓存管理'
-      })
-    }
-    return false
-  }
-
-  const nextPayload = buildAnalysisCachePayloadFromCurrentState()
-  if (!nextPayload) {
-    if (!silent) {
-      showToast('当前缓存快照无效，无法重建。', {
-        title: '缓存管理'
-      })
-    }
-    return false
-  }
-
-  currentAnalysisCachePayload = nextPayload
-  const saved = await persistAnalysisCachePayload(cacheKey, nextPayload)
-  if (!saved) {
-    if (!silent) {
-      showToast('重建分析缓存失败。', {
-        title: '缓存管理'
-      })
-    }
-    return false
-  }
-
-  if (window.electronAPI?.pruneAnalysisCache) {
-    try {
-      await window.electronAPI.pruneAnalysisCache()
-    } catch {
-      // ignore prune failures
-    }
-  }
-
-  await refreshAnalysisCacheState({ silent: true })
-  if (!silent) {
-    showToast('已重建当前语料缓存。', {
-      title: '缓存管理',
-      type: 'success'
-    })
-  }
-  return true
-}
-
 function getVisibleFrequencyRows() {
   const { matcher, normalizedQuery, options, error } = getCurrentSearchContext()
   if (error) return []
@@ -969,49 +809,6 @@ function getVisibleCompareRows() {
   return rows
 }
 
-function getTabLabel(tabName) {
-  if (tabName === 'compare') return '对比分析'
-  if (tabName === 'chi-square') return '卡方检验'
-  if (tabName === 'word-cloud') return '词云'
-  if (tabName === 'ngram') return 'Ngram'
-  if (tabName === 'kwic') return 'KWIC 检索'
-  if (tabName === 'collocate') return 'Collocate 统计'
-  if (tabName === 'locator') return '原文定位'
-  return '统计结果'
-}
-
-function persistRecentOpenEntries() {
-  persistRecentOpenEntriesToStorage(localStorage, RECENT_OPEN_STORAGE_KEY, recentOpenEntries)
-}
-
-function renderRecentOpenList() {
-  renderRecentOpenListView(
-    {
-      section: recentOpenSection,
-      list: recentOpenList,
-      clearButton: clearRecentOpenButton
-    },
-    recentOpenEntries
-  )
-}
-
-function addRecentOpenEntry(entry) {
-  const normalizedEntry = normalizeRecentOpenEntry(entry)
-  if (!normalizedEntry) return
-  recentOpenEntries = [
-    normalizedEntry,
-    ...recentOpenEntries.filter(item => item.key !== normalizedEntry.key)
-  ].slice(0, RECENT_OPEN_LIMIT)
-  persistRecentOpenEntries()
-  renderRecentOpenList()
-}
-
-function clearRecentOpenEntries() {
-  recentOpenEntries = []
-  persistRecentOpenEntries()
-  renderRecentOpenList()
-}
-
 async function notifySystem({ title, body, subtitle = '', tag = '', silent = false, category = '', action = null } = {}) {
   const normalizedCategory = String(category || '').trim()
   if (getCurrentUISettings().systemNotifications === false) {
@@ -1028,7 +825,7 @@ async function notifySystem({ title, body, subtitle = '', tag = '', silent = fal
     }
   }
 
-  if (!window.electronAPI?.showSystemNotification) {
+  if (!electronAPI?.showSystemNotification) {
     return {
       success: false,
       unavailable: true
@@ -1036,7 +833,7 @@ async function notifySystem({ title, body, subtitle = '', tag = '', silent = fal
   }
 
   try {
-    return await window.electronAPI.showSystemNotification({
+    return await electronAPI.showSystemNotification({
       title,
       body,
       subtitle,
@@ -1054,7 +851,7 @@ async function notifySystem({ title, body, subtitle = '', tag = '', silent = fal
 }
 
 async function setWindowProgressState({ source, state, progress = 0, priority = 0 } = {}) {
-  if (!window.electronAPI?.setWindowProgressState) {
+  if (!electronAPI?.setWindowProgressState) {
     return {
       success: false,
       unavailable: true
@@ -1062,7 +859,7 @@ async function setWindowProgressState({ source, state, progress = 0, priority = 
   }
 
   try {
-    return await window.electronAPI.setWindowProgressState({
+    return await electronAPI.setWindowProgressState({
       source,
       state,
       progress,
@@ -1094,7 +891,7 @@ async function setWindowAttentionState({ source, state, count = 0, description =
     }
   }
 
-  if (!window.electronAPI?.setWindowAttentionState) {
+  if (!electronAPI?.setWindowAttentionState) {
     return {
       success: false,
       unavailable: true
@@ -1102,7 +899,7 @@ async function setWindowAttentionState({ source, state, count = 0, description =
   }
 
   try {
-    return await window.electronAPI.setWindowAttentionState({
+    return await electronAPI.setWindowAttentionState({
       source,
       state,
       count,
@@ -1200,36 +997,6 @@ function updateLoadSelectedCorporaButton() {
   setButtonLabel(loadSelectedCorporaButton, selectedCount > 0 ? `载入选中语料（${selectedCount}）` : '载入选中语料')
 }
 
-function syncSharedSearchInputs() {
-  for (const input of searchQueryInputs || []) {
-    if (input && input.value !== currentSearchQuery) {
-      input.value = currentSearchQuery
-    }
-  }
-}
-
-function syncSearchOptionInputs() {
-  for (const input of searchOptionInputs || []) {
-    if (!(input instanceof HTMLInputElement)) continue
-    const optionName = input.dataset.searchOption || ''
-    const checked =
-      optionName === 'words'
-        ? currentSearchOptions.words
-        : optionName === 'case'
-          ? currentSearchOptions.caseSensitive
-          : currentSearchOptions.regex
-    input.checked = Boolean(checked)
-  }
-}
-
-function getSearchOptionsSummary() {
-  const enabled = []
-  if (currentSearchOptions.words) enabled.push('Words')
-  if (currentSearchOptions.caseSensitive) enabled.push('Case')
-  if (currentSearchOptions.regex) enabled.push('Regex')
-  return enabled.length > 0 ? enabled.join(' / ') : '默认匹配'
-}
-
 function syncChiSquareInputsFromState() {
   if (chiAInput) chiAInput.value = currentChiSquareInputValues.a
   if (chiBInput) chiBInput.value = currentChiSquareInputValues.b
@@ -1300,45 +1067,6 @@ function renderCompareSection() {
   currentComparePage = result.currentComparePage
 }
 
-function rerenderSearchDrivenViews() {
-  if (currentFreqRows.length === 0 && currentComparisonRows.length === 0) {
-    renderCompareSection()
-    renderWordCloud()
-    return
-  }
-  pageSize = resolvePageSize(pageSizeSelect.value, getVisibleFrequencyRows().length)
-  currentPage = 1
-  currentComparePageSize = resolvePageSize(comparePageSizeSelect?.value || '10', getVisibleCompareRows().length)
-  currentComparePage = 1
-  renderFrequencyTable()
-  renderCompareSection()
-  renderWordCloud()
-}
-
-function setSharedSearchQuery(value, { rerender = true } = {}) {
-  currentSearchQuery = String(value || '')
-  invalidateSearchCaches({ invalidateSearchContext: true })
-  syncSharedSearchInputs()
-  scheduleWorkspaceSnapshotSave()
-  if (rerender) {
-    rerenderSearchDrivenViews()
-  }
-}
-
-function setSharedSearchOption(optionName, checked, { rerender = true } = {}) {
-  const nextOptions = { ...currentSearchOptions }
-  if (optionName === 'words') nextOptions.words = Boolean(checked)
-  else if (optionName === 'case') nextOptions.caseSensitive = Boolean(checked)
-  else if (optionName === 'regex') nextOptions.regex = Boolean(checked)
-  currentSearchOptions = normalizeSearchOptions(nextOptions)
-  invalidateSearchCaches({ invalidateSearchContext: true })
-  syncSearchOptionInputs()
-  scheduleWorkspaceSnapshotSave()
-  if (rerender) {
-    rerenderSearchDrivenViews()
-  }
-}
-
 function updateLibraryMetaText() {
   if (!libraryMeta) return
   if (currentLibraryFolderId === 'all') {
@@ -1349,6 +1077,64 @@ function updateLibraryMetaText() {
   const folder = getFolderByIdFromList(currentLibraryFolders, currentLibraryFolderId)
   libraryMeta.textContent = `文件夹「${folder ? folder.name : '未分类'}」中共 ${currentLibraryVisibleCount || 0} 条语料。已选 ${selectedLibraryCorpusIds.size} 条。`
 }
+
+const searchTabsController = createSearchTabsController({
+  dom,
+  normalizeSearchOptions,
+  getCurrentSearchQuery: () => currentSearchQuery,
+  setCurrentSearchQuery: nextQuery => {
+    currentSearchQuery = nextQuery
+  },
+  getCurrentSearchOptions: () => currentSearchOptions,
+  setCurrentSearchOptions: nextOptions => {
+    currentSearchOptions = nextOptions
+  },
+  setCurrentTab: nextTab => {
+    currentTab = nextTab
+  },
+  getCurrentFreqRowsLength: () => currentFreqRows.length,
+  getCurrentCompareRowsLength: () => currentComparisonRows.length,
+  getVisibleFrequencyRows,
+  getVisibleCompareRows,
+  invalidateSearchCaches,
+  renderFrequencyTable,
+  renderCompareSection,
+  renderWordCloud,
+  renderSentenceViewer,
+  getLocatorNeedsRender: () => locatorNeedsRender,
+  requestWorkspaceSnapshotSave: (...args) => scheduleWorkspaceSnapshotSave(...args),
+  resetSearchDrivenPagination: ({ visibleFrequencyCount, visibleCompareCount }) => {
+    pageSize = resolvePageSize(pageSizeSelect.value, visibleFrequencyCount)
+    currentPage = 1
+    currentComparePageSize = resolvePageSize(comparePageSizeSelect?.value || '10', visibleCompareCount)
+    currentComparePage = 1
+  }
+})
+const {
+  bindSearchAndTabEvents,
+  getSearchOptionsSummary,
+  getTabLabel,
+  setSharedSearchOption,
+  setSharedSearchQuery,
+  switchTab,
+  syncSearchOptionInputs,
+  syncSharedSearchInputs
+} = searchTabsController
+const { bindTableActionEvents } = createTableActionsController({
+  dom,
+  exportFeedback,
+  sortKWICResults,
+  getStatsState,
+  getNgramState,
+  getCompareState,
+  getKWICState,
+  getCollocateState,
+  getLocatorState,
+  getCurrentNgramSize: () => currentNgramSize,
+  setCurrentKWICSortCache: nextCache => {
+    currentKWICSortCache = nextCache
+  }
+})
 
 function syncCurrentWorkspaceSelectionState() {
   if (currentCorpusMode === 'saved-multi') {
@@ -1489,9 +1275,9 @@ function setPreviewCollapsed(collapsed) {
 
 async function revealNativeToolbarOverflowForSmoke() {
   const overflowNode = document.querySelector('.toolbar-native-overflow')
-  if (!overflowNode || !window.electronAPI?.getSmokeObserverState) return
+  if (!overflowNode || !electronAPI?.getSmokeObserverState) return
   try {
-    const result = await window.electronAPI.getSmokeObserverState()
+    const result = await electronAPI.getSmokeObserverState()
     if (!result?.success) return
     overflowNode.classList.remove('hidden')
     overflowNode.setAttribute('aria-hidden', 'false')
@@ -1510,7 +1296,7 @@ function setButtonLabel(button, label) {
 const taskCenter = createTaskCenterController({ dom, setButtonLabel })
 const welcomeUpdate = createWelcomeUpdateController({
   dom,
-  electronAPI: window.electronAPI,
+  electronAPI,
   getCurrentUISettings,
   getCurrentAppInfo: () => currentAppInfo,
   getWorkspaceSnapshotSummary,
@@ -1540,36 +1326,37 @@ const {
   showWelcomeOverlay,
   syncWelcomePreferenceCheckboxes
 } = welcomeUpdate
+let workspaceController = null
 const openCommand = createOpenCommandController({
   dom,
   taskCenter,
-  getRecentOpenEntries: () => recentOpenEntries,
-  renderRecentOpenList,
-  openRecentOpenEntry,
-  clearRecentOpenEntries,
+  getRecentOpenEntries: () => workspaceController?.getRecentOpenEntries?.() || [],
+  renderRecentOpenList: () => workspaceController?.renderRecentOpenList?.(),
+  openRecentOpenEntry: entry => workspaceController?.openRecentOpenEntry?.(entry),
+  clearRecentOpenEntries: () => workspaceController?.clearRecentOpenEntries?.(),
   showToast,
   showAlert,
   getErrorMessage,
   escapeHtml,
   getCommandPaletteCommands: () => getCommandPaletteCommands(),
   onQuickOpen: async () => {
-    if (!window.electronAPI?.openQuickCorpus) {
+    if (!electronAPI?.openQuickCorpus) {
       await showMissingBridge('openQuickCorpus')
       return
     }
 
-    const result = await window.electronAPI.openQuickCorpus()
+    const result = await electronAPI.openQuickCorpus()
     await loadCorpusResult(result)
   },
   onImportAndSave: async () => {
-    if (!window.electronAPI?.importAndSaveCorpus) {
+    if (!electronAPI?.importAndSaveCorpus) {
       await showMissingBridge('importAndSaveCorpus')
       return
     }
 
-    const result = await window.electronAPI.importAndSaveCorpus(getImportTargetFolder().id)
+    const result = await electronAPI.importAndSaveCorpus(getImportTargetFolder().id)
     await loadCorpusResult(result)
-    if (!libraryModal.classList.contains('hidden')) {
+    if (isLibraryModalVisible()) {
       await refreshLibraryModal(currentLibraryFolderId)
     }
   },
@@ -1618,12 +1405,97 @@ const {
   runQuickOpenAction,
   setOpenCorpusMenuOpen
 } = openCommand
+workspaceController = createWorkspaceController({
+  electronAPI,
+  persistedState,
+  dom,
+  recentOpenLimit: RECENT_OPEN_LIMIT,
+  workspaceSnapshotVersion: WORKSPACE_SNAPSHOT_VERSION,
+  defaultWindowSize: DEFAULT_WINDOW_SIZE,
+  normalizeSearchOptions,
+  hasMeaningfulWorkspaceSnapshot,
+  getWorkspaceSnapshotSummary,
+  getTabLabel,
+  getCurrentUISettings,
+  beginBusyState,
+  showMissingBridge,
+  showAlert,
+  showConfirm,
+  showToast,
+  notifySystem,
+  recordDiagnostic,
+  refreshDiagnosticsStatusText,
+  getDiagnosticRendererState,
+  openGitHubFeedbackIssue,
+  getErrorMessage,
+  loadCorpusResult,
+  setOpenCorpusMenuOpen,
+  setPreviewCollapsed,
+  applySelectControlValue,
+  normalizeWindowSizeInput,
+  resolvePageSize,
+  syncChiSquareInputsFromState,
+  renderChiSquareResult,
+  syncSearchOptionInputs,
+  setSharedSearchQuery,
+  runNgramAnalysis,
+  renderNgramTable,
+  switchTab,
+  updateCurrentCorpusInfo,
+  renderCompareSection,
+  renderWordCloud,
+  requestWorkspaceRestoreDecision,
+  getWorkspaceSnapshotState,
+  applyRestoredWorkspaceState
+})
+const {
+  addRecentOpenEntry,
+  clearRecentOpenEntries,
+  getRecentOpenEntries,
+  loadRecentOpenEntries,
+  loadStoredWorkspaceSnapshot,
+  markWorkspaceSnapshotReady,
+  openRecentOpenEntry,
+  renderRecentOpenList,
+  restoreWorkspaceFromSnapshot,
+  runCrashRecoveryWizard,
+  scheduleWorkspaceSnapshotSave: workspaceScheduleWorkspaceSnapshotSave,
+  setRecentOpenEntries,
+  wasStartupRestoreHandledByCrashWizard
+} = workspaceController
+scheduleWorkspaceSnapshotSave = workspaceScheduleWorkspaceSnapshotSave
+const analysisQueueController = createAnalysisQueueController({
+  dom,
+  taskCenter,
+  maxQueueLength: MAX_ANALYSIS_QUEUE_LENGTH,
+  formatCount,
+  getErrorMessage,
+  setButtonLabel,
+  showAlert,
+  showToast,
+  finishTaskEntryWithAttention,
+  recordDiagnosticError,
+  getActiveCancelableAnalysis: () => activeCancelableAnalysis
+})
+const {
+  cancelQueuedAnalysisTasks,
+  enqueueOrRunAnalysisTask,
+  ensureTaskCenterRunningEntry,
+  getFailedQueueCount,
+  getQueuedTaskCount,
+  isAnalysisQueuePaused,
+  isAnalysisQueueRunning,
+  retryFailedQueueTasks,
+  runAnalysisQueueIfNeeded,
+  toggleAnalysisQueuePaused,
+  updateAnalysisQueueControls
+} = analysisQueueController
 let packagedSmokeAutorunPromise = null
 
 async function getPackagedSmokeConfig() {
-  if (!window.electronAPI?.getPackagedSmokeConfig) return null
+  if (!electronAPI?.getPackagedSmokeConfig) return null
   try {
-    const result = await window.electronAPI.getPackagedSmokeConfig()
+    const result = await electronAPI.getPackagedSmokeConfig()
     return result?.success ? result.config || null : null
   } catch {
     return null
@@ -1631,9 +1503,9 @@ async function getPackagedSmokeConfig() {
 }
 
 async function reportPackagedSmokeResult(payload = {}) {
-  if (!window.electronAPI?.reportPackagedSmokeResult) return null
+  if (!electronAPI?.reportPackagedSmokeResult) return null
   try {
-    return await window.electronAPI.reportPackagedSmokeResult(payload)
+    return await electronAPI.reportPackagedSmokeResult(payload)
   } catch {
     return null
   }
@@ -1764,7 +1636,7 @@ function endCancelableAnalysis(taskName) {
     activeCancelableAnalysis = null
     cancellingAnalysis = null
     updateAnalysisActionButtons()
-    if (!analysisQueuePaused && analysisQueue.length > 0) {
+    if (!isAnalysisQueuePaused() && getQueuedTaskCount() > 0) {
       void runAnalysisQueueIfNeeded()
     }
   }
@@ -1860,9 +1732,9 @@ async function ensureAppInfoLoaded() {
   if (appInfoPromise) return appInfoPromise
 
   appInfoPromise = (async () => {
-    if (window.electronAPI?.getAppInfo) {
+    if (electronAPI?.getAppInfo) {
       try {
-        const result = await window.electronAPI.getAppInfo()
+        const result = await electronAPI.getAppInfo()
         if (result?.success && result.appInfo) {
           currentAppInfo = normalizeAppInfo(result.appInfo)
         }
@@ -1933,7 +1805,6 @@ function decorateStaticButtons() {
   decorateButton(uiSettingsButton, 'settings')
   decorateButton(taskCenterButton, 'tasks')
   decorateButton(closeTaskCenterButton, 'close')
-  decorateButton(resetWindowsCompatButton, 'reset')
   decorateButton(exportDiagnosticsButton, 'export')
   decorateButton(reportIssueButton, 'bug')
   decorateButton(kwicButton, 'spark')
@@ -1971,52 +1842,6 @@ function decorateStaticButtons() {
   decorateButton(darkThemeButton, 'moon')
   decorateButton(systemThemeButton, 'systemTheme')
 }
-
-function decorateLibraryControls() {
-  decorateLibraryTableControls({
-    libraryFolderList,
-    libraryTableWrapper,
-    decorateButton
-  })
-}
-
-function decorateRecycleControls() {
-  decorateRecycleTableControls({
-    recycleTableWrapper,
-    decorateButton
-  })
-}
-
-function switchTab(tabName) {
-  currentTab = tabName || 'stats'
-  statsSection.classList.add('hidden')
-  compareSection.classList.add('hidden')
-  chiSquareSection.classList.add('hidden')
-  wordCloudSection.classList.add('hidden')
-  ngramSection.classList.add('hidden')
-  kwicSection.classList.add('hidden')
-  collocateSection.classList.add('hidden')
-  locatorSection.classList.add('hidden')
-  tabButtons.forEach(button => button.classList.remove('active'))
-  if (tabName === 'stats') statsSection.classList.remove('hidden')
-  else if (tabName === 'compare') compareSection.classList.remove('hidden')
-  else if (tabName === 'chi-square') chiSquareSection.classList.remove('hidden')
-  else if (tabName === 'word-cloud') wordCloudSection.classList.remove('hidden')
-  else if (tabName === 'ngram') ngramSection.classList.remove('hidden')
-  else if (tabName === 'kwic') kwicSection.classList.remove('hidden')
-  else if (tabName === 'collocate') collocateSection.classList.remove('hidden')
-  else if (tabName === 'locator') {
-    locatorSection.classList.remove('hidden')
-    if (locatorNeedsRender) renderSentenceViewer()
-  }
-  const activeButton = document.querySelector(`.tab-button[data-tab="${tabName}"]`)
-  if (activeButton) activeButton.classList.add('active')
-  scheduleWorkspaceSnapshotSave()
-}
-
-tabButtons.forEach(button => {
-  button.addEventListener('click', () => switchTab(button.dataset.tab))
-})
 
 function getStatsState() {
   const currentSearchContext = getCurrentSearchContext()
@@ -2102,195 +1927,37 @@ function getLocatorState() {
   }
 }
 
-async function recordDiagnostic(level, scope, message, details = null) {
-  if (!window.electronAPI?.writeDiagnosticLog) return
-  try {
-    await window.electronAPI.writeDiagnosticLog({
-      level,
-      scope,
-      message,
-      details
-    })
-  } catch (error) {
-    console.warn('[diagnostics.log]', error)
+const locatorController = createLocatorController({
+  dom,
+  electronAPI,
+  cancelTableRender,
+  escapeHtml,
+  formatCount,
+  renderTableInChunks,
+  getLocatorState,
+  getCurrentCorpusId: () => currentCorpusId,
+  loadCorpusResult,
+  showAlert,
+  switchTab,
+  setActiveSentenceId: nextSentenceId => {
+    activeSentenceId = nextSentenceId
+  },
+  setCurrentHighlight: nextHighlight => {
+    currentHighlight = nextHighlight
+  },
+  setPendingLocatorScrollSentenceId: nextSentenceId => {
+    pendingLocatorScrollSentenceId = nextSentenceId
+  },
+  setLocatorNeedsRender: nextNeedsRender => {
+    locatorNeedsRender = nextNeedsRender
   }
-}
-
-function normalizeDiagnosticError(error) {
-  return error instanceof Error
-    ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack || ''
-      }
-    : {
-        name: 'Error',
-        message: String(error || '未知错误')
-      }
-}
-
-function recordDiagnosticError(scope, error, details = null) {
-  const normalizedError = normalizeDiagnosticError(error)
-  void recordDiagnostic('error', scope, normalizedError.message, {
-    ...(details && typeof details === 'object' ? details : {}),
-    error: normalizedError
-  })
-  return normalizedError
-}
-
-function shouldSkipAutoBugFeedback(normalizedError) {
-  if (!normalizedError || !normalizedError.message) return true
-  const name = String(normalizedError.name || '').toLowerCase()
-  if (name === 'aborterror') return true
-
-  const message = String(normalizedError.message).toLowerCase()
-  return (
-    message.includes('aborted') ||
-    message.includes('cancelled') ||
-    message.includes('用户取消') ||
-    message.includes('operation was aborted')
-  )
-}
-
-function buildAutoBugIssueTitle(scope, normalizedError) {
-  const scopeText = String(scope || 'renderer').trim() || 'renderer'
-  const messageText = String(normalizedError?.message || 'Unknown error').trim() || 'Unknown error'
-  return `[Bug][Auto] ${scopeText}: ${messageText}`.slice(0, 120)
-}
-
-async function exportDiagnosticsForFeedback(rendererState) {
-  if (!window.electronAPI?.exportDiagnosticReportAuto) {
-    return {
-      success: false,
-      unsupported: true,
-      message: '当前版本不支持自动导出诊断包。'
-    }
-  }
-  try {
-    const result = await window.electronAPI.exportDiagnosticReportAuto(rendererState)
-    if (!result?.success || !result.filePath) {
-      return {
-        success: false,
-        message: result?.message || '自动导出诊断包失败。'
-      }
-    }
-    return {
-      success: true,
-      filePath: result.filePath
-    }
-  } catch (error) {
-    return {
-      success: false,
-      message: error?.message || '自动导出诊断包失败。'
-    }
-  }
-}
-
-async function openGitHubFeedbackIssue({
-  issueTitle = '[Bug] 请简要描述问题',
-  source = 'manual',
-  successTitle = '反馈已准备',
-  successMessage = '已打开 GitHub Issues，新页面里已预填当前会话摘要。',
-  failureTitle = '打开 GitHub 反馈失败',
-  failureMessage = '暂时无法打开 GitHub 反馈页。',
-  autoExportDiagnostics = false,
-  diagnosticsDetails = null
-} = {}) {
-  if (!window.electronAPI?.openGitHubFeedback) {
-    await showMissingBridge('openGitHubFeedback')
-    return false
-  }
-
-  const rendererState = getDiagnosticRendererState()
-  let diagnosticsExportPath = ''
-  if (autoExportDiagnostics) {
-    const exportResult = await exportDiagnosticsForFeedback(rendererState)
-    if (exportResult.success) {
-      diagnosticsExportPath = exportResult.filePath
-      rendererState.autoDiagnosticReportPath = diagnosticsExportPath
-    } else if (!exportResult.unsupported) {
-      void recordDiagnostic('warn', 'diagnostics.auto-export', exportResult.message || '自动导出诊断包失败。', {
-        source
-      })
-    }
-  }
-
-  const result = await window.electronAPI.openGitHubFeedback({
-    issueTitle,
-    rendererState
-  })
-
-  if (!result || !result.success) {
-    await showAlert({
-      title: failureTitle,
-      message: result?.message || failureMessage
-    })
-    return false
-  }
-
-  await refreshDiagnosticsStatusText()
-  void recordDiagnostic('info', 'diagnostics', '用户已打开 GitHub 反馈页。', {
-    source,
-    issueUrl: result.issueUrl,
-    ...(diagnosticsExportPath ? { diagnosticsExportPath } : {}),
-    ...(diagnosticsDetails && typeof diagnosticsDetails === 'object' ? diagnosticsDetails : {})
-  })
-  showToast(successMessage, {
-    title: successTitle,
-    type: 'success',
-    duration: 2600
-  })
-  return true
-}
-
-async function maybePromptAutoBugFeedback(scope, normalizedError, details = null) {
-  if (shouldSkipAutoBugFeedback(normalizedError)) return
-  if (!window.electronAPI?.openGitHubFeedback) return
-  if (autoBugFeedbackInFlight) return
-  if (autoBugFeedbackPromptCount >= AUTO_BUG_FEEDBACK_MAX_PROMPTS) return
-
-  const signature = `${scope}:${normalizedError.name}:${normalizedError.message}`.slice(0, 320)
-  const now = Date.now()
-  if (
-    signature === autoBugFeedbackLastSignature &&
-    now - autoBugFeedbackLastPromptAt < AUTO_BUG_FEEDBACK_COOLDOWN_MS
-  ) {
-    return
-  }
-
-  autoBugFeedbackInFlight = true
-  try {
-    const confirmed = await showConfirm({
-      title: '检测到异常',
-      message: `WordZ 捕获到一个异常：${normalizedError.message}\n\n是否立即打开 GitHub 反馈页？系统会自动附带当前会话诊断信息。`,
-      confirmText: '立即反馈',
-      cancelText: '稍后',
-      danger: true
-    })
-
-    autoBugFeedbackLastSignature = signature
-    autoBugFeedbackLastPromptAt = Date.now()
-
-    if (!confirmed) return
-
-    autoBugFeedbackPromptCount += 1
-    await openGitHubFeedbackIssue({
-      issueTitle: buildAutoBugIssueTitle(scope, normalizedError),
-      source: 'auto-error-capture',
-      successTitle: '反馈页已打开',
-      successMessage: '已打开 GitHub Issues，并自动附带异常上下文与诊断包路径。',
-      autoExportDiagnostics: true,
-      diagnosticsDetails: {
-        scope,
-        autoCaptured: true,
-        error: normalizedError,
-        details: details ?? null
-      }
-    })
-  } finally {
-    autoBugFeedbackInFlight = false
-  }
-}
+})
+const {
+  bindLocatorEvents,
+  locateSentence,
+  renderSentenceViewer: renderLocatorSentenceViewer
+} = locatorController
+renderSentenceViewer = renderLocatorSentenceViewer
 
 function getDiagnosticRendererState() {
   return {
@@ -2338,46 +2005,113 @@ function getDiagnosticRendererState() {
   }
 }
 
-async function refreshDiagnosticsStatusText() {
-  if (!diagnosticsStatusText) return
-  const enabled = getCurrentUISettings().debugLogging === true
-  const fallbackText = enabled
-    ? '调试日志已开启，会记录当前会话的关键操作和错误。'
-    : '默认仅保留轻量错误摘要。开启后会把当前会话的关键操作和错误写入诊断日志，便于导出或反馈到 GitHub。'
-
-  if (!window.electronAPI?.getDiagnosticState) {
-    diagnosticsStatusText.textContent = fallbackText
-    return
-  }
-
-  try {
-    const result = await window.electronAPI.getDiagnosticState()
-    const diagnostics = result?.success ? result.diagnostics : null
-    const windowsCompat = result?.success ? result.windowsCompat : null
-    if (resetWindowsCompatButton) {
-      resetWindowsCompatButton.hidden = !Boolean(windowsCompat?.supported)
-    }
-    if (!diagnostics) {
-      diagnosticsStatusText.textContent = fallbackText
-      return
-    }
-    const errorCount = Array.isArray(diagnostics.recentErrors) ? diagnostics.recentErrors.length : 0
-    const logStatus = diagnostics.debugLoggingEnabled ? '已开启' : '未开启'
-    const compatText = windowsCompat?.supported
-      ? ` ｜ Windows兼容 ${windowsCompat.compatProfile || 'standard'}${windowsCompat.lastCrash?.reason ? `（最近崩溃：${windowsCompat.lastCrash.reason}${Number.isFinite(Number(windowsCompat.lastCrash.exitCode)) ? ` / ${windowsCompat.lastCrash.exitCode}` : ''}）` : ''}`
-      : ''
-    diagnosticsStatusText.textContent = `本次会话 ${diagnostics.sessionId || ''} ｜ 调试日志${logStatus} ｜ 最近错误 ${errorCount} 条${diagnostics.logFilePath ? ` ｜ 日志：${diagnostics.logFilePath}` : ''}${compatText}`
-  } catch (error) {
-    console.warn('[diagnostics.state]', error)
-    if (resetWindowsCompatButton) {
-      resetWindowsCompatButton.hidden = true
-    }
-    diagnosticsStatusText.textContent = fallbackText
+function getWorkspaceSnapshotState() {
+  return {
+    currentTab,
+    currentLibraryFolderId,
+    previewCollapsed: previewPanelBody?.classList.contains('hidden') !== false,
+    currentCorpusMode,
+    currentSelectedCorpora,
+    currentSearchQuery,
+    currentSearchOptions,
+    statsPageSize: pageSizeSelect?.value || '10',
+    comparePageSize: comparePageSizeSelect?.value || '10',
+    ngramPageSize: ngramPageSizeSelect?.value || '10',
+    ngramSize: ngramSizeSelect?.value || String(currentNgramSize || 2),
+    kwicPageSize: kwicPageSizeSelect?.value || '10',
+    kwicScope: kwicScopeSelect?.value || 'current',
+    kwicSortMode: kwicSortSelect?.value || 'original',
+    kwicLeftWindow: leftWindowSelect?.value || String(currentKWICLeftWindow || DEFAULT_WINDOW_SIZE),
+    kwicRightWindow: rightWindowSelect?.value || String(currentKWICRightWindow || DEFAULT_WINDOW_SIZE),
+    collocatePageSize: collocatePageSizeSelect?.value || '10',
+    collocateLeftWindow: collocateLeftWindowSelect?.value || String(currentCollocateLeftWindow || DEFAULT_WINDOW_SIZE),
+    collocateRightWindow: collocateRightWindowSelect?.value || String(currentCollocateRightWindow || DEFAULT_WINDOW_SIZE),
+    collocateMinFreq: collocateMinFreqSelect?.value || String(currentCollocateMinFreq || 1),
+    chiSquare: {
+      ...currentChiSquareInputValues
+    },
+    visibleFrequencyRowCount: getVisibleFrequencyRows().length,
+    visibleCompareRowCount: getVisibleCompareRows().length,
+    ngramRowCount: currentNgramRows.length,
+    kwicResultCount: currentKWICResults.length,
+    collocateRowCount: currentCollocateRows.length,
+    tokenCount: currentTokens.length
   }
 }
 
-function loadStoredWorkspaceSnapshot() {
-  return loadStoredWorkspaceSnapshotFromStorage(localStorage, WORKSPACE_STATE_STORAGE_KEY)
+function applyRestoredWorkspaceState({
+  currentLibraryFolderId: nextLibraryFolderId,
+  searchOptions,
+  statsPageSize,
+  comparePageSize,
+  ngramSize,
+  ngramPageSize,
+  kwicPageSize,
+  collocatePageSize,
+  kwicSortMode,
+  kwicScope,
+  kwicLeftWindow,
+  kwicRightWindow,
+  collocateLeftWindow,
+  collocateRightWindow,
+  collocateMinFreq,
+  chiSquareInputValues
+} = {}) {
+  if (typeof nextLibraryFolderId === 'string' && nextLibraryFolderId.trim()) {
+    setLibraryFolderSelection(nextLibraryFolderId)
+  }
+  if (searchOptions && typeof searchOptions === 'object') {
+    currentSearchOptions = searchOptions
+  }
+  if (Number.isFinite(Number(statsPageSize))) {
+    pageSize = Number(statsPageSize)
+  }
+  if (Number.isFinite(Number(comparePageSize))) {
+    currentComparePageSize = Number(comparePageSize)
+  }
+  if (Number.isFinite(Number(ngramSize))) {
+    currentNgramSize = Number(ngramSize)
+  }
+  if (Number.isFinite(Number(ngramPageSize))) {
+    currentNgramPageSize = Number(ngramPageSize)
+  }
+  if (Number.isFinite(Number(kwicPageSize))) {
+    currentKWICPageSize = Number(kwicPageSize)
+  }
+  if (Number.isFinite(Number(collocatePageSize))) {
+    currentCollocatePageSize = Number(collocatePageSize)
+  }
+  if (typeof kwicSortMode === 'string' && kwicSortMode) {
+    currentKWICSortMode = kwicSortMode
+  }
+  if (typeof kwicScope === 'string' && kwicScope) {
+    currentKWICScope = kwicScope
+  }
+  if (Number.isFinite(Number(kwicLeftWindow))) {
+    currentKWICLeftWindow = Number(kwicLeftWindow)
+  }
+  if (Number.isFinite(Number(kwicRightWindow))) {
+    currentKWICRightWindow = Number(kwicRightWindow)
+  }
+  if (Number.isFinite(Number(collocateLeftWindow))) {
+    currentCollocateLeftWindow = Number(collocateLeftWindow)
+  }
+  if (Number.isFinite(Number(collocateRightWindow))) {
+    currentCollocateRightWindow = Number(collocateRightWindow)
+  }
+  if (Number.isFinite(Number(collocateMinFreq))) {
+    currentCollocateMinFreq = Number(collocateMinFreq)
+  }
+  if (chiSquareInputValues && typeof chiSquareInputValues === 'object') {
+    currentChiSquareInputValues = {
+      a: String(chiSquareInputValues.a || ''),
+      b: String(chiSquareInputValues.b || ''),
+      c: String(chiSquareInputValues.c || ''),
+      d: String(chiSquareInputValues.d || ''),
+      yates: chiSquareInputValues.yates === true
+    }
+    currentChiSquareResult = null
+  }
 }
 
 function applySelectControlValue(control, value, fallbackValue) {
@@ -2385,185 +2119,6 @@ function applySelectControlValue(control, value, fallbackValue) {
   const nextValue = String(value || fallbackValue || '')
   const options = Array.from(control.options || []).map(option => option.value)
   control.value = options.includes(nextValue) ? nextValue : String(fallbackValue || control.value || '')
-}
-
-function buildWorkspaceSnapshot() {
-  const restorableCorpusIds =
-    currentCorpusMode === 'saved' || currentCorpusMode === 'saved-multi'
-      ? currentSelectedCorpora.map(item => item.id).filter(Boolean)
-      : []
-  const restorableCorpusNames =
-    currentCorpusMode === 'saved' || currentCorpusMode === 'saved-multi'
-      ? currentSelectedCorpora.map(item => item.name).filter(Boolean)
-      : []
-
-  return {
-    version: WORKSPACE_SNAPSHOT_VERSION,
-    savedAt: new Date().toISOString(),
-    currentTab,
-    currentLibraryFolderId,
-    previewCollapsed: previewPanelBody?.classList.contains('hidden') !== false,
-    workspace: {
-      corpusIds: restorableCorpusIds,
-      corpusNames: restorableCorpusNames
-    },
-    search: {
-      query: currentSearchQuery,
-      options: { ...currentSearchOptions }
-    },
-    stats: {
-      pageSize: pageSizeSelect?.value || '10'
-    },
-    compare: {
-      pageSize: comparePageSizeSelect?.value || '10'
-    },
-    ngram: {
-      pageSize: ngramPageSizeSelect?.value || '10',
-      size: ngramSizeSelect?.value || String(currentNgramSize || 2)
-    },
-    kwic: {
-      pageSize: kwicPageSizeSelect?.value || '10',
-      scope: kwicScopeSelect?.value || 'current',
-      sortMode: kwicSortSelect?.value || 'original',
-      leftWindow: leftWindowSelect?.value || String(currentKWICLeftWindow || DEFAULT_WINDOW_SIZE),
-      rightWindow: rightWindowSelect?.value || String(currentKWICRightWindow || DEFAULT_WINDOW_SIZE)
-    },
-    collocate: {
-      pageSize: collocatePageSizeSelect?.value || '10',
-      leftWindow: collocateLeftWindowSelect?.value || String(currentCollocateLeftWindow || DEFAULT_WINDOW_SIZE),
-      rightWindow: collocateRightWindowSelect?.value || String(currentCollocateRightWindow || DEFAULT_WINDOW_SIZE),
-      minFreq: collocateMinFreqSelect?.value || String(currentCollocateMinFreq || 1)
-    },
-    chiSquare: {
-      a: String(chiAInput?.value || ''),
-      b: String(chiBInput?.value || ''),
-      c: String(chiCInput?.value || ''),
-      d: String(chiDInput?.value || ''),
-      yates: chiYatesToggle?.checked === true
-    }
-  }
-}
-
-function persistWorkspaceSnapshot() {
-  if (workspaceRestoreInProgress || !workspaceSnapshotReady) return
-  try {
-    localStorage.setItem(WORKSPACE_STATE_STORAGE_KEY, JSON.stringify(buildWorkspaceSnapshot()))
-  } catch (error) {
-    console.warn('[workspace.snapshot.save]', error)
-  }
-}
-
-function scheduleWorkspaceSnapshotSave({ immediate = false } = {}) {
-  if (workspaceRestoreInProgress || !workspaceSnapshotReady) return
-  if (workspaceSnapshotTimer) clearTimeout(workspaceSnapshotTimer)
-  if (immediate) {
-    workspaceSnapshotTimer = null
-    persistWorkspaceSnapshot()
-    return
-  }
-  workspaceSnapshotTimer = setTimeout(() => {
-    workspaceSnapshotTimer = null
-    persistWorkspaceSnapshot()
-  }, 120)
-}
-
-async function restoreWorkspaceFromSnapshot(snapshot = loadStoredWorkspaceSnapshot()) {
-  if (!snapshot || getCurrentUISettings().restoreWorkspace === false) return
-
-  workspaceRestoreInProgress = true
-  const endBusyState = beginBusyState('正在恢复上次工作区...')
-
-  try {
-    currentLibraryFolderId = snapshot.currentLibraryFolderId || currentLibraryFolderId
-    setPreviewCollapsed(snapshot.previewCollapsed !== false)
-
-    let restoredSavedWorkspace = false
-    if (snapshot.workspace.corpusIds.length > 0 && window.electronAPI?.openSavedCorpora) {
-      const result = await window.electronAPI.openSavedCorpora(snapshot.workspace.corpusIds)
-      if (result?.success) {
-        await loadCorpusResult(result, { trackRecent: false })
-        restoredSavedWorkspace = true
-      } else {
-        void recordDiagnostic('warn', 'workspace.restore', '未能恢复上次已保存语料工作区。', {
-          message: result?.message || '未知原因',
-          corpusIds: snapshot.workspace.corpusIds
-        })
-      }
-    }
-
-    applySelectControlValue(pageSizeSelect, snapshot.stats.pageSize, '10')
-    applySelectControlValue(comparePageSizeSelect, snapshot.compare.pageSize, '10')
-    applySelectControlValue(ngramPageSizeSelect, snapshot.ngram.pageSize, '10')
-    applySelectControlValue(ngramSizeSelect, snapshot.ngram.size, '2')
-    applySelectControlValue(kwicPageSizeSelect, snapshot.kwic.pageSize, '10')
-    applySelectControlValue(collocatePageSizeSelect, snapshot.collocate.pageSize, '10')
-    applySelectControlValue(kwicSortSelect, snapshot.kwic.sortMode, 'original')
-    applySelectControlValue(kwicScopeSelect, snapshot.kwic.scope, 'current')
-    applySelectControlValue(collocateMinFreqSelect, snapshot.collocate.minFreq, '1')
-
-    if (leftWindowSelect) {
-      leftWindowSelect.value = snapshot.kwic.leftWindow
-      normalizeWindowSizeInput(leftWindowSelect)
-      currentKWICLeftWindow = Number(leftWindowSelect.value) || DEFAULT_WINDOW_SIZE
-    }
-    if (rightWindowSelect) {
-      rightWindowSelect.value = snapshot.kwic.rightWindow
-      normalizeWindowSizeInput(rightWindowSelect)
-      currentKWICRightWindow = Number(rightWindowSelect.value) || DEFAULT_WINDOW_SIZE
-    }
-    if (collocateLeftWindowSelect) {
-      collocateLeftWindowSelect.value = snapshot.collocate.leftWindow
-      normalizeWindowSizeInput(collocateLeftWindowSelect)
-      currentCollocateLeftWindow = Number(collocateLeftWindowSelect.value) || DEFAULT_WINDOW_SIZE
-    }
-    if (collocateRightWindowSelect) {
-      collocateRightWindowSelect.value = snapshot.collocate.rightWindow
-      normalizeWindowSizeInput(collocateRightWindowSelect)
-      currentCollocateRightWindow = Number(collocateRightWindowSelect.value) || DEFAULT_WINDOW_SIZE
-    }
-    currentCollocateMinFreq = Number(collocateMinFreqSelect?.value || '1') || 1
-    currentChiSquareInputValues = {
-      a: String(snapshot.chiSquare?.a || ''),
-      b: String(snapshot.chiSquare?.b || ''),
-      c: String(snapshot.chiSquare?.c || ''),
-      d: String(snapshot.chiSquare?.d || ''),
-      yates: snapshot.chiSquare?.yates === true
-    }
-    syncChiSquareInputsFromState()
-    currentChiSquareResult = null
-    renderChiSquareResult()
-
-    currentSearchOptions = normalizeSearchOptions(snapshot.search.options)
-    syncSearchOptionInputs()
-    setSharedSearchQuery(snapshot.search.query, { rerender: false })
-
-    pageSize = resolvePageSize(pageSizeSelect?.value || '10', getVisibleFrequencyRows().length)
-    currentComparePageSize = resolvePageSize(comparePageSizeSelect?.value || '10', getVisibleCompareRows().length)
-    currentNgramSize = Number(ngramSizeSelect?.value || snapshot.ngram.size || '2') || 2
-    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', currentNgramRows.length)
-    currentKWICPageSize = resolvePageSize(kwicPageSizeSelect?.value || '10', currentKWICResults.length)
-    currentCollocatePageSize = resolvePageSize(collocatePageSizeSelect?.value || '10', currentCollocateRows.length)
-    currentKWICSortMode = kwicSortSelect?.value || 'original'
-    currentKWICScope = kwicScopeSelect?.value || 'current'
-    if (currentTokens.length > 0) {
-      await runNgramAnalysis({ silent: true })
-    } else {
-      renderNgramTable()
-    }
-
-    switchTab(getRestorableTabFromSnapshot(snapshot))
-    updateCurrentCorpusInfo()
-    renderCompareSection()
-    renderWordCloud()
-    void recordDiagnostic('info', 'workspace.restore', restoredSavedWorkspace ? '已恢复上次工作区。' : '已恢复上次工作区偏好设置。', {
-      restoredSavedWorkspace,
-      currentTab: getRestorableTabFromSnapshot(snapshot),
-      corpusCount: snapshot.workspace.corpusIds.length
-    })
-  } finally {
-    workspaceRestoreInProgress = false
-    endBusyState()
-  }
 }
 
 function renderWorkspaceOverview() {
@@ -2620,85 +2175,8 @@ function renderCollocateTable() {
   currentCollocatePage = result.currentCollocatePage
 }
 
-function renderSentenceViewer() {
-  const result = renderSentenceViewerSection(getLocatorState(), dom, {
-    cancelTableRender,
-    escapeHtml,
-    formatCount,
-    onSentenceVisible: target => {
-      pendingLocatorScrollSentenceId = null
-      requestAnimationFrame(() => {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      })
-    },
-    renderTableInChunks
-  })
-  locatorNeedsRender = result.locatorNeedsRender
-}
-
-function locateSentence(sentenceId, nodeIndex, leftWindowSize, rightWindowSize) {
-  activeSentenceId = sentenceId
-  pendingLocatorScrollSentenceId = sentenceId
-  currentHighlight = buildLocatorHighlight(sentenceId, nodeIndex, leftWindowSize, rightWindowSize)
-  renderSentenceViewer()
-  locatorMeta.textContent = `已定位到第 ${sentenceId + 1} 句。节点词为黄色，左侧上下文为蓝色，右侧上下文为绿色。`
-}
-
-function buildStatsRows() {
-  return buildStatsRowsData(getStatsState())
-}
-
-function buildFrequencyRows() {
-  return buildFrequencyRowsData(getStatsState())
-}
-
-function buildNgramRows() {
-  return buildNgramRowsData(getNgramState())
-}
-
-function buildKWICRows() {
-  const result = buildKWICRowsData(getKWICState(), sortKWICResults)
-  currentKWICSortCache = result.cache
-  return result.rows
-}
-
-function buildAllFrequencyRows() {
-  return buildAllFrequencyRowsData(getStatsState())
-}
-
-function buildAllNgramRows() {
-  return buildAllNgramRowsData(getNgramState())
-}
-
-function buildCompareRows() {
-  return buildCompareRowsData(getCompareState())
-}
-
-function buildAllCompareRows() {
-  return buildAllCompareRowsData(getCompareState())
-}
-
-function buildAllKWICRows() {
-  const result = buildAllKWICRowsData(getKWICState(), sortKWICResults)
-  currentKWICSortCache = result.cache
-  return result.rows
-}
-
-function buildCollocateRows() {
-  return buildCollocateRowsData(getCollocateState())
-}
-
-function buildAllCollocateRows() {
-  return buildAllCollocateRowsData(getCollocateState())
-}
-
-function buildLocatorRows() {
-  return buildLocatorRowsData(getLocatorState())
-}
-
 function setLibraryFolderSelection(folderId) {
-  currentLibraryFolderId = folderId || 'all'
-  localStorage.setItem(LIBRARY_FOLDER_STORAGE_KEY, currentLibraryFolderId)
+  currentLibraryFolderId = persistedState.setLibraryFolderId(folderId || 'all')
   scheduleWorkspaceSnapshotSave()
 }
 
@@ -2854,7 +2332,7 @@ async function runNgramAnalysis({ switchToTab = false, silent = false } = {}) {
 }
 
 async function resolveCrossCorpusKWICScope(scope) {
-  if (!window.electronAPI?.searchLibraryKWIC) {
+  if (!electronAPI?.searchLibraryKWIC) {
     await showMissingBridge('searchLibraryKWIC')
     return null
   }
@@ -2882,94 +2360,6 @@ async function resolveCrossCorpusKWICScope(scope) {
     emptyTitle: '本地语料库为空',
     emptyMessage: '请先导入并保存至少一条本地语料，再使用“全部本地语料”检索。'
   }
-}
-
-async function refreshLibraryModal(folderId = currentLibraryFolderId) {
-  const endBusyState = beginBusyState('正在读取本地语料库...')
-  currentLibraryVisibleCount = 0
-  libraryMeta.textContent = '正在读取本地语料库...'
-  libraryFolderList.innerHTML = '<div class="empty-tip">正在加载文件夹...</div>'
-  libraryTableWrapper.innerHTML = '<div class="empty-tip">正在加载本地语料库...</div>'
-
-  try {
-    const result = await window.electronAPI.listSavedCorpora(folderId)
-    if (!result.success) {
-      libraryMeta.textContent = '读取失败'
-      libraryFolderList.innerHTML = '<div class="empty-tip">无法读取文件夹信息</div>'
-      libraryTableWrapper.innerHTML = '<div class="empty-tip">无法读取本地语料库</div>'
-      return
-    }
-
-    currentLibraryFolders = result.folders || []
-    currentLibraryVisibleCount = (result.items || []).length
-    currentLibraryTotalCount = result.totalCount || 0
-    setLibraryFolderSelection(result.selectedFolderId || 'all')
-    updateLibraryTargetChip()
-    libraryFolderList.innerHTML = buildLibraryFolderList(
-      currentLibraryFolders,
-      currentLibraryFolderId,
-      result.totalCount || 0,
-      escapeHtml
-    )
-    libraryTableWrapper.innerHTML = buildLibraryTable(
-      result.items || [],
-      currentLibraryFolders,
-      currentLibraryFolderId,
-      escapeHtml,
-      { selectedCorpusIds: selectedLibraryCorpusIds }
-    )
-    decorateLibraryControls()
-    updateLoadSelectedCorporaButton()
-    updateLibraryMetaText()
-  } finally {
-    endBusyState()
-  }
-}
-
-async function openLibraryModal(folderId = currentLibraryFolderId) {
-  if (!window.electronAPI?.listSavedCorpora) {
-    await showMissingBridge('listSavedCorpora')
-    return
-  }
-
-  syncLibrarySelectionWithCurrentCorpora()
-  updateLoadSelectedCorporaButton()
-  libraryModal.classList.remove('hidden')
-  await refreshLibraryModal(folderId)
-}
-
-function closeLibraryModal() {
-  libraryModal.classList.add('hidden')
-}
-
-async function refreshRecycleBinModal() {
-  recycleMeta.textContent = '正在读取回收站...'
-  recycleTableWrapper.innerHTML = '<div class="empty-tip">正在读取回收站...</div>'
-
-  const result = await window.electronAPI.listRecycleBin()
-  if (!result.success) {
-    recycleMeta.textContent = '读取失败'
-    recycleTableWrapper.innerHTML = '<div class="empty-tip">无法读取回收站</div>'
-    return
-  }
-
-  recycleMeta.textContent = `共 ${formatCount(result.totalCount || 0)} 条项目，其中 ${formatCount(result.folderCount || 0)} 个文件夹、${formatCount(result.corpusCount || 0)} 条语料。`
-  recycleTableWrapper.innerHTML = buildRecycleBinTable(result.entries || [], escapeHtml)
-  decorateRecycleControls()
-}
-
-async function openRecycleModal() {
-  if (!window.electronAPI?.listRecycleBin) {
-    await showMissingBridge('listRecycleBin')
-    return
-  }
-
-  recycleModal.classList.remove('hidden')
-  await refreshRecycleBinModal()
-}
-
-function closeRecycleModal() {
-  recycleModal.classList.add('hidden')
 }
 
 async function loadCorpusResult(result, { trackRecent = true } = {}) {
@@ -3241,7 +2631,7 @@ async function handleSystemOpenFileRequest(payload = {}) {
   const filePath = String(payload?.filePath || '').trim()
   if (!filePath) return
 
-  if (!window.electronAPI?.openQuickCorpusAtPath) {
+  if (!electronAPI?.openQuickCorpusAtPath) {
     await showMissingBridge('openQuickCorpusAtPath')
     return
   }
@@ -3252,7 +2642,7 @@ async function handleSystemOpenFileRequest(payload = {}) {
   closeRecycleModal()
   hideWelcomeOverlay({ immediate: true })
 
-  const result = await window.electronAPI.openQuickCorpusAtPath(filePath)
+  const result = await electronAPI.openQuickCorpusAtPath(filePath)
   if (!result?.success) {
     await showAlert({
       title: '打开系统文件失败',
@@ -3280,46 +2670,6 @@ function enqueueSystemOpenFileRequest(payload) {
     })
 
   return systemOpenRequestQueue
-}
-
-async function openRecentOpenEntry(entry) {
-  const normalizedEntry = normalizeRecentOpenEntry(entry)
-  if (!normalizedEntry) return
-
-  let result = null
-  if (normalizedEntry.type === 'quick') {
-    if (!window.electronAPI?.openQuickCorpusAtPath) {
-      await showMissingBridge('openQuickCorpusAtPath')
-      return
-    }
-    result = await window.electronAPI.openQuickCorpusAtPath(normalizedEntry.filePath)
-  } else if (normalizedEntry.type === 'saved-multi') {
-    if (!window.electronAPI?.openSavedCorpora) {
-      await showMissingBridge('openSavedCorpora')
-      return
-    }
-    result = await window.electronAPI.openSavedCorpora(normalizedEntry.corpusIds)
-  } else {
-    if (!window.electronAPI?.openSavedCorpus) {
-      await showMissingBridge('openSavedCorpus')
-      return
-    }
-    result = await window.electronAPI.openSavedCorpus(normalizedEntry.corpusId)
-  }
-
-  if (!result?.success) {
-    recentOpenEntries = recentOpenEntries.filter(item => item.key !== normalizedEntry.key)
-    persistRecentOpenEntries()
-    renderRecentOpenList()
-    await showAlert({
-      title: '打开最近语料失败',
-      message: result?.message || '该最近打开项目已不可用，已从列表中移除。'
-    })
-    return
-  }
-
-  setOpenCorpusMenuOpen(false)
-  await loadCorpusResult(result)
 }
 
 function getCommandPaletteCommands() {
@@ -3390,21 +2740,17 @@ function getCommandPaletteCommands() {
     },
     {
       id: 'toggle-queue',
-      title: analysisQueuePaused ? '恢复任务队列' : '暂停任务队列',
-      meta: analysisQueuePaused ? '继续按顺序自动执行排队任务' : '暂停自动执行，仅保留排队',
+      title: isAnalysisQueuePaused() ? '恢复任务队列' : '暂停任务队列',
+      meta: isAnalysisQueuePaused() ? '继续按顺序自动执行排队任务' : '暂停自动执行，仅保留排队',
       keywords: 'queue pause resume',
       run: async () => {
-        analysisQueuePaused = !analysisQueuePaused
-        updateAnalysisQueueControls()
-        if (!analysisQueuePaused) {
-          void runAnalysisQueueIfNeeded()
-        }
+        toggleAnalysisQueuePaused()
       }
     },
     {
       id: 'retry-failed',
       title: '重试失败任务',
-      meta: analysisQueueFailedItems.length > 0 ? `当前有 ${analysisQueueFailedItems.length} 条失败任务` : '当前没有失败任务',
+      meta: getFailedQueueCount() > 0 ? `当前有 ${getFailedQueueCount()} 条失败任务` : '当前没有失败任务',
       keywords: 'queue retry failed',
       run: async () => {
         retryFailedQueueTasks()
@@ -3413,7 +2759,7 @@ function getCommandPaletteCommands() {
     {
       id: 'cancel-queued',
       title: '取消排队任务',
-      meta: analysisQueue.length > 0 ? `当前有 ${analysisQueue.length} 条排队任务` : '当前没有排队任务',
+      meta: getQueuedTaskCount() > 0 ? `当前有 ${getQueuedTaskCount()} 条排队任务` : '当前没有排队任务',
       keywords: 'queue cancel clear',
       run: async () => {
         const cancelledCount = cancelQueuedAnalysisTasks('已取消排队任务')
@@ -3546,7 +2892,7 @@ async function showPreflightWarnings(result = {}) {
 }
 
 async function handleDropImportPaths(paths) {
-  if (!window.electronAPI?.importCorpusPaths) {
+  if (!electronAPI?.importCorpusPaths) {
     await showMissingBridge('importCorpusPaths')
     return
   }
@@ -3571,7 +2917,7 @@ async function handleDropImportPaths(paths) {
   })
   try {
     const importTargetFolder = getImportTargetFolder()
-    const result = await window.electronAPI.importCorpusPaths(droppedPaths, {
+    const result = await electronAPI.importCorpusPaths(droppedPaths, {
       folderId: importTargetFolder.id,
       preserveHierarchy: true
     })
@@ -3588,7 +2934,7 @@ async function handleDropImportPaths(paths) {
     }
 
     await loadCorpusResult(result)
-    if (!libraryModal.classList.contains('hidden')) {
+    if (isLibraryModalVisible()) {
       await refreshLibraryModal(currentLibraryFolderId)
     }
 
@@ -3662,104 +3008,14 @@ async function handleSystemNotificationAction(payload = {}) {
 
   if (actionId === 'reveal-path') {
     const targetPath = String(payload?.actionPayload?.path || payload?.actionPayload?.filePath || '').trim()
-    if (!targetPath || !window.electronAPI?.showPathInFolder) return
-    const showResult = await window.electronAPI.showPathInFolder(targetPath)
+    if (!targetPath || !electronAPI?.showPathInFolder) return
+    const showResult = await electronAPI.showPathInFolder(targetPath)
     if (!showResult?.success) {
       showToast(showResult?.message || '无法在系统文件管理器中打开该路径。', {
         title: '系统通知',
         type: 'error'
       })
     }
-  }
-}
-
-function buildCrashRecoverySummary(recoveryState) {
-  const source = String(recoveryState?.source || 'unknown')
-  const errorMessage = String(recoveryState?.error?.message || '未知错误')
-  const recordedAt = String(recoveryState?.recordedAt || '')
-  return [
-    `异常来源：${source}`,
-    `异常信息：${errorMessage}`,
-    recordedAt ? `记录时间：${recordedAt}` : ''
-  ]
-    .filter(Boolean)
-    .join('\n')
-}
-
-async function runCrashRecoveryWizard() {
-  if (!window.electronAPI?.consumeCrashRecoveryState) return
-  const result = await window.electronAPI.consumeCrashRecoveryState()
-  if (!result?.success || !result.recoveryState) return
-
-  const recoveryState = result.recoveryState
-  await showAlert({
-    title: '检测到上次异常退出',
-    message: `${buildCrashRecoverySummary(recoveryState)}\n\n你可以恢复上次会话，或导出诊断并反馈到 GitHub。`
-  })
-
-  const workspaceSnapshot = loadStoredWorkspaceSnapshot()
-  if (getCurrentUISettings().restoreWorkspace !== false && hasMeaningfulWorkspaceSnapshot(workspaceSnapshot)) {
-    const shouldRestore = await showConfirm({
-      title: '恢复上次会话',
-      message: `${getWorkspaceSnapshotSummary(workspaceSnapshot, { getTabLabel })}\n\n是否立即恢复？`,
-      confirmText: '恢复上次会话',
-      cancelText: '暂不恢复'
-    })
-    startupRestoreHandledByCrashWizard = true
-    if (shouldRestore) {
-      await restoreWorkspaceFromSnapshot(workspaceSnapshot)
-    } else {
-      void recordDiagnostic('info', 'workspace.restore', '崩溃恢复向导中用户选择暂不恢复上次工作区。')
-    }
-  }
-
-  const shouldExportDiagnostics = await showConfirm({
-    title: '导出诊断报告',
-    message: '是否现在导出一份诊断报告，便于定位问题？',
-    confirmText: '导出诊断',
-    cancelText: '跳过'
-  })
-  if (shouldExportDiagnostics) {
-    if (!window.electronAPI?.exportDiagnosticReport) {
-      await showMissingBridge('exportDiagnosticReport')
-    } else {
-      const exportResult = await window.electronAPI.exportDiagnosticReport(getDiagnosticRendererState())
-      if (exportResult?.success) {
-        await refreshDiagnosticsStatusText()
-        showToast(`诊断报告已导出到：${exportResult.filePath}`, {
-          title: '崩溃恢复',
-          type: 'success'
-        })
-        void notifySystem({
-          title: '诊断报告已导出',
-          body: exportResult.filePath,
-          tag: 'diagnostics-export',
-          category: 'diagnostics-export',
-          action: {
-            actionId: 'reveal-path',
-            payload: { path: exportResult.filePath }
-          }
-        })
-      } else if (!exportResult?.canceled) {
-        await showAlert({
-          title: '导出诊断报告失败',
-          message: exportResult?.message || '诊断报告导出失败，请稍后重试。'
-        })
-      }
-    }
-  }
-
-  const shouldOpenGitHubIssue = await showConfirm({
-    title: '反馈到 GitHub',
-    message: '是否现在打开 GitHub Issues 反馈页面？系统会自动带上当前会话摘要。',
-    confirmText: '打开反馈页面',
-    cancelText: '稍后'
-  })
-  if (shouldOpenGitHubIssue) {
-    await openGitHubFeedbackIssue({
-      issueTitle: `[Bug][CrashRecovery] ${String(recoveryState?.source || 'unknown crash')}`.slice(0, 120),
-      source: 'crash-recovery-wizard'
-    })
   }
 }
 
@@ -3808,40 +3064,6 @@ const startupProbeMode = (() => {
   return ''
 })()
 
-const shouldReportRendererReady = !startupProbeMode && !fullProbeMode
-let rendererReadyReported = false
-
-function dispatchRendererReadyEvent(stage = 'startup-complete') {
-  try {
-    window.dispatchEvent(new CustomEvent('wordz:renderer-ready', {
-      detail: {
-        stage
-      }
-    }))
-    writeStartupAppLog('renderer-ready.dispatched', {
-      stage
-    })
-  } catch (error) {
-    console.warn('[renderer.ready.event]', error)
-  }
-}
-
-async function reportRendererReady(stage = 'startup-complete') {
-  if (!shouldReportRendererReady || rendererReadyReported) return
-  rendererReadyReported = true
-  dispatchRendererReadyEvent(stage)
-  if (!window.electronAPI?.reportRendererReady) return
-  try {
-    await window.electronAPI.reportRendererReady({ stage })
-    writeStartupAppLog('renderer-ready.reported', {
-      stage
-    })
-  } catch (error) {
-    rendererReadyReported = false
-    console.warn('[renderer.ready.report]', error)
-  }
-}
-
 const shouldSkipSyncStartup = startupProbeMode === 'skip-all'
 const shouldSkipDeferredStartup = shouldSkipSyncStartup || startupProbeMode === 'skip-deferred'
 globalThis.__WORDZ_STARTUP_PROBE_MODE__ = startupProbeMode
@@ -3854,7 +3076,7 @@ if (startupProbeMode) {
   }))
 }
 
-let loadedRecentOpenEntries = recentOpenEntries
+let loadedRecentOpenEntries = []
 if (shouldSkipSyncStartup) {
   console.warn('[renderer.startup.probe] sync-startup.skipped', startupProbeMode)
 } else {
@@ -3869,7 +3091,7 @@ if (shouldSkipSyncStartup) {
     bindDropImportHandlers,
     revealNativeToolbarOverflowForSmoke,
     initUISettings,
-    loadRecentOpenEntries: () => loadRecentOpenEntriesFromStorage(localStorage, RECENT_OPEN_STORAGE_KEY),
+    loadRecentOpenEntries,
     renderWorkspaceOverview,
     renderSelectedCorporaTable,
     updateLoadSelectedCorporaButton,
@@ -3897,17 +3119,17 @@ if (shouldSkipSyncStartup) {
       })
     }
   }))
-  recentOpenEntries = loadedRecentOpenEntries
+  setRecentOpenEntries(loadedRecentOpenEntries)
 }
 
-if (window.electronAPI?.onSystemOpenFileRequest) {
-  window.electronAPI.onSystemOpenFileRequest(payload => {
+if (electronAPI?.onSystemOpenFileRequest) {
+  electronAPI.onSystemOpenFileRequest(payload => {
     void enqueueSystemOpenFileRequest(payload)
   })
 }
 
-if (window.electronAPI?.onAppMenuAction) {
-  window.electronAPI.onAppMenuAction(payload => {
+if (electronAPI?.onAppMenuAction) {
+  electronAPI.onAppMenuAction(payload => {
     void handleAppMenuAction(payload).catch(error => {
       console.error('[app-menu-action]', error)
       recordDiagnosticError('app-menu-action', error, {
@@ -3917,8 +3139,8 @@ if (window.electronAPI?.onAppMenuAction) {
   })
 }
 
-if (window.electronAPI?.onSystemNotificationAction) {
-  window.electronAPI.onSystemNotificationAction(payload => {
+if (electronAPI?.onSystemNotificationAction) {
+  electronAPI.onSystemNotificationAction(payload => {
     void handleSystemNotificationAction(payload).catch(error => {
       console.error('[system-notification-action]', error)
       recordDiagnosticError('system-notification-action', error, {
@@ -3965,8 +3187,8 @@ const deferredStartupPromise = shouldSkipDeferredStartup
       setWelcomeProgress,
       ensureAppInfoLoaded,
       consumePendingSystemOpenFiles: async () => {
-        if (!window.electronAPI?.consumePendingSystemOpenFiles) return
-        const pendingOpenResult = await window.electronAPI.consumePendingSystemOpenFiles()
+        if (!electronAPI?.consumePendingSystemOpenFiles) return
+        const pendingOpenResult = await electronAPI.consumePendingSystemOpenFiles()
         if (!pendingOpenResult?.success || !Array.isArray(pendingOpenResult.filePaths)) return
         for (const filePath of pendingOpenResult.filePaths) {
           await enqueueSystemOpenFileRequest({ filePath })
@@ -3975,7 +3197,7 @@ const deferredStartupPromise = shouldSkipDeferredStartup
       initializeAutoUpdate,
       runCrashRecoveryWizard,
       maybeRestoreWorkspaceOnStartup: async () => {
-        if (getCurrentUISettings().restoreWorkspace === false || startupRestoreHandledByCrashWizard) return
+        if (getCurrentUISettings().restoreWorkspace === false || wasStartupRestoreHandledByCrashWizard()) return
         const workspaceSnapshot = loadStoredWorkspaceSnapshot()
         if (!hasMeaningfulWorkspaceSnapshot(workspaceSnapshot)) return
         const shouldRestoreWorkspace = await requestWorkspaceRestoreDecision(workspaceSnapshot)
@@ -3989,7 +3211,7 @@ const deferredStartupPromise = shouldSkipDeferredStartup
         })
       },
       markWorkspaceSnapshotReady: () => {
-        workspaceSnapshotReady = true
+        markWorkspaceSnapshotReady()
       },
       scheduleWorkspaceSnapshotSave,
       waitForNextFrame: () => new Promise(resolve => requestAnimationFrame(() => resolve())),
@@ -4000,13 +3222,6 @@ void deferredStartupPromise
   .then(async () => {
     try {
       await maybeRunPackagedSmokeAutorun()
-      if (shouldReportRendererReady) {
-        await new Promise(resolve => {
-          window.setTimeout(resolve, 3000)
-        })
-        await new Promise(resolve => requestAnimationFrame(() => resolve()))
-        await reportRendererReady('deferred-startup-complete')
-      }
     } catch (error) {
       console.error('[packaged-smoke.autorun]', error)
       recordDiagnosticError('smoke.packaged', error)
@@ -4028,7 +3243,7 @@ dom.closeWelcomeButton?.addEventListener('click', () => {
   if (!isWelcomeReady()) return
   const shouldShowWelcome = !(dom.welcomeDisableCheckbox?.checked)
   if (isWelcomeTutorialVisible()) {
-    onboardingState = markOnboardingTutorialCompleted(localStorage, ONBOARDING_STORAGE_KEY, onboardingState)
+    onboardingState = persistedState.markOnboardingTutorialCompleted(onboardingState)
   }
   applyUISettings({
     ...getCurrentUISettings(),
@@ -4059,7 +3274,7 @@ dom.welcomeDisableCheckbox?.addEventListener('change', () => {
 bindShellInteractionHandlers()
 
 checkUpdateButton?.addEventListener('click', async () => {
-  if (!window.electronAPI?.checkForUpdates) {
+  if (!electronAPI?.checkForUpdates) {
     await showMissingBridge('checkForUpdates')
     return
   }
@@ -4070,7 +3285,7 @@ checkUpdateButton?.addEventListener('click', async () => {
     return
   }
 
-  const result = await window.electronAPI.checkForUpdates()
+  const result = await electronAPI.checkForUpdates()
   if (!result.success) {
     await showAlert({
       title: result.disabled ? '自动更新暂不可用' : '检查更新失败',
@@ -4120,12 +3335,12 @@ openGitHubRepoButton?.addEventListener('click', async () => {
     return
   }
 
-  if (!window.electronAPI?.openExternalUrl) {
+  if (!electronAPI?.openExternalUrl) {
     await showMissingBridge('openExternalUrl')
     return
   }
 
-  const result = await window.electronAPI.openExternalUrl(currentAppInfo.repositoryUrl)
+  const result = await electronAPI.openExternalUrl(currentAppInfo.repositoryUrl)
   if (!result?.success) {
     await showAlert({
       title: '打开 GitHub 失败',
@@ -4156,11 +3371,7 @@ closeTaskCenterButton?.addEventListener('click', () => {
 })
 
 queueToggleButton?.addEventListener('click', () => {
-  analysisQueuePaused = !analysisQueuePaused
-  updateAnalysisQueueControls()
-  if (!analysisQueuePaused) {
-    void runAnalysisQueueIfNeeded()
-  }
+  toggleAnalysisQueuePaused()
 })
 
 retryFailedTaskButton?.addEventListener('click', () => {
@@ -4324,91 +3535,7 @@ notifyDiagnosticsExportToggle?.addEventListener('change', () => {
   applyReminderCategoryChange('diagnostics-export', notifyDiagnosticsExportToggle.checked)
 })
 
-resetWindowsCompatButton?.addEventListener('click', async () => {
-  if (!window.electronAPI?.resetWindowsCompatProfile) {
-    await showMissingBridge('resetWindowsCompatProfile')
-    return
-  }
-
-  const result = await window.electronAPI.resetWindowsCompatProfile()
-  if (!result?.success) {
-    await showAlert({
-      title: '重置 Windows 兼容模式失败',
-      message: result?.message || '兼容模式状态重置失败，请稍后重试。'
-    })
-    return
-  }
-
-  await refreshDiagnosticsStatusText()
-  void recordDiagnostic('info', 'diagnostics', '用户已重置 Windows 兼容模式。')
-  showToast('Windows 兼容模式已重置。下次启动会从标准模式开始。', {
-    title: '已重置',
-    type: 'success',
-    duration: 2600
-  })
-})
-
-exportDiagnosticsButton?.addEventListener('click', async () => {
-  if (!window.electronAPI?.exportDiagnosticReport) {
-    await showMissingBridge('exportDiagnosticReport')
-    return
-  }
-
-  void setWindowProgressState({
-    source: 'diagnostics-export',
-    state: 'indeterminate',
-    priority: 30
-  })
-  const result = await window.electronAPI.exportDiagnosticReport(getDiagnosticRendererState())
-  if (!result || !result.success) {
-    void setWindowProgressState({
-      source: 'diagnostics-export',
-      state: 'none'
-    })
-    if (result?.canceled) {
-      showToast('已取消导出诊断报告。', {
-        title: '未导出'
-      })
-      return
-    }
-    await showAlert({
-      title: '导出诊断报告失败',
-      message: result?.message || '诊断报告导出失败，请稍后重试。'
-    })
-    return
-  }
-
-  await refreshDiagnosticsStatusText()
-  void recordDiagnostic('info', 'diagnostics', '用户已导出诊断报告。', { filePath: result.filePath })
-  showToast(`诊断报告已导出到：${result.filePath}`, {
-    title: '导出完成',
-    type: 'success',
-    duration: 2600
-  })
-  void setWindowProgressState({
-    source: 'diagnostics-export',
-    state: 'none'
-  })
-  void notifySystem({
-    title: '诊断报告已导出',
-    body: result.filePath,
-    tag: 'diagnostics-export',
-    category: 'diagnostics-export',
-    action: {
-      actionId: 'reveal-path',
-      payload: { path: result.filePath }
-    }
-  })
-})
-
-reportIssueButton?.addEventListener('click', async () => {
-  await openGitHubFeedbackIssue({
-    issueTitle: '[Bug] 请简要描述问题',
-    source: 'manual',
-    autoExportDiagnostics: true,
-    successMessage: '已打开 GitHub Issues，并自动附带当前会话诊断包路径。'
-  })
-})
+bindDiagnosticsEvents()
 
 refreshAnalysisCacheButton?.addEventListener('click', () => {
   void refreshAnalysisCacheState()
@@ -4419,7 +3546,7 @@ rebuildAnalysisCacheButton?.addEventListener('click', () => {
 })
 
 clearAnalysisCacheButton?.addEventListener('click', async () => {
-  if (!window.electronAPI?.clearAnalysisCache) {
+  if (!electronAPI?.clearAnalysisCache) {
     await showMissingBridge('clearAnalysisCache')
     return
   }
@@ -4432,7 +3559,7 @@ clearAnalysisCacheButton?.addEventListener('click', async () => {
   })
   if (!confirmed) return
 
-  const result = await window.electronAPI.clearAnalysisCache()
+  const result = await electronAPI.clearAnalysisCache()
   if (!result?.success) {
     await showAlert({
       title: '清空缓存失败',
@@ -4466,566 +3593,7 @@ uiSettingsModal.addEventListener('click', (event) => {
   if (event.target === uiSettingsModal) closeUISettingsModal()
 })
 
-selectSavedCorporaButton?.addEventListener('click', async () => {
-  syncLibrarySelectionWithCurrentCorpora()
-  await openLibraryModal('all')
-})
-
-closeLibraryButton.addEventListener('click', () => {
-  closeLibraryModal()
-})
-
-libraryModal.addEventListener('click', (event) => {
-  if (event.target === libraryModal) closeLibraryModal()
-})
-
-createFolderButton.addEventListener('click', async () => {
-  const folderName = await promptForName({
-    title: '新建文件夹',
-    message: '请输入新文件夹名称。',
-    placeholder: '例如：毕业论文语料',
-    confirmText: '创建',
-    label: '文件夹名称'
-  })
-  if (folderName === null) return
-
-  const result = await window.electronAPI.createCorpusFolder(folderName)
-  if (!result.success) {
-    await showAlert({
-      title: '创建文件夹失败',
-      message: result.message || '创建文件夹失败'
-    })
-    return
-  }
-
-  await refreshLibraryModal(result.folder.id)
-})
-
-importToFolderButton.addEventListener('click', async () => {
-  if (!window.electronAPI?.importAndSaveCorpus) {
-    await showMissingBridge('importAndSaveCorpus')
-    return
-  }
-
-  const result = await window.electronAPI.importAndSaveCorpus(getImportTargetFolder().id)
-  await loadCorpusResult(result)
-  await refreshLibraryModal(currentLibraryFolderId)
-})
-
-loadSelectedCorporaButton?.addEventListener('click', async () => {
-  if (!window.electronAPI?.openSavedCorpora) {
-    await showMissingBridge('openSavedCorpora')
-    return
-  }
-
-  if (selectedLibraryCorpusIds.size === 0) {
-    showToast('请先勾选至少一条已保存语料。', {
-      title: '未选择语料'
-    })
-    return
-  }
-
-  const result = await window.electronAPI.openSavedCorpora([...selectedLibraryCorpusIds])
-  if (!result.success) {
-    await showAlert({
-      title: '载入语料失败',
-      message: result.message || '无法载入选中的语料'
-    })
-    return
-  }
-
-  closeLibraryModal()
-  await loadCorpusResult(result)
-})
-
-recycleBinButton?.addEventListener('click', async () => {
-  await openRecycleModal()
-})
-
-closeRecycleButton?.addEventListener('click', () => {
-  closeRecycleModal()
-})
-
-recycleModal?.addEventListener('click', event => {
-  if (event.target === recycleModal) closeRecycleModal()
-})
-
-backupLibraryButton.addEventListener('click', async () => {
-  if (!window.electronAPI?.backupCorpusLibrary) {
-    await showMissingBridge('backupCorpusLibrary')
-    return
-  }
-
-  const endBusyState = beginBusyState('正在创建语料库备份...')
-  setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], true)
-  void setWindowProgressState({
-    source: 'library-maintenance',
-    state: 'indeterminate',
-    priority: 35
-  })
-  try {
-    const result = await window.electronAPI.backupCorpusLibrary()
-    if (!result.success) {
-      if (result.canceled) {
-        showToast('已取消备份位置选择', { title: '未创建备份' })
-        return
-      }
-      await showAlert({
-        title: '备份失败',
-        message: result.message || '创建语料库备份失败'
-      })
-      return
-    }
-
-    await showAlert({
-      title: '备份完成',
-      message: buildBackupSummaryMessage(result)
-    })
-    void notifySystem({
-      title: '语料库备份完成',
-      body: result.backupPath || '本地语料库备份已创建完成。',
-      tag: 'library-backup'
-    })
-  } finally {
-    endBusyState()
-    setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], false)
-    void setWindowProgressState({
-      source: 'library-maintenance',
-      state: 'none'
-    })
-  }
-})
-
-restoreLibraryButton.addEventListener('click', async () => {
-  if (!window.electronAPI?.restoreCorpusLibrary) {
-    await showMissingBridge('restoreCorpusLibrary')
-    return
-  }
-
-  const confirmed = await showConfirm({
-    title: '恢复本地语料库',
-    message: '这会用一个备份目录替换当前本地语料库。恢复前会自动保留当前语料库快照，便于回退。是否继续？',
-    confirmText: '选择备份并恢复',
-    cancelText: '取消'
-  })
-  if (!confirmed) return
-
-  const endBusyState = beginBusyState('正在从备份恢复语料库...')
-  setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], true)
-  void setWindowProgressState({
-    source: 'library-maintenance',
-    state: 'indeterminate',
-    priority: 35
-  })
-  try {
-    const result = await window.electronAPI.restoreCorpusLibrary()
-    if (!result.success) {
-      if (result.canceled) {
-        showToast('已取消备份目录选择', { title: '未恢复语料库' })
-        return
-      }
-      await showAlert({
-        title: '恢复失败',
-        message: result.message || '恢复语料库失败'
-      })
-      return
-    }
-
-    await refreshLibraryModal(currentLibraryFolderId)
-    await showAlert({
-      title: '恢复完成',
-      message: buildRestoreSummaryMessage(result)
-    })
-    void notifySystem({
-      title: '语料库恢复完成',
-      body: result.restoredFrom || '本地语料库已从备份恢复完成。',
-      tag: 'library-restore'
-    })
-  } finally {
-    endBusyState()
-    setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], false)
-    void setWindowProgressState({
-      source: 'library-maintenance',
-      state: 'none'
-    })
-  }
-})
-
-repairLibraryButton.addEventListener('click', async () => {
-  if (!window.electronAPI?.repairCorpusLibrary) {
-    await showMissingBridge('repairCorpusLibrary')
-    return
-  }
-
-  const confirmed = await showConfirm({
-    title: '修复本地语料库',
-    message: '这会检查语料库结构，自动补回缺失元数据，并把异常目录移动到隔离区。是否继续？',
-    confirmText: '开始修复',
-    cancelText: '取消'
-  })
-  if (!confirmed) return
-
-  const endBusyState = beginBusyState('正在检查并修复本地语料库...')
-  setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], true)
-  void setWindowProgressState({
-    source: 'library-maintenance',
-    state: 'indeterminate',
-    priority: 35
-  })
-  try {
-    const result = await window.electronAPI.repairCorpusLibrary()
-    if (!result.success) {
-      await showAlert({
-        title: '修复失败',
-        message: result.message || '语料库修复失败'
-      })
-      return
-    }
-
-    await refreshLibraryModal(currentLibraryFolderId)
-    await showAlert({
-      title: '修复完成',
-      message: buildRepairSummaryMessage(result)
-    })
-    void notifySystem({
-      title: '语料库修复完成',
-      body: `已修复 ${formatCount(result.repairedCorpusCount || 0)} 条语料，隔离 ${formatCount(result.quarantinedEntryCount || 0)} 个异常项目。`,
-      tag: 'library-repair'
-    })
-  } finally {
-    endBusyState()
-    setButtonsBusy([backupLibraryButton, restoreLibraryButton, repairLibraryButton], false)
-    void setWindowProgressState({
-      source: 'library-maintenance',
-      state: 'none'
-    })
-  }
-})
-
-libraryFolderList.addEventListener('click', async (event) => {
-  const folderButton = event.target.closest('[data-library-folder-id]')
-  const renameFolderButton = event.target.closest('[data-rename-folder-id]')
-  const deleteFolderButton = event.target.closest('[data-delete-folder-id]')
-
-  if (folderButton) {
-    await refreshLibraryModal(folderButton.dataset.libraryFolderId)
-    return
-  }
-
-  if (renameFolderButton) {
-    const folderId = renameFolderButton.dataset.renameFolderId
-    const currentName = renameFolderButton.dataset.currentFolderName || ''
-    const newName = await promptForName({
-      title: '重命名文件夹',
-      message: '请输入新的文件夹名称。',
-      defaultValue: currentName,
-      placeholder: '请输入文件夹名称',
-      confirmText: '保存',
-      label: '文件夹名称'
-    })
-    if (newName === null) return
-
-    const result = await window.electronAPI.renameCorpusFolder(folderId, newName)
-    if (!result.success) {
-      await showAlert({
-        title: '重命名文件夹失败',
-        message: result.message || '重命名文件夹失败'
-      })
-      return
-    }
-
-    if (currentCorpusMode === 'saved' && currentCorpusFolderId === folderId) {
-      currentCorpusFolderName = result.folder.name
-      updateCurrentCorpusInfo()
-    }
-    patchCurrentSelectedCorpora(
-      item => item.folderId === folderId,
-      item => ({ ...item, folderName: result.folder.name })
-    )
-
-    await refreshLibraryModal(currentLibraryFolderId)
-    return
-  }
-
-  if (deleteFolderButton) {
-    const folderId = deleteFolderButton.dataset.deleteFolderId
-    const folderName = deleteFolderButton.dataset.folderName || '该文件夹'
-    const confirmed = await showConfirm({
-      title: '删除文件夹',
-      message: `删除文件夹「${folderName}」后，它和里面的语料会先移入回收站，你之后仍可恢复。是否继续？`,
-      confirmText: '移入回收站',
-      cancelText: '取消',
-      danger: true
-    })
-    if (!confirmed) return
-
-    const result = await window.electronAPI.deleteCorpusFolder(folderId)
-    if (!result.success) {
-      await showAlert({
-        title: '删除文件夹失败',
-        message: result.message || '删除文件夹失败'
-      })
-      return
-    }
-
-    removeCurrentSelectedCorpora(item => item.folderId === folderId)
-
-    await refreshLibraryModal(currentLibraryFolderId)
-    if (!recycleModal.classList.contains('hidden')) {
-      await refreshRecycleBinModal()
-    }
-    showToast(`文件夹「${folderName}」已移入回收站。`, {
-      title: '可恢复删除',
-      type: 'success'
-    })
-  }
-})
-
-bindLibraryTableEvents({
-  libraryTableWrapper,
-  recycleTableWrapper,
-  getSelectedLibraryCorpusIds: () => selectedLibraryCorpusIds,
-  updateLoadSelectedCorporaButton,
-  updateLibraryMetaText,
-  closeLibraryModal,
-  loadCorpusResult,
-  showMissingBridge,
-  showAlert,
-  showConfirm,
-  showToast,
-  promptForName,
-  electronAPI: window.electronAPI,
-  getCurrentCorpusId: () => currentCorpusId,
-  setCurrentCorpusDisplayName: name => {
-    currentCorpusDisplayName = name
-  },
-  setCurrentCorpusFolder: (folderId, folderName) => {
-    currentCorpusFolderId = folderId
-    currentCorpusFolderName = folderName
-  },
-  updateCurrentCorpusInfo,
-  patchCurrentSelectedCorpora,
-  removeCurrentSelectedCorpora,
-  getCurrentLibraryFolderId: () => currentLibraryFolderId,
-  refreshLibraryModal,
-  refreshRecycleBinModal,
-  isRecycleModalVisible: () => !recycleModal.classList.contains('hidden'),
-  isLibraryModalVisible: () => !libraryModal.classList.contains('hidden')
-})
-
-function ensureTaskCenterRunningEntry(taskKey, title, detail) {
-  if (!taskKey) return
-  if (!taskCenter.promoteQueuedEntry(taskKey, detail)) {
-    taskCenter.startEntryWithStatus(taskKey, title, detail, 'running')
-  }
-}
-
-function inferTaskTypeFromTaskCenterEntry(entry) {
-  const taskKey = String(entry?.taskKey || '')
-  if (taskKey.includes('stats')) return 'stats'
-  if (taskKey.includes('kwic')) return 'kwic'
-  if (taskKey.includes('collocate')) return 'collocate'
-  return ''
-}
-
-function formatEstimatedDuration(durationMs) {
-  const safeDuration = Math.max(0, Number(durationMs) || 0)
-  if (safeDuration < 1000) return '<1s'
-  if (safeDuration < 60000) return `${Math.round(safeDuration / 1000)}s`
-  const minutes = Math.floor(safeDuration / 60000)
-  const seconds = Math.round((safeDuration % 60000) / 1000)
-  return `${minutes}m ${seconds}s`
-}
-
-function estimateAnalysisQueueDurationMs() {
-  if (analysisQueue.length === 0) return 0
-  const completedEntries = taskCenter
-    .getEntries()
-    .filter(entry => entry.status === 'success' && Number(entry.durationMs) > 0)
-  const durationBuckets = {
-    stats: [],
-    kwic: [],
-    collocate: []
-  }
-  for (const entry of completedEntries) {
-    const taskType = inferTaskTypeFromTaskCenterEntry(entry)
-    if (!taskType || !durationBuckets[taskType]) continue
-    durationBuckets[taskType].push(Number(entry.durationMs) || 0)
-  }
-
-  const fallbackDurationByTaskType = {
-    stats: 3500,
-    kwic: 4800,
-    collocate: 5200
-  }
-  let totalEstimatedMs = 0
-  for (const task of analysisQueue) {
-    const taskType = String(task?.type || '').trim()
-    const bucket = durationBuckets[taskType] || []
-    const averageDuration = bucket.length > 0
-      ? bucket.reduce((sum, value) => sum + value, 0) / bucket.length
-      : (fallbackDurationByTaskType[taskType] || 4000)
-    totalEstimatedMs += averageDuration
-  }
-  return Math.max(0, totalEstimatedMs)
-}
-
-function retryFailedQueueTasks() {
-  if (analysisQueueFailedItems.length === 0) {
-    showToast('当前没有失败任务可重试。', {
-      title: '任务队列'
-    })
-    return 0
-  }
-
-  const failedTasks = analysisQueueFailedItems.slice()
-  analysisQueueFailedItems = []
-  for (const task of failedTasks.reverse()) {
-    const queueTaskKey = `queue-${task.type}-${++analysisQueueSeq}`
-    const detail = `${task.detail}（重试）`
-    analysisQueue.push({
-      type: task.type,
-      title: task.title,
-      detail,
-      queueTaskKey,
-      run: task.run
-    })
-    taskCenter.startEntryWithStatus(queueTaskKey, task.title, detail, 'queued')
-  }
-  updateAnalysisQueueControls()
-  if (!analysisQueuePaused) {
-    void runAnalysisQueueIfNeeded()
-  }
-  return failedTasks.length
-}
-
-function cancelQueuedAnalysisTasks(detail = '已取消排队任务') {
-  const queuedCount = analysisQueue.length
-  analysisQueue = []
-  const cancelledCount = taskCenter.cancelQueuedEntries(detail)
-  updateAnalysisQueueControls()
-  return Math.max(queuedCount, cancelledCount)
-}
-
-function updateAnalysisQueueControls() {
-  const queuedCount = analysisQueue.length
-  const failedCount = analysisQueueFailedItems.length
-
-  if (cancelQueuedTaskButton) {
-    cancelQueuedTaskButton.disabled = queuedCount === 0
-    setButtonLabel(
-      cancelQueuedTaskButton,
-      queuedCount > 0 ? `取消排队任务（${queuedCount}）` : '取消排队任务'
-    )
-  }
-  if (queueToggleButton) {
-    const label = analysisQueuePaused ? '恢复队列' : '暂停队列'
-    setButtonLabel(queueToggleButton, label)
-    queueToggleButton.disabled = !analysisQueuePaused && queuedCount === 0 && !analysisQueueRunning
-  }
-  if (retryFailedTaskButton) {
-    retryFailedTaskButton.disabled = failedCount === 0
-    setButtonLabel(
-      retryFailedTaskButton,
-      failedCount > 0 ? `重试失败任务（${failedCount}）` : '重试失败任务'
-    )
-  }
-  if (queuedCount > 0) {
-    const etaMs = estimateAnalysisQueueDurationMs()
-    taskCenter.setMetaSuffix(`预计排队耗时 ${formatEstimatedDuration(etaMs)}`)
-  } else {
-    taskCenter.setMetaSuffix('')
-  }
-}
-
-function appendFailedQueueTask(task, status = 'failed') {
-  if (!task) return
-  analysisQueueFailedItems = [
-    {
-      type: task.type,
-      title: task.title,
-      detail: task.detail,
-      run: task.run,
-      status,
-      failedAt: Date.now()
-    },
-    ...analysisQueueFailedItems
-  ].slice(0, MAX_ANALYSIS_QUEUE_LENGTH)
-}
-
-async function runAnalysisQueueIfNeeded() {
-  if (analysisQueuePaused || analysisQueueRunning || activeCancelableAnalysis) return
-  const nextTask = analysisQueue.shift()
-  if (!nextTask) {
-    updateAnalysisQueueControls()
-    return
-  }
-
-  analysisQueueRunning = true
-  updateAnalysisQueueControls()
-  ensureTaskCenterRunningEntry(nextTask.queueTaskKey, nextTask.title, nextTask.detail)
-
-  try {
-    const status = await nextTask.run({
-      taskCenterTaskKey: nextTask.queueTaskKey,
-      fromQueue: true
-    })
-    if (status === 'failed') {
-      appendFailedQueueTask(nextTask, status)
-    }
-  } catch (error) {
-    appendFailedQueueTask(nextTask, 'failed')
-    finishTaskEntryWithAttention(
-      nextTask.queueTaskKey,
-      nextTask.title,
-      'failed',
-      getErrorMessage(error, '队列任务执行失败'),
-      'analysis-complete'
-    )
-    recordDiagnosticError('analysis.queue.run', error, { type: nextTask.type })
-  } finally {
-    analysisQueueRunning = false
-    updateAnalysisQueueControls()
-    if (!analysisQueuePaused && analysisQueue.length > 0) {
-      void runAnalysisQueueIfNeeded()
-    }
-  }
-}
-
-async function enqueueOrRunAnalysisTask({ type, title, detail, run }) {
-  if (!type || typeof run !== 'function') return 'failed'
-  if (!analysisQueuePaused && !analysisQueueRunning && !activeCancelableAnalysis && analysisQueue.length === 0) {
-    return run({ taskCenterTaskKey: type, fromQueue: false })
-  }
-
-  if (analysisQueue.length >= MAX_ANALYSIS_QUEUE_LENGTH) {
-    await showAlert({
-      title: '任务队列已满',
-      message: `当前最多允许排队 ${MAX_ANALYSIS_QUEUE_LENGTH} 项，请先等待部分任务完成。`
-    })
-    return 'failed'
-  }
-
-  const queueTaskKey = `queue-${type}-${++analysisQueueSeq}`
-  const queuedTask = {
-    type,
-    title,
-    detail,
-    queueTaskKey,
-    run
-  }
-  analysisQueue.push(queuedTask)
-  taskCenter.startEntryWithStatus(queueTaskKey, title, detail, 'queued')
-  updateAnalysisQueueControls()
-  showToast(`${title} 已加入任务队列。`, {
-    title: analysisQueuePaused ? '队列已暂停' : '已排队',
-    duration: 1800
-  })
-  if (!analysisQueuePaused) {
-    void runAnalysisQueueIfNeeded()
-  }
-  return 'queued'
-}
+bindLibraryManagerEvents()
 
 async function executeStatsAnalysis({ taskCenterTaskKey = 'stats' } = {}) {
   if (!currentText.trim()) {
@@ -5228,18 +3796,7 @@ comparePageSizeSelect?.addEventListener('change', () => {
   scheduleWorkspaceSnapshotSave()
 })
 
-for (const input of searchQueryInputs || []) {
-  input.addEventListener('input', () => {
-    setSharedSearchQuery(input.value)
-  })
-}
-
-for (const input of searchOptionInputs || []) {
-  input.addEventListener('change', () => {
-    const optionName = input.dataset.searchOption || ''
-    setSharedSearchOption(optionName, input.checked)
-  })
-}
+bindSearchAndTabEvents()
 
 for (const control of [chiAInput, chiBInput, chiCInput, chiDInput]) {
   control?.addEventListener('input', () => {
@@ -5473,7 +4030,7 @@ async function executeKWICAnalysis({ taskCenterTaskKey = 'kwic' } = {}) {
     if (crossCorpusScopeContext) {
       const searchResult = await runCancelableTask(
         () =>
-          window.electronAPI.searchLibraryKWIC({
+          electronAPI.searchLibraryKWIC({
             folderId: crossCorpusScopeContext.folderId,
             keyword,
             leftWindowSize,
@@ -5802,86 +4359,8 @@ collocateNextPageButton.addEventListener('click', () => {
   }
 })
 
-kwicWrapper.addEventListener('click', async (event) => {
-  const row = event.target.closest('tr[data-sentence-id]')
-  if (!row) return
-  const corpusId = row.dataset.corpusId || ''
-  if (corpusId && corpusId !== currentCorpusId) {
-    const result = await window.electronAPI.openSavedCorpus(corpusId)
-    if (!result?.success) {
-      await showAlert({
-        title: '打开命中语料失败',
-        message: result?.message || '无法打开对应语料'
-      })
-      return
-    }
-    await loadCorpusResult(result)
-  }
-  const sentenceId = Number(row.dataset.sentenceId)
-  const nodeIndex = Number(row.dataset.nodeIndex)
-  const leftWindowSize = Number(row.dataset.leftWindow)
-  const rightWindowSize = Number(row.dataset.rightWindow)
-  locateSentence(sentenceId, nodeIndex, leftWindowSize, rightWindowSize)
-  switchTab('locator')
-})
-
-sentenceViewer.addEventListener('click', (event) => {
-  const row = event.target.closest('tr[data-sentence-id]')
-  if (!row) return
-  const sentenceId = Number(row.dataset.sentenceId)
-  activeSentenceId = sentenceId
-  currentHighlight = null
-  renderSentenceViewer()
-  locatorMeta.textContent = `已定位到第 ${sentenceId + 1} 句。`
-})
-
-copyStatsButton.addEventListener('click', async () => {
-  await saveTableFile('统计摘要', buildStatsRows(), exportFeedback)
-})
-
-copyFreqButton.addEventListener('click', async () => {
-  await saveTableFile('词频表_当前页', buildFrequencyRows(), exportFeedback)
-})
-
-exportAllFreqButton.addEventListener('click', async () => {
-  await saveTableFile('词频表_全部', buildAllFrequencyRows(), exportFeedback)
-})
-
-exportNgramButton?.addEventListener('click', async () => {
-  await saveTableFile(`Ngram_${currentNgramSize}gram_当前页`, buildNgramRows(), exportFeedback)
-})
-
-exportAllNgramButton?.addEventListener('click', async () => {
-  await saveTableFile(`Ngram_${currentNgramSize}gram_全部`, buildAllNgramRows(), exportFeedback)
-})
-
-copyCompareButton?.addEventListener('click', async () => {
-  await saveTableFile('多语料对比_当前页', buildCompareRows(), exportFeedback)
-})
-
-exportAllCompareButton?.addEventListener('click', async () => {
-  await saveTableFile('多语料对比_全部', buildAllCompareRows(), exportFeedback)
-})
-
-copyKWICButton.addEventListener('click', async () => {
-  await saveTableFile('KWIC_当前页', buildKWICRows(), exportFeedback)
-})
-
-exportAllKWICButton.addEventListener('click', async () => {
-  await saveTableFile('KWIC_全部', buildAllKWICRows(), exportFeedback)
-})
-
-exportCollocateButton.addEventListener('click', async () => {
-  await saveTableFile('Collocate_当前页', buildCollocateRows(), exportFeedback)
-})
-
-exportAllCollocateButton.addEventListener('click', async () => {
-  await saveTableFile('Collocate_全部', buildAllCollocateRows(), exportFeedback)
-})
-
-copyLocatorButton.addEventListener('click', async () => {
-  await saveTableFile('原文定位表', buildLocatorRows(), exportFeedback)
-})
+bindTableActionEvents()
+bindLocatorEvents()
 
 wordCloudWrapper?.addEventListener('click', event => {
   const target = event.target.closest('[data-word-cloud-term]')

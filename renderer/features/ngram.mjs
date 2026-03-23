@@ -22,6 +22,7 @@ export function renderNgramTable(state, dom, helpers) {
 
   if (totalRows === 0) {
     helpers.cancelTableRender(dom.ngramWrapper)
+    dom.ngramWrapper.classList.remove('show-all-results')
     dom.ngramTotalRowsInfo.textContent = '共 0 条结果'
     dom.ngramPageInfo.textContent = '第 0 / 0 页'
     dom.ngramPrevPageButton.disabled = true
@@ -31,6 +32,7 @@ export function renderNgramTable(state, dom, helpers) {
   }
 
   const isShowingAllRows = dom.ngramPageSizeSelect.value === 'all'
+  dom.ngramWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.ngramTotalRowsInfo.textContent = `共 ${totalRows} 条结果`
   dom.ngramPageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentNgramPage} / ${totalPages} 页`
   dom.ngramPrevPageButton.disabled = isShowingAllRows || currentNgramPage === 1
@@ -42,6 +44,7 @@ export function renderNgramTable(state, dom, helpers) {
     tableClassName: 'fit-data-table',
     headerHtml: '<tr><th class="numeric-cell">Rank</th><th>Ngram</th><th class="numeric-cell">Freq</th></tr>',
     rowUnit: '结果',
+    virtualize: !isShowingAllRows,
     emptyHtml: '<div class="empty-tip">没有可显示的 Ngram 结果</div>',
     renderRow: (item, index) => `
       <tr>

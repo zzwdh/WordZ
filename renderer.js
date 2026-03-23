@@ -62,16 +62,15 @@
       readyState: document.readyState,
       href: window.location.href
     })
-    import('./renderer/entry.mjs')
+    writeRendererStubLog('import-app.start')
+    import('./renderer/app.mjs')
       .then(moduleExports => {
-        writeRendererStubLog('stub.entry.resolved')
-        if (typeof moduleExports?.startWordzRenderer !== 'function') {
-          throw new Error('未找到 startWordzRenderer')
-        }
-        return moduleExports.startWordzRenderer()
+        writeRendererStubLog('import-app.resolved', {
+          exportedKeys: Object.keys(moduleExports || {}).slice(0, 12)
+        })
       })
       .catch(error => {
-        writeRendererStubLog('stub.entry.failed', {
+        writeRendererStubLog('import-app.failed', {
           message: error instanceof Error ? error.message : String(error || '')
         })
         reportBootstrapFailure(error)

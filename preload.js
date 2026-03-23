@@ -51,6 +51,81 @@ const __WORDZ_PRELOAD_MODULES = {
     
     //# sourceURL=wordz-preload://preload/shared/logging.js
   },
+  "preload/shared/apiCatalog.js": function (module, exports, require, __filename, __dirname) {
+    const PRELOAD_API_CATALOG = Object.freeze({
+      getAppInfo: { kind: 'invoke' },
+      consumePendingSystemOpenFiles: { kind: 'invoke' },
+      onSystemOpenFileRequest: { kind: 'subscribe' },
+      onAppMenuAction: { kind: 'subscribe' },
+      onSystemNotificationAction: { kind: 'subscribe' },
+      getDiagnosticState: { kind: 'invoke' },
+      setDiagnosticLoggingEnabled: { kind: 'invoke' },
+      writeDiagnosticLog: { kind: 'invoke' },
+      exportDiagnosticReport: { kind: 'invoke' },
+      exportDiagnosticReportAuto: { kind: 'invoke' },
+      openGitHubFeedback: { kind: 'invoke' },
+      getAnalysisCache: { kind: 'invoke' },
+      setAnalysisCache: { kind: 'invoke' },
+      deleteAnalysisCache: { kind: 'invoke' },
+      clearAnalysisCache: { kind: 'invoke' },
+      getAnalysisCacheState: { kind: 'invoke' },
+      pruneAnalysisCache: { kind: 'invoke' },
+      openExternalUrl: { kind: 'invoke' },
+      showPathInFolder: { kind: 'invoke' },
+      consumeCrashRecoveryState: { kind: 'invoke' },
+      showSystemNotification: { kind: 'invoke' },
+      setWindowProgressState: { kind: 'invoke' },
+      setWindowAttentionState: { kind: 'invoke' },
+      getSmokeObserverState: { kind: 'invoke' },
+      getPackagedSmokeConfig: { kind: 'invoke' },
+      reportPackagedSmokeResult: { kind: 'invoke' },
+      getAutoUpdateState: { kind: 'invoke' },
+      checkForUpdates: { kind: 'invoke' },
+      installDownloadedUpdate: { kind: 'invoke' },
+      onAutoUpdateStatus: { kind: 'subscribe' },
+      saveTableFile: { kind: 'invoke' },
+      openQuickCorpus: { kind: 'invoke' },
+      openQuickCorpusAtPath: { kind: 'invoke' },
+      importAndSaveCorpus: { kind: 'invoke' },
+      importCorpusPaths: { kind: 'invoke' },
+      backupCorpusLibrary: { kind: 'invoke' },
+      restoreCorpusLibrary: { kind: 'invoke' },
+      repairCorpusLibrary: { kind: 'invoke' },
+      listSavedCorpora: { kind: 'invoke' },
+      listSearchableCorpora: { kind: 'invoke' },
+      searchLibraryKWIC: { kind: 'invoke' },
+      listRecycleBin: { kind: 'invoke' },
+      restoreRecycleEntry: { kind: 'invoke' },
+      purgeRecycleEntry: { kind: 'invoke' },
+      createCorpusFolder: { kind: 'invoke' },
+      renameCorpusFolder: { kind: 'invoke' },
+      deleteCorpusFolder: { kind: 'invoke' },
+      showSavedCorpusInFolder: { kind: 'invoke' },
+      showRecycleEntryInFolder: { kind: 'invoke' },
+      openSavedCorpus: { kind: 'invoke' },
+      openSavedCorpora: { kind: 'invoke' },
+      renameSavedCorpus: { kind: 'invoke' },
+      moveSavedCorpus: { kind: 'invoke' },
+      deleteSavedCorpus: { kind: 'invoke' },
+      getSmokeAnalysisDelayMs: { kind: 'sync', fallbackValue: 0 },
+      setZoomFactor: { kind: 'sync', fallbackValue: undefined },
+      getZoomFactor: { kind: 'sync', fallbackValue: 1 }
+    })
+    
+    const CRITICAL_PRELOAD_METHODS = Object.freeze([
+      'getDiagnosticState',
+      'exportDiagnosticReportAuto',
+      'openGitHubFeedback',
+      'consumeCrashRecoveryState'
+    ])
+    
+    module.exports = {
+      CRITICAL_PRELOAD_METHODS,
+      PRELOAD_API_CATALOG
+    }
+    
+    //# sourceURL=wordz-preload://preload/shared/apiCatalog.js
+  },
   "preload/shared/ipcClient.js": function (module, exports, require, __filename, __dirname) {
     const { writePreloadError } = require('./logging')
     
@@ -212,9 +287,6 @@ const __WORDZ_PRELOAD_MODULES = {
         exportDiagnosticReportAuto: rendererState =>
           ipcClient.invoke('export-diagnostic-report-auto', rendererState ?? {}),
     
-        resetWindowsCompatProfile: () =>
-          ipcClient.invoke('reset-windows-compat-profile'),
-    
         openGitHubFeedback: ({ issueTitle, rendererState } = {}) =>
           ipcClient.invoke('open-github-feedback', {
             issueTitle: normalizeTextInput(issueTitle, 120),
@@ -263,84 +335,111 @@ const __WORDZ_PRELOAD_MODULES = {
     
     //# sourceURL=wordz-preload://preload/bridges/diagnosticsBridge.js
   },
-  "preload/shared/apiCatalog.js": function (module, exports, require, __filename, __dirname) {
-    const PRELOAD_API_CATALOG = Object.freeze({
-      getAppInfo: { kind: 'invoke' },
-      getRendererShellMarkup: { kind: 'invoke' },
-      consumePendingSystemOpenFiles: { kind: 'invoke' },
-      reportRendererReady: { kind: 'invoke' },
-      onSystemOpenFileRequest: { kind: 'subscribe' },
-      onAppMenuAction: { kind: 'subscribe' },
-      onSystemNotificationAction: { kind: 'subscribe' },
-      getDiagnosticState: { kind: 'invoke' },
-      setDiagnosticLoggingEnabled: { kind: 'invoke' },
-      writeDiagnosticLog: { kind: 'invoke' },
-      exportDiagnosticReport: { kind: 'invoke' },
-      exportDiagnosticReportAuto: { kind: 'invoke' },
-      resetWindowsCompatProfile: { kind: 'invoke' },
-      openGitHubFeedback: { kind: 'invoke' },
-      getAnalysisCache: { kind: 'invoke' },
-      setAnalysisCache: { kind: 'invoke' },
-      deleteAnalysisCache: { kind: 'invoke' },
-      clearAnalysisCache: { kind: 'invoke' },
-      getAnalysisCacheState: { kind: 'invoke' },
-      pruneAnalysisCache: { kind: 'invoke' },
-      openExternalUrl: { kind: 'invoke' },
-      showPathInFolder: { kind: 'invoke' },
-      consumeCrashRecoveryState: { kind: 'invoke' },
-      showSystemNotification: { kind: 'invoke' },
-      setWindowProgressState: { kind: 'invoke' },
-      setWindowAttentionState: { kind: 'invoke' },
-      getSmokeObserverState: { kind: 'invoke' },
-      getPackagedSmokeConfig: { kind: 'invoke' },
-      reportPackagedSmokeResult: { kind: 'invoke' },
-      getAutoUpdateState: { kind: 'invoke' },
-      checkForUpdates: { kind: 'invoke' },
-      installDownloadedUpdate: { kind: 'invoke' },
-      onAutoUpdateStatus: { kind: 'subscribe' },
-      saveTableFile: { kind: 'invoke' },
-      openQuickCorpus: { kind: 'invoke' },
-      openQuickCorpusAtPath: { kind: 'invoke' },
-      importAndSaveCorpus: { kind: 'invoke' },
-      importCorpusPaths: { kind: 'invoke' },
-      backupCorpusLibrary: { kind: 'invoke' },
-      restoreCorpusLibrary: { kind: 'invoke' },
-      repairCorpusLibrary: { kind: 'invoke' },
-      listSavedCorpora: { kind: 'invoke' },
-      listSearchableCorpora: { kind: 'invoke' },
-      searchLibraryKWIC: { kind: 'invoke' },
-      listRecycleBin: { kind: 'invoke' },
-      restoreRecycleEntry: { kind: 'invoke' },
-      purgeRecycleEntry: { kind: 'invoke' },
-      createCorpusFolder: { kind: 'invoke' },
-      renameCorpusFolder: { kind: 'invoke' },
-      deleteCorpusFolder: { kind: 'invoke' },
-      showSavedCorpusInFolder: { kind: 'invoke' },
-      showRecycleEntryInFolder: { kind: 'invoke' },
-      openSavedCorpus: { kind: 'invoke' },
-      openSavedCorpora: { kind: 'invoke' },
-      renameSavedCorpus: { kind: 'invoke' },
-      moveSavedCorpus: { kind: 'invoke' },
-      deleteSavedCorpus: { kind: 'invoke' },
-      getSmokeAnalysisDelayMs: { kind: 'sync', fallbackValue: 0 },
-      setZoomFactor: { kind: 'sync', fallbackValue: undefined },
-      getZoomFactor: { kind: 'sync', fallbackValue: 1 }
-    })
+  "preload/shared/fallbackApi.js": function (module, exports, require, __filename, __dirname) {
+    const { PRELOAD_API_CATALOG, CRITICAL_PRELOAD_METHODS } = require('./apiCatalog')
     
-    const CRITICAL_PRELOAD_METHODS = Object.freeze([
-      'getDiagnosticState',
-      'exportDiagnosticReportAuto',
-      'openGitHubFeedback',
-      'resetWindowsCompatProfile',
-      'consumeCrashRecoveryState'
-    ])
-    
-    module.exports = {
-      CRITICAL_PRELOAD_METHODS,
-      PRELOAD_API_CATALOG
+    function buildFailureResult(methodName) {
+      return {
+        success: false,
+        message: 'bridge unavailable',
+        method: methodName
+      }
     }
     
-    //# sourceURL=wordz-preload://preload/shared/apiCatalog.js
+    function createFallbackMethod(methodName, methodConfig = {}) {
+      if (methodConfig.kind === 'subscribe') {
+        return () => () => {}
+      }
+      if (methodConfig.kind === 'sync') {
+        return () => methodConfig.fallbackValue
+      }
+      return async () => buildFailureResult(methodName)
+    }
+    
+    function createDegradedElectronApi({ preservedMethods = {}, apiCatalog = PRELOAD_API_CATALOG } = {}) {
+      const electronApi = {}
+      for (const [methodName, methodConfig] of Object.entries(apiCatalog)) {
+        const preservedMethod = preservedMethods[methodName]
+        electronApi[methodName] = typeof preservedMethod === 'function'
+          ? preservedMethod
+          : createFallbackMethod(methodName, methodConfig)
+      }
+      return electronApi
+    }
+    
+    function pickCriticalMethods(methods = {}, criticalMethods = CRITICAL_PRELOAD_METHODS) {
+      const criticalMethodMap = {}
+      for (const methodName of criticalMethods) {
+        if (typeof methods[methodName] === 'function') {
+          criticalMethodMap[methodName] = methods[methodName]
+        }
+      }
+      return criticalMethodMap
+    }
+    
+    function createEmergencyPreservedMethods({ ipcRenderer, writeLog, writeError }) {
+      try {
+        const { createIpcClient } = require('./ipcClient')
+        const guards = require('./guards')
+        const { createDiagnosticsBridge } = require('../bridges/diagnosticsBridge')
+        const ipcClient = createIpcClient({
+          ipcRenderer,
+          writeLog,
+          writeError
+        })
+        return createDiagnosticsBridge({
+          ipcClient,
+          ...guards
+        })
+      } catch (error) {
+        writeError('emergency-diagnostics-failed', error)
+        return {}
+      }
+    }
+    
+    function createEmergencyElectronApi({ ipcRenderer, writeLog, writeError, apiCatalog = PRELOAD_API_CATALOG } = {}) {
+      const preservedMethods = createEmergencyPreservedMethods({
+        ipcRenderer,
+        writeLog,
+        writeError
+      })
+      const electronApi = createDegradedElectronApi({
+        preservedMethods,
+        apiCatalog
+      })
+    
+      return {
+        electronApi: Object.freeze(electronApi),
+        preloadState: {
+          platform: process.platform,
+          sandboxed: Boolean(process.sandboxed),
+          status: 'degraded',
+          degraded: true,
+          sharedReady: false,
+          bridgesReady: false,
+          exposed: false,
+          methodCount: Object.keys(electronApi).length,
+          failedBridges: [
+            {
+              bridge: 'preload-entry',
+              message: 'buildElectronApi failed'
+            }
+          ],
+          duplicateMethods: [],
+          missingMethods: []
+        }
+      }
+    }
+    
+    module.exports = {
+      buildFailureResult,
+      createDegradedElectronApi,
+      createEmergencyElectronApi,
+      createFallbackMethod,
+      pickCriticalMethods
+    }
+    
+    //# sourceURL=wordz-preload://preload/shared/fallbackApi.js
   },
   "preload/bridges/appBridge.js": function (module, exports, require, __filename, __dirname) {
     function createAppBridge({ ipcClient }) {
@@ -348,14 +447,8 @@ const __WORDZ_PRELOAD_MODULES = {
         getAppInfo: () =>
           ipcClient.invoke('get-app-info'),
     
-        getRendererShellMarkup: () =>
-          ipcClient.invoke('get-renderer-shell-markup'),
-    
         consumePendingSystemOpenFiles: () =>
           ipcClient.invoke('consume-pending-system-open-files'),
-    
-        reportRendererReady: (payload = {}) =>
-          ipcClient.invoke('report-renderer-ready', payload),
     
         onSystemOpenFileRequest: callback =>
           ipcClient.subscribe('system-open-file-request', callback, 'onSystemOpenFileRequest'),
@@ -628,16 +721,13 @@ const __WORDZ_PRELOAD_MODULES = {
     
     //# sourceURL=wordz-preload://preload/bridges/smokeBridge.js
   },
-  "preload/buildElectronApi.js": function (module, exports, require, __filename, __dirname) {
-    const { PRELOAD_API_CATALOG, CRITICAL_PRELOAD_METHODS } = require('./shared/apiCatalog')
+  "preload/bridgeRegistry.js": function (module, exports, require, __filename, __dirname) {
     const { createAppBridge } = require('./bridges/appBridge')
     const { createDiagnosticsBridge } = require('./bridges/diagnosticsBridge')
     const { createLibraryBridge } = require('./bridges/libraryBridge')
     const { createWindowBridge } = require('./bridges/windowBridge')
     const { createUpdateBridge } = require('./bridges/updateBridge')
     const { createSmokeBridge } = require('./bridges/smokeBridge')
-    const { createIpcClient } = require('./shared/ipcClient')
-    const guards = require('./shared/guards')
     
     const DEFAULT_BRIDGE_FACTORIES = Object.freeze([
       { name: 'appBridge', factory: createAppBridge },
@@ -648,60 +738,15 @@ const __WORDZ_PRELOAD_MODULES = {
       { name: 'smokeBridge', factory: createSmokeBridge }
     ])
     
-    function normalizeFailureError(error) {
-      return error instanceof Error ? error : new Error(String(error || 'Unknown preload bridge failure'))
+    module.exports = {
+      DEFAULT_BRIDGE_FACTORIES
     }
     
-    function buildFailureResult(methodName) {
+    //# sourceURL=wordz-preload://preload/bridgeRegistry.js
+  },
+  "preload/shared/preloadState.js": function (module, exports, require, __filename, __dirname) {
+    function createPreloadState({ platform = process.platform, sandboxed = Boolean(process.sandboxed) } = {}) {
       return {
-        success: false,
-        message: 'bridge unavailable',
-        method: methodName
-      }
-    }
-    
-    function createFallbackMethod(methodName, methodConfig = {}) {
-      if (methodConfig.kind === 'subscribe') {
-        return () => () => {}
-      }
-      if (methodConfig.kind === 'sync') {
-        return () => methodConfig.fallbackValue
-      }
-      return async () => buildFailureResult(methodName)
-    }
-    
-    function createDegradedElectronApi({ preservedMethods = {} } = {}) {
-      const electronApi = {}
-      for (const [methodName, methodConfig] of Object.entries(PRELOAD_API_CATALOG)) {
-        const preservedMethod = preservedMethods[methodName]
-        electronApi[methodName] = typeof preservedMethod === 'function'
-          ? preservedMethod
-          : createFallbackMethod(methodName, methodConfig)
-      }
-      return electronApi
-    }
-    
-    function pickCriticalMethods(methods = {}) {
-      const criticalMethods = {}
-      for (const methodName of CRITICAL_PRELOAD_METHODS) {
-        if (typeof methods[methodName] === 'function') {
-          criticalMethods[methodName] = methods[methodName]
-        }
-      }
-      return criticalMethods
-    }
-    
-    function buildElectronApi({
-      ipcRenderer,
-      platform = process.platform,
-      sandboxed = Boolean(process.sandboxed),
-      processEnv = process.env,
-      electronModuleLoader = require,
-      writePreloadLog = () => {},
-      writePreloadError = () => {},
-      bridgeFactories = DEFAULT_BRIDGE_FACTORIES
-    }) {
-      const preloadState = {
         platform,
         sandboxed,
         status: 'booting',
@@ -714,6 +759,63 @@ const __WORDZ_PRELOAD_MODULES = {
         duplicateMethods: [],
         missingMethods: []
       }
+    }
+    
+    function finalizePreloadState(preloadState, {
+      electronApi,
+      failedBridges = [],
+      duplicateMethods = [],
+      missingMethods = []
+    } = {}) {
+      preloadState.failedBridges = failedBridges
+      preloadState.duplicateMethods = duplicateMethods
+      preloadState.missingMethods = missingMethods
+      preloadState.degraded =
+        failedBridges.length > 0 ||
+        duplicateMethods.length > 0 ||
+        missingMethods.length > 0
+      preloadState.bridgesReady = true
+      preloadState.methodCount = Object.keys(electronApi || {}).length
+      preloadState.status = preloadState.degraded ? 'degraded' : 'ready'
+      return preloadState
+    }
+    
+    module.exports = {
+      createPreloadState,
+      finalizePreloadState
+    }
+    
+    //# sourceURL=wordz-preload://preload/shared/preloadState.js
+  },
+  "preload/buildElectronApi.js": function (module, exports, require, __filename, __dirname) {
+    const { PRELOAD_API_CATALOG, CRITICAL_PRELOAD_METHODS } = require('./shared/apiCatalog')
+    const { DEFAULT_BRIDGE_FACTORIES } = require('./bridgeRegistry')
+    const {
+      createDegradedElectronApi,
+      pickCriticalMethods
+    } = require('./shared/fallbackApi')
+    const { createIpcClient } = require('./shared/ipcClient')
+    const { createPreloadState, finalizePreloadState } = require('./shared/preloadState')
+    const guards = require('./shared/guards')
+    
+    function normalizeFailureError(error) {
+      return error instanceof Error ? error : new Error(String(error || 'Unknown preload bridge failure'))
+    }
+    
+    function buildElectronApi({
+      ipcRenderer,
+      platform = process.platform,
+      sandboxed = Boolean(process.sandboxed),
+      processEnv = process.env,
+      electronModuleLoader = require,
+      writePreloadLog = () => {},
+      writePreloadError = () => {},
+      bridgeFactories = DEFAULT_BRIDGE_FACTORIES
+    }) {
+      const preloadState = createPreloadState({
+        platform,
+        sandboxed
+      })
     
       const sharedContext = {
         ipcClient: createIpcClient({
@@ -763,26 +865,26 @@ const __WORDZ_PRELOAD_MODULES = {
         }
       }
     
-      preloadState.missingMethods = Object.keys(PRELOAD_API_CATALOG).filter(
+      const missingMethods = Object.keys(PRELOAD_API_CATALOG).filter(
         methodName => !Object.prototype.hasOwnProperty.call(successfulBridgeMethods, methodName)
       )
     
-      const hasDuplicateMethods = preloadState.duplicateMethods.length > 0
-      const hasBridgeFailures = preloadState.failedBridges.length > 0
-      const hasMissingMethods = preloadState.missingMethods.length > 0
-      preloadState.degraded = hasDuplicateMethods || hasBridgeFailures || hasMissingMethods
-      preloadState.bridgesReady = true
+      const duplicateMethods = [...preloadState.duplicateMethods]
+      const failedBridges = [...preloadState.failedBridges]
+      const hasDuplicateMethods = duplicateMethods.length > 0
+      const hasBridgeFailures = failedBridges.length > 0
+      const hasMissingMethods = missingMethods.length > 0
     
       let electronApi = null
       if (hasDuplicateMethods) {
-        preloadState.failedBridges.push({
+        failedBridges.push({
           bridge: 'bridge-aggregate',
-          message: `duplicate methods: ${preloadState.duplicateMethods.join(', ')}`
+          message: `duplicate methods: ${duplicateMethods.join(', ')}`
         })
         electronApi = createDegradedElectronApi({
-          preservedMethods: pickCriticalMethods(successfulBridgeMethods)
+          preservedMethods: pickCriticalMethods(successfulBridgeMethods, CRITICAL_PRELOAD_METHODS)
         })
-      } else if (preloadState.degraded) {
+      } else if (hasBridgeFailures || hasMissingMethods) {
         electronApi = createDegradedElectronApi({
           preservedMethods: successfulBridgeMethods
         })
@@ -790,8 +892,12 @@ const __WORDZ_PRELOAD_MODULES = {
         electronApi = successfulBridgeMethods
       }
     
-      preloadState.methodCount = Object.keys(electronApi).length
-      preloadState.status = preloadState.degraded ? 'degraded' : 'ready'
+      finalizePreloadState(preloadState, {
+        electronApi,
+        failedBridges,
+        duplicateMethods,
+        missingMethods
+      })
     
       writePreloadLog('bridges-ready', {
         methodCount: preloadState.methodCount,
@@ -877,147 +983,36 @@ const __WORDZ_PRELOAD_MODULES = {
       fallbackWritePreloadError('logging-module-failed', error)
     }
     
-    const EMERGENCY_SYNC_FALLBACKS = Object.freeze({
-      getSmokeAnalysisDelayMs: 0,
-      getZoomFactor: 1,
-      setZoomFactor: undefined
-    })
-    
-    const EMERGENCY_METHOD_NAMES = Object.freeze([
-      'getAppInfo',
-      'consumePendingSystemOpenFiles',
-      'onSystemOpenFileRequest',
-      'onAppMenuAction',
-      'onSystemNotificationAction',
-      'getDiagnosticState',
-      'setDiagnosticLoggingEnabled',
-      'writeDiagnosticLog',
-      'exportDiagnosticReport',
-      'exportDiagnosticReportAuto',
-      'resetWindowsCompatProfile',
-      'openGitHubFeedback',
-      'getAnalysisCache',
-      'setAnalysisCache',
-      'deleteAnalysisCache',
-      'clearAnalysisCache',
-      'getAnalysisCacheState',
-      'pruneAnalysisCache',
-      'openExternalUrl',
-      'showPathInFolder',
-      'consumeCrashRecoveryState',
-      'showSystemNotification',
-      'setWindowProgressState',
-      'setWindowAttentionState',
-      'getSmokeObserverState',
-      'getPackagedSmokeConfig',
-      'reportPackagedSmokeResult',
-      'getAutoUpdateState',
-      'checkForUpdates',
-      'installDownloadedUpdate',
-      'onAutoUpdateStatus',
-      'saveTableFile',
-      'openQuickCorpus',
-      'openQuickCorpusAtPath',
-      'importAndSaveCorpus',
-      'importCorpusPaths',
-      'backupCorpusLibrary',
-      'restoreCorpusLibrary',
-      'repairCorpusLibrary',
-      'listSavedCorpora',
-      'listSearchableCorpora',
-      'searchLibraryKWIC',
-      'listRecycleBin',
-      'restoreRecycleEntry',
-      'purgeRecycleEntry',
-      'createCorpusFolder',
-      'renameCorpusFolder',
-      'deleteCorpusFolder',
-      'showSavedCorpusInFolder',
-      'showRecycleEntryInFolder',
-      'openSavedCorpus',
-      'openSavedCorpora',
-      'renameSavedCorpus',
-      'moveSavedCorpus',
-      'deleteSavedCorpus',
-      'getSmokeAnalysisDelayMs',
-      'setZoomFactor',
-      'getZoomFactor'
-    ])
-    
-    function createEmergencyFallbackMethod(methodName, methodConfig = null) {
-      if (methodConfig?.kind === 'subscribe' || methodName.startsWith('on')) {
-        return () => () => {}
-      }
-      if (methodConfig?.kind === 'sync' || Object.prototype.hasOwnProperty.call(EMERGENCY_SYNC_FALLBACKS, methodName)) {
-        return () => EMERGENCY_SYNC_FALLBACKS[methodName]
-      }
-      return async () => ({
-        success: false,
-        message: 'bridge unavailable',
-        method: methodName
-      })
-    }
-    
-    function createEmergencyPreservedMethods(ipcRenderer) {
+    function createEmergencyElectronApi(ipcRenderer) {
       try {
-        const { createIpcClient } = require('./shared/ipcClient')
-        const guards = require('./shared/guards')
-        const { createDiagnosticsBridge } = require('./bridges/diagnosticsBridge')
-        const ipcClient = createIpcClient({
+        const { createEmergencyElectronApi: createFallbackApi } = require('./shared/fallbackApi')
+        return createFallbackApi({
           ipcRenderer,
           writeLog: writePreloadLog,
           writeError: writePreloadError
         })
-        return createDiagnosticsBridge({
-          ipcClient,
-          ...guards
-        })
       } catch (error) {
-        writePreloadError('emergency-diagnostics-failed', error)
-        return {}
-      }
-    }
-    
-    function createEmergencyElectronApi(ipcRenderer) {
-      let apiCatalog = null
-      try {
-        apiCatalog = require('./shared/apiCatalog').PRELOAD_API_CATALOG
-      } catch (error) {
-        writePreloadError('api-catalog-failed', error)
-      }
-    
-      const preservedMethods = createEmergencyPreservedMethods(ipcRenderer)
-      const methodNames = apiCatalog
-        ? Object.keys(apiCatalog)
-        : EMERGENCY_METHOD_NAMES
-      const electronApi = {}
-    
-      for (const methodName of methodNames) {
-        const preservedMethod = preservedMethods[methodName]
-        electronApi[methodName] = typeof preservedMethod === 'function'
-          ? preservedMethod
-          : createEmergencyFallbackMethod(methodName, apiCatalog?.[methodName] ?? null)
-      }
-    
-      return {
-        electronApi: Object.freeze(electronApi),
-        preloadState: {
-          platform: process.platform,
-          sandboxed: Boolean(process.sandboxed),
-          status: 'degraded',
-          degraded: true,
-          sharedReady: false,
-          bridgesReady: false,
-          exposed: false,
-          methodCount: Object.keys(electronApi).length,
-          failedBridges: [
-            {
-              bridge: 'preload-entry',
-              message: 'buildElectronApi failed'
-            }
-          ],
-          duplicateMethods: [],
-          missingMethods: []
+        writePreloadError('emergency-fallback-failed', error)
+        return {
+          electronApi: Object.freeze({}),
+          preloadState: {
+            platform: process.platform,
+            sandboxed: Boolean(process.sandboxed),
+            status: 'degraded',
+            degraded: true,
+            sharedReady: false,
+            bridgesReady: false,
+            exposed: false,
+            methodCount: 0,
+            failedBridges: [
+              {
+                bridge: 'preload-entry',
+                message: 'emergency fallback failed'
+              }
+            ],
+            duplicateMethods: [],
+            missingMethods: []
+          }
         }
       }
     }

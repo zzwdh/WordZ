@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { _electron as electron } from 'playwright-core'
 
 const require = createRequire(import.meta.url)
+const electronExecutablePath = require('electron')
 const ExcelJS = require('exceljs')
 const iconv = require('iconv-lite')
 const packageManifest = require(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'))
@@ -29,6 +30,13 @@ function buildIsolatedEnv(homeDir, extraEnv = {}) {
     CORPUS_LITE_DISABLE_SINGLE_INSTANCE: '1',
     ...extraEnv
   }
+}
+
+async function launchSmokeElectronApp(options = {}) {
+  return electron.launch({
+    executablePath: electronExecutablePath,
+    ...options
+  })
 }
 
 async function isVisible(page, selector) {
@@ -121,6 +129,59 @@ async function chooseCorpusMenuAction(page, actionSelector) {
   await waitForHidden(page, '#openCorpusMenuPanel')
 }
 
+const TAB_SECTION_ID_BY_TAB = Object.freeze({
+  stats: 'statsSection',
+  kwic: 'kwicSection',
+  collocate: 'collocateSection',
+  compare: 'compareSection',
+  locator: 'locatorSection',
+  chiSquare: 'chiSquareSection',
+  ngram: 'ngramSection'
+})
+
+async function clickTab(page, tabId) {
+  const sectionId = TAB_SECTION_ID_BY_TAB[tabId] || ''
+  const tabButton = page.locator(`.tab-button[data-tab="${tabId}"]`)
+  const isTabActivated = async () => page.evaluate(
+    ({ currentTabId, currentSectionId }) => {
+      const button = document.querySelector(`.tab-button[data-tab="${currentTabId}"]`)
+      const section = currentSectionId ? document.getElementById(currentSectionId) : null
+      const buttonActive = Boolean(button?.classList.contains('active'))
+      const sectionVisible = section ? !section.classList.contains('hidden') : false
+      return buttonActive || sectionVisible
+    },
+    { currentTabId: tabId, currentSectionId: sectionId }
+  )
+
+  try {
+    await tabButton.click()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || '')
+    const shouldForceClick =
+      message.includes('intercepts pointer events') ||
+      message.includes('element is not receiving pointer events')
+    if (!shouldForceClick) throw error
+    await tabButton.click({ force: true })
+  }
+
+  if (!(await isTabActivated())) {
+    await page.evaluate(currentTabId => {
+      document.querySelector(`.tab-button[data-tab="${currentTabId}"]`)?.click()
+    }, tabId)
+  }
+
+  if (sectionId) {
+    await page.waitForFunction(
+      ({ currentTabId, currentSectionId }) => {
+        const button = document.querySelector(`.tab-button[data-tab="${currentTabId}"]`)
+        const section = document.getElementById(currentSectionId)
+        return Boolean(button?.classList.contains('active')) && Boolean(section) && !section.classList.contains('hidden')
+      },
+      { currentTabId: tabId, currentSectionId: sectionId }
+    )
+  }
+}
+
 async function writeDocxFixture(filePath) {
   await fs.writeFile(filePath, Buffer.from(DOCX_FIXTURE_BASE64, 'base64'))
 }
@@ -172,7 +233,7 @@ test('Electron smoke: main shell, tabs and modals load normally', { timeout: 120
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome)
@@ -195,11 +256,11 @@ test('Electron smoke: main shell, tabs and modals load normally', { timeout: 120
   assert.equal(await isVisible(page, '#statsSection'), true)
   assert.equal(await isVisible(page, '#kwicSection'), false)
 
-  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await clickTab(page, 'kwic')
   await page.waitForFunction(() => !document.getElementById('kwicSection').classList.contains('hidden'))
   assert.equal(await isVisible(page, '#kwicSection'), true)
 
-  await page.locator('.tab-button[data-tab="collocate"]').click()
+  await clickTab(page, 'collocate')
   await page.waitForFunction(() => !document.getElementById('collocateSection').classList.contains('hidden'))
   assert.equal(await isVisible(page, '#collocateSection'), true)
 
@@ -304,7 +365,7 @@ test('Electron smoke: import, library actions, analysis and export work end-to-e
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -377,7 +438,7 @@ test('Electron smoke: import, library actions, analysis and export work end-to-e
   await page.waitForFunction(() => document.querySelectorAll('#tableWrapper tbody tr').length > 0)
   assert.match((await page.locator('#totalRowsInfo').textContent()) || '', /共 \d+ 个单词/)
 
-  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await clickTab(page, 'kwic')
   await page.locator('#kwicInput').fill('rose')
   await page.locator('#kwicButton').click()
   await page.waitForFunction(() => document.querySelectorAll('#kwicWrapper tbody tr').length > 0)
@@ -386,7 +447,7 @@ test('Electron smoke: import, library actions, analysis and export work end-to-e
   await page.waitForFunction(() => !document.getElementById('locatorSection').classList.contains('hidden'))
   await page.waitForFunction(() => document.querySelectorAll('#sentenceViewer tbody tr').length > 0)
 
-  await page.locator('.tab-button[data-tab="stats"]').click()
+  await clickTab(page, 'stats')
   await page.locator('#copyStatsButton').click()
   await page.waitForFunction(() => document.getElementById('toastViewport').textContent.includes('导出完成'))
 
@@ -433,7 +494,7 @@ test('Electron smoke: library-wide KWIC search opens matching saved corpora', { 
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -474,7 +535,7 @@ test('Electron smoke: library-wide KWIC search opens matching saved corpora', { 
   await waitForHidden(page, '#libraryModal')
   await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'cross-b')
 
-  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await clickTab(page, 'kwic')
   await page.locator('#kwicInput').fill('rose')
   await page.locator('#kwicScopeSelect').selectOption('library')
   await page.locator('#kwicButton').click()
@@ -509,7 +570,7 @@ test('Electron smoke: multi-corpus comparison analysis renders after loading mul
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -547,7 +608,7 @@ test('Electron smoke: multi-corpus comparison analysis renders after loading mul
 
   await page.locator('#countButton').click()
   await page.waitForFunction(() => document.getElementById('workspaceModeValue').textContent.trim() === '分析就绪')
-  await page.locator('.tab-button[data-tab="compare"]').click()
+  await clickTab(page, 'compare')
   await page.waitForFunction(() => !document.getElementById('compareSection').classList.contains('hidden'))
   await page.waitForFunction(() => document.querySelectorAll('#compareWrapper tbody tr').length > 0)
 
@@ -583,7 +644,7 @@ test('Electron smoke: saved workspace is restored on next launch', { timeout: 12
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  firstApp = await electron.launch({
+  firstApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -596,14 +657,14 @@ test('Electron smoke: saved workspace is restored on next launch', { timeout: 12
   await chooseCorpusMenuAction(page, '#saveImportButton')
   await page.waitForFunction(() => document.getElementById('workspaceCorpusValue').textContent.trim() === 'workspace-restore-source')
   await page.locator('#pageSizeSelect').selectOption('100')
-  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await clickTab(page, 'kwic')
   await page.locator('#kwicInput').fill('rose')
   await page.waitForFunction(() => document.getElementById('kwicInput').value === 'rose')
   await page.waitForTimeout(300)
   await firstApp.close()
   firstApp = null
 
-  secondApp = await electron.launch({
+  secondApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome)
@@ -646,7 +707,7 @@ test('Electron smoke: recent open entries reopen the latest quick corpus', { tim
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  firstApp = await electron.launch({
+  firstApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -665,7 +726,7 @@ test('Electron smoke: recent open entries reopen the latest quick corpus', { tim
   await firstApp.close()
   firstApp = null
 
-  secondApp = await electron.launch({
+  secondApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome)
@@ -701,7 +762,7 @@ test('Electron smoke: app launch with a file path opens the corpus automatically
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot, fixturePath],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome)
@@ -741,7 +802,7 @@ test('Electron smoke: recycle bin restores and purges deleted entries', { timeou
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -864,7 +925,7 @@ test('Electron smoke: backup, restore and repair library flows work end-to-end',
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  firstApp = await electron.launch({
+  firstApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -899,7 +960,7 @@ test('Electron smoke: backup, restore and repair library flows work end-to-end',
 
   const backupDir = await readSingleBackupDir(backupRoot)
 
-  secondApp = await electron.launch({
+  secondApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -971,7 +1032,7 @@ test('Electron smoke: invalid backup restore is rejected without mutating the li
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1024,7 +1085,7 @@ test('Electron smoke: repair recovers malformed library entries and quarantines 
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1104,7 +1165,7 @@ test('Electron smoke: docx quick open and csv/xlsx exports work end-to-end', { t
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1166,7 +1227,7 @@ test('Electron smoke: pdf quick open and saved import work end-to-end', { timeou
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1225,7 +1286,7 @@ test('Electron smoke: gb18030 txt files open and import without mojibake', { tim
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1281,7 +1342,7 @@ test('Electron smoke: cancel actions update task center and keep UI responsive',
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1312,7 +1373,7 @@ test('Electron smoke: cancel actions update task center and keep UI responsive',
     return text.includes('统计结果') && text.includes('已取消')
   })
 
-  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await clickTab(page, 'kwic')
   await page.locator('#kwicInput').fill('rose')
   await page.locator('#kwicButton').click()
   await waitForVisible(page, '#cancelKwicButton')
@@ -1323,7 +1384,7 @@ test('Electron smoke: cancel actions update task center and keep UI responsive',
     return text.includes('统计结果') && text.includes('KWIC 检索') && (text.match(/已取消/g) || []).length >= 2
   })
 
-  await page.locator('.tab-button[data-tab="collocate"]').click()
+  await clickTab(page, 'collocate')
   await page.locator('#collocateInput').fill('rose')
   await page.locator('#collocateButton').click()
   await waitForVisible(page, '#cancelCollocateButton')
@@ -1361,7 +1422,7 @@ test('Electron smoke: analysis emits observable system notifications, attention 
     await fs.rm(tempHome, { recursive: true, force: true }).catch(() => {})
   })
 
-  electronApp = await electron.launch({
+  electronApp = await launchSmokeElectronApp({
     args: [appRoot],
     cwd: appRoot,
     env: buildIsolatedEnv(tempHome, {
@@ -1382,7 +1443,7 @@ test('Electron smoke: analysis emits observable system notifications, attention 
   await page.locator('#countButton').click()
   await page.waitForFunction(() => document.getElementById('workspaceModeValue').textContent.trim() === '分析就绪')
 
-  await page.locator('.tab-button[data-tab="kwic"]').click()
+  await clickTab(page, 'kwic')
   await page.locator('#kwicInput').fill('cyber')
   await page.locator('#kwicButton').click()
   await page.waitForFunction(() => document.getElementById('kwicWrapper').textContent.includes('cyber'))

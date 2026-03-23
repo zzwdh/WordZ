@@ -276,7 +276,6 @@ export const dom = {
   followSystemAccessibilityToggle: document.getElementById('followSystemAccessibilityToggle'),
   debugLoggingToggle: document.getElementById('debugLoggingToggle'),
   diagnosticsStatusText: document.getElementById('diagnosticsStatusText'),
-  resetWindowsCompatButton: document.getElementById('resetWindowsCompatButton'),
   exportDiagnosticsButton: document.getElementById('exportDiagnosticsButton'),
   reportIssueButton: document.getElementById('reportIssueButton'),
   analysisCacheValue: document.getElementById('analysisCacheValue'),

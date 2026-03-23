@@ -1,12 +1,12 @@
 export function createUISettingsController({
   dom,
+  electronAPI,
+  stateStore,
   defaultTheme,
-  storageKey,
   defaultSettings,
   fontFamilies,
   clampNumber
 }) {
-  const THEME_STORAGE_KEY = 'corpus-theme'
   const THEME_MODE_SET = new Set(['light', 'dark', 'system'])
   let currentUISettings = { ...defaultSettings }
   let currentThemeMode = defaultTheme === 'dark' ? 'dark' : 'light'
@@ -129,15 +129,15 @@ export function createUISettingsController({
 
   function setAppZoom(zoomPercent) {
     const zoomFactor = zoomPercent / 100
-    if (window.electronAPI?.setZoomFactor) {
-      window.electronAPI.setZoomFactor(zoomFactor)
+    if (electronAPI?.setZoomFactor) {
+      electronAPI.setZoomFactor(zoomFactor)
       return
     }
     document.body.style.zoom = String(zoomFactor)
   }
 
   function persistUISettings(settings) {
-    localStorage.setItem(storageKey, JSON.stringify(settings))
+    stateStore?.saveUiSettings?.(settings)
   }
 
   function applyUISettings(settings, options = {}) {
@@ -148,8 +148,8 @@ export function createUISettingsController({
     document.documentElement.style.setProperty('--font-scale', String(normalizedSettings.fontScale / 100))
     document.documentElement.style.setProperty('--app-font-family', fontFamilies[normalizedSettings.fontFamily])
     setAppZoom(normalizedSettings.zoom)
-    if (window.electronAPI?.setDiagnosticLoggingEnabled && previousDebugLogging !== (normalizedSettings.debugLogging === true)) {
-      void window.electronAPI.setDiagnosticLoggingEnabled(normalizedSettings.debugLogging === true)
+    if (electronAPI?.setDiagnosticLoggingEnabled && previousDebugLogging !== (normalizedSettings.debugLogging === true)) {
+      void electronAPI.setDiagnosticLoggingEnabled(normalizedSettings.debugLogging === true)
     }
     applyAccessibilityPreferences()
     if (syncControls) syncUISettingControls(normalizedSettings)
@@ -157,13 +157,7 @@ export function createUISettingsController({
   }
 
   function loadStoredUISettings() {
-    try {
-      const rawValue = localStorage.getItem(storageKey)
-      if (!rawValue) return { ...defaultSettings }
-      return normalizeUISettings(JSON.parse(rawValue))
-    } catch (error) {
-      return { ...defaultSettings }
-    }
+    return normalizeUISettings(stateStore?.loadUiSettings?.(defaultSettings) || defaultSettings)
   }
 
   function openUISettingsModal() {
@@ -213,7 +207,7 @@ export function createUISettingsController({
     dom.darkThemeButton?.classList.toggle('active', normalizedThemeMode === 'dark')
     dom.systemThemeButton?.classList.toggle('active', normalizedThemeMode === 'system')
     if (persist) {
-      localStorage.setItem(THEME_STORAGE_KEY, normalizedThemeMode)
+      stateStore?.saveThemeMode?.(normalizedThemeMode)
     }
   }
 
@@ -255,7 +249,7 @@ export function createUISettingsController({
   function init() {
     clearSystemPreferenceListeners()
     bindSystemPreferenceListeners()
-    const savedThemeMode = resolveThemeMode(localStorage.getItem(THEME_STORAGE_KEY) || defaultTheme)
+    const savedThemeMode = resolveThemeMode(stateStore?.loadThemeMode?.(defaultTheme) || defaultTheme)
     applyTheme(savedThemeMode, { persist: false })
     applyUISettings(loadStoredUISettings(), { persist: false })
     return { ...currentUISettings }
