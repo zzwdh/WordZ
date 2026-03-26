@@ -48,11 +48,31 @@
       display: none;
     }
 
+    body.mac-native-window .window-drag-region {
+      -webkit-app-region: drag;
+    }
+
+    body.mac-native-window .no-drag-region,
+    body.mac-native-window button,
+    body.mac-native-window input,
+    body.mac-native-window select,
+    body.mac-native-window textarea,
+    body.mac-native-window a,
+    body.mac-native-window .tab-button,
+    body.mac-native-window .toolbar-menu,
+    body.mac-native-window .toolbar-menu-panel {
+      -webkit-app-region: no-drag;
+    }
+
     .app-shell {
       max-width: none;
       padding: 10px 12px 14px;
       display: grid;
       gap: 8px;
+    }
+
+    body.mac-native-window .app-shell {
+      padding-top: 8px;
     }
 
     .topbar {
@@ -64,6 +84,13 @@
       background: linear-gradient(180deg, color-mix(in srgb, var(--topbar-bg) 96%, white 4%) 0%, var(--topbar-bg) 100%);
       box-shadow: var(--shadow);
       margin-bottom: 0;
+    }
+
+    body.mac-native-window .topbar {
+      min-height: 58px;
+      padding: 10px 12px 9px 82px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--topbar-bg) 98%, white 2%) 0%, var(--topbar-bg) 100%);
     }
 
     .topbar-main {
@@ -110,6 +137,13 @@
       border-radius: 10px;
       background: var(--panel);
       box-shadow: var(--shadow);
+    }
+
+    body.mac-native-window .toolbar-native-overflow {
+      margin-top: -2px;
+      padding-top: 10px;
+      padding-bottom: 9px;
+      border-radius: 0 0 12px 12px;
     }
 
     .command-strip-group {
@@ -349,6 +383,10 @@
       box-shadow: var(--shadow);
     }
 
+    body.mac-native-window .workspace-header-strip {
+      padding-top: 16px;
+    }
+
     .workspace-header-copy {
       display: grid;
       gap: 3px;
@@ -534,6 +572,16 @@
       padding: 4px 8px;
       border-radius: 999px;
       font-size: calc(12px * var(--font-scale));
+    }
+
+    .stopword-mode-field .select {
+      min-width: 156px;
+    }
+
+    .stopword-summary {
+      max-width: 210px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .input {

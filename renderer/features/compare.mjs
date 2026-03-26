@@ -1,3 +1,5 @@
+import { buildPaginationDisplayState } from '../viewModels/paginationState.mjs'
+
 function getCurrentComparePageRows(state) {
   const rows = Array.isArray(state.currentDisplayedCompareRows) ? state.currentDisplayedCompareRows : []
   const totalRows = rows.length
@@ -65,11 +67,14 @@ function buildCompareMetaText(state, helpers, totalRows, visibleRows) {
   const searchSummary = state.currentSearchQuery
     ? ` ｜ SearchQuery：${helpers.escapeHtml(state.currentSearchQuery)}`
     : ''
+  const stopwordSummary = state.currentStopwordFilter?.enabled
+    ? ` ｜ ${helpers.escapeHtml(state.currentStopwordSummary)}`
+    : ''
   const matchSummary = state.currentSearchQuery
     ? ` ｜ 匹配 ${helpers.formatCount(visibleRows)} / ${helpers.formatCount(allRowsCount)} 个词条`
     : ` ｜ 共 ${helpers.formatCount(totalRows)} 个词条`
 
-  return `已对比 ${helpers.formatCount(corpusCount)} 条语料${matchSummary}${searchSummary}。表格中的差异值按“每万词频率”计算，主导语料表示当前词在相对频率上最突出的语料。`
+  return `已对比 ${helpers.formatCount(corpusCount)} 条语料${matchSummary}${searchSummary}${stopwordSummary}。表格中的差异值按“每万词频率”计算，主导语料表示当前词在相对频率上最突出的语料。`
 }
 
 function buildCompareHeaderHtml(state, helpers) {
@@ -158,12 +163,17 @@ export function renderCompareSection(state, dom, helpers) {
   dom.compareMeta.textContent = buildCompareMetaText(state, helpers, totalRows, visibleRows)
 
   if (!state.comparisonEligible || !state.hasStats) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows: 0,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.compareWrapper)
     dom.compareWrapper.classList.remove('show-all-results')
     dom.compareTotalRowsInfo.textContent = !state.comparisonEligible ? '至少需要 2 条语料' : '等待统计结果'
-    dom.comparePageInfo.textContent = '第 0 / 0 页'
-    dom.comparePrevPageButton.disabled = true
-    dom.compareNextPageButton.disabled = true
+    dom.comparePageInfo.textContent = paginationState.pageLabel
+    dom.comparePrevPageButton.disabled = paginationState.previousDisabled
+    dom.compareNextPageButton.disabled = paginationState.nextDisabled
     dom.compareWrapper.innerHTML = `<div class="empty-tip">${
       !state.comparisonEligible
         ? '载入两条以上已保存语料后，这里会显示多语料词频对比表。'
@@ -173,23 +183,33 @@ export function renderCompareSection(state, dom, helpers) {
   }
 
   if (state.currentSearchError) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows: 0,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.compareWrapper)
     dom.compareWrapper.classList.remove('show-all-results')
     dom.compareTotalRowsInfo.textContent = 'SearchQuery 无效'
-    dom.comparePageInfo.textContent = '第 0 / 0 页'
-    dom.comparePrevPageButton.disabled = true
-    dom.compareNextPageButton.disabled = true
+    dom.comparePageInfo.textContent = paginationState.pageLabel
+    dom.comparePrevPageButton.disabled = paginationState.previousDisabled
+    dom.compareNextPageButton.disabled = paginationState.nextDisabled
     dom.compareWrapper.innerHTML = `<div class="empty-tip">${helpers.escapeHtml(state.currentSearchError)}</div>`
     return { currentComparePage: 1 }
   }
 
   if (totalRows === 0) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.compareWrapper)
     dom.compareWrapper.classList.remove('show-all-results')
     dom.compareTotalRowsInfo.textContent = state.currentSearchQuery ? '匹配 0 个词条' : '共 0 个词条'
-    dom.comparePageInfo.textContent = '第 0 / 0 页'
-    dom.comparePrevPageButton.disabled = true
-    dom.compareNextPageButton.disabled = true
+    dom.comparePageInfo.textContent = paginationState.pageLabel
+    dom.comparePrevPageButton.disabled = paginationState.previousDisabled
+    dom.compareNextPageButton.disabled = paginationState.nextDisabled
     dom.compareWrapper.innerHTML = `<div class="empty-tip">${
       state.currentSearchQuery
         ? `没有匹配“${helpers.escapeHtml(state.currentSearchQuery)}”的对比结果`
@@ -199,13 +219,19 @@ export function renderCompareSection(state, dom, helpers) {
   }
 
   const isShowingAllRows = dom.comparePageSizeSelect.value === 'all'
+  const paginationState = buildPaginationDisplayState({
+    totalRows,
+    currentPage: currentComparePage,
+    totalPages,
+    showAll: isShowingAllRows
+  })
   dom.compareWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.compareTotalRowsInfo.textContent = state.currentSearchQuery
     ? `共 ${helpers.formatCount(state.currentComparisonRows.length)} 个词条（匹配 ${helpers.formatCount(totalRows)} 个）`
     : `共 ${helpers.formatCount(totalRows)} 个词条`
-  dom.comparePageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentComparePage} / ${totalPages} 页`
-  dom.comparePrevPageButton.disabled = isShowingAllRows || currentComparePage === 1
-  dom.compareNextPageButton.disabled = isShowingAllRows || currentComparePage === totalPages
+  dom.comparePageInfo.textContent = paginationState.pageLabel
+  dom.comparePrevPageButton.disabled = paginationState.previousDisabled
+  dom.compareNextPageButton.disabled = paginationState.nextDisabled
 
   helpers.renderTableInChunks({
     container: dom.compareWrapper,

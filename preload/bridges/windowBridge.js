@@ -44,6 +44,13 @@ function createWindowBridge({
         requestAttention: normalizeBoolean(requestAttention)
       }),
 
+    setWindowDocumentState: ({ representedPath = '', displayName = '', edited = false } = {}) =>
+      ipcClient.invoke('set-window-document-state', {
+        representedPath: normalizeTextInput(representedPath, 600),
+        displayName: normalizeTextInput(displayName, 160),
+        edited: normalizeBoolean(edited)
+      }),
+
     setZoomFactor: factor =>
       getWebFrame().setZoomFactor(clampZoomFactor(factor)),
 

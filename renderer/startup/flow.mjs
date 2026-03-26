@@ -10,12 +10,12 @@ export function runInitialRendererSetup({
   revealNativeToolbarOverflowForSmoke,
   initUISettings,
   loadRecentOpenEntries,
-  renderWorkspaceOverview,
-  renderSelectedCorporaTable,
+  renderWorkspaceShell,
   updateLoadSelectedCorporaButton,
   renderRecentOpenList,
   syncSharedSearchInputs,
   syncSearchOptionInputs,
+  syncStopwordFilterControls,
   syncChiSquareInputsFromState,
   renderCompareSection,
   renderWordCloud,
@@ -59,11 +59,8 @@ export function runInitialRendererSetup({
   const initialUISettings = runSyncPhase('sync.init-ui-settings', () => initUISettings())
   const recentOpenEntries = runSyncPhase('sync.load-recent-open-entries', () => loadRecentOpenEntries())
 
-  runSyncPhase('sync.render-workspace-overview', () => {
-    renderWorkspaceOverview()
-  })
-  runSyncPhase('sync.render-selected-corpora', () => {
-    renderSelectedCorporaTable()
+  runSyncPhase('sync.render-workspace-shell', () => {
+    renderWorkspaceShell()
     updateLoadSelectedCorporaButton()
   })
   runSyncPhase('sync.render-recent-open', () => {
@@ -72,6 +69,7 @@ export function runInitialRendererSetup({
   runSyncPhase('sync.sync-search-controls', () => {
     syncSharedSearchInputs()
     syncSearchOptionInputs()
+    syncStopwordFilterControls()
   })
   runSyncPhase('sync.sync-chi-square-inputs', () => {
     syncChiSquareInputsFromState()

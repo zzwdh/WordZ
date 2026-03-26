@@ -3,6 +3,9 @@ function createUpdateBridge({ ipcClient }) {
     getAutoUpdateState: () =>
       ipcClient.invoke('get-auto-update-state'),
 
+    setAutoUpdatePreferences: preferences =>
+      ipcClient.invoke('set-auto-update-preferences', preferences),
+
     checkForUpdates: () =>
       ipcClient.invoke('check-for-updates'),
 

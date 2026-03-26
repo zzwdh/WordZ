@@ -1,3 +1,5 @@
+import { buildPaginationDisplayState } from '../viewModels/paginationState.mjs'
+
 export function getKWICSortLabel(mode) {
   if (mode === 'left-near') return '按左一词排序'
   if (mode === 'right-near') return '按右一词排序'
@@ -69,23 +71,34 @@ export function renderKWICTable(state, dom, helpers) {
   const includeCorpusColumns = hasCorpusColumns(state)
 
   if (totalRows === 0) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.kwicWrapper)
     dom.kwicWrapper.classList.remove('show-all-results')
     dom.kwicTotalRowsInfo.textContent = '共 0 条结果'
-    dom.kwicPageInfo.textContent = '第 0 / 0 页'
-    dom.kwicPrevPageButton.disabled = true
-    dom.kwicNextPageButton.disabled = true
+    dom.kwicPageInfo.textContent = paginationState.pageLabel
+    dom.kwicPrevPageButton.disabled = paginationState.previousDisabled
+    dom.kwicNextPageButton.disabled = paginationState.nextDisabled
     dom.kwicWrapper.innerHTML = '<div class="empty-tip">没有找到匹配结果</div>'
     dom.kwicMeta.innerHTML = buildKWICMetaHtml(state, helpers.escapeHtml)
     return { currentKWICPage: 1, currentKWICSortCache: cache }
   }
 
   const isShowingAllRows = dom.kwicPageSizeSelect.value === 'all'
+  const paginationState = buildPaginationDisplayState({
+    totalRows,
+    currentPage: currentKWICPage,
+    totalPages,
+    showAll: isShowingAllRows
+  })
   dom.kwicWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.kwicTotalRowsInfo.textContent = `共 ${totalRows} 条结果`
-  dom.kwicPageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentKWICPage} / ${totalPages} 页`
-  dom.kwicPrevPageButton.disabled = isShowingAllRows || currentKWICPage === 1
-  dom.kwicNextPageButton.disabled = isShowingAllRows || currentKWICPage === totalPages
+  dom.kwicPageInfo.textContent = paginationState.pageLabel
+  dom.kwicPrevPageButton.disabled = paginationState.previousDisabled
+  dom.kwicNextPageButton.disabled = paginationState.nextDisabled
   helpers.renderTableInChunks({
     container: dom.kwicWrapper,
     rows: pageRows,

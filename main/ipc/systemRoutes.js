@@ -24,8 +24,11 @@ function registerSystemIpcRoutes({
   markSystemOpenBridgeReady,
   consumePendingSystemOpenFilePaths,
   getAutoUpdateController,
+  getSystemAppearanceState,
   getDiagnosticsController,
   getAnalysisCacheController,
+  getEventWindow,
+  setWindowDocumentState,
   shell
 }) {
   registerSafeIpcHandler('save-table-file', async (event, { defaultBaseName, rows } = {}) => {
@@ -266,6 +269,17 @@ function registerSystemIpcRoutes({
     }
   })
 
+  registerSafeIpcHandler('set-auto-update-preferences', async (event, payload = {}) => {
+    return getAutoUpdateController()?.setPreferences?.({
+      enabled: normalizeBooleanInput(payload?.enabled),
+      checkOnLaunch: normalizeBooleanInput(payload?.checkOnLaunch),
+      autoDownload: normalizeBooleanInput(payload?.autoDownload)
+    }) || {
+      success: false,
+      message: '自动更新设置当前不可用。'
+    }
+  })
+
   registerSafeIpcHandler('check-for-updates', async () => {
     return getAutoUpdateController()?.checkForUpdates?.() || {
       success: false,
@@ -278,6 +292,17 @@ function registerSystemIpcRoutes({
     return getAutoUpdateController()?.quitAndInstall?.() || {
       success: false,
       message: '当前没有已下载完成的更新。'
+    }
+  })
+
+  registerSafeIpcHandler('get-system-appearance-state', async () => {
+    return getSystemAppearanceState?.() || {
+      success: true,
+      appearance: {
+        platform: process.platform,
+        accentColor: '',
+        supportsAccentColor: false
+      }
     }
   })
 
@@ -463,6 +488,20 @@ function registerSystemIpcRoutes({
     return {
       success: true,
       recoveryState: recoveryState || null
+    }
+  })
+
+  registerSafeIpcHandler('set-window-document-state', async (event, payload = {}) => {
+    return setWindowDocumentState?.(
+      getEventWindow?.(event) || null,
+      {
+        representedPath: normalizeTextInput(payload?.representedPath, { fallback: '', maxLength: 600 }),
+        displayName: normalizeTextInput(payload?.displayName, { fallback: '', maxLength: 160 }),
+        edited: normalizeBooleanInput(payload?.edited)
+      }
+    ) || {
+      success: false,
+      message: '当前窗口文档状态不可用。'
     }
   })
 }

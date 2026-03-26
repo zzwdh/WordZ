@@ -1,3 +1,6 @@
+const fsSync = require('fs')
+const { createAutoUpdatePreferencesStore } = require('./autoUpdatePreferences')
+
 async function initializeAppReadyState({
   app,
   BrowserWindow,
@@ -126,6 +129,12 @@ async function initializeAppReadyState({
   const autoUpdateController = createAutoUpdateController({
     app,
     packageManifest,
+    preferencesStore: createAutoUpdatePreferencesStore({
+      app,
+      fsSync,
+      path,
+      logger: console
+    }),
     getWindows: () => BrowserWindow.getAllWindows(),
     onProgressStateChange: (state, progressPercent = 0) => {
       if (!windowProgressController) return

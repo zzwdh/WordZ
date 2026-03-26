@@ -3,6 +3,9 @@ function createAppBridge({ ipcClient }) {
     getAppInfo: () =>
       ipcClient.invoke('get-app-info'),
 
+    getSystemAppearanceState: () =>
+      ipcClient.invoke('get-system-appearance-state'),
+
     consumePendingSystemOpenFiles: () =>
       ipcClient.invoke('consume-pending-system-open-files'),
 

@@ -1,2 +1,4 @@
-@import "./styles/legacy.css";
+@import "./styles/base.css";
+@import "./styles/workbench.css";
+@import "./styles/overlays.css";
 @import "./styles/macos-workbench.css";

@@ -54,6 +54,7 @@ const __WORDZ_PRELOAD_MODULES = {
   "preload/shared/apiCatalog.js": function (module, exports, require, __filename, __dirname) {
     const PRELOAD_API_CATALOG = Object.freeze({
       getAppInfo: { kind: 'invoke' },
+      getSystemAppearanceState: { kind: 'invoke' },
       consumePendingSystemOpenFiles: { kind: 'invoke' },
       onSystemOpenFileRequest: { kind: 'subscribe' },
       onAppMenuAction: { kind: 'subscribe' },
@@ -76,10 +77,12 @@ const __WORDZ_PRELOAD_MODULES = {
       showSystemNotification: { kind: 'invoke' },
       setWindowProgressState: { kind: 'invoke' },
       setWindowAttentionState: { kind: 'invoke' },
+      setWindowDocumentState: { kind: 'invoke' },
       getSmokeObserverState: { kind: 'invoke' },
       getPackagedSmokeConfig: { kind: 'invoke' },
       reportPackagedSmokeResult: { kind: 'invoke' },
       getAutoUpdateState: { kind: 'invoke' },
+      setAutoUpdatePreferences: { kind: 'invoke' },
       checkForUpdates: { kind: 'invoke' },
       installDownloadedUpdate: { kind: 'invoke' },
       onAutoUpdateStatus: { kind: 'subscribe' },
@@ -447,6 +450,9 @@ const __WORDZ_PRELOAD_MODULES = {
         getAppInfo: () =>
           ipcClient.invoke('get-app-info'),
     
+        getSystemAppearanceState: () =>
+          ipcClient.invoke('get-system-appearance-state'),
+    
         consumePendingSystemOpenFiles: () =>
           ipcClient.invoke('consume-pending-system-open-files'),
     
@@ -643,6 +649,13 @@ const __WORDZ_PRELOAD_MODULES = {
             requestAttention: normalizeBoolean(requestAttention)
           }),
     
+        setWindowDocumentState: ({ representedPath = '', displayName = '', edited = false } = {}) =>
+          ipcClient.invoke('set-window-document-state', {
+            representedPath: normalizeTextInput(representedPath, 600),
+            displayName: normalizeTextInput(displayName, 160),
+            edited: normalizeBoolean(edited)
+          }),
+    
         setZoomFactor: factor =>
           getWebFrame().setZoomFactor(clampZoomFactor(factor)),
     
@@ -662,6 +675,9 @@ const __WORDZ_PRELOAD_MODULES = {
       return {
         getAutoUpdateState: () =>
           ipcClient.invoke('get-auto-update-state'),
+    
+        setAutoUpdatePreferences: preferences =>
+          ipcClient.invoke('set-auto-update-preferences', preferences),
     
         checkForUpdates: () =>
           ipcClient.invoke('check-for-updates'),

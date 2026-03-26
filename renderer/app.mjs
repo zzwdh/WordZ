@@ -1,22 +1,4 @@
 import {
-  compareCorpusFrequencies,
-  buildTokenMatcher,
-  buildCorpusData,
-  computeSegmentedNgramRows,
-  computeSegmentedStats,
-  calculateSTTR,
-  calculateTTR,
-  calculateChiSquare2x2,
-  countNgramFrequency,
-  countWordFrequency,
-  getSortedNgramRows,
-  getSortedFrequencyRows,
-  normalizeSearchOptions,
-  getSortedKWICResults as sortKWICResults,
-  searchCollocates,
-  searchKWIC
-} from '../analysisCore.mjs'
-import {
   ANALYSIS_TASK_TYPES,
   DEFAULT_APP_INFO,
   BUTTON_ICONS,
@@ -48,7 +30,6 @@ import {
 } from './features/compare.mjs'
 import { createFeedbackController } from './feedback.mjs'
 import {
-  buildSelectedCorporaTable,
   getFolderById as getFolderByIdFromList,
   getImportTargetFolder as getImportTargetFolderForState,
   getLibraryTargetChipText
@@ -62,8 +43,7 @@ import {
 import {
   renderFrequencyTable as renderFrequencyTableSection,
   renderStatsSummary as renderStatsSummarySection,
-  renderWordCloud as renderWordCloudSection,
-  renderWorkspaceOverview as renderWorkspaceOverviewSection
+  renderWordCloud as renderWordCloudSection
 } from './features/stats.mjs'
 import { createTableRenderer } from './tableRender.mjs'
 import { createUISettingsController } from './uiSettings.mjs'
@@ -77,6 +57,11 @@ import {
   resolvePageSize,
   setButtonsBusy
 } from './utils.mjs'
+import { renderWorkspaceShell } from './views/workspaceShellView.mjs'
+import {
+  buildAnalysisActionButtonState,
+  buildLoadSelectedCorporaButtonState
+} from './viewModels/toolbarState.mjs'
 import {
   buildRecentOpenEntryFromResult,
 } from './recentOpen.mjs'
@@ -95,14 +80,67 @@ import { createOpenCommandController } from './controllers/openCommandController
 import { createSearchTabsController } from './controllers/searchTabsController.mjs'
 import { createTableActionsController } from './controllers/tableActionsController.mjs'
 import { createWelcomeUpdateController } from './controllers/welcomeUpdateController.mjs'
+import { createWindowDocumentController } from './controllers/windowDocumentController.mjs'
 import { createWorkspaceController } from './controllers/workspaceController.mjs'
-import { createMacHost } from './macHost.mjs'
+import { createWorkspaceDocumentService } from './services/workspaceDocumentService.mjs'
+import {
+  buildAnalysisSnapshotState,
+  buildCollocateState,
+  buildCompareState,
+  buildDiagnosticRendererState,
+  buildKWICState,
+  buildLocatorState,
+  buildNgramState,
+  buildStatsState
+} from './appStateSelectors.mjs'
+import { createAnalysisEngineService } from './engine/analysisEngineService.mjs'
+import { createMacHostServices } from './macHostServices.mjs'
 import { createPersistedStateStore } from './persistedState.mjs'
+import {
+  buildStopwordFilterKey,
+  createStopwordMatcher,
+  DEFAULT_STOPWORD_LIST_TEXT,
+  getStopwordSummaryText,
+  normalizeStopwordFilterState,
+  parseStopwordList
+} from './stopwordFilter.mjs'
 import { runDeferredRendererStartup, runInitialRendererSetup } from './startup/flow.mjs'
 import { createStartupPhaseRunner } from './startup/phaseRunner.mjs'
 
-const electronAPI = createMacHost(globalThis.window?.electronAPI)
+const hostServices = createMacHostServices(globalThis.window?.electronAPI)
+const electronAPI = hostServices.api
+const appHost = hostServices.app
+const settingsHost = hostServices.settings
+const diagnosticsHost = hostServices.diagnostics
+const cacheHost = hostServices.cache
+const libraryHost = hostServices.library
+const workspaceHost = hostServices.workspace
+const windowHost = hostServices.window
+const updateHost = hostServices.update
+const smokeHost = hostServices.smoke
 const persistedState = createPersistedStateStore(globalThis.localStorage)
+const windowDocumentController = createWindowDocumentController({
+  electronAPI: windowHost
+})
+const workspaceDocumentService = createWorkspaceDocumentService({
+  windowDocumentController,
+  hasMeaningfulWorkspaceSnapshot,
+  workspaceSnapshotVersion: WORKSPACE_SNAPSHOT_VERSION,
+  defaultWindowSize: DEFAULT_WINDOW_SIZE
+})
+
+document.documentElement?.classList?.add('mac-native-window')
+if (document.body) {
+  document.body.classList.add('mac-native-window')
+} else {
+  window.addEventListener(
+    'DOMContentLoaded',
+    () => {
+      document.body?.classList?.add('mac-native-window')
+    },
+    { once: true }
+  )
+}
 
 function resolveRendererFullProbeMode() {
   try {
@@ -214,6 +252,7 @@ const {
   ngramSizeSelect,
   ngramMeta,
   ngramWrapper,
+  ngramFilterInput,
   ngramPageSizeSelect,
   ngramPrevPageButton,
   ngramNextPageButton,
@@ -224,6 +263,10 @@ const {
   freqFilterInput,
   searchQueryInputs,
   searchOptionInputs,
+  stopwordToggleInputs,
+  stopwordModeSelects,
+  stopwordEditButtons,
+  stopwordSummaryNodes,
   pageSizeSelect,
   prevPageButton,
   nextPageButton,
@@ -293,10 +336,22 @@ const {
   openGitHubRepoButton,
   closeHelpCenterButton,
   uiSettingsModal,
+  stopwordModal,
+  stopwordModalContext,
+  stopwordListTextarea,
+  stopwordListCount,
+  saveStopwordListButton,
+  closeStopwordModalButton,
+  resetStopwordListButton,
+  clearStopwordListButton,
   uiZoomRange,
   uiFontSizeRange,
   uiFontFamilySelect,
+  uiAccentSelect,
   restoreWorkspaceToggle,
+  autoUpdateEnabledToggle,
+  autoUpdateCheckOnLaunchToggle,
+  autoUpdateAutoDownloadToggle,
   windowAttentionToggle,
   notifyAnalysisCompleteToggle,
   notifyUpdateDownloadedToggle,
@@ -327,6 +382,7 @@ writeStartupAppLog('dom-refs.ready', {
   fullProbeMode,
   sharedSearchInputCount: Array.isArray(searchQueryInputs) ? searchQueryInputs.length : 0,
   searchOptionInputCount: Array.isArray(searchOptionInputs) ? searchOptionInputs.length : 0,
+  stopwordToggleCount: Array.isArray(stopwordToggleInputs) ? stopwordToggleInputs.length : 0,
   hasAppShell: Boolean(document.querySelector('.app-shell'))
 })
 
@@ -343,24 +399,40 @@ const {
 } = createAnalysisBridge({
   systemStatus,
   systemStatusText,
-  electronAPI
+  electronAPI: smokeHost
 })
+const ANALYSIS_CACHE_SCHEMA_VERSION = 1
+const MAX_ANALYSIS_QUEUE_LENGTH = 12
+const LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD = 1200000
+const SEGMENTED_ANALYSIS_CHUNK_CHARS = 180000
+const MEMORY_PRESSURE_WARN_RATIO = 0.82
+const MEMORY_PRESSURE_WARN_COOLDOWN_MS = 60 * 1000
+const analysisEngine = createAnalysisEngineService({
+  runAnalysisTask,
+  segmentedAnalysisChunkChars: SEGMENTED_ANALYSIS_CHUNK_CHARS,
+  segmentedAnalysisThreshold: LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD
+})
+const normalizeSearchOptions = analysisEngine.normalizeSearchOptions
+const buildTokenMatcher = analysisEngine.buildTokenMatcher
 const { cancelTableRender, renderTableInChunks } = createTableRenderer({
   formatCount,
   largeTableThreshold: LARGE_TABLE_THRESHOLD,
   chunkSize: TABLE_RENDER_CHUNK_SIZE
 })
 const {
+  applyAutoUpdatePreferencesFromControls,
   applyTheme,
   applyUISettings,
   applyUISettingsFromControls,
   closeUISettingsModal,
   getCurrentUISettings,
   init: initUISettings,
-  openUISettingsModal
+  openUISettingsModal,
+  refreshAutoUpdatePreferences,
+  refreshSystemAppearanceState
 } = createUISettingsController({
   dom,
-  electronAPI,
+  electronAPI: settingsHost,
   stateStore: persistedState,
   defaultTheme: DEFAULT_THEME,
   defaultSettings: DEFAULT_UI_SETTINGS,
@@ -377,7 +449,7 @@ const {
   refreshDiagnosticsStatusText
 } = createDiagnosticsController({
   dom,
-  electronAPI,
+  electronAPI: diagnosticsHost,
   getCurrentUISettings,
   getDiagnosticRendererState,
   showMissingBridge,
@@ -387,7 +459,7 @@ const {
   notifySystem,
   setWindowProgressState
 })
-const exportFeedback = { showAlert, showToast, notifySystem, electronAPI }
+const exportFeedback = { showAlert, showToast, notifySystem, electronAPI: hostServices.files }
 let currentAppInfo = { ...DEFAULT_APP_INFO }
 let appInfoLoaded = false
 let appInfoPromise = null
@@ -414,6 +486,11 @@ let currentComparisonRows = []
 let currentComparisonCorpora = []
 let currentSearchQuery = ''
 let currentSearchOptions = normalizeSearchOptions()
+let currentStopwordFilter = persistedState.loadStopwordFilter({
+  enabled: false,
+  mode: 'exclude',
+  listText: DEFAULT_STOPWORD_LIST_TEXT
+})
 let currentPage = 1
 let pageSize = 10
 let currentComparePage = 1
@@ -478,12 +555,6 @@ const REMINDER_CATEGORY_LABELS = Object.freeze({
   'update-downloaded': '更新下载完成提醒',
   'diagnostics-export': '诊断导出完成提醒'
 })
-const ANALYSIS_CACHE_SCHEMA_VERSION = 1
-const MAX_ANALYSIS_QUEUE_LENGTH = 12
-const LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD = 1200000
-const SEGMENTED_ANALYSIS_CHUNK_CHARS = 180000
-const MEMORY_PRESSURE_WARN_RATIO = 0.82
-const MEMORY_PRESSURE_WARN_COOLDOWN_MS = 60 * 1000
 let currentAnalysisCacheKey = ''
 let currentAnalysisCachePayload = null
 let currentAnalysisMode = 'full'
@@ -508,8 +579,15 @@ let visibleCompareRowsCache = {
   searchKey: '',
   result: []
 }
+let visibleNgramRowsCache = {
+  rowsRef: null,
+  searchKey: '',
+  result: []
+}
 let renderSentenceViewer = () => {}
 let scheduleWorkspaceSnapshotSave = () => {}
+
+void workspaceDocumentService.syncContext({}, { immediate: true })
 
 writeStartupAppLog('state.ready', {
   fullProbeMode,
@@ -523,9 +601,23 @@ function invalidateKWICSortCache() {
   currentKWICSortCache = { source: null, mode: 'original', rows: [] }
 }
 
+function syncWindowDocumentContext({ immediate = false } = {}) {
+  return workspaceDocumentService.syncContext(
+    {
+      displayName: currentCorpusDisplayName
+    },
+    { immediate }
+  )
+}
+
 function buildSearchOptionsKey(options = currentSearchOptions) {
   const normalized = normalizeSearchOptions(options)
   return `${normalized.words ? '1' : '0'}${normalized.caseSensitive ? '1' : '0'}${normalized.regex ? '1' : '0'}`
+}
+
+function persistStopwordFilterState() {
+  currentStopwordFilter = persistedState.saveStopwordFilter(currentStopwordFilter)
+  return currentStopwordFilter
 }
 
 function invalidateSearchCaches({ invalidateSearchContext = false } = {}) {
@@ -535,6 +627,11 @@ function invalidateSearchCaches({ invalidateSearchContext = false } = {}) {
     result: []
   }
   visibleCompareRowsCache = {
+    rowsRef: null,
+    searchKey: '',
+    result: []
+  }
+  visibleNgramRowsCache = {
     rowsRef: null,
     searchKey: '',
     result: []
@@ -565,6 +662,49 @@ function getCurrentSearchContext() {
     context
   }
   return context
+}
+
+function getCurrentStopwordMatcher() {
+  return createStopwordMatcher(currentStopwordFilter)
+}
+
+function getCurrentStopwordSummaryText() {
+  return getStopwordSummaryText(currentStopwordFilter)
+}
+
+function updateStopwordListCount(text = currentStopwordFilter.listText) {
+  if (!stopwordListCount) return
+  const count = parseStopwordList(text).length
+  stopwordListCount.textContent = `${formatCount(count)} 词`
+}
+
+function openStopwordEditor(contextLabel = '') {
+  if (!stopwordModal || !stopwordListTextarea) return
+  const normalizedContext = String(contextLabel || '').trim().toLowerCase()
+  const contextMap = {
+    stats: '统计结果',
+    compare: '对比分析',
+    ngram: 'Ngram'
+  }
+  if (stopwordModalContext) {
+    stopwordModalContext.textContent = contextLabel
+      ? `${contextMap[normalizedContext] || contextLabel} · 共享搜索过滤器`
+      : '共享搜索过滤器'
+  }
+  stopwordListTextarea.value =
+    typeof currentStopwordFilter.listText === 'string'
+      ? currentStopwordFilter.listText
+      : DEFAULT_STOPWORD_LIST_TEXT
+  updateStopwordListCount(stopwordListTextarea.value)
+  stopwordModal.classList.remove('hidden')
+  queueMicrotask(() => {
+    stopwordListTextarea.focus()
+    stopwordListTextarea.select()
+  })
+}
+
+function closeStopwordEditor() {
+  stopwordModal?.classList.add('hidden')
 }
 
 function computeTextFingerprint(text) {
@@ -622,7 +762,7 @@ function resolveCorpusText(result, comparisonEntries = []) {
 }
 
 function shouldUseSegmentedAnalysis(text) {
-  return String(text || '').length >= LARGE_CORPUS_SEGMENTED_CHAR_THRESHOLD
+  return analysisEngine.shouldUseSegmentedAnalysis(text)
 }
 
 function formatBytes(value) {
@@ -643,7 +783,7 @@ const {
   refreshAnalysisCacheState,
   updateCurrentAnalysisCache
 } = createAnalysisCacheController({
-  electronAPI,
+  electronAPI: cacheHost,
   dom,
   analysisCacheSchemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
   formatBytes,
@@ -655,20 +795,21 @@ const {
   getCurrentCorpusId: () => currentCorpusId,
   getCurrentSelectedCorpora: () => currentSelectedCorpora,
   getCurrentComparisonEntries: () => currentComparisonEntries,
-  getCurrentAnalysisSnapshot: () => ({
-    analysisMode: currentAnalysisMode,
-    sentenceObjects: currentSentenceObjects,
-    tokenObjects: currentTokenObjects,
-    tokens: currentTokens,
-    freqRows: currentFreqRows,
-    tokenCount: currentTokenCount,
-    typeCount: currentTypeCount,
-    ttr: currentTTR,
-    sttr: currentSTTR,
-    comparisonEntries: currentComparisonEntries,
-    comparisonCorpora: currentComparisonCorpora,
-    comparisonRows: currentComparisonRows
-  }),
+  getCurrentAnalysisSnapshot: () =>
+    buildAnalysisSnapshotState({
+      currentAnalysisMode,
+      currentSentenceObjects,
+      currentTokenObjects,
+      currentTokens,
+      currentFreqRows,
+      currentTokenCount,
+      currentTypeCount,
+      currentTTR,
+      currentSTTR,
+      currentComparisonEntries,
+      currentComparisonCorpora,
+      currentComparisonRows
+    }),
   getCurrentCacheKey: () => currentAnalysisCacheKey,
   getCurrentCachePayload: () => currentAnalysisCachePayload,
   setCurrentCachePayload: nextPayload => {
@@ -686,7 +827,7 @@ const {
   isLibraryModalVisible,
   bindLibraryManagerEvents
 } = createLibraryManagerController({
-  electronAPI,
+  electronAPI: libraryHost,
   dom,
   escapeHtml,
   formatCount,
@@ -776,13 +917,18 @@ function maybeWarnMemoryPressure(source = '') {
 function getVisibleFrequencyRows() {
   const { matcher, normalizedQuery, options, error } = getCurrentSearchContext()
   if (error) return []
-  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}`
+  const stopwordKey = buildStopwordFilterKey(currentStopwordFilter)
+  const stopwordMatcher = getCurrentStopwordMatcher()
+  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}|${stopwordKey}`
   if (visibleFrequencyRowsCache.rowsRef === currentFreqRows && visibleFrequencyRowsCache.searchKey === searchKey) {
     return visibleFrequencyRowsCache.result
   }
-  const rows = !normalizedQuery
+  const queryMatchedRows = !normalizedQuery
     ? currentFreqRows
     : currentFreqRows.filter(([word]) => matcher(String(word || '')))
+  const rows = stopwordMatcher.enabled
+    ? queryMatchedRows.filter(([word]) => stopwordMatcher.matches(String(word || '')))
+    : queryMatchedRows
   visibleFrequencyRowsCache = {
     rowsRef: currentFreqRows,
     searchKey,
@@ -794,15 +940,43 @@ function getVisibleFrequencyRows() {
 function getVisibleCompareRows() {
   const { matcher, normalizedQuery, options, error } = getCurrentSearchContext()
   if (error) return []
-  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}`
+  const stopwordKey = buildStopwordFilterKey(currentStopwordFilter)
+  const stopwordMatcher = getCurrentStopwordMatcher()
+  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}|${stopwordKey}`
   if (visibleCompareRowsCache.rowsRef === currentComparisonRows && visibleCompareRowsCache.searchKey === searchKey) {
     return visibleCompareRowsCache.result
   }
-  const rows = !normalizedQuery
+  const queryMatchedRows = !normalizedQuery
     ? currentComparisonRows
     : currentComparisonRows.filter(row => matcher(String(row?.word || '')))
+  const rows = stopwordMatcher.enabled
+    ? queryMatchedRows.filter(row => stopwordMatcher.matches(String(row?.word || '')))
+    : queryMatchedRows
   visibleCompareRowsCache = {
     rowsRef: currentComparisonRows,
+    searchKey,
+    result: rows
+  }
+  return rows
+}
+
+function getVisibleNgramRows() {
+  const { matcher, normalizedQuery, options, error } = getCurrentSearchContext()
+  if (error) return []
+  const stopwordKey = buildStopwordFilterKey(currentStopwordFilter)
+  const stopwordMatcher = getCurrentStopwordMatcher()
+  const searchKey = `${normalizedQuery}|${buildSearchOptionsKey(options)}|${stopwordKey}`
+  if (visibleNgramRowsCache.rowsRef === currentNgramRows && visibleNgramRowsCache.searchKey === searchKey) {
+    return visibleNgramRowsCache.result
+  }
+  const queryMatchedRows = !normalizedQuery
+    ? currentNgramRows
+    : currentNgramRows.filter(([phrase]) => matcher(String(phrase || '')))
+  const rows = stopwordMatcher.enabled
+    ? queryMatchedRows.filter(([phrase]) => stopwordMatcher.matches(String(phrase || '')))
+    : queryMatchedRows
+  visibleNgramRowsCache = {
+    rowsRef: currentNgramRows,
     searchKey,
     result: rows
   }
@@ -825,7 +999,7 @@ async function notifySystem({ title, body, subtitle = '', tag = '', silent = fal
     }
   }
 
-  if (!electronAPI?.showSystemNotification) {
+  if (!windowHost?.showSystemNotification) {
     return {
       success: false,
       unavailable: true
@@ -833,7 +1007,7 @@ async function notifySystem({ title, body, subtitle = '', tag = '', silent = fal
   }
 
   try {
-    return await electronAPI.showSystemNotification({
+    return await windowHost.showSystemNotification({
       title,
       body,
       subtitle,
@@ -851,7 +1025,7 @@ async function notifySystem({ title, body, subtitle = '', tag = '', silent = fal
 }
 
 async function setWindowProgressState({ source, state, progress = 0, priority = 0 } = {}) {
-  if (!electronAPI?.setWindowProgressState) {
+  if (!windowHost?.setWindowProgressState) {
     return {
       success: false,
       unavailable: true
@@ -859,7 +1033,7 @@ async function setWindowProgressState({ source, state, progress = 0, priority = 
   }
 
   try {
-    return await electronAPI.setWindowProgressState({
+    return await windowHost.setWindowProgressState({
       source,
       state,
       progress,
@@ -891,7 +1065,7 @@ async function setWindowAttentionState({ source, state, count = 0, description =
     }
   }
 
-  if (!electronAPI?.setWindowAttentionState) {
+  if (!windowHost?.setWindowAttentionState) {
     return {
       success: false,
       unavailable: true
@@ -899,7 +1073,7 @@ async function setWindowAttentionState({ source, state, count = 0, description =
   }
 
   try {
-    return await electronAPI.setWindowAttentionState({
+    return await windowHost.setWindowAttentionState({
       source,
       state,
       count,
@@ -981,20 +1155,15 @@ function finishTaskEntryWithAttention(taskKey, title, status, detail, category =
   }
 }
 
-function renderSelectedCorporaTable() {
-  if (!selectedCorporaWrapper) return
-  selectedCorporaWrapper.innerHTML = buildSelectedCorporaTable(currentSelectedCorpora, escapeHtml)
-}
-
 function syncLibrarySelectionWithCurrentCorpora() {
   selectedLibraryCorpusIds = new Set(currentSelectedCorpora.map(item => item.id).filter(Boolean))
 }
 
 function updateLoadSelectedCorporaButton() {
   if (!loadSelectedCorporaButton) return
-  const selectedCount = selectedLibraryCorpusIds.size
-  loadSelectedCorporaButton.disabled = selectedCount === 0
-  setButtonLabel(loadSelectedCorporaButton, selectedCount > 0 ? `载入选中语料（${selectedCount}）` : '载入选中语料')
+  const buttonState = buildLoadSelectedCorporaButtonState(selectedLibraryCorpusIds.size)
+  loadSelectedCorporaButton.disabled = buttonState.disabled
+  setButtonLabel(loadSelectedCorporaButton, buttonState.label)
 }
 
 function syncChiSquareInputsFromState() {
@@ -1089,6 +1258,13 @@ const searchTabsController = createSearchTabsController({
   setCurrentSearchOptions: nextOptions => {
     currentSearchOptions = nextOptions
   },
+  getCurrentStopwordFilter: () => currentStopwordFilter,
+  setCurrentStopwordFilter: nextState => {
+    currentStopwordFilter = normalizeStopwordFilterState({
+      ...currentStopwordFilter,
+      ...nextState
+    })
+  },
   setCurrentTab: nextTab => {
     currentTab = nextTab
   },
@@ -1096,18 +1272,25 @@ const searchTabsController = createSearchTabsController({
   getCurrentCompareRowsLength: () => currentComparisonRows.length,
   getVisibleFrequencyRows,
   getVisibleCompareRows,
+  getVisibleNgramRows,
   invalidateSearchCaches,
   renderFrequencyTable,
   renderCompareSection,
   renderWordCloud,
+  renderNgramTable,
   renderSentenceViewer,
   getLocatorNeedsRender: () => locatorNeedsRender,
+  getStopwordSummaryText,
+  openStopwordEditor: context => openStopwordEditor(context),
+  persistStopwordFilterState,
   requestWorkspaceSnapshotSave: (...args) => scheduleWorkspaceSnapshotSave(...args),
-  resetSearchDrivenPagination: ({ visibleFrequencyCount, visibleCompareCount }) => {
+  resetSearchDrivenPagination: ({ visibleFrequencyCount, visibleCompareCount, visibleNgramCount }) => {
     pageSize = resolvePageSize(pageSizeSelect.value, visibleFrequencyCount)
     currentPage = 1
     currentComparePageSize = resolvePageSize(comparePageSizeSelect?.value || '10', visibleCompareCount)
     currentComparePage = 1
+    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', visibleNgramCount)
+    currentNgramPage = 1
   }
 })
 const {
@@ -1116,14 +1299,16 @@ const {
   getTabLabel,
   setSharedSearchOption,
   setSharedSearchQuery,
+  setStopwordFilterValue,
   switchTab,
   syncSearchOptionInputs,
-  syncSharedSearchInputs
+  syncSharedSearchInputs,
+  syncStopwordFilterControls
 } = searchTabsController
 const { bindTableActionEvents } = createTableActionsController({
   dom,
   exportFeedback,
-  sortKWICResults,
+  sortKWICResults: analysisEngine.sortKwicResults,
   getStatsState,
   getNgramState,
   getCompareState,
@@ -1148,6 +1333,7 @@ function syncCurrentWorkspaceSelectionState() {
     currentCorpusDisplayName = `已选 ${currentSelectedCorpora.length} 条语料`
     currentCorpusFolderId = uniqueFolderIds.length === 1 ? uniqueFolderIds[0] : ''
     currentCorpusFolderName = uniqueFolderNames.length === 1 ? uniqueFolderNames[0] : '多个分类'
+    void workspaceDocumentService.syncContext({ representedPath: '' })
   } else if (currentCorpusMode === 'saved') {
     if (currentSelectedCorpora.length === 0) {
       demoteCurrentSavedCorpusToQuick()
@@ -1275,9 +1461,9 @@ function setPreviewCollapsed(collapsed) {
 
 async function revealNativeToolbarOverflowForSmoke() {
   const overflowNode = document.querySelector('.toolbar-native-overflow')
-  if (!overflowNode || !electronAPI?.getSmokeObserverState) return
+  if (!overflowNode || !smokeHost?.getSmokeObserverState) return
   try {
-    const result = await electronAPI.getSmokeObserverState()
+    const result = await smokeHost.getSmokeObserverState()
     if (!result?.success) return
     overflowNode.classList.remove('hidden')
     overflowNode.setAttribute('aria-hidden', 'false')
@@ -1296,7 +1482,7 @@ function setButtonLabel(button, label) {
 const taskCenter = createTaskCenterController({ dom, setButtonLabel })
 const welcomeUpdate = createWelcomeUpdateController({
   dom,
-  electronAPI,
+  electronAPI: updateHost,
   getCurrentUISettings,
   getCurrentAppInfo: () => currentAppInfo,
   getWorkspaceSnapshotSummary,
@@ -1340,21 +1526,21 @@ const openCommand = createOpenCommandController({
   escapeHtml,
   getCommandPaletteCommands: () => getCommandPaletteCommands(),
   onQuickOpen: async () => {
-    if (!electronAPI?.openQuickCorpus) {
+    if (!libraryHost?.openQuickCorpus) {
       await showMissingBridge('openQuickCorpus')
       return
     }
 
-    const result = await electronAPI.openQuickCorpus()
+    const result = await libraryHost.openQuickCorpus()
     await loadCorpusResult(result)
   },
   onImportAndSave: async () => {
-    if (!electronAPI?.importAndSaveCorpus) {
+    if (!libraryHost?.importAndSaveCorpus) {
       await showMissingBridge('importAndSaveCorpus')
       return
     }
 
-    const result = await electronAPI.importAndSaveCorpus(getImportTargetFolder().id)
+    const result = await libraryHost.importAndSaveCorpus(getImportTargetFolder().id)
     await loadCorpusResult(result)
     if (isLibraryModalVisible()) {
       await refreshLibraryModal(currentLibraryFolderId)
@@ -1406,11 +1592,10 @@ const {
   setOpenCorpusMenuOpen
 } = openCommand
 workspaceController = createWorkspaceController({
-  electronAPI,
+  electronAPI: workspaceHost,
   persistedState,
   dom,
   recentOpenLimit: RECENT_OPEN_LIMIT,
-  workspaceSnapshotVersion: WORKSPACE_SNAPSHOT_VERSION,
   defaultWindowSize: DEFAULT_WINDOW_SIZE,
   normalizeSearchOptions,
   hasMeaningfulWorkspaceSnapshot,
@@ -1437,6 +1622,7 @@ workspaceController = createWorkspaceController({
   syncChiSquareInputsFromState,
   renderChiSquareResult,
   syncSearchOptionInputs,
+  syncStopwordFilterControls,
   setSharedSearchQuery,
   runNgramAnalysis,
   renderNgramTable,
@@ -1446,7 +1632,8 @@ workspaceController = createWorkspaceController({
   renderWordCloud,
   requestWorkspaceRestoreDecision,
   getWorkspaceSnapshotState,
-  applyRestoredWorkspaceState
+  applyRestoredWorkspaceState,
+  workspaceDocumentService
 })
 const {
   addRecentOpenEntry,
@@ -1493,9 +1680,9 @@ const {
 let packagedSmokeAutorunPromise = null
 
 async function getPackagedSmokeConfig() {
-  if (!electronAPI?.getPackagedSmokeConfig) return null
+  if (!smokeHost?.getPackagedSmokeConfig) return null
   try {
-    const result = await electronAPI.getPackagedSmokeConfig()
+    const result = await smokeHost.getPackagedSmokeConfig()
     return result?.success ? result.config || null : null
   } catch {
     return null
@@ -1503,9 +1690,9 @@ async function getPackagedSmokeConfig() {
 }
 
 async function reportPackagedSmokeResult(payload = {}) {
-  if (!electronAPI?.reportPackagedSmokeResult) return null
+  if (!smokeHost?.reportPackagedSmokeResult) return null
   try {
-    return await electronAPI.reportPackagedSmokeResult(payload)
+    return await smokeHost.reportPackagedSmokeResult(payload)
   } catch {
     return null
   }
@@ -1530,6 +1717,7 @@ async function maybeRunPackagedSmokeAutorun() {
       setSharedSearchOption('words', true, { rerender: false })
       setSharedSearchOption('case', false, { rerender: false })
       setSharedSearchOption('regex', false, { rerender: false })
+      setStopwordFilterValue({ enabled: false }, { rerender: false })
       setSharedSearchQuery('', { rerender: false })
 
       await runQuickOpenAction()
@@ -1593,35 +1781,32 @@ async function maybeRunPackagedSmokeAutorun() {
 }
 
 function updateAnalysisActionButtons() {
-  const disablePrimaryActions = isCorpusLoading || Boolean(activeCancelableAnalysis)
-  const segmentedSearchDisabled = currentAnalysisMode === 'segmented'
-  countButton.disabled = disablePrimaryActions
-  if (ngramButton) ngramButton.disabled = disablePrimaryActions
-  kwicButton.disabled = disablePrimaryActions || segmentedSearchDisabled
-  collocateButton.disabled = disablePrimaryActions || segmentedSearchDisabled
-  if (kwicButton) {
-    kwicButton.title = segmentedSearchDisabled
-      ? '分段分析模式下为保证稳定性，KWIC 暂不可用'
-      : ''
-  }
-  if (collocateButton) {
-    collocateButton.title = segmentedSearchDisabled
-      ? '分段分析模式下为保证稳定性，Collocate 暂不可用'
-      : ''
-  }
+  const buttonState = buildAnalysisActionButtonState({
+    isCorpusLoading,
+    activeCancelableAnalysis,
+    cancellingAnalysis,
+    currentAnalysisMode
+  })
 
-  const cancelButtonStates = [
-    { name: 'stats', button: cancelStatsButton, defaultLabel: '取消统计' },
-    { name: 'kwic', button: cancelKwicButton, defaultLabel: '取消 KWIC' },
-    { name: 'collocate', button: cancelCollocateButton, defaultLabel: '取消 Collocate' }
+  countButton.disabled = buttonState.buttons.count.disabled
+  if (ngramButton) ngramButton.disabled = buttonState.buttons.ngram.disabled
+  kwicButton.disabled = buttonState.buttons.kwic.disabled
+  collocateButton.disabled = buttonState.buttons.collocate.disabled
+
+  if (kwicButton) kwicButton.title = buttonState.buttons.kwic.title
+  if (collocateButton) collocateButton.title = buttonState.buttons.collocate.title
+
+  const cancelButtons = [
+    { button: cancelStatsButton, state: buttonState.buttons.cancelStats },
+    { button: cancelKwicButton, state: buttonState.buttons.cancelKwic },
+    { button: cancelCollocateButton, state: buttonState.buttons.cancelCollocate }
   ]
 
-  for (const { name, button, defaultLabel } of cancelButtonStates) {
-    if (!button) continue
-    const isActive = activeCancelableAnalysis === name
-    button.classList.toggle('hidden', !isActive)
-    button.disabled = !isActive || cancellingAnalysis === name
-    setButtonLabel(button, cancellingAnalysis === name ? '正在取消...' : defaultLabel)
+  for (const { button, state } of cancelButtons) {
+    if (!button || !state) continue
+    button.classList.toggle('hidden', state.hidden)
+    button.disabled = state.disabled
+    setButtonLabel(button, state.label)
   }
 }
 
@@ -1732,9 +1917,9 @@ async function ensureAppInfoLoaded() {
   if (appInfoPromise) return appInfoPromise
 
   appInfoPromise = (async () => {
-    if (electronAPI?.getAppInfo) {
+    if (appHost?.getAppInfo) {
       try {
-        const result = await electronAPI.getAppInfo()
+        const result = await appHost.getAppInfo()
         if (result?.success && result.appInfo) {
           currentAppInfo = normalizeAppInfo(result.appInfo)
         }
@@ -1845,7 +2030,7 @@ function decorateStaticButtons() {
 
 function getStatsState() {
   const currentSearchContext = getCurrentSearchContext()
-  return {
+  return buildStatsState({
     currentAnalysisMode,
     currentCorpusMode,
     currentCorpusDisplayName,
@@ -1857,18 +2042,20 @@ function getStatsState() {
     currentSearchQuery,
     currentSearchOptions,
     currentSearchError: currentSearchContext.error,
+    currentStopwordFilter,
+    currentStopwordSummary: getCurrentStopwordSummaryText(),
     currentPage,
     pageSize,
     currentTokenCount,
     currentTypeCount,
     currentTTR,
     currentSTTR
-  }
+  })
 }
 
 function getCompareState() {
   const currentSearchContext = getCurrentSearchContext()
-  return {
+  return buildCompareState({
     currentSelectedCorpora,
     currentFreqRows,
     currentTokenCount,
@@ -1878,23 +2065,31 @@ function getCompareState() {
     currentDisplayedCompareRows: getVisibleCompareRows(),
     currentSearchQuery,
     currentSearchError: currentSearchContext.error,
+    currentStopwordFilter,
+    currentStopwordSummary: getCurrentStopwordSummaryText(),
     currentComparePage,
     currentComparePageSize,
     hasStats: currentFreqRows.length > 0 || currentTokenCount > 0,
     comparisonEligible: currentComparisonEntries.length >= 2
-  }
+  })
 }
 
 function getNgramState() {
-  return {
+  const currentSearchContext = getCurrentSearchContext()
+  return buildNgramState({
     currentNgramRows,
+    currentDisplayedNgramRows: getVisibleNgramRows(),
     currentNgramPage,
-    currentNgramPageSize
-  }
+    currentNgramPageSize,
+    currentSearchQuery,
+    currentSearchError: currentSearchContext.error,
+    currentStopwordFilter,
+    currentStopwordSummary: getCurrentStopwordSummaryText()
+  })
 }
 
 function getKWICState() {
-  return {
+  return buildKWICState({
     currentKWICResults,
     currentKWICPage,
     currentKWICPageSize,
@@ -1907,24 +2102,24 @@ function getKWICState() {
     currentKWICScopeLabel,
     currentKWICSearchedCorpusCount,
     currentKWICSortCache
-  }
+  })
 }
 
 function getCollocateState() {
-  return {
+  return buildCollocateState({
     currentCollocateRows,
     currentCollocatePage,
     currentCollocatePageSize
-  }
+  })
 }
 
 function getLocatorState() {
-  return {
+  return buildLocatorState({
     currentSentenceObjects,
     currentHighlight,
     activeSentenceId,
     pendingLocatorScrollSentenceId
-  }
+  })
 }
 
 const locatorController = createLocatorController({
@@ -1960,49 +2155,37 @@ const {
 renderSentenceViewer = renderLocatorSentenceViewer
 
 function getDiagnosticRendererState() {
-  return {
+  return buildDiagnosticRendererState({
     currentTab,
-    corpusMode: currentCorpusMode,
-    analysisMode: currentAnalysisMode,
-    corpusDisplayName: currentCorpusDisplayName,
-    corpusFolderName: currentCorpusFolderName || '',
-    selectedCorporaCount: currentSelectedCorpora.length,
+    currentCorpusMode,
+    currentAnalysisMode,
+    currentCorpusDisplayName,
+    currentCorpusFolderName,
+    currentSelectedCorpora,
     currentLibraryFolderId,
-    libraryFolderCount: currentLibraryFolders.length,
-    libraryVisibleCount: currentLibraryVisibleCount,
-    libraryTotalCount: currentLibraryTotalCount,
+    currentLibraryFolders,
+    currentLibraryVisibleCount,
+    currentLibraryTotalCount,
     currentSearchQuery,
     searchOptionsSummary: getSearchOptionsSummary(),
-    tokenCount: currentTokenCount,
-    typeCount: currentTypeCount,
-    ngramSize: currentNgramSize,
-    ngramResultCount: currentNgramRows.length,
-    kwicKeyword: currentKWICKeyword,
-    kwicResultCount: currentKWICResults.length,
-    kwicScope: currentKWICScopeLabel,
-    collocateKeyword: currentCollocateKeyword,
-    collocateResultCount: currentCollocateRows.length,
-    chiSquareHasResult: Boolean(currentChiSquareResult),
-    chiSquareInputs: {
-      ...currentChiSquareInputValues
-    },
-    locatorSentenceCount: currentSentenceObjects.length,
-    taskCenter: taskCenter.getEntries().slice(0, 5).map(entry => ({
-      taskKey: entry.taskKey,
-      status: entry.status,
-      detail: entry.detail,
-      durationMs: entry.durationMs || 0
-    })),
-    startupPhases: startupPhaseEvents.slice(-16).map(event => ({
-      phase: event.phase,
-      status: event.status,
-      durationMs: Number(event.durationMs) || 0,
-      startedAt: event.startedAt || '',
-      endedAt: event.endedAt || '',
-      errorMessage: event.errorMessage || ''
-    })),
-    uiSettings: getCurrentUISettings()
-  }
+    currentStopwordFilter,
+    currentStopwordSummary: getCurrentStopwordSummaryText(),
+    currentTokenCount,
+    currentTypeCount,
+    currentNgramSize,
+    currentNgramRows,
+    currentKWICKeyword,
+    currentKWICResults,
+    currentKWICScopeLabel,
+    currentCollocateKeyword,
+    currentCollocateRows,
+    currentChiSquareResult,
+    currentChiSquareInputValues,
+    currentSentenceObjects,
+    taskCenterEntries: taskCenter.getEntries(),
+    startupPhaseEvents,
+    currentUISettings: getCurrentUISettings()
+  })
 }
 
 function getWorkspaceSnapshotState() {
@@ -2014,6 +2197,9 @@ function getWorkspaceSnapshotState() {
     currentSelectedCorpora,
     currentSearchQuery,
     currentSearchOptions,
+    stopwordFilter: {
+      ...currentStopwordFilter
+    },
     statsPageSize: pageSizeSelect?.value || '10',
     comparePageSize: comparePageSizeSelect?.value || '10',
     ngramPageSize: ngramPageSizeSelect?.value || '10',
@@ -2042,6 +2228,7 @@ function getWorkspaceSnapshotState() {
 function applyRestoredWorkspaceState({
   currentLibraryFolderId: nextLibraryFolderId,
   searchOptions,
+  stopwordFilter,
   statsPageSize,
   comparePageSize,
   ngramSize,
@@ -2062,6 +2249,13 @@ function applyRestoredWorkspaceState({
   }
   if (searchOptions && typeof searchOptions === 'object') {
     currentSearchOptions = searchOptions
+  }
+  if (stopwordFilter && typeof stopwordFilter === 'object') {
+    currentStopwordFilter = normalizeStopwordFilterState({
+      ...currentStopwordFilter,
+      ...stopwordFilter
+    })
+    persistStopwordFilterState()
   }
   if (Number.isFinite(Number(statsPageSize))) {
     pageSize = Number(statsPageSize)
@@ -2121,8 +2315,21 @@ function applySelectControlValue(control, value, fallbackValue) {
   control.value = options.includes(nextValue) ? nextValue : String(fallbackValue || control.value || '')
 }
 
-function renderWorkspaceOverview() {
-  renderWorkspaceOverviewSection(getStatsState(), dom, { formatCount })
+function renderWorkspaceShellState() {
+  return renderWorkspaceShell(
+    {
+      currentCorpusMode,
+      currentCorpusDisplayName,
+      currentCorpusFolderName,
+      currentSelectedCorpora,
+      statsState: getStatsState()
+    },
+    dom,
+    {
+      escapeHtml,
+      formatCount
+    }
+  )
 }
 
 function renderStatsSummaryTable() {
@@ -2159,7 +2366,7 @@ function renderKWICTable() {
     escapeHtml,
     formatCount,
     renderTableInChunks,
-    sortResults: sortKWICResults
+    sortResults: analysisEngine.sortKwicResults
   })
   currentKWICPage = result.currentKWICPage
   currentKWICSortCache = result.currentKWICSortCache
@@ -2189,31 +2396,8 @@ function updateLibraryTargetChip() {
 }
 
 function updateCurrentCorpusInfo() {
-  if (!currentCorpusDisplayName) {
-    fileInfo.textContent = '尚未选择文件'
-    renderSelectedCorporaTable()
-    renderWorkspaceOverview()
-    return
-  }
-
-  if (currentCorpusMode === 'saved') {
-    const folderLabel = currentCorpusFolderName || '未分类'
-    fileInfo.textContent = `当前语料（已保存 / ${folderLabel}）：${currentCorpusDisplayName}`
-    renderSelectedCorporaTable()
-    renderWorkspaceOverview()
-    return
-  }
-
-  if (currentCorpusMode === 'saved-multi') {
-    fileInfo.textContent = `当前语料（多选 / ${currentSelectedCorpora.length} 条）：${currentCorpusDisplayName}`
-    renderSelectedCorporaTable()
-    renderWorkspaceOverview()
-    return
-  }
-
-  fileInfo.textContent = '当前语料（Quick Corpus）：' + currentCorpusDisplayName
-  renderSelectedCorporaTable()
-  renderWorkspaceOverview()
+  renderWorkspaceShellState()
+  void syncWindowDocumentContext()
 }
 
 function demoteCurrentSavedCorpusToQuick() {
@@ -2223,6 +2407,7 @@ function demoteCurrentSavedCorpusToQuick() {
   currentCorpusFolderId = null
   currentCorpusFolderName = ''
   currentSelectedCorpora = []
+  void workspaceDocumentService.clearContext()
   syncLibrarySelectionWithCurrentCorpora()
   updateLoadSelectedCorporaButton()
   updateLibraryMetaText()
@@ -2271,35 +2456,17 @@ async function runNgramAnalysis({ switchToTab = false, silent = false } = {}) {
           n,
           rows: cachedRows
         }
-      : await runAnalysisTask(
-          currentAnalysisMode === 'segmented'
-            ? ANALYSIS_TASK_TYPES.computeNgramsSegmented
-            : ANALYSIS_TASK_TYPES.computeNgrams,
-          currentAnalysisMode === 'segmented'
-            ? {
-                n,
-                text: currentText,
-                chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS
-              }
-            : { n },
-          () =>
-            currentAnalysisMode === 'segmented'
-              ? computeSegmentedNgramRows(currentText, n, {
-                  chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS
-                })
-              : (() => {
-                  const freqMap = countNgramFrequency(currentTokens, n)
-                  return {
-                    n,
-                    rows: getSortedNgramRows(freqMap)
-                  }
-                })()
-        )
+      : await analysisEngine.computeNgrams({
+          text: currentText,
+          tokens: currentTokens,
+          n,
+          analysisMode: currentAnalysisMode
+        })
     if (!isLatestAnalysisRun('ngram', runId)) return false
 
     currentNgramSize = Number(ngramResult?.n || n) || n
     currentNgramRows = Array.isArray(ngramResult?.rows) ? ngramResult.rows : []
-    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', currentNgramRows.length)
+    currentNgramPageSize = resolvePageSize(ngramPageSizeSelect?.value || '10', getVisibleNgramRows().length)
     currentNgramPage = 1
     ngramMeta.textContent = `${currentNgramSize}-gram · 共 ${formatCount(currentNgramRows.length)} 条结果。`
     renderNgramTable()
@@ -2332,7 +2499,7 @@ async function runNgramAnalysis({ switchToTab = false, silent = false } = {}) {
 }
 
 async function resolveCrossCorpusKWICScope(scope) {
-  if (!electronAPI?.searchLibraryKWIC) {
+  if (!libraryHost?.searchLibraryKWIC) {
     await showMissingBridge('searchLibraryKWIC')
     return null
   }
@@ -2407,6 +2574,9 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
     currentAnalysisMode = shouldUseSegmentedAnalysis(currentText) ? 'segmented' : 'full'
     currentAnalysisCacheKey = buildAnalysisCacheKey(result, currentText)
     currentAnalysisCachePayload = null
+    void workspaceDocumentService.syncContextFromCorpusResult(result, {
+      displayName: currentCorpusDisplayName
+    })
 
     let corpusData = {
       sentences: [],
@@ -2427,11 +2597,7 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
     }
 
     if (currentAnalysisMode === 'full' && !usedCachedCorpusData) {
-      corpusData = await runAnalysisTask(
-        ANALYSIS_TASK_TYPES.loadCorpus,
-        { text: currentText },
-        () => buildCorpusData(currentText)
-      )
+      corpusData = await analysisEngine.buildCorpusData(currentText)
       currentAnalysisCachePayload = normalizeAnalysisCachePayload({
         schemaVersion: ANALYSIS_CACHE_SCHEMA_VERSION,
         analysisMode: 'full',
@@ -2524,6 +2690,7 @@ async function loadCorpusResult(result, { trackRecent = true } = {}) {
 
     kwicSortSelect.value = 'original'
     syncSharedSearchInputs()
+    syncStopwordFilterControls()
     leftWindowSelect.value = '5'
     rightWindowSelect.value = '5'
     comparePageSizeSelect.value = '10'
@@ -2631,7 +2798,7 @@ async function handleSystemOpenFileRequest(payload = {}) {
   const filePath = String(payload?.filePath || '').trim()
   if (!filePath) return
 
-  if (!electronAPI?.openQuickCorpusAtPath) {
+  if (!workspaceHost?.openQuickCorpusAtPath) {
     await showMissingBridge('openQuickCorpusAtPath')
     return
   }
@@ -2642,7 +2809,7 @@ async function handleSystemOpenFileRequest(payload = {}) {
   closeRecycleModal()
   hideWelcomeOverlay({ immediate: true })
 
-  const result = await electronAPI.openQuickCorpusAtPath(filePath)
+  const result = await workspaceHost.openQuickCorpusAtPath(filePath)
   if (!result?.success) {
     await showAlert({
       title: '打开系统文件失败',
@@ -2892,7 +3059,7 @@ async function showPreflightWarnings(result = {}) {
 }
 
 async function handleDropImportPaths(paths) {
-  if (!electronAPI?.importCorpusPaths) {
+  if (!libraryHost?.importCorpusPaths) {
     await showMissingBridge('importCorpusPaths')
     return
   }
@@ -2917,7 +3084,7 @@ async function handleDropImportPaths(paths) {
   })
   try {
     const importTargetFolder = getImportTargetFolder()
-    const result = await electronAPI.importCorpusPaths(droppedPaths, {
+    const result = await libraryHost.importCorpusPaths(droppedPaths, {
       folderId: importTargetFolder.id,
       preserveHierarchy: true
     })
@@ -3008,8 +3175,8 @@ async function handleSystemNotificationAction(payload = {}) {
 
   if (actionId === 'reveal-path') {
     const targetPath = String(payload?.actionPayload?.path || payload?.actionPayload?.filePath || '').trim()
-    if (!targetPath || !electronAPI?.showPathInFolder) return
-    const showResult = await electronAPI.showPathInFolder(targetPath)
+    if (!targetPath || !windowHost?.showPathInFolder) return
+    const showResult = await windowHost.showPathInFolder(targetPath)
     if (!showResult?.success) {
       showToast(showResult?.message || '无法在系统文件管理器中打开该路径。', {
         title: '系统通知',
@@ -3092,12 +3259,12 @@ if (shouldSkipSyncStartup) {
     revealNativeToolbarOverflowForSmoke,
     initUISettings,
     loadRecentOpenEntries,
-    renderWorkspaceOverview,
-    renderSelectedCorporaTable,
+    renderWorkspaceShell: renderWorkspaceShellState,
     updateLoadSelectedCorporaButton,
     renderRecentOpenList,
     syncSharedSearchInputs,
     syncSearchOptionInputs,
+    syncStopwordFilterControls,
     syncChiSquareInputsFromState,
     renderCompareSection,
     renderWordCloud,
@@ -3122,14 +3289,14 @@ if (shouldSkipSyncStartup) {
   setRecentOpenEntries(loadedRecentOpenEntries)
 }
 
-if (electronAPI?.onSystemOpenFileRequest) {
-  electronAPI.onSystemOpenFileRequest(payload => {
+if (appHost?.onSystemOpenFileRequest) {
+  appHost.onSystemOpenFileRequest(payload => {
     void enqueueSystemOpenFileRequest(payload)
   })
 }
 
-if (electronAPI?.onAppMenuAction) {
-  electronAPI.onAppMenuAction(payload => {
+if (appHost?.onAppMenuAction) {
+  appHost.onAppMenuAction(payload => {
     void handleAppMenuAction(payload).catch(error => {
       console.error('[app-menu-action]', error)
       recordDiagnosticError('app-menu-action', error, {
@@ -3139,8 +3306,8 @@ if (electronAPI?.onAppMenuAction) {
   })
 }
 
-if (electronAPI?.onSystemNotificationAction) {
-  electronAPI.onSystemNotificationAction(payload => {
+if (appHost?.onSystemNotificationAction) {
+  appHost.onSystemNotificationAction(payload => {
     void handleSystemNotificationAction(payload).catch(error => {
       console.error('[system-notification-action]', error)
       recordDiagnosticError('system-notification-action', error, {
@@ -3187,8 +3354,8 @@ const deferredStartupPromise = shouldSkipDeferredStartup
       setWelcomeProgress,
       ensureAppInfoLoaded,
       consumePendingSystemOpenFiles: async () => {
-        if (!electronAPI?.consumePendingSystemOpenFiles) return
-        const pendingOpenResult = await electronAPI.consumePendingSystemOpenFiles()
+        if (!appHost?.consumePendingSystemOpenFiles) return
+        const pendingOpenResult = await appHost.consumePendingSystemOpenFiles()
         if (!pendingOpenResult?.success || !Array.isArray(pendingOpenResult.filePaths)) return
         for (const filePath of pendingOpenResult.filePaths) {
           await enqueueSystemOpenFileRequest({ filePath })
@@ -3263,6 +3430,23 @@ skipWorkspaceRestoreButton?.addEventListener('click', () => {
   resolveStartupRestoreDecision(false)
 })
 
+async function persistAutoUpdateSettings() {
+  const result = await applyAutoUpdatePreferencesFromControls()
+  if (!result?.success) {
+    await showAlert({
+      title: '自动更新设置保存失败',
+      message: result?.message || '当前无法保存自动更新设置。'
+    })
+    return false
+  }
+  void recordDiagnostic('info', 'auto-update.preferences', '用户更新了自动更新设置。', {
+    enabled: autoUpdateEnabledToggle?.checked !== false,
+    checkOnLaunch: autoUpdateCheckOnLaunchToggle?.checked !== false,
+    autoDownload: autoUpdateAutoDownloadToggle?.checked !== false
+  })
+  return true
+}
+
 dom.welcomeDisableCheckbox?.addEventListener('change', () => {
   const shouldShowWelcome = !dom.welcomeDisableCheckbox.checked
   applyUISettings({
@@ -3274,7 +3458,7 @@ dom.welcomeDisableCheckbox?.addEventListener('change', () => {
 bindShellInteractionHandlers()
 
 checkUpdateButton?.addEventListener('click', async () => {
-  if (!electronAPI?.checkForUpdates) {
+  if (!updateHost?.checkForUpdates) {
     await showMissingBridge('checkForUpdates')
     return
   }
@@ -3285,7 +3469,7 @@ checkUpdateButton?.addEventListener('click', async () => {
     return
   }
 
-  const result = await electronAPI.checkForUpdates()
+  const result = await updateHost.checkForUpdates()
   if (!result.success) {
     await showAlert({
       title: result.disabled ? '自动更新暂不可用' : '检查更新失败',
@@ -3335,12 +3519,12 @@ openGitHubRepoButton?.addEventListener('click', async () => {
     return
   }
 
-  if (!electronAPI?.openExternalUrl) {
+  if (!appHost?.openExternalUrl) {
     await showMissingBridge('openExternalUrl')
     return
   }
 
-  const result = await electronAPI.openExternalUrl(currentAppInfo.repositoryUrl)
+  const result = await appHost.openExternalUrl(currentAppInfo.repositoryUrl)
   if (!result?.success) {
     await showAlert({
       title: '打开 GitHub 失败',
@@ -3416,6 +3600,10 @@ document.addEventListener('keydown', event => {
     closeHelpCenterModal()
     return
   }
+  if (event.key === 'Escape' && stopwordModal && !stopwordModal.classList.contains('hidden')) {
+    closeStopwordEditor()
+    return
+  }
   if (event.key === 'Escape' && taskCenter.isOpen()) {
     taskCenter.setOpen(false)
   }
@@ -3428,6 +3616,7 @@ document.addEventListener('visibilitychange', () => {
 })
 
 window.addEventListener('focus', () => {
+  void refreshSystemAppearanceState({ force: false })
   if (pendingTaskAttentionCount > 0) {
     clearTaskCenterAttention()
   }
@@ -3441,6 +3630,38 @@ uiSettingsButton.addEventListener('click', () => {
   openUISettingsModal()
   void refreshDiagnosticsStatusText()
   void refreshAnalysisCacheState({ silent: true })
+  void refreshAutoUpdatePreferences({ silent: true })
+})
+
+stopwordModal?.addEventListener('click', event => {
+  if (event.target === stopwordModal) closeStopwordEditor()
+})
+
+stopwordListTextarea?.addEventListener('input', () => {
+  updateStopwordListCount(stopwordListTextarea.value)
+})
+
+closeStopwordModalButton?.addEventListener('click', () => {
+  closeStopwordEditor()
+})
+
+resetStopwordListButton?.addEventListener('click', () => {
+  if (!stopwordListTextarea) return
+  stopwordListTextarea.value = DEFAULT_STOPWORD_LIST_TEXT.trim()
+  updateStopwordListCount(stopwordListTextarea.value)
+})
+
+clearStopwordListButton?.addEventListener('click', () => {
+  if (!stopwordListTextarea) return
+  stopwordListTextarea.value = ''
+  updateStopwordListCount(stopwordListTextarea.value)
+})
+
+saveStopwordListButton?.addEventListener('click', () => {
+  setStopwordFilterValue({
+    listText: stopwordListTextarea?.value || ''
+  })
+  closeStopwordEditor()
 })
 
 closeUiSettingsButton.addEventListener('click', () => {
@@ -3450,6 +3671,16 @@ closeUiSettingsButton.addEventListener('click', () => {
 resetUiSettingsButton.addEventListener('click', () => {
   applyUISettings(DEFAULT_UI_SETTINGS)
   applyTheme(DEFAULT_THEME)
+  if (autoUpdateEnabledToggle) {
+    autoUpdateEnabledToggle.checked = true
+  }
+  if (autoUpdateCheckOnLaunchToggle) {
+    autoUpdateCheckOnLaunchToggle.checked = true
+  }
+  if (autoUpdateAutoDownloadToggle) {
+    autoUpdateAutoDownloadToggle.checked = true
+  }
+  void persistAutoUpdateSettings()
   syncWelcomePreferenceCheckboxes()
   void refreshDiagnosticsStatusText()
 })
@@ -3479,6 +3710,11 @@ uiFontFamilySelect.addEventListener('change', () => {
   syncWelcomePreferenceCheckboxes()
 })
 
+uiAccentSelect?.addEventListener('change', () => {
+  applyUISettingsFromControls()
+  void refreshSystemAppearanceState({ force: true })
+})
+
 dom.showWelcomeScreenToggle?.addEventListener('change', () => {
   applyUISettingsFromControls()
   syncWelcomePreferenceCheckboxes()
@@ -3493,6 +3729,18 @@ restoreWorkspaceToggle?.addEventListener('change', () => {
   if (restoreWorkspaceToggle.checked) {
     scheduleWorkspaceSnapshotSave({ immediate: true })
   }
+})
+
+autoUpdateEnabledToggle?.addEventListener('change', () => {
+  void persistAutoUpdateSettings()
+})
+
+autoUpdateCheckOnLaunchToggle?.addEventListener('change', () => {
+  void persistAutoUpdateSettings()
+})
+
+autoUpdateAutoDownloadToggle?.addEventListener('change', () => {
+  void persistAutoUpdateSettings()
 })
 
 debugLoggingToggle?.addEventListener('change', () => {
@@ -3546,7 +3794,7 @@ rebuildAnalysisCacheButton?.addEventListener('click', () => {
 })
 
 clearAnalysisCacheButton?.addEventListener('click', async () => {
-  if (!electronAPI?.clearAnalysisCache) {
+  if (!cacheHost?.clearAnalysisCache) {
     await showMissingBridge('clearAnalysisCache')
     return
   }
@@ -3559,7 +3807,7 @@ clearAnalysisCacheButton?.addEventListener('click', async () => {
   })
   if (!confirmed) return
 
-  const result = await electronAPI.clearAnalysisCache()
+  const result = await cacheHost.clearAnalysisCache()
   if (!result?.success) {
     await showAlert({
       title: '清空缓存失败',
@@ -3631,49 +3879,14 @@ async function executeStatsAnalysis({ taskCenterTaskKey = 'stats' } = {}) {
 
     const statsResult = canUseCachedStats
       ? cachedStats
-      : await runAnalysisTask(
-          segmentedMode ? ANALYSIS_TASK_TYPES.computeStatsSegmented : ANALYSIS_TASK_TYPES.computeStats,
-          segmentedMode
-            ? {
-                text: currentText,
-                chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS,
-                sttrChunkSize: 1000,
-                compareSignature,
-                comparisonEntries: shouldCompareAcrossCorpora ? currentComparisonEntries : []
-              }
-            : {
-                comparisonEntries: shouldCompareAcrossCorpora ? currentComparisonEntries : []
-              },
-          () => {
-            const comparison = shouldCompareAcrossCorpora
-              ? compareCorpusFrequencies(currentComparisonEntries)
-              : { corpora: [], rows: [] }
-            if (segmentedMode) {
-              const segmentedStats = computeSegmentedStats(currentText, {
-                chunkCharSize: SEGMENTED_ANALYSIS_CHUNK_CHARS,
-                sttrChunkSize: 1000
-              })
-              return {
-                ...segmentedStats,
-                compareCorpora: comparison.corpora,
-                compareRows: comparison.rows,
-                compareSignature
-              }
-            }
-            const freqMap = countWordFrequency(currentTokens)
-            return {
-              freqRows: getSortedFrequencyRows(freqMap),
-              tokenCount: currentTokens.length,
-              typeCount: Object.keys(freqMap).length,
-              ttr: calculateTTR(currentTokens),
-              sttr: calculateSTTR(currentTokens, 1000),
-              compareCorpora: comparison.corpora,
-              compareRows: comparison.rows,
-              compareSignature
-            }
-          },
-          { taskName: 'stats' }
-        )
+      : await analysisEngine.computeStats({
+          text: currentText,
+          tokens: currentTokens,
+          comparisonEntries: shouldCompareAcrossCorpora ? currentComparisonEntries : [],
+          analysisMode: currentAnalysisMode,
+          compareSignature,
+          taskName: 'stats'
+        })
     if (!isLatestAnalysisRun('stats', runId)) return
 
     currentFreqRows = statsResult.freqRows || []
@@ -3809,7 +4022,7 @@ chiYatesToggle?.addEventListener('change', () => {
   captureChiSquareInputsFromControls()
   if (currentChiSquareResult) {
     try {
-      currentChiSquareResult = calculateChiSquare2x2(readChiSquareInputNumbers())
+      currentChiSquareResult = analysisEngine.calculateChiSquare(readChiSquareInputNumbers())
     } catch {
       currentChiSquareResult = null
     }
@@ -3829,7 +4042,7 @@ chiSquareRunButton?.addEventListener('click', async () => {
       yates: inputValues.yates
     }
     syncChiSquareInputsFromState()
-    currentChiSquareResult = calculateChiSquare2x2(inputValues)
+    currentChiSquareResult = analysisEngine.calculateChiSquare(inputValues)
     renderChiSquareResult()
     switchTab('chi-square')
     scheduleWorkspaceSnapshotSave()
@@ -3919,7 +4132,7 @@ ngramSizeSelect?.addEventListener('change', () => {
 })
 
 ngramPageSizeSelect?.addEventListener('change', () => {
-  currentNgramPageSize = resolvePageSize(ngramPageSizeSelect.value, currentNgramRows.length)
+  currentNgramPageSize = resolvePageSize(ngramPageSizeSelect.value, getVisibleNgramRows().length)
   currentNgramPage = 1
   renderNgramTable()
   scheduleWorkspaceSnapshotSave()
@@ -3933,7 +4146,7 @@ ngramPrevPageButton?.addEventListener('click', () => {
 })
 
 ngramNextPageButton?.addEventListener('click', () => {
-  const totalPages = Math.ceil(currentNgramRows.length / currentNgramPageSize)
+  const totalPages = Math.ceil(getVisibleNgramRows().length / currentNgramPageSize)
   if (currentNgramPage < totalPages) {
     currentNgramPage += 1
     renderNgramTable()
@@ -3978,9 +4191,6 @@ async function executeKWICAnalysis({ taskCenterTaskKey = 'kwic' } = {}) {
   const searchOptions = { ...currentSearchOptions }
   let kwicScopeLabel = '当前语料'
   let searchedCorpusCount = currentText.trim() ? 1 : 0
-  let kwicTaskType = ANALYSIS_TASK_TYPES.searchKWIC
-  let kwicTaskPayload = { keyword, leftWindowSize, rightWindowSize, searchOptions }
-  let kwicFallback = () => searchKWIC(currentTokenObjects, keyword, leftWindowSize, rightWindowSize, searchOptions)
   let crossCorpusScopeContext = null
 
   if (kwicScope === 'current') {
@@ -4030,7 +4240,7 @@ async function executeKWICAnalysis({ taskCenterTaskKey = 'kwic' } = {}) {
     if (crossCorpusScopeContext) {
       const searchResult = await runCancelableTask(
         () =>
-          electronAPI.searchLibraryKWIC({
+          libraryHost.searchLibraryKWIC({
             folderId: crossCorpusScopeContext.folderId,
             keyword,
             leftWindowSize,
@@ -4062,12 +4272,14 @@ async function executeKWICAnalysis({ taskCenterTaskKey = 'kwic' } = {}) {
       currentKWICResults = Array.isArray(searchResult?.results) ? searchResult.results : []
     } else {
       currentKWICSearchedCorpusCount = searchedCorpusCount
-      currentKWICResults = await runAnalysisTask(
-        kwicTaskType,
-        kwicTaskPayload,
-        kwicFallback,
-        { taskName: 'kwic' }
-      )
+      currentKWICResults = await analysisEngine.searchKwic({
+        tokenObjects: currentTokenObjects,
+        keyword,
+        leftWindowSize,
+        rightWindowSize,
+        searchOptions,
+        taskName: 'kwic'
+      })
     }
     if (!isLatestAnalysisRun('kwic', runId)) return
     invalidateKWICSortCache()
@@ -4247,12 +4459,16 @@ async function executeCollocateAnalysis({ taskCenterTaskKey = 'collocate' } = {}
     currentCollocateLeftWindow = leftWindowSize
     currentCollocateRightWindow = rightWindowSize
     currentCollocateMinFreq = minFreq
-    currentCollocateRows = await runAnalysisTask(
-      ANALYSIS_TASK_TYPES.searchCollocates,
-      { keyword, leftWindowSize, rightWindowSize, minFreq, searchOptions },
-      () => searchCollocates(currentTokenObjects, currentTokens, keyword, leftWindowSize, rightWindowSize, minFreq, searchOptions),
-      { taskName: 'collocate' }
-    )
+    currentCollocateRows = await analysisEngine.searchCollocates({
+      tokenObjects: currentTokenObjects,
+      tokens: currentTokens,
+      keyword,
+      leftWindowSize,
+      rightWindowSize,
+      minFreq,
+      searchOptions,
+      taskName: 'collocate'
+    })
     if (!isLatestAnalysisRun('collocate', runId)) return
     currentCollocatePageSize = resolvePageSize(collocatePageSizeSelect.value, currentCollocateRows.length)
     currentCollocatePage = 1

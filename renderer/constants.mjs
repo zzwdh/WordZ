@@ -3,6 +3,7 @@ export const LIBRARY_FOLDER_STORAGE_KEY = 'corpus-library-folder'
 export const WORKSPACE_STATE_STORAGE_KEY = 'wordz-workspace-state'
 export const RECENT_OPEN_STORAGE_KEY = 'wordz-recent-open'
 export const ONBOARDING_STORAGE_KEY = 'wordz-onboarding'
+export const STOPWORD_FILTER_STORAGE_KEY = 'wordz-stopword-filter'
 export const DEFAULT_APP_INFO = Object.freeze({
   name: 'WordZ',
   version: '',
@@ -31,6 +32,7 @@ export const DEFAULT_UI_SETTINGS = {
   zoom: 100,
   fontScale: 100,
   fontFamily: 'system',
+  themeAccent: 'system',
   showWelcomeScreen: true,
   restoreWorkspace: true,
   systemNotifications: true,

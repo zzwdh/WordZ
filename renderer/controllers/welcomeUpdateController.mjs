@@ -129,12 +129,14 @@ export function createWelcomeUpdateController({
 
   function getAutoUpdateButtonLabel(updateState) {
     if (!updateState) return '更新'
+    if (updateState.state === 'disabled') return '更新已关闭'
     if (updateState.state === 'checking') return '检查中...'
     if (updateState.state === 'downloading') {
       const progressPercent = Math.round(Number(updateState.progressPercent) || 0)
       return progressPercent > 0 ? `下载 ${progressPercent}%` : '下载中...'
     }
     if (updateState.state === 'downloaded') return '安装更新'
+    if (updateState.state === 'up-to-date') return '已是最新'
     return '更新'
   }
 

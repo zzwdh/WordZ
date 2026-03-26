@@ -94,38 +94,12 @@ async function dismissWelcomeOverlayIfVisible(page, { restorePrompt = 'skip' } =
 async function prepareWindow(page, options = {}) {
   await page.waitForLoadState('domcontentloaded')
   await dismissWelcomeOverlayIfVisible(page, options)
-  await page.evaluate(() => {
-    const overflow = document.querySelector('.toolbar-native-overflow')
-    if (overflow) {
-      overflow.classList.remove('hidden')
-      overflow.setAttribute('aria-hidden', 'false')
-      overflow.style.setProperty('display', 'flex', 'important')
-      overflow.style.setProperty('gap', '8px')
-      overflow.style.setProperty('align-items', 'center')
-      overflow.style.setProperty('padding', '0 20px')
-    }
-  })
 }
 
 async function chooseCorpusMenuAction(page, actionSelector) {
-  await page.locator('#openCorpusMenuButton').click({ force: true }).catch(() => {})
-  const panelVisible = await isVisible(page, '#openCorpusMenuPanel').catch(() => false)
-  if (!panelVisible) {
-    await page.evaluate(() => {
-      const panel = document.getElementById('openCorpusMenuPanel')
-      const button = document.getElementById('openCorpusMenuButton')
-      panel?.classList.remove('hidden')
-      button?.setAttribute('aria-expanded', 'true')
-    })
-  }
+  await page.locator('#openCorpusMenuButton').click()
   await waitForVisible(page, '#openCorpusMenuPanel')
-  await page.locator(actionSelector).click({ force: true })
-  await page.evaluate(() => {
-    const panel = document.getElementById('openCorpusMenuPanel')
-    const button = document.getElementById('openCorpusMenuButton')
-    panel?.classList.add('hidden')
-    button?.setAttribute('aria-expanded', 'false')
-  })
+  await page.locator(actionSelector).click()
   await waitForHidden(page, '#openCorpusMenuPanel')
 }
 

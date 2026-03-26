@@ -2,9 +2,11 @@ import {
   LIBRARY_FOLDER_STORAGE_KEY,
   ONBOARDING_STORAGE_KEY,
   RECENT_OPEN_STORAGE_KEY,
+  STOPWORD_FILTER_STORAGE_KEY,
   UI_SETTINGS_STORAGE_KEY,
   WORKSPACE_STATE_STORAGE_KEY
 } from './constants.mjs'
+import { normalizeStopwordFilterState } from './stopwordFilter.mjs'
 import {
   loadOnboardingState as loadOnboardingStateFromStorage,
   loadStoredWorkspaceSnapshot as loadStoredWorkspaceSnapshotFromStorage,
@@ -96,6 +98,23 @@ export function createPersistedStateStore(storage = globalThis.localStorage) {
     saveUiSettings(settings = {}) {
       safeStorage.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
       return settings
+    },
+    loadStopwordFilter(defaultState = {}) {
+      try {
+        const rawValue = safeStorage.getItem(STOPWORD_FILTER_STORAGE_KEY)
+        if (!rawValue) return normalizeStopwordFilterState(defaultState)
+        return normalizeStopwordFilterState({
+          ...defaultState,
+          ...JSON.parse(rawValue)
+        })
+      } catch {
+        return normalizeStopwordFilterState(defaultState)
+      }
+    },
+    saveStopwordFilter(stopwordFilter = {}) {
+      const normalizedState = normalizeStopwordFilterState(stopwordFilter)
+      safeStorage.setItem(STOPWORD_FILTER_STORAGE_KEY, JSON.stringify(normalizedState))
+      return normalizedState
     },
     loadThemeMode(defaultTheme = 'light') {
       return String(safeStorage.getItem(THEME_STORAGE_KEY) || defaultTheme || 'light').trim() || 'light'

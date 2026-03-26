@@ -1,3 +1,5 @@
+import { buildPaginationDisplayState } from '../viewModels/paginationState.mjs'
+
 function getCurrentCollocatePageRows(state) {
   if (state.currentCollocateRows.length === 0) {
     return { pageRows: [], currentCollocatePage: 1, totalPages: 0, totalRows: 0, startIndex: 0 }
@@ -19,22 +21,33 @@ export function renderCollocateTable(state, dom, helpers) {
   const { pageRows, currentCollocatePage, totalPages, totalRows, startIndex } = getCurrentCollocatePageRows(state)
 
   if (totalRows === 0) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.collocateWrapper)
     dom.collocateWrapper.classList.remove('show-all-results')
     dom.collocateTotalRowsInfo.textContent = '共 0 条结果'
-    dom.collocatePageInfo.textContent = '第 0 / 0 页'
-    dom.collocatePrevPageButton.disabled = true
-    dom.collocateNextPageButton.disabled = true
+    dom.collocatePageInfo.textContent = paginationState.pageLabel
+    dom.collocatePrevPageButton.disabled = paginationState.previousDisabled
+    dom.collocateNextPageButton.disabled = paginationState.nextDisabled
     dom.collocateWrapper.innerHTML = '<div class="empty-tip">没有找到符合条件的 Collocate 结果</div>'
     return { currentCollocatePage: 1 }
   }
 
   const isShowingAllRows = dom.collocatePageSizeSelect.value === 'all'
+  const paginationState = buildPaginationDisplayState({
+    totalRows,
+    currentPage: currentCollocatePage,
+    totalPages,
+    showAll: isShowingAllRows
+  })
   dom.collocateWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.collocateTotalRowsInfo.textContent = `共 ${totalRows} 条结果`
-  dom.collocatePageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentCollocatePage} / ${totalPages} 页`
-  dom.collocatePrevPageButton.disabled = isShowingAllRows || currentCollocatePage === 1
-  dom.collocateNextPageButton.disabled = isShowingAllRows || currentCollocatePage === totalPages
+  dom.collocatePageInfo.textContent = paginationState.pageLabel
+  dom.collocatePrevPageButton.disabled = paginationState.previousDisabled
+  dom.collocateNextPageButton.disabled = paginationState.nextDisabled
   helpers.renderTableInChunks({
     container: dom.collocateWrapper,
     rows: pageRows,

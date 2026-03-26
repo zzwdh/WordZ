@@ -1,3 +1,5 @@
+import { buildPaginationDisplayState } from '../viewModels/paginationState.mjs'
+
 export function renderWorkspaceOverview(state, dom, { formatCount }) {
   if (!state.currentCorpusDisplayName) {
     dom.workspaceCorpusValue.textContent = '未载入'
@@ -94,9 +96,10 @@ export function renderStatsSummary(state, dom, helpers) {
 
 export function renderWordCloud(state, dom, helpers) {
   if (!dom.wordCloudMeta || !dom.wordCloudWrapper) return
+  const stopwordSummary = state.currentStopwordFilter?.enabled ? ` ｜ ${state.currentStopwordSummary}` : ''
 
   if (state.currentSearchError) {
-    dom.wordCloudMeta.textContent = 'SearchQuery 当前无效。'
+    dom.wordCloudMeta.textContent = `SearchQuery 当前无效。${stopwordSummary}`.trim()
     dom.wordCloudWrapper.innerHTML = `<div class="empty-tip">${helpers.escapeHtml(state.currentSearchError)}</div>`
     return
   }
@@ -122,8 +125,8 @@ export function renderWordCloud(state, dom, helpers) {
     .join('')
 
   dom.wordCloudMeta.textContent = state.currentSearchQuery
-    ? `基于当前 SearchQuery 展示前 ${helpers.formatCount(rows.length)} 个词。点击任一词可继续检索。`
-    : `展示当前语料中前 ${helpers.formatCount(rows.length)} 个高频词。点击任一词可继续检索。`
+    ? `基于当前 SearchQuery 展示前 ${helpers.formatCount(rows.length)} 个词。点击任一词可继续检索。${stopwordSummary}`
+    : `展示当前语料中前 ${helpers.formatCount(rows.length)} 个高频词。点击任一词可继续检索。${stopwordSummary}`
   dom.wordCloudWrapper.innerHTML = `<div class="word-cloud-grid">${cloudHtml}</div>`
 }
 
@@ -153,6 +156,11 @@ export function renderFrequencyTable(state, dom, helpers) {
     : '没有可显示的词频结果'
 
   if (totalRows === 0) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.tableWrapper)
     dom.tableWrapper.classList.remove('show-all-results')
     if (state.currentSearchError) {
@@ -160,21 +168,27 @@ export function renderFrequencyTable(state, dom, helpers) {
     } else {
       dom.totalRowsInfo.textContent = hasFilter ? `共 ${allRowsCount} 个单词（匹配 0 个）` : '共 0 个单词'
     }
-    dom.pageInfo.textContent = '第 0 / 0 页'
-    dom.prevPageButton.disabled = true
-    dom.nextPageButton.disabled = true
+    dom.pageInfo.textContent = paginationState.pageLabel
+    dom.prevPageButton.disabled = paginationState.previousDisabled
+    dom.nextPageButton.disabled = paginationState.nextDisabled
     dom.tableWrapper.innerHTML = `<div class="empty-tip">${state.currentSearchError ? helpers.escapeHtml(state.currentSearchError) : emptyMessage}</div>`
     return { currentPage: 1 }
   }
 
   const isShowingAllRows = dom.pageSizeSelect.value === 'all'
+  const paginationState = buildPaginationDisplayState({
+    totalRows,
+    currentPage,
+    totalPages,
+    showAll: isShowingAllRows
+  })
   dom.tableWrapper.classList.toggle('show-all-results', isShowingAllRows)
   dom.totalRowsInfo.textContent = hasFilter
     ? `共 ${allRowsCount} 个单词（匹配 ${totalRows} 个）`
     : `共 ${totalRows} 个单词`
-  dom.pageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentPage} / ${totalPages} 页`
-  dom.prevPageButton.disabled = isShowingAllRows || currentPage === 1
-  dom.nextPageButton.disabled = isShowingAllRows || currentPage === totalPages
+  dom.pageInfo.textContent = paginationState.pageLabel
+  dom.prevPageButton.disabled = paginationState.previousDisabled
+  dom.nextPageButton.disabled = paginationState.nextDisabled
   helpers.renderTableInChunks({
     container: dom.tableWrapper,
     rows: pageRows,

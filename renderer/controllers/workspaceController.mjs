@@ -10,7 +10,6 @@ export function createWorkspaceController({
   persistedState,
   dom,
   recentOpenLimit,
-  workspaceSnapshotVersion,
   defaultWindowSize,
   normalizeSearchOptions,
   hasMeaningfulWorkspaceSnapshot,
@@ -37,6 +36,7 @@ export function createWorkspaceController({
   syncChiSquareInputsFromState,
   renderChiSquareResult,
   syncSearchOptionInputs,
+  syncStopwordFilterControls,
   setSharedSearchQuery,
   runNgramAnalysis,
   renderNgramTable,
@@ -46,13 +46,23 @@ export function createWorkspaceController({
   renderWordCloud,
   requestWorkspaceRestoreDecision,
   getWorkspaceSnapshotState,
-  applyRestoredWorkspaceState
+  applyRestoredWorkspaceState,
+  workspaceDocumentService
 }) {
   let workspaceSnapshotTimer = null
   let workspaceSnapshotReady = false
   let workspaceRestoreInProgress = false
   let startupRestoreHandledByCrashWizard = false
   let recentOpenEntries = []
+
+  function syncWindowDocumentEditedState(snapshot = buildWorkspaceSnapshot()) {
+    if (!workspaceDocumentService) return false
+    const { edited } = workspaceDocumentService.syncEditedFromSnapshot(snapshot, {
+      workspaceReady: workspaceSnapshotReady,
+      workspaceRestoreInProgress
+    })
+    return edited
+  }
 
   function getRecentOpenEntries() {
     return recentOpenEntries
@@ -106,67 +116,24 @@ export function createWorkspaceController({
   }
 
   function buildWorkspaceSnapshot() {
-    const state = getWorkspaceSnapshotState()
-    const restorableCorpusIds =
-      state.currentCorpusMode === 'saved' || state.currentCorpusMode === 'saved-multi'
-        ? state.currentSelectedCorpora.map(item => item.id).filter(Boolean)
-        : []
-    const restorableCorpusNames =
-      state.currentCorpusMode === 'saved' || state.currentCorpusMode === 'saved-multi'
-        ? state.currentSelectedCorpora.map(item => item.name).filter(Boolean)
-        : []
-
-    return {
-      version: workspaceSnapshotVersion,
-      savedAt: new Date().toISOString(),
-      currentTab: state.currentTab,
-      currentLibraryFolderId: state.currentLibraryFolderId,
-      previewCollapsed: state.previewCollapsed !== false,
-      workspace: {
-        corpusIds: restorableCorpusIds,
-        corpusNames: restorableCorpusNames
-      },
-      search: {
-        query: state.currentSearchQuery,
-        options: { ...state.currentSearchOptions }
-      },
-      stats: {
-        pageSize: state.statsPageSize || '10'
-      },
-      compare: {
-        pageSize: state.comparePageSize || '10'
-      },
-      ngram: {
-        pageSize: state.ngramPageSize || '10',
-        size: state.ngramSize || '2'
-      },
-      kwic: {
-        pageSize: state.kwicPageSize || '10',
-        scope: state.kwicScope || 'current',
-        sortMode: state.kwicSortMode || 'original',
-        leftWindow: state.kwicLeftWindow || String(defaultWindowSize),
-        rightWindow: state.kwicRightWindow || String(defaultWindowSize)
-      },
-      collocate: {
-        pageSize: state.collocatePageSize || '10',
-        leftWindow: state.collocateLeftWindow || String(defaultWindowSize),
-        rightWindow: state.collocateRightWindow || String(defaultWindowSize),
-        minFreq: state.collocateMinFreq || '1'
-      },
-      chiSquare: {
-        a: String(state.chiSquare?.a || ''),
-        b: String(state.chiSquare?.b || ''),
-        c: String(state.chiSquare?.c || ''),
-        d: String(state.chiSquare?.d || ''),
-        yates: state.chiSquare?.yates === true
+    if (!workspaceDocumentService) {
+      return {
+        version: 1,
+        savedAt: new Date().toISOString()
       }
     }
+    return workspaceDocumentService.buildWorkspaceSnapshot(
+      getWorkspaceSnapshotState()
+    )
   }
 
   function persistWorkspaceSnapshot() {
     if (workspaceRestoreInProgress || !workspaceSnapshotReady) return
     try {
-      persistedState.saveWorkspaceSnapshot(buildWorkspaceSnapshot())
+      const snapshot = buildWorkspaceSnapshot()
+      persistedState.saveWorkspaceSnapshot(snapshot)
+      workspaceDocumentService?.markSnapshotPersisted(snapshot)
+      syncWindowDocumentEditedState(snapshot)
     } catch (error) {
       console.warn('[workspace.snapshot.save]', error)
     }
@@ -174,6 +141,7 @@ export function createWorkspaceController({
 
   function scheduleWorkspaceSnapshotSave({ immediate = false } = {}) {
     if (workspaceRestoreInProgress || !workspaceSnapshotReady) return
+    syncWindowDocumentEditedState()
     if (workspaceSnapshotTimer) clearTimeout(workspaceSnapshotTimer)
     if (immediate) {
       workspaceSnapshotTimer = null
@@ -244,6 +212,7 @@ export function createWorkspaceController({
       applyRestoredWorkspaceState({
         searchOptions: restoredSearchOptions,
         searchQuery: snapshot.search?.query || '',
+        stopwordFilter: snapshot.search?.stopwordFilter || {},
         statsPageSize: resolvePageSize(dom.pageSizeSelect?.value || '10', getWorkspaceSnapshotState().visibleFrequencyRowCount || 0),
         comparePageSize: resolvePageSize(dom.comparePageSizeSelect?.value || '10', getWorkspaceSnapshotState().visibleCompareRowCount || 0),
         ngramSize: Number(dom.ngramSizeSelect?.value || snapshot.ngram?.size || '2') || 2,
@@ -268,6 +237,7 @@ export function createWorkspaceController({
       syncChiSquareInputsFromState()
       renderChiSquareResult()
       syncSearchOptionInputs()
+      syncStopwordFilterControls()
       setSharedSearchQuery(snapshot.search?.query || '', { rerender: false })
 
       if (getWorkspaceSnapshotState().tokenCount > 0) {
@@ -291,6 +261,7 @@ export function createWorkspaceController({
           corpusCount: snapshot.workspace?.corpusIds?.length || 0
         }
       )
+      workspaceDocumentService?.markSnapshotPersisted(buildWorkspaceSnapshot())
     } finally {
       workspaceRestoreInProgress = false
       endBusyState()

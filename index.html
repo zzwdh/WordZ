@@ -127,14 +127,14 @@
   </div>
 
   <div class="app-shell">
-    <header class="topbar">
+    <header class="topbar window-drag-region">
       <div class="topbar-main">
         <div class="topbar-brand-inline">
           <h1 id="appTitleHeading">WordZ</h1>
           <p class="subtitle compact-subtitle" id="appSubtitle">Corpus Workbench</p>
         </div>
       </div>
-      <div class="topbar-actions-shell">
+      <div class="topbar-actions-shell no-drag-region">
         <div class="toolbar-actions-group primary">
           <button class="button" id="countButton">统计</button>
           <button class="button small gray hidden" id="cancelStatsButton">取消统计</button>
@@ -145,7 +145,7 @@
       </div>
     </header>
 
-    <div class="toolbar-native-overflow">
+    <div class="toolbar-native-overflow no-drag-region">
       <div class="command-strip-group">
         <div class="command-strip-label">File</div>
         <div class="toolbar-menu">
@@ -286,7 +286,7 @@
       </aside>
 
       <section class="workspace">
-        <div class="workspace-header-strip">
+        <div class="workspace-header-strip window-drag-region">
           <div class="workspace-header-copy">
             <div class="workspace-header-kicker">Analysis Workbench</div>
             <h2>结果工作台</h2>
@@ -338,6 +338,19 @@
                     <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
                     <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
                   </div>
+                  <label class="search-query-option stopword-toggle-option">
+                    <input type="checkbox" data-stopword-toggle="stats" />
+                    Stopword
+                  </label>
+                  <label class="toolbar-inline-field stopword-mode-field" for="statsStopwordModeSelect">
+                    <span class="toolbar-label">词表模式</span>
+                    <select class="select" id="statsStopwordModeSelect" data-stopword-mode="stats">
+                      <option value="exclude">筛去词表内词项</option>
+                      <option value="include">仅保留词表内词项</option>
+                    </select>
+                  </label>
+                  <button class="button small gray" type="button" data-stopword-edit="stats">编辑词表</button>
+                  <span class="toolbar-info stopword-summary" data-stopword-summary="stats">Stopword 关闭</span>
                   <span class="toolbar-label">每页显示</span>
                   <select class="select" id="pageSizeSelect">
                     <option value="10">10 个</option>
@@ -389,6 +402,19 @@
                     <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
                     <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
                   </div>
+                  <label class="search-query-option stopword-toggle-option">
+                    <input type="checkbox" data-stopword-toggle="compare" />
+                    Stopword
+                  </label>
+                  <label class="toolbar-inline-field stopword-mode-field" for="compareStopwordModeSelect">
+                    <span class="toolbar-label">词表模式</span>
+                    <select class="select" id="compareStopwordModeSelect" data-stopword-mode="compare">
+                      <option value="exclude">筛去词表内词项</option>
+                      <option value="include">仅保留词表内词项</option>
+                    </select>
+                  </label>
+                  <button class="button small gray" type="button" data-stopword-edit="compare">编辑词表</button>
+                  <span class="toolbar-info stopword-summary" data-stopword-summary="compare">Stopword 关闭</span>
                   <span class="toolbar-label">每页显示</span>
                   <select class="select" id="comparePageSizeSelect">
                     <option value="10">10 个</option>
@@ -492,7 +518,7 @@
             <div class="section-head">
               <div>
                 <h3>Ngram</h3>
-                <div class="section-note">展示当前语料的连续词组频次，适合快速观察短语模式。默认支持 2-gram 到 5-gram，并支持分页与导出。</div>
+                <div class="section-note">展示当前语料的连续词组频次，适合快速观察短语模式。默认支持 2-gram 到 5-gram，并支持 SearchQuery、stopword 过滤、分页与导出。</div>
               </div>
             </div>
 
@@ -513,6 +539,26 @@
 
               <div class="toolbar sticky-toolbar sticky-toolbar-sub result-toolbar result-toolbar-secondary">
                 <div class="toolbar-left">
+                  <input class="input compact-input" id="ngramFilterInput" data-shared-search-input="ngram" type="search" placeholder="检索某个词或短语；留空则显示全部" />
+                  <div class="search-query-group">
+                    <span class="toolbar-label">SearchQuery</span>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="words" checked />Words</label>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="case" />Case</label>
+                    <label class="search-query-option"><input type="checkbox" data-search-option="regex" />Regex</label>
+                  </div>
+                  <label class="search-query-option stopword-toggle-option">
+                    <input type="checkbox" data-stopword-toggle="ngram" />
+                    Stopword
+                  </label>
+                  <label class="toolbar-inline-field stopword-mode-field" for="ngramStopwordModeSelect">
+                    <span class="toolbar-label">词表模式</span>
+                    <select class="select" id="ngramStopwordModeSelect" data-stopword-mode="ngram">
+                      <option value="exclude">筛去词表内词项</option>
+                      <option value="include">仅保留词表内词项</option>
+                    </select>
+                  </label>
+                  <button class="button small gray" type="button" data-stopword-edit="ngram">编辑词表</button>
+                  <span class="toolbar-info stopword-summary" data-stopword-summary="ngram">Stopword 关闭</span>
                   <button class="button small" id="exportNgramButton">导出当前页 Ngram</button>
                   <button class="button small gray" id="exportAllNgramButton">导出全部 Ngram</button>
                   <span class="toolbar-label">每页显示</span>
@@ -789,6 +835,22 @@
             <div class="settings-note">支持浅色、深色和跟随系统主题。选择“跟随系统”后会在系统切换时自动同步。</div>
           </div>
 
+          <label class="settings-field" for="uiAccentSelect">
+            <div class="settings-field-head">
+              <span class="settings-label">主题强调色</span>
+              <span class="settings-value" id="themeAccentValue">跟随系统</span>
+            </div>
+            <select class="select" id="uiAccentSelect">
+              <option value="system">跟随系统</option>
+              <option value="ocean">海蓝</option>
+              <option value="forest">森林</option>
+              <option value="amber">琥珀</option>
+              <option value="rose">玫瑰</option>
+              <option value="slate">石墨</option>
+            </select>
+            <div class="settings-note" id="themeAccentStatusText">你可以让 WordZ 跟随系统强调色，也可以为当前工作台固定一种更适合自己的主题主色。</div>
+          </label>
+
           <label class="settings-field" for="uiZoomRange">
             <div class="settings-field-head">
               <span class="settings-label">界面缩放</span>
@@ -848,6 +910,26 @@
             </div>
             <div class="settings-note">只恢复可稳定重建的已保存工作区；Quick Corpus 不会自动重新打开原始外部文件。</div>
           </label>
+
+          <div class="settings-field">
+            <div class="settings-field-head">
+              <span class="settings-label">自动更新</span>
+              <span class="settings-value" id="autoUpdatePreferenceValue">读取中...</span>
+            </div>
+            <label class="settings-toggle-row" for="autoUpdateEnabledToggle">
+              <input id="autoUpdateEnabledToggle" type="checkbox" checked />
+              <span>启用自动更新</span>
+            </label>
+            <label class="settings-toggle-row" for="autoUpdateCheckOnLaunchToggle">
+              <input id="autoUpdateCheckOnLaunchToggle" type="checkbox" checked />
+              <span>启动后自动检查更新</span>
+            </label>
+            <label class="settings-toggle-row" for="autoUpdateAutoDownloadToggle">
+              <input id="autoUpdateAutoDownloadToggle" type="checkbox" checked />
+              <span>发现新版后自动后台下载</span>
+            </label>
+            <div class="settings-note" id="autoUpdatePreferenceStatusText">更新状态会在这里显示。关闭自动更新后，你仍然可以手动点击顶部“更新”按钮检查版本。</div>
+          </div>
 
           <label class="settings-field settings-toggle-field" for="systemNotificationsToggle">
             <div class="settings-field-head">
@@ -938,6 +1020,34 @@
       <div class="modal-footer">
         <button class="button small gray" id="resetUiSettingsButton">恢复默认</button>
         <button class="button small gray" id="closeUiSettingsButton">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="stopwordModal">
+    <div class="modal-panel stopword-modal-panel" role="dialog" aria-modal="true" aria-labelledby="stopwordModalTitle">
+      <div class="modal-header"><strong id="stopwordModalTitle">Stopword 词表</strong></div>
+      <div class="modal-body">
+        <div class="settings-field stopword-modal-field">
+          <div class="settings-field-head">
+            <span class="settings-label">词表用途</span>
+            <span class="settings-value" id="stopwordModalContext">共享搜索过滤器</span>
+          </div>
+          <div class="settings-note">默认关闭。开启后可选择“筛去词表内词项”或“仅保留词表内词项”。支持按换行、空格、逗号分隔；Ngram 会按组成词逐个匹配。</div>
+        </div>
+        <label class="settings-field stopword-modal-field" for="stopwordListTextarea">
+          <div class="settings-field-head">
+            <span class="settings-label">词表内容</span>
+            <span class="settings-value" id="stopwordListCount">0 词</span>
+          </div>
+          <textarea class="input stopword-textarea" id="stopwordListTextarea" rows="14" placeholder="the&#10;and&#10;of&#10;to"></textarea>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="button small gray" id="resetStopwordListButton" type="button">恢复默认</button>
+        <button class="button small gray" id="clearStopwordListButton" type="button">清空</button>
+        <button class="button small gray" id="closeStopwordModalButton" type="button">取消</button>
+        <button class="button" id="saveStopwordListButton" type="button">保存并应用</button>
       </div>
     </div>
   </div>

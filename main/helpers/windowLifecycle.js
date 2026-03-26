@@ -24,12 +24,22 @@ function createMainBrowserWindow({
   })
 
   const win = new BrowserWindow({
+    title: 'WordZ',
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 760,
     show: true,
     backgroundColor: '#f4efe7',
+    ...(process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hiddenInset',
+          trafficLightPosition: {
+            x: 16,
+            y: 14
+          }
+        }
+      : {}),
     webPreferences: {
       preload: preloadEnabled ? preloadPath : undefined,
       contextIsolation: true,

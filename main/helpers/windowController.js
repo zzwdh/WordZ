@@ -1,4 +1,5 @@
 const { buildWindowLoadErrorHtml } = require('./startupPage')
+const { createWindowDocumentStateController } = require('./windowDocumentState')
 const {
   attachMainWindowLifecycleHandlers,
   createMainBrowserWindow
@@ -27,9 +28,44 @@ function createWindowController({
   disableRendererSandbox
 }) {
   const mainWindowLoadStateMap = new WeakMap()
+  const windowDocumentControllerMap = new WeakMap()
 
   function getPrimaryWindow() {
     return BrowserWindow.getAllWindows().find(win => win && !win.isDestroyed?.()) || null
+  }
+
+  function getWindowDocumentController(win) {
+    if (!win || win.isDestroyed?.()) return null
+    const existingController = windowDocumentControllerMap.get(win)
+    if (existingController) return existingController
+
+    const nextController = createWindowDocumentStateController({
+      win,
+      platform: process.platform,
+      appName: app.getName?.() || 'WordZ'
+    })
+    windowDocumentControllerMap.set(win, nextController)
+    return nextController
+  }
+
+  function setWindowDocumentState(win, payload = {}) {
+    const targetWindow = win && !win.isDestroyed?.() ? win : getPrimaryWindow()
+    if (!targetWindow || targetWindow.isDestroyed?.()) {
+      return {
+        success: false,
+        message: '当前没有可用主窗口。'
+      }
+    }
+
+    const controller = getWindowDocumentController(targetWindow)
+    if (!controller) {
+      return {
+        success: false,
+        message: '当前窗口文档状态不可用。'
+      }
+    }
+
+    return controller.update(payload)
   }
 
   function getMainWindowLoadState(win) {
@@ -283,6 +319,7 @@ function createWindowController({
       preloadExists: fsSync.existsSync(preloadScriptPath),
       hardenWindow
     })
+    getWindowDocumentController(win)
     attachMainWindowLifecycleHandlers({
       win,
       BrowserWindow,
@@ -484,7 +521,8 @@ function createWindowController({
     createWindowSafely,
     ensurePrimaryWindow,
     getPrimaryWindow,
-    scheduleStartupWindowWatchdog
+    scheduleStartupWindowWatchdog,
+    setWindowDocumentState
   }
 }
 

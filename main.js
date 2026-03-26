@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, session, shell, Notification, nativeImage, Menu, protocol } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, session, shell, Notification, nativeImage, Menu, protocol, systemPreferences } = require('electron')
 const path = require('path')
 const { pathToFileURL } = require('url')
 const os = require('os')
@@ -172,6 +172,29 @@ const smokeObserverState = {
   windowProgress: []
 }
 
+function normalizeAccentColor(value) {
+  const rawValue = String(value || '').trim().replace(/^#/, '')
+  if (!rawValue) return ''
+  const normalizedHex = rawValue.length >= 6 ? rawValue.slice(0, 6) : rawValue
+  if (!/^[0-9a-f]{6}$/i.test(normalizedHex)) return ''
+  return `#${normalizedHex.toLowerCase()}`
+}
+
+function getSystemAppearanceState() {
+  const accentColor = typeof systemPreferences?.getAccentColor === 'function'
+    ? normalizeAccentColor(systemPreferences.getAccentColor())
+    : ''
+
+  return {
+    success: true,
+    appearance: {
+      platform: process.platform,
+      accentColor,
+      supportsAccentColor: Boolean(accentColor)
+    }
+  }
+}
+
 if (SMOKE_USER_DATA_DIR) {
   app.setPath('userData', SMOKE_USER_DATA_DIR)
   app.setPath('sessionData', path.join(SMOKE_USER_DATA_DIR, 'session-data'))
@@ -231,13 +254,16 @@ function pushSmokeObserverEvent(type, event) {
   })
   smokeObserverState[type] = smokeObserverState[type].slice(-SMOKE_EVENT_LIMIT)
 }
+let getPrimaryWindowForDialogs = () => null
 const {
   showOpenDialog: showOpenDialogForApp,
   showSaveDialog: showSaveDialogForApp
 } = createDialogController({
   dialog,
   openQueue: SMOKE_OPEN_DIALOG_QUEUE,
-  saveQueue: SMOKE_SAVE_DIALOG_QUEUE
+  saveQueue: SMOKE_SAVE_DIALOG_QUEUE,
+  getParentWindow: () => getPrimaryWindowForDialogs(),
+  platform: process.platform
 })
 
 function captureMainError(scope, error, details = null) {
@@ -276,8 +302,11 @@ const {
   createWindowSafely,
   ensurePrimaryWindow,
   getPrimaryWindow,
-  scheduleStartupWindowWatchdog
+  scheduleStartupWindowWatchdog,
+  setWindowDocumentState
 } = windowController
+
+getPrimaryWindowForDialogs = getPrimaryWindow
 
 windowBridgeController = createWindowBridgeController({
   app,
@@ -398,8 +427,11 @@ registerSystemIpcRoutes({
   markSystemOpenBridgeReady,
   consumePendingSystemOpenFilePaths,
   getAutoUpdateController: () => autoUpdateController,
+  getSystemAppearanceState,
   getDiagnosticsController: () => diagnosticsController,
   getAnalysisCacheController: () => analysisCacheController,
+  getEventWindow: event => BrowserWindow.fromWebContents?.(event.sender) || getPrimaryWindow(),
+  setWindowDocumentState,
   shell
 })
 

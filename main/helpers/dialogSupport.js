@@ -65,19 +65,40 @@ function resolveSaveDialogResult(queuedItem) {
   }
 }
 
-function createDialogController({ dialog, openQueue = null, saveQueue = null }) {
+function resolveParentWindow(targetWindow, getParentWindow) {
+  if (targetWindow && !targetWindow.isDestroyed?.()) return targetWindow
+  const fallbackWindow = typeof getParentWindow === 'function' ? getParentWindow() : null
+  if (fallbackWindow && !fallbackWindow.isDestroyed?.()) return fallbackWindow
+  return null
+}
+
+function createDialogController({
+  dialog,
+  openQueue = null,
+  saveQueue = null,
+  getParentWindow = null,
+  platform = process.platform
+}) {
   return {
-    async showOpenDialog(options) {
+    async showOpenDialog(options, targetWindow = null) {
       const queuedItem = takeQueueItem(openQueue, '打开')
       if (queuedItem !== null) {
         return resolveOpenDialogResult(queuedItem)
       }
+      const parentWindow = resolveParentWindow(targetWindow, getParentWindow)
+      if (platform === 'darwin' && parentWindow) {
+        return dialog.showOpenDialog(parentWindow, options)
+      }
       return dialog.showOpenDialog(options)
     },
-    async showSaveDialog(options) {
+    async showSaveDialog(options, targetWindow = null) {
       const queuedItem = takeQueueItem(saveQueue, '保存')
       if (queuedItem !== null) {
         return resolveSaveDialogResult(queuedItem)
+      }
+      const parentWindow = resolveParentWindow(targetWindow, getParentWindow)
+      if (platform === 'darwin' && parentWindow) {
+        return dialog.showSaveDialog(parentWindow, options)
       }
       return dialog.showSaveDialog(options)
     }

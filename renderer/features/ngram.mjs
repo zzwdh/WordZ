@@ -1,15 +1,18 @@
+import { buildPaginationDisplayState } from '../viewModels/paginationState.mjs'
+
 function getCurrentNgramPageRows(state) {
-  if (state.currentNgramRows.length === 0) {
+  const rows = Array.isArray(state.currentDisplayedNgramRows) ? state.currentDisplayedNgramRows : []
+  if (rows.length === 0) {
     return { pageRows: [], currentNgramPage: 1, totalPages: 0, totalRows: 0, startIndex: 0 }
   }
 
-  const totalRows = state.currentNgramRows.length
+  const totalRows = rows.length
   const totalPages = Math.ceil(totalRows / state.currentNgramPageSize)
   const currentNgramPage = Math.min(state.currentNgramPage, totalPages)
   const startIndex = (currentNgramPage - 1) * state.currentNgramPageSize
 
   return {
-    pageRows: state.currentNgramRows.slice(startIndex, startIndex + state.currentNgramPageSize),
+    pageRows: rows.slice(startIndex, startIndex + state.currentNgramPageSize),
     currentNgramPage,
     totalPages,
     totalRows,
@@ -19,24 +22,49 @@ function getCurrentNgramPageRows(state) {
 
 export function renderNgramTable(state, dom, helpers) {
   const { pageRows, currentNgramPage, totalPages, totalRows, startIndex } = getCurrentNgramPageRows(state)
+  const allRowsCount = Array.isArray(state.currentNgramRows) ? state.currentNgramRows.length : 0
+  const hasFilter = Boolean(String(state.currentSearchQuery || '').trim())
 
   if (totalRows === 0) {
+    const paginationState = buildPaginationDisplayState({
+      totalRows,
+      currentPage: 1,
+      totalPages: 0
+    })
     helpers.cancelTableRender(dom.ngramWrapper)
     dom.ngramWrapper.classList.remove('show-all-results')
-    dom.ngramTotalRowsInfo.textContent = '共 0 条结果'
-    dom.ngramPageInfo.textContent = '第 0 / 0 页'
-    dom.ngramPrevPageButton.disabled = true
-    dom.ngramNextPageButton.disabled = true
-    dom.ngramWrapper.innerHTML = '<div class="empty-tip">没有可显示的 Ngram 结果</div>'
+    dom.ngramTotalRowsInfo.textContent = state.currentSearchError
+      ? 'SearchQuery 无效'
+      : hasFilter
+        ? `共 ${allRowsCount} 条结果（匹配 0 条）`
+        : '共 0 条结果'
+    dom.ngramPageInfo.textContent = paginationState.pageLabel
+    dom.ngramPrevPageButton.disabled = paginationState.previousDisabled
+    dom.ngramNextPageButton.disabled = paginationState.nextDisabled
+    dom.ngramWrapper.innerHTML = `<div class="empty-tip">${
+      state.currentSearchError
+        ? helpers.escapeHtml(state.currentSearchError)
+        : hasFilter
+          ? `没有匹配“${helpers.escapeHtml(state.currentSearchQuery)}”的 Ngram 结果`
+          : '没有可显示的 Ngram 结果'
+    }</div>`
     return { currentNgramPage: 1 }
   }
 
   const isShowingAllRows = dom.ngramPageSizeSelect.value === 'all'
+  const paginationState = buildPaginationDisplayState({
+    totalRows,
+    currentPage: currentNgramPage,
+    totalPages,
+    showAll: isShowingAllRows
+  })
   dom.ngramWrapper.classList.toggle('show-all-results', isShowingAllRows)
-  dom.ngramTotalRowsInfo.textContent = `共 ${totalRows} 条结果`
-  dom.ngramPageInfo.textContent = isShowingAllRows ? '全部显示' : `第 ${currentNgramPage} / ${totalPages} 页`
-  dom.ngramPrevPageButton.disabled = isShowingAllRows || currentNgramPage === 1
-  dom.ngramNextPageButton.disabled = isShowingAllRows || currentNgramPage === totalPages
+  dom.ngramTotalRowsInfo.textContent = hasFilter
+    ? `共 ${allRowsCount} 条结果（匹配 ${totalRows} 条）`
+    : `共 ${totalRows} 条结果`
+  dom.ngramPageInfo.textContent = paginationState.pageLabel
+  dom.ngramPrevPageButton.disabled = paginationState.previousDisabled
+  dom.ngramNextPageButton.disabled = paginationState.nextDisabled
 
   helpers.renderTableInChunks({
     container: dom.ngramWrapper,
@@ -71,10 +99,11 @@ export function buildNgramRows(state) {
 }
 
 export function buildAllNgramRows(state) {
-  if (state.currentNgramRows.length === 0) return []
+  const rows = Array.isArray(state.currentDisplayedNgramRows) ? state.currentDisplayedNgramRows : []
+  if (rows.length === 0) return []
   const result = [['Rank', 'Ngram', 'Freq']]
-  for (let index = 0; index < state.currentNgramRows.length; index += 1) {
-    const row = state.currentNgramRows[index]
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]
     result.push([index + 1, row[0], row[1]])
   }
   return result

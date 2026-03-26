@@ -5,23 +5,34 @@ export function createSearchTabsController({
   setCurrentSearchQuery,
   getCurrentSearchOptions,
   setCurrentSearchOptions,
+  getCurrentStopwordFilter,
+  setCurrentStopwordFilter,
   setCurrentTab,
   getCurrentFreqRowsLength,
   getCurrentCompareRowsLength,
   getVisibleFrequencyRows,
   getVisibleCompareRows,
+  getVisibleNgramRows,
   invalidateSearchCaches,
   renderFrequencyTable,
   renderCompareSection,
   renderWordCloud,
+  renderNgramTable,
   renderSentenceViewer,
   getLocatorNeedsRender,
+  getStopwordSummaryText,
+  openStopwordEditor,
+  persistStopwordFilterState,
   requestWorkspaceSnapshotSave,
   resetSearchDrivenPagination
 }) {
   const {
     searchQueryInputs,
     searchOptionInputs,
+    stopwordToggleInputs,
+    stopwordModeSelects,
+    stopwordEditButtons,
+    stopwordSummaryNodes,
     tabButtons,
     statsSection,
     compareSection,
@@ -68,6 +79,30 @@ export function createSearchTabsController({
     }
   }
 
+  function syncStopwordFilterControls() {
+    const currentStopwordFilter = getCurrentStopwordFilter()
+    const summaryText = getStopwordSummaryText(currentStopwordFilter)
+
+    for (const input of stopwordToggleInputs || []) {
+      if (input instanceof HTMLInputElement) {
+        input.checked = currentStopwordFilter.enabled === true
+      }
+    }
+
+    for (const select of stopwordModeSelects || []) {
+      if (select instanceof HTMLSelectElement) {
+        select.value = currentStopwordFilter.mode || 'exclude'
+        select.disabled = currentStopwordFilter.enabled !== true
+      }
+    }
+
+    for (const node of stopwordSummaryNodes || []) {
+      if (node) {
+        node.textContent = summaryText
+      }
+    }
+  }
+
   function getSearchOptionsSummary() {
     const currentSearchOptions = getCurrentSearchOptions()
     const enabled = []
@@ -81,15 +116,18 @@ export function createSearchTabsController({
     if (getCurrentFreqRowsLength() === 0 && getCurrentCompareRowsLength() === 0) {
       renderCompareSection()
       renderWordCloud()
+      renderNgramTable()
       return
     }
     resetSearchDrivenPagination({
       visibleFrequencyCount: getVisibleFrequencyRows().length,
-      visibleCompareCount: getVisibleCompareRows().length
+      visibleCompareCount: getVisibleCompareRows().length,
+      visibleNgramCount: getVisibleNgramRows().length
     })
     renderFrequencyTable()
     renderCompareSection()
     renderWordCloud()
+    renderNgramTable()
   }
 
   function setSharedSearchQuery(value, { rerender = true } = {}) {
@@ -110,6 +148,17 @@ export function createSearchTabsController({
     setCurrentSearchOptions(normalizeSearchOptions(nextOptions))
     invalidateSearchCaches({ invalidateSearchContext: true })
     syncSearchOptionInputs()
+    requestWorkspaceSnapshotSave()
+    if (rerender) {
+      rerenderSearchDrivenViews()
+    }
+  }
+
+  function setStopwordFilterValue(nextPartialState = {}, { rerender = true } = {}) {
+    setCurrentStopwordFilter(nextPartialState)
+    invalidateSearchCaches()
+    syncStopwordFilterControls()
+    persistStopwordFilterState()
     requestWorkspaceSnapshotSave()
     if (rerender) {
       rerenderSearchDrivenViews()
@@ -161,6 +210,28 @@ export function createSearchTabsController({
         setSharedSearchOption(optionName, input.checked)
       })
     }
+
+    for (const input of stopwordToggleInputs || []) {
+      input.addEventListener('change', () => {
+        setStopwordFilterValue({
+          enabled: input.checked
+        })
+      })
+    }
+
+    for (const select of stopwordModeSelects || []) {
+      select.addEventListener('change', () => {
+        setStopwordFilterValue({
+          mode: select.value
+        })
+      })
+    }
+
+    for (const button of stopwordEditButtons || []) {
+      button.addEventListener('click', () => {
+        openStopwordEditor(button?.dataset?.stopwordEdit || '')
+      })
+    }
   }
 
   return {
@@ -169,8 +240,10 @@ export function createSearchTabsController({
     getTabLabel,
     setSharedSearchOption,
     setSharedSearchQuery,
+    setStopwordFilterValue,
     switchTab,
     syncSearchOptionInputs,
-    syncSharedSearchInputs
+    syncSharedSearchInputs,
+    syncStopwordFilterControls
   }
 }

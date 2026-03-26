@@ -2,12 +2,17 @@ const {
   normalizeReleaseNotes,
   resolveAutoUpdateConfig
 } = require('./autoUpdate/config')
+const {
+  DEFAULT_AUTO_UPDATE_PREFERENCES,
+  normalizeAutoUpdatePreferences
+} = require('./main/helpers/autoUpdatePreferences')
 
 function createAutoUpdateController({
   app,
   packageManifest,
   env = process.env,
   platform = process.platform,
+  preferencesStore = null,
   getWindows = () => [],
   onProgressStateChange = () => {},
   logger = console
@@ -18,11 +23,28 @@ function createAutoUpdateController({
     isPackaged: Boolean(app?.isPackaged),
     platform
   })
+  const defaultPreferences = {
+    ...DEFAULT_AUTO_UPDATE_PREFERENCES,
+    checkOnLaunch: config.checkOnLaunch,
+    autoDownload: config.autoDownload
+  }
+  let preferences = normalizeAutoUpdatePreferences(preferencesStore?.load?.(), defaultPreferences)
 
   let updater = null
   let startupCheckTimer = null
+  function isAutoUpdateEnabled() {
+    return config.enabled && preferences.enabled !== false
+  }
+
+  function getAutoUpdateDisabledReason() {
+    if (preferences.enabled === false) {
+      return '自动更新已在设置中关闭。'
+    }
+    return config.disableReason || '自动更新当前不可用。'
+  }
+
   let status = {
-    enabled: config.enabled,
+    enabled: isAutoUpdateEnabled(),
     configured: config.configured,
     provider: config.provider,
     providerLabel: config.providerLabel,
@@ -30,8 +52,9 @@ function createAutoUpdateController({
     channel: config.channel,
     releaseChannel: config.releaseChannel,
     releaseChannelLabel: config.releaseChannelLabel,
-    state: config.enabled ? 'idle' : 'disabled',
-    message: config.enabled ? '自动更新已就绪。' : config.disableReason,
+    preferences: { ...preferences },
+    state: isAutoUpdateEnabled() ? 'idle' : 'disabled',
+    message: isAutoUpdateEnabled() ? '自动更新已就绪。' : getAutoUpdateDisabledReason(),
     currentVersion: typeof app?.getVersion === 'function' ? app.getVersion() : String(packageManifest?.version || ''),
     availableVersion: '',
     downloadedVersion: '',
@@ -61,6 +84,7 @@ function createAutoUpdateController({
     status = {
       ...status,
       ...patch,
+      preferences: patch.preferences ? { ...patch.preferences } : status.preferences,
       releaseNotes: Array.isArray(patch.releaseNotes) ? [...patch.releaseNotes] : status.releaseNotes
     }
     try {
@@ -117,7 +141,7 @@ function createAutoUpdateController({
 
     updater = new UpdaterClass(updaterOptions)
 
-    updater.autoDownload = config.autoDownload
+    updater.autoDownload = preferences.autoDownload !== false
     updater.autoInstallOnAppQuit = true
     updater.allowPrerelease = config.allowPrerelease
     updater.channel = config.channel
@@ -139,8 +163,8 @@ function createAutoUpdateController({
 
     updater.on('update-available', updateInfo => {
       updateStatus({
-        state: config.autoDownload ? 'downloading' : 'available',
-        message: config.autoDownload
+        state: preferences.autoDownload !== false ? 'downloading' : 'available',
+        message: preferences.autoDownload !== false
           ? `发现新版本 ${updateInfo?.version || ''}，正在后台下载。`
           : `发现新版本 ${updateInfo?.version || ''}。`,
         availableVersion: String(updateInfo?.version || ''),
@@ -195,11 +219,11 @@ function createAutoUpdateController({
   }
 
   async function checkForUpdates() {
-    if (!config.enabled) {
+    if (!isAutoUpdateEnabled()) {
       return {
         success: false,
         disabled: true,
-        message: config.disableReason || '自动更新未启用。',
+        message: getAutoUpdateDisabledReason(),
         state: status.state
       }
     }
@@ -262,11 +286,69 @@ function createAutoUpdateController({
     }
   }
 
+  function syncAvailabilityStatus() {
+    const effectiveEnabled = isAutoUpdateEnabled()
+    const basePatch = {
+      enabled: effectiveEnabled,
+      preferences: { ...preferences }
+    }
+
+    if (!effectiveEnabled) {
+      updateStatus({
+        ...basePatch,
+        state: status.updateDownloaded ? status.state : 'disabled',
+        message: status.updateDownloaded ? status.message : getAutoUpdateDisabledReason(),
+        progressPercent: status.updateDownloaded ? status.progressPercent : 0
+      })
+      return
+    }
+
+    if (status.state === 'disabled') {
+      updateStatus({
+        ...basePatch,
+        state: 'idle',
+        message: '自动更新已就绪。',
+        progressPercent: 0
+      })
+      return
+    }
+
+    updateStatus(basePatch)
+  }
+
+  function setPreferences(nextPreferences = {}) {
+    preferences = normalizeAutoUpdatePreferences(
+      {
+        ...preferences,
+        ...nextPreferences
+      },
+      defaultPreferences
+    )
+    preferencesStore?.save?.(preferences)
+
+    if (startupCheckTimer) {
+      clearTimeout(startupCheckTimer)
+      startupCheckTimer = null
+    }
+
+    if (updater) {
+      updater.autoDownload = preferences.autoDownload !== false
+    }
+
+    syncAvailabilityStatus()
+
+    return {
+      success: true,
+      preferences: { ...preferences },
+      updateState: getStatusSnapshot()
+    }
+  }
+
   function initialize() {
     broadcastStatus()
-    if (!config.enabled) return
+    if (!isAutoUpdateEnabled()) return
     ensureUpdater()
-    if (!config.checkOnLaunch) return
+    if (!preferences.checkOnLaunch) return
 
     startupCheckTimer = setTimeout(() => {
       checkForUpdates().catch(error => {
@@ -288,6 +370,8 @@ function createAutoUpdateController({
     checkForUpdates,
     quitAndInstall,
     getStatusSnapshot,
+    getPreferencesSnapshot: () => ({ ...preferences }),
+    setPreferences,
     broadcastStatus
   }
 }
