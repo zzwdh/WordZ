@@ -13,6 +13,11 @@ let package = Package(
         .executableTarget(
             name: "WordZMac",
             path: "Sources/WordZMac"
+        ),
+        .testTarget(
+            name: "WordZMacTests",
+            dependencies: ["WordZMac"],
+            path: "Tests/WordZMacTests"
         )
     ]
 )

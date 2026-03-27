@@ -2,8 +2,17 @@ node_modules/
 .DS_Store
 
 dist/
+dist-native/
 out/
 coverage/
+
+.wordz-native-user-data/
+.wordz-native-user-data-test/
+apps/macos-native/WordZMac/.build/
+apps/macos-native/WordZMac/.swiftpm/
+apps/macos-native/WordZMac/.release-home/
+apps/macos-native/WordZMac/.release-clang-cache/
+apps/macos-native/WordZMac/.release-swiftpm-cache/
 
 *.log
 npm-debug.log*

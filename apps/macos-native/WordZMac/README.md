@@ -1,15 +1,4 @@
-# WordZMac Native Preview
-
-第一阶段 mac 原生版预览壳，目标是：
-
-- 提供一个真正的 `SwiftUI + AppKit` 方向入口
-- 通过 `JSON-RPC over stdio` 连接现有 `Node.js` sidecar
-- 在不修改共享分析核心的前提下，先跑通：
-  - app info
-  - 本地语料库列表
-  - 打开已保存语料
-  - `stats`
-  - `KWIC`
+# WordZMac Native
 
 ## 运行
 
@@ -23,13 +12,49 @@ swift run --package-path apps/macos-native/WordZMac
 
 ## 当前实现
 
-- 左侧原生工作区 / 本地语料库面板
-- 右侧 `Stats / KWIC / Settings` 三页
-- 通过 `packages/wordz-engine-js/src/index.mjs` 启动 sidecar
-- 复用当前 `~/Library/Application Support/WordZ` 数据目录
+- 纯 Swift 本地引擎
+- 原生工作区、结果表、导出、帮助、更新与最近打开
+- 独立 mac 用户数据目录与文档窗口语义
+- 原生菜单、辅助窗口、任务中心、欢迎页
+
+## 打包
+
+在仓库根目录执行：
+
+```bash
+npm run native:mac:build
+npm run native:mac:package
+```
+
+产物默认输出到：
+
+```bash
+/Users/zouyuxuan/corpus-lite/dist-native
+```
+
+### 签名
+
+可选环境变量：
+
+- `WORDZ_MAC_SIGN_IDENTITY`
+- `WORDZ_MAC_ENTITLEMENTS_PATH`
+
+例如：
+
+```bash
+WORDZ_MAC_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" npm run native:mac:package
+```
+
+### 公证
+
+先准备好 `notarytool` keychain profile，然后执行：
+
+```bash
+WORDZ_MAC_NOTARY_PROFILE="your-profile" npm run native:mac:notarize -- /absolute/path/to/WordZ-1.0.21-mac-arm64.dmg
+```
 
 ## 说明
 
-- 当前仍属于“原生版第一阶段骨架”
-- 还没有替换现有 Electron mac 主线
-- 结果表、工作区恢复、导出、帮助、更新等能力会在后续阶段继续补齐
+- `.app` 构建会把 `export-xlsx.mjs` 一起打进 bundle 资源目录
+- 当前更新链默认仍然使用 GitHub Releases
+- 若未提供 Developer ID 证书，构建脚本默认执行 ad-hoc 签名，便于本地运行

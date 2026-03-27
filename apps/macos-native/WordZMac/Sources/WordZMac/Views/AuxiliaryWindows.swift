@@ -1,0 +1,301 @@
+import SwiftUI
+
+struct TaskCenterWindowView: View {
+    @Environment(\.wordZLanguageMode) private var languageMode
+    @ObservedObject var workspace: MainWorkspaceViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkbenchHeaderCard(
+                title: t("任务中心", "Task Center"),
+                subtitle: workspace.taskCenter.scene.summary
+            ) {
+                Button(t("清理已完成", "Clear Completed")) {
+                    workspace.clearFinishedTasks()
+                }
+                .disabled(workspace.taskCenter.scene.items.allSatisfy { $0.state == .running })
+            }
+
+            if workspace.taskCenter.scene.items.isEmpty {
+                ContentUnavailableView(
+                    t("当前没有后台任务", "No background tasks"),
+                    systemImage: "checklist",
+                    description: Text(t("更新检查、更新下载和诊断导出会在这里显示进度与结果。", "Update checks, downloads, and diagnostic exports will appear here."))
+                )
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(workspace.taskCenter.scene.items) { item in
+                            WorkbenchPaneCard(title: item.title, subtitle: item.detail) {
+                                HStack(spacing: 12) {
+                                    Label(item.state.displayLabel(in: languageMode), systemImage: item.state.symbolName)
+                                        .symbolRenderingMode(.multicolor)
+
+                                    if item.state == .running {
+                                        ProgressView(value: item.progress)
+                                            .frame(maxWidth: 220)
+                                    } else {
+                                        Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    if let action = item.primaryAction {
+                                        Button(action.title(in: languageMode)) {
+                                            Task {
+                                                await workspace.performTaskAction(action)
+                                            }
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.bottom, 12)
+                }
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 560, minHeight: 420)
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
+    }
+}
+
+struct AboutWindowView: View {
+    @Environment(\.wordZLanguageMode) private var languageMode
+    @ObservedObject var workspace: MainWorkspaceViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+            WorkbenchHeaderCard(
+                title: workspace.sceneGraph.context.appName,
+                subtitle: workspace.sceneGraph.context.versionLabel
+            ) {
+                Text(workspace.sceneGraph.context.buildSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+                WorkbenchPaneCard(title: t("原生版概览", "Native Overview"), subtitle: t("纯 Swift 宿主与本地引擎", "Pure Swift host with native engine")) {
+                    Text(t("当前原生版已经支持语料管理、主分析工作流、工作区恢复、导出、更新检查和原生命令体系。", "The native app now supports corpus management, the main analysis workflow, workspace restore, export, update checks, and native commands."))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                        WorkbenchMetricCard(title: t("版本", "Version"), value: workspace.sceneGraph.context.versionLabel)
+                        WorkbenchMetricCard(title: t("工作区", "Workspace"), value: workspace.sceneGraph.context.workspaceSummary)
+                        WorkbenchMetricCard(title: t("语言", "Language"), value: workspace.settings.languageMode.pickerLabel)
+                        WorkbenchMetricCard(title: t("更新状态", "Update Status"), value: workspace.settings.scene.latestVersionLabel, subtitle: workspace.settings.scene.updateSummary)
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("快速操作", "Quick Actions"), subtitle: t("常用宿主入口", "Common host actions")) {
+                    HStack {
+                        Button(t("检查更新", "Check for Updates")) {
+                            Task { await workspace.checkForUpdatesNow() }
+                        }
+                        Button(t("项目主页", "Project Home")) {
+                            Task { await workspace.openProjectHome() }
+                        }
+                        Button(t("GitHub 反馈", "GitHub Feedback")) {
+                            Task { await workspace.openFeedback() }
+                        }
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("支持状态", "Support Status"), subtitle: workspace.settings.scene.supportStatus) {
+                    Text(workspace.settings.scene.supportStatus)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !workspace.settings.scene.userDataDirectory.isEmpty {
+                        Button(t("打开用户数据目录", "Open User Data Directory")) {
+                            Task { await workspace.openUserDataDirectory() }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .frame(minWidth: 460, minHeight: 360)
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
+    }
+}
+
+struct HelpCenterWindowView: View {
+    @Environment(\.wordZLanguageMode) private var languageMode
+    @ObservedObject var workspace: MainWorkspaceViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                WorkbenchHeaderCard(title: t("帮助中心", "Help Center"), subtitle: t("原生版工作流与常用入口", "Native workflows and common entry points")) {
+                    Button(t("打开项目主页", "Open Project Home")) {
+                        Task { await workspace.openProjectHome() }
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("开始使用", "Getting Started"), subtitle: t("最常用的入口与快捷键", "The most common entry points and shortcuts")) {
+                    helpRow(t("导入语料", "Import Corpus"), shortcut: "⌘O")
+                    helpRow(t("打开设置", "Open Settings"), shortcut: "⌘,")
+                    helpRow(t("刷新工作区", "Refresh Workspace"), shortcut: "⌘R")
+                    helpRow(t("打开任务中心", "Open Task Center"), shortcut: "⌥⌘0")
+                }
+
+                WorkbenchPaneCard(title: t("排查问题", "Troubleshooting"), subtitle: workspace.settings.scene.supportStatus) {
+                    if let issue = workspace.issueBanner {
+                        WorkbenchIssueBanner(tone: issue.tone, title: issue.title, message: issue.message)
+                    }
+                    HStack {
+                        Button(t("刷新工作区", "Refresh Workspace")) {
+                            Task { await workspace.refreshAll() }
+                        }
+                        Button(t("导出诊断", "Export Diagnostics")) {
+                            Task { await workspace.exportDiagnostics() }
+                        }
+                        if !workspace.settings.scene.userDataDirectory.isEmpty {
+                            Button(t("打开数据目录", "Open Data Directory")) {
+                                Task { await workspace.openUserDataDirectory() }
+                            }
+                        }
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("帮助主题", "Help Topics"), subtitle: "\(workspace.settings.scene.help.count) \(t("条", "items"))") {
+                    if workspace.settings.scene.help.isEmpty {
+                        Text(t("当前还没有额外帮助条目。", "No additional help topics yet."))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(workspace.settings.scene.help, id: \.self) { line in
+                            Text("• \(line)")
+                        }
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("支持与反馈", "Support & Feedback"), subtitle: workspace.settings.scene.supportStatus) {
+                    HStack {
+                        Button(t("导出诊断", "Export Diagnostics")) { Task { await workspace.exportDiagnostics() } }
+                        Button(t("GitHub 反馈", "GitHub Feedback")) { Task { await workspace.openFeedback() } }
+                        Button(t("版本说明", "Release Notes")) { Task { await workspace.openReleaseNotes() } }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .frame(minWidth: 520, minHeight: 420)
+    }
+
+    private func helpRow(_ title: String, shortcut: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(shortcut)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
+    }
+}
+
+struct ReleaseNotesWindowView: View {
+    @Environment(\.wordZLanguageMode) private var languageMode
+    @ObservedObject var workspace: MainWorkspaceViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                WorkbenchHeaderCard(
+                    title: t("版本说明", "Release Notes"),
+                    subtitle: workspace.settings.scene.latestReleaseTitle.isEmpty
+                        ? workspace.settings.scene.latestVersionLabel
+                        : workspace.settings.scene.latestReleaseTitle
+                ) {
+                    Button(t("打开发布页", "Open Release Page")) {
+                        Task { await workspace.openReleaseNotes() }
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("更新状态", "Update Status"), subtitle: workspace.settings.scene.updateSummary) {
+                    if !workspace.settings.scene.downloadedUpdateName.isEmpty {
+                        WorkbenchIssueBanner(
+                            tone: .info,
+                            title: t("已下载更新可安装", "Downloaded update ready to install"),
+                            message: workspace.settings.scene.downloadedUpdateName
+                        ) {
+                            HStack {
+                                Button(t("安装更新", "Install Update")) {
+                                    Task { await workspace.installDownloadedUpdate() }
+                                }
+                                Button(t("在 Finder 中显示", "Reveal in Finder")) {
+                                    Task { await workspace.revealDownloadedUpdate() }
+                                }
+                            }
+                        }
+                    } else {
+                        Text(workspace.settings.scene.updateSummary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    HStack {
+                        Button(t("立即检查更新", "Check for Updates")) {
+                            Task { await workspace.checkForUpdatesNow() }
+                        }
+                        if workspace.settings.scene.canDownloadUpdate {
+                            Button(t("下载更新", "Download Update")) {
+                                Task { await workspace.downloadLatestUpdate() }
+                            }
+                        }
+                    }
+                }
+
+                WorkbenchPaneCard(title: t("最近更新", "Latest Release"), subtitle: workspace.settings.scene.updateSummary) {
+                    if !workspace.settings.scene.latestReleasePublishedLabel.isEmpty {
+                        LabeledContent(t("发布时间", "Published At")) {
+                            Text(workspace.settings.scene.latestReleasePublishedLabel)
+                        }
+                    }
+
+                    if !workspace.settings.scene.latestAssetName.isEmpty {
+                        LabeledContent(t("安装包", "Installer")) {
+                            Text(workspace.settings.scene.latestAssetName)
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+
+                    if workspace.settings.scene.latestReleaseNotes.isEmpty && workspace.settings.scene.releaseNotes.isEmpty {
+                        Text(t("当前没有可显示的版本说明。", "No release notes available."))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(t("主要改动", "Highlights"))
+                            .font(.headline)
+                        ForEach(
+                            (workspace.settings.scene.latestReleaseNotes.isEmpty
+                             ? workspace.settings.scene.releaseNotes
+                             : workspace.settings.scene.latestReleaseNotes),
+                            id: \.self
+                        ) { line in
+                            Text("• \(line)")
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .frame(minWidth: 560, minHeight: 420)
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
+    }
+}
