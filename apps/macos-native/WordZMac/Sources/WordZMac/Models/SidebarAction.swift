@@ -4,6 +4,7 @@ enum SidebarAction: Equatable, Identifiable {
     case refresh
     case openSelected
     case quickLookSelected(String)
+    case showCorpusInfoSelected(String)
 
     var id: String {
         switch self {
@@ -13,6 +14,8 @@ enum SidebarAction: Equatable, Identifiable {
             return "openSelected"
         case .quickLookSelected(let corpusID):
             return "quickLookSelected:\(corpusID)"
+        case .showCorpusInfoSelected(let corpusID):
+            return "showCorpusInfoSelected:\(corpusID)"
         }
     }
 }

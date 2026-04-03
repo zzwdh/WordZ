@@ -10,6 +10,9 @@ final class LibraryManagementViewModel: ObservableObject {
             if corpusInfoSheet?.id != selectedCorpusID {
                 corpusInfoSheet = nil
             }
+            if metadataEditorSheet?.id != selectedCorpusID {
+                metadataEditorSheet = nil
+            }
             syncScene()
         }
     }
@@ -20,6 +23,7 @@ final class LibraryManagementViewModel: ObservableObject {
         didSet { syncScene() }
     }
     @Published var corpusInfoSheet: LibraryCorpusInfoSceneModel?
+    @Published var metadataEditorSheet: LibraryCorpusMetadataEditorSceneModel?
     @Published private(set) var librarySnapshot = LibrarySnapshot.empty
     @Published private(set) var recycleSnapshot = RecycleBinSnapshot.empty
     @Published private(set) var scene = LibraryManagementSceneModel.empty
@@ -121,6 +125,22 @@ final class LibraryManagementViewModel: ObservableObject {
         corpusInfoSheet = nil
     }
 
+    func presentMetadataEditor(for corpus: LibraryCorpusItem) {
+        metadataEditorSheet = LibraryCorpusMetadataEditorSceneModel(
+            id: corpus.id,
+            title: corpus.name,
+            subtitle: "语料元数据",
+            sourceLabel: corpus.metadata.sourceLabel,
+            yearLabel: corpus.metadata.yearLabel,
+            genreLabel: corpus.metadata.genreLabel,
+            tagsText: corpus.metadata.tagsText
+        )
+    }
+
+    func dismissMetadataEditor() {
+        metadataEditorSheet = nil
+    }
+
     private func syncScene() {
         let corporaByFolderID = Dictionary(grouping: librarySnapshot.corpora, by: \.folderId)
         let visibleCorpora = librarySnapshot.corpora.filter { corpus in
@@ -142,6 +162,7 @@ final class LibraryManagementViewModel: ObservableObject {
                 title: $0.name,
                 subtitle: $0.folderName,
                 sourceType: $0.sourceType,
+                metadataSummary: $0.metadata.compactSummary(in: WordZLocalization.shared.effectiveMode),
                 isSelected: $0.id == selectedCorpusID
             )
         }
@@ -189,12 +210,17 @@ final class LibraryManagementViewModel: ObservableObject {
                 details: [
                     .init(id: "folder", title: "文件夹", value: selectedCorpus.folderName),
                     .init(id: "source", title: "来源类型", value: selectedCorpus.sourceType),
+                    .init(id: "source-label", title: "来源", value: selectedCorpus.metadata.sourceLabel.isEmpty ? "—" : selectedCorpus.metadata.sourceLabel),
+                    .init(id: "year-label", title: "年份", value: selectedCorpus.metadata.yearLabel.isEmpty ? "—" : selectedCorpus.metadata.yearLabel),
+                    .init(id: "genre-label", title: "体裁", value: selectedCorpus.metadata.genreLabel.isEmpty ? "—" : selectedCorpus.metadata.genreLabel),
+                    .init(id: "tags", title: "标签", value: selectedCorpus.metadata.tagsText.isEmpty ? "—" : selectedCorpus.metadata.tagsText),
                     .init(id: "scope", title: "当前视图", value: selectedFolder?.name ?? "全部语料")
                 ],
                 actions: [
                     .init(id: "open", title: "打开语料", role: .primary, action: .openSelectedCorpus),
                     .init(id: "preview", title: "快速预览", role: .normal, action: .quickLookSelectedCorpus),
                     .init(id: "info", title: "语料信息", role: .normal, action: .showSelectedCorpusInfo),
+                    .init(id: "edit-metadata", title: "编辑元数据", role: .normal, action: .editSelectedCorpusMetadata),
                     .init(id: "rename-corpus", title: "重命名", role: .normal, action: .renameSelectedCorpus),
                     .init(id: "move-corpus", title: "移动到所选文件夹", role: .normal, action: .moveSelectedCorpusToSelectedFolder),
                     .init(id: "delete-corpus", title: "删除", role: .destructive, action: .deleteSelectedCorpus)

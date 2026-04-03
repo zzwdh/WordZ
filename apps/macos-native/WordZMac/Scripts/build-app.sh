@@ -1,10 +1,11 @@
 #!/bin/zsh
 set -euo pipefail
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 APP_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 REPO_ROOT=$(cd "$APP_ROOT/../../.." && pwd)
-DIST_DIR="${WORDZ_MAC_DIST_DIR:-$REPO_ROOT/dist-native}"
+DIST_DIR="${WORDZ_MAC_DIST_DIR:-$APP_ROOT/dist-native}"
 APP_NAME="${WORDZ_MAC_APP_NAME:-WordZ}"
 BUNDLE_ID="${WORDZ_MAC_BUNDLE_ID:-com.zzwdh.wordz.native}"
 VERSION="${WORDZ_MAC_VERSION:-$(node -p "require('$REPO_ROOT/package.json').version")}"
@@ -13,6 +14,7 @@ ARCH_NAME="${WORDZ_MAC_ARCH:-$(uname -m)}"
 SWIFT_PRODUCT="${WORDZ_MAC_SWIFT_PRODUCT:-WordZMac}"
 SIGN_IDENTITY="${WORDZ_MAC_SIGN_IDENTITY:-}"
 ENTITLEMENTS_PATH="${WORDZ_MAC_ENTITLEMENTS_PATH:-$REPO_ROOT/build/entitlements.mac.plist}"
+BUILD_CHANNEL="${WORDZ_MAC_DISTRIBUTION_CHANNEL:-release}"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 LOCAL_HOME="${WORDZ_MAC_LOCAL_HOME:-$APP_ROOT/.release-home}"
 LOCAL_CLANG_CACHE="${WORDZ_MAC_LOCAL_CLANG_CACHE:-$APP_ROOT/.release-clang-cache}"
@@ -34,6 +36,9 @@ BIN_PATH=$(
   swift build --package-path "$APP_ROOT" -c release --product "$SWIFT_PRODUCT" --show-bin-path
 )
 EXECUTABLE_PATH="$BIN_PATH/$SWIFT_PRODUCT"
+EXECUTABLE_SHA256="$(/usr/bin/shasum -a 256 "$EXECUTABLE_PATH" | /usr/bin/awk '{print $1}')"
+GIT_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
+GIT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR/WordZMacScripts"
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/$SWIFT_PRODUCT"
@@ -45,7 +50,7 @@ fi
 
 cp "$APP_ROOT/Scripts/export-xlsx.mjs" "$RESOURCES_DIR/WordZMacScripts/export-xlsx.mjs"
 
-cat > "$CONTENTS_DIR/Info.plist" <<PLIST
+/bin/cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -111,14 +116,18 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 </plist>
 PLIST
 
-cat > "$BUILD_INFO_PATH" <<JSON
+/bin/cat > "$BUILD_INFO_PATH" <<JSON
 {
   "appName": "$APP_NAME",
   "bundleIdentifier": "$BUNDLE_ID",
   "version": "$VERSION",
   "buildNumber": "$BUILD_NUMBER",
   "architecture": "$ARCH_NAME",
-  "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "gitCommit": "$GIT_COMMIT",
+  "gitBranch": "$GIT_BRANCH",
+  "distributionChannel": "$BUILD_CHANNEL",
+  "executableSHA256": "$EXECUTABLE_SHA256"
 }
 JSON
 

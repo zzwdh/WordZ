@@ -8,6 +8,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var stopCalled = false
     var loadBootstrapStateCallCount = 0
     var openSavedCorpusCallCount = 0
+    var loadCorpusInfoCallCount = 0
+    var updateCorpusMetadataCallCount = 0
     var runStatsCallCount = 0
     var runTokenizeCallCount = 0
     var runTopicsCallCount = 0
@@ -44,6 +46,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var librarySnapshot: LibrarySnapshot
     var recycleSnapshot: RecycleBinSnapshot
     var statsResult: StatsResult
+    var corpusInfoResult: CorpusInfoSummary
     var tokenizeResult: TokenizeResult
     var topicsResult: TopicAnalysisResult
     var compareResult: CompareResult
@@ -60,6 +63,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var startError: Error?
     var loadError: Error?
     var openError: Error?
+    var updateCorpusMetadataError: Error?
     var importError: Error?
     var listLibraryError: Error?
     var createFolderError: Error?
@@ -93,6 +97,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         openedCorpus: OpenedCorpus = makeOpenedCorpus(),
         recycleSnapshot: RecycleBinSnapshot = makeRecycleSnapshot(),
         statsResult: StatsResult = makeStatsResult(),
+        corpusInfoResult: CorpusInfoSummary = makeCorpusInfoSummary(),
         tokenizeResult: TokenizeResult = makeTokenizeResult(),
         topicsResult: TopicAnalysisResult = makeTopicAnalysisResult(),
         compareResult: CompareResult = makeCompareResult(),
@@ -111,6 +116,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         self.librarySnapshot = bootstrapState.librarySnapshot
         self.recycleSnapshot = recycleSnapshot
         self.statsResult = statsResult
+        self.corpusInfoResult = corpusInfoResult
         self.tokenizeResult = tokenizeResult
         self.topicsResult = topicsResult
         self.compareResult = compareResult
@@ -179,6 +185,68 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         openSavedCorpusCallCount += 1
         if let openError { throw openError }
         return openedCorpus
+    }
+
+    func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
+        loadCorpusInfoCallCount += 1
+        if let openError { throw openError }
+        return CorpusInfoSummary(json: [
+            "corpusId": corpusId,
+            "title": corpusInfoResult.title,
+            "folderName": corpusInfoResult.folderName,
+            "sourceType": corpusInfoResult.sourceType,
+            "representedPath": corpusInfoResult.representedPath,
+            "detectedEncoding": corpusInfoResult.detectedEncoding,
+            "importedAt": corpusInfoResult.importedAt,
+            "tokenCount": corpusInfoResult.tokenCount,
+            "typeCount": corpusInfoResult.typeCount,
+            "sentenceCount": corpusInfoResult.sentenceCount,
+            "paragraphCount": corpusInfoResult.paragraphCount,
+            "characterCount": corpusInfoResult.characterCount,
+            "ttr": corpusInfoResult.ttr,
+            "sttr": corpusInfoResult.sttr,
+            "metadata": corpusInfoResult.metadata.jsonObject
+        ])
+    }
+
+    func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem {
+        updateCorpusMetadataCallCount += 1
+        if let updateCorpusMetadataError { throw updateCorpusMetadataError }
+        librarySnapshot = LibrarySnapshot(
+            folders: librarySnapshot.folders,
+            corpora: librarySnapshot.corpora.map { corpus in
+                guard corpus.id == corpusId else { return corpus }
+                return LibraryCorpusItem(json: [
+                    "id": corpus.id,
+                    "name": corpus.name,
+                    "folderId": corpus.folderId,
+                    "folderName": corpus.folderName,
+                    "sourceType": corpus.sourceType,
+                    "representedPath": corpus.representedPath,
+                    "metadata": metadata.jsonObject
+                ])
+            }
+        )
+        if corpusInfoResult.corpusId == corpusId {
+            corpusInfoResult = CorpusInfoSummary(json: [
+                "corpusId": corpusInfoResult.corpusId,
+                "title": corpusInfoResult.title,
+                "folderName": corpusInfoResult.folderName,
+                "sourceType": corpusInfoResult.sourceType,
+                "representedPath": corpusInfoResult.representedPath,
+                "detectedEncoding": corpusInfoResult.detectedEncoding,
+                "importedAt": corpusInfoResult.importedAt,
+                "tokenCount": corpusInfoResult.tokenCount,
+                "typeCount": corpusInfoResult.typeCount,
+                "sentenceCount": corpusInfoResult.sentenceCount,
+                "paragraphCount": corpusInfoResult.paragraphCount,
+                "characterCount": corpusInfoResult.characterCount,
+                "ttr": corpusInfoResult.ttr,
+                "sttr": corpusInfoResult.sttr,
+                "metadata": metadata.jsonObject
+            ])
+        }
+        return librarySnapshot.corpora.first(where: { $0.id == corpusId }) ?? librarySnapshot.corpora.first ?? LibraryCorpusItem(json: [:])
     }
 
     func runStats(text: String) async throws -> StatsResult {
@@ -556,9 +624,9 @@ final class FakeHostActionService: NativeHostActionServicing {
     var lastRevealedDownloadedUpdatePath: String?
     var clearRecentDocumentsCallCount = 0
     var notedRecentDocumentPaths: [String] = []
-    var exportedReport: String?
+    var exportedDiagnosticArchivePath: String?
     var exportedSuggestedName: String?
-    var exportedPathToReturn: String? = "/tmp/WordZMac-diagnostics.txt"
+    var exportedPathToReturn: String? = "/tmp/WordZMac-diagnostics.zip"
 
     func openUserDataDirectory(path: String) async throws {
         openedUserDataDirectoryPath = path
@@ -596,8 +664,8 @@ final class FakeHostActionService: NativeHostActionServicing {
         lastRevealedDownloadedUpdatePath = path
     }
 
-    func exportDiagnostics(report: String, suggestedName: String) async throws -> String? {
-        exportedReport = report
+    func exportDiagnosticBundle(archivePath: String, suggestedName: String) async throws -> String? {
+        exportedDiagnosticArchivePath = archivePath
         exportedSuggestedName = suggestedName
         return exportedPathToReturn
     }
@@ -608,6 +676,24 @@ final class FakeHostActionService: NativeHostActionServicing {
 
     func noteRecentDocument(path: String) async {
         notedRecentDocumentPaths.append(path)
+    }
+}
+
+final class FakeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
+    var artifactToReturn = NativeDiagnosticsBundleArtifact(
+        archiveURL: URL(fileURLWithPath: "/tmp/WordZMac-diagnostics.zip"),
+        workingDirectoryURL: URL(fileURLWithPath: "/tmp/WordZMac-diagnostics")
+    )
+    private(set) var lastPayload: NativeDiagnosticsBundlePayload?
+    private(set) var cleanedArtifacts: [NativeDiagnosticsBundleArtifact] = []
+
+    func buildBundle(payload: NativeDiagnosticsBundlePayload) throws -> NativeDiagnosticsBundleArtifact {
+        lastPayload = payload
+        return artifactToReturn
+    }
+
+    func cleanup(_ artifact: NativeDiagnosticsBundleArtifact) {
+        cleanedArtifacts.append(artifact)
     }
 }
 
@@ -706,7 +792,13 @@ func makeBootstrapState(
                     "folderId": "folder-1",
                     "folderName": "Default",
                     "sourceType": "txt",
-                    "representedPath": "/tmp/demo.txt"
+                    "representedPath": "/tmp/demo.txt",
+                    "metadata": [
+                        "sourceLabel": "教材",
+                        "yearLabel": "2024",
+                        "genreLabel": "教学",
+                        "tags": ["课堂", "基础"]
+                    ]
                 ]),
                 LibraryCorpusItem(json: [
                     "id": "corpus-2",
@@ -714,7 +806,13 @@ func makeBootstrapState(
                     "folderId": "folder-1",
                     "folderName": "Default",
                     "sourceType": "txt",
-                    "representedPath": "/tmp/compare.txt"
+                    "representedPath": "/tmp/compare.txt",
+                    "metadata": [
+                        "sourceLabel": "期刊",
+                        "yearLabel": "2023",
+                        "genreLabel": "学术",
+                        "tags": ["研究", "对比"]
+                    ]
                 ])
             ]
         ),
@@ -727,6 +825,8 @@ func makeWorkspaceSnapshot(
     currentTab: String = "kwic",
     corpusNames: [String] = ["Demo Corpus"],
     searchQuery: String = "keyword",
+    compareReferenceCorpusID: String = "",
+    compareSelectedCorpusIDs: [String] = [],
     frequencyNormalizationUnit: FrequencyNormalizationUnit = FrequencyMetricDefinition.default.normalizationUnit,
     frequencyRangeMode: FrequencyRangeMode = FrequencyMetricDefinition.default.rangeMode,
     ngramSize: String = "2",
@@ -757,6 +857,10 @@ func makeWorkspaceSnapshot(
                 "mode": "exclude",
                 "listText": StopwordFilterState.defaultListText
             ]
+        ],
+        "compare": [
+            "referenceCorpusID": compareReferenceCorpusID,
+            "selectedCorpusIDs": compareSelectedCorpusIDs
         ],
         "frequencyMetrics": [
             "normalizationUnit": frequencyNormalizationUnit.rawValue,
@@ -791,6 +895,31 @@ func makeOpenedCorpus(displayName: String = "Demo Corpus") -> OpenedCorpus {
         "displayName": displayName,
         "content": "alpha beta gamma alpha beta",
         "sourceType": "txt"
+    ])
+}
+
+func makeCorpusInfoSummary(title: String = "Demo Corpus") -> CorpusInfoSummary {
+    CorpusInfoSummary(json: [
+        "corpusId": "corpus-1",
+        "title": title,
+        "folderName": "Default",
+        "sourceType": "txt",
+        "representedPath": "/tmp/demo.txt",
+        "detectedEncoding": "UTF-8",
+        "importedAt": "2026-04-03T00:00:00Z",
+        "tokenCount": 30,
+        "typeCount": 12,
+        "sentenceCount": 6,
+        "paragraphCount": 3,
+        "characterCount": 180,
+        "ttr": 0.4,
+        "sttr": 0.37,
+        "metadata": [
+            "sourceLabel": "教材",
+            "yearLabel": "2024",
+            "genreLabel": "教学",
+            "tags": ["课堂", "基础"]
+        ]
     ])
 }
 
@@ -939,15 +1068,19 @@ func makeKWICResult(rowCount: Int = 3) -> KWICResult {
 
 func makeCollocateResult(rowCount: Int = 3) -> CollocateResult {
     let rows: [[String: Any]] = (0..<rowCount).map { index in
-        [
+        let row: [String: Any] = [
             "word": "collocate-\(index)",
             "total": rowCount - index,
             "left": index,
             "right": rowCount - index,
             "wordFreq": 10 + index,
             "keywordFreq": 20,
-            "rate": Double(rowCount - index) / 10.0
+            "rate": Double(rowCount - index) / 10.0,
+            "logDice": 8.0 + Double(rowCount - index),
+            "mutualInformation": 2.0 + Double(index) / 10.0,
+            "tScore": 4.0 + Double(rowCount - index) / 10.0
         ]
+        return row
     }
     return CollocateResult(items: rows)
 }

@@ -59,6 +59,13 @@ struct StatsSceneBuilder {
                 ]
             )
         }
+        let exportMetadataLines = AnalysisExportMetadataSupport.notes(
+            analysisTitle: wordZText("词频统计", "Frequency Stats", mode: languageMode),
+            languageMode: languageMode,
+            visibleRows: visibleRows.count,
+            totalRows: sortedRows.count,
+            additionalLines: [definition.summary(in: languageMode)]
+        )
 
         return StatsSceneModel(
             metrics: metrics,
@@ -66,7 +73,7 @@ struct StatsSceneBuilder {
             tableRows: tableRows,
             definition: definition,
             definitionSummary: definition.summary(in: languageMode),
-            exportMetadataLines: definition.exportNotes(in: languageMode, visibleRows: visibleRows.count, totalRows: sortedRows.count),
+            exportMetadataLines: exportMetadataLines,
             sorting: StatsSortingSceneModel(
                 selectedSort: sortMode,
                 selectedPageSize: pageSize

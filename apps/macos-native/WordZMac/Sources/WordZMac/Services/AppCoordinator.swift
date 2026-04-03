@@ -7,19 +7,22 @@ final class AppCoordinator {
     private let sessionStore: WorkspaceSessionStore
     private let flowCoordinator: WorkspaceFlowCoordinator
     private let hostPreferencesStore: any NativeHostPreferencesStoring
+    private let buildMetadataProvider: any NativeBuildMetadataProviding
 
     init(
         repository: any WorkspaceRepository,
         sceneStore: WorkspaceSceneStore,
         sessionStore: WorkspaceSessionStore,
         flowCoordinator: WorkspaceFlowCoordinator,
-        hostPreferencesStore: any NativeHostPreferencesStoring = NativeHostPreferencesStore()
+        hostPreferencesStore: any NativeHostPreferencesStoring = NativeHostPreferencesStore(),
+        buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService()
     ) {
         self.repository = repository
         self.sceneStore = sceneStore
         self.sessionStore = sessionStore
         self.flowCoordinator = flowCoordinator
         self.hostPreferencesStore = hostPreferencesStore
+        self.buildMetadataProvider = buildMetadataProvider
     }
 
     func refreshAll(features: WorkspaceFeatureSet) async {
@@ -35,7 +38,7 @@ final class AppCoordinator {
             let bootstrapState = try await repository.loadBootstrapState()
             sessionStore.applyBootstrap(snapshot: bootstrapState.workspaceSnapshot)
             sceneStore.applyAppInfo(bootstrapState.appInfo)
-            sceneStore.setBuildSummary("SwiftUI + Swift native engine（mac native preview）")
+            sceneStore.setBuildSummary(buildMetadataProvider.current().buildSummary)
             features.sidebar.applyBootstrap(bootstrapState)
             features.library.applyBootstrap(bootstrapState.librarySnapshot)
             features.settings.applyAppInfo(bootstrapState.appInfo)

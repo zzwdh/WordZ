@@ -119,6 +119,8 @@ struct KWICSceneRow: Identifiable, Equatable {
     let leftContext: String
     let keyword: String
     let rightContext: String
+    let concordanceText: String
+    let citationText: String
     let sentenceIndexText: String
     let sentenceId: Int
     let sentenceTokenIndex: Int
@@ -143,6 +145,7 @@ struct KWICSceneModel: Equatable {
     let visibleRows: Int
     let rows: [KWICSceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let exportMetadataLines: [String]
     let searchError: String
 
     func column(for key: KWICColumnKey) -> NativeTableColumnDescriptor? {

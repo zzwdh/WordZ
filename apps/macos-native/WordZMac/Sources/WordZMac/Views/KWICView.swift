@@ -150,7 +150,7 @@ struct KWICView: View {
                     WorkbenchSectionCard {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 12) {
-                                Text(t("完整索引行", "Full KWIC Line"))
+                                Text(t("研究阅读视图", "Research Reading View"))
                                     .font(.headline)
                                 Spacer()
                                 Text(t("句", "Sentence") + " \(selectedRow.sentenceId + 1)")
@@ -159,27 +159,41 @@ struct KWICView: View {
                                     .monospacedDigit()
                             }
 
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(selectedRow.leftContext)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.trailing)
-                                Text(selectedRow.keyword)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(Color.accentColor)
-                                Text(selectedRow.rightContext)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .multilineTextAlignment(.leading)
+                            WorkbenchConcordanceLineView(
+                                leftContext: selectedRow.leftContext,
+                                keyword: selectedRow.keyword,
+                                rightContext: selectedRow.rightContext
+                            )
+
+                            Text(selectedRow.concordanceText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+
+                            HStack(spacing: 12) {
+                                WorkbenchCopyTextButton(
+                                    title: t("复制引文", "Copy Citation"),
+                                    text: selectedRow.citationText
+                                )
+                                Button {
+                                    onAction(.activateRow(selectedRow.id))
+                                } label: {
+                                    Label(t("发送到定位器", "Send to Locator"), systemImage: "scope")
+                                }
+                                Spacer()
                             }
-                            .font(.body)
-                            .textSelection(.enabled)
                         }
                     }
                 }
             } else {
-                ContentUnavailableView(
-                    t("尚未生成 KWIC 结果", "No KWIC results yet"),
-                    systemImage: "text.magnifyingglass"
+                WorkbenchEmptyStateCard(
+                    title: t("尚未生成 KWIC 结果", "No KWIC results yet"),
+                    systemImage: "text.magnifyingglass",
+                    message: t("输入检索词并运行后，这里会显示可阅读、可复制、可继续定位的索引行。", "Run a keyword search to see concordance lines that are ready for reading, citation copying, and follow-up locating."),
+                    suggestions: [
+                        t("较短的窗口更适合课堂演示，较长的窗口更适合研究解读。", "Shorter windows work well for teaching demos, while longer windows help with research interpretation."),
+                        t("双击任意索引行或使用“发送到定位器”可继续查看句内位置。", "Double-click any row or use Send to Locator to continue from that concordance line.")
+                    ]
                 )
             }
         }

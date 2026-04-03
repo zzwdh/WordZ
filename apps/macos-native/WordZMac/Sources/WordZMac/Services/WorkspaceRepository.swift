@@ -14,6 +14,8 @@ protocol WorkspaceRepository: AnyObject {
     func listLibrary(folderId: String) async throws -> LibrarySnapshot
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) async throws -> LibraryImportResult
     func openSavedCorpus(corpusId: String) async throws -> OpenedCorpus
+    func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary
+    func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem
     func renameCorpus(corpusId: String, newName: String) async throws -> LibraryCorpusItem
     func moveCorpus(corpusId: String, targetFolderId: String) async throws -> LibraryCorpusItem
     func deleteCorpus(corpusId: String) async throws
@@ -86,6 +88,36 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
 
     func openSavedCorpus(corpusId: String) async throws -> OpenedCorpus {
         try await engineClient.openSavedCorpus(corpusId: corpusId)
+    }
+
+    func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
+        let corpus = try await openSavedCorpus(corpusId: corpusId)
+        let stats = try await runStats(text: corpus.content)
+        return CorpusInfoSummary(json: [
+            "corpusId": corpusId,
+            "title": corpus.displayName,
+            "folderName": "",
+            "sourceType": corpus.sourceType,
+            "representedPath": corpus.filePath,
+            "detectedEncoding": "",
+            "importedAt": "",
+            "tokenCount": stats.tokenCount,
+            "typeCount": stats.typeCount,
+            "sentenceCount": stats.sentenceCount,
+            "paragraphCount": stats.paragraphCount,
+            "characterCount": corpus.content.count,
+            "ttr": stats.ttr,
+            "sttr": stats.sttr,
+            "metadata": CorpusMetadataProfile.empty.jsonObject
+        ])
+    }
+
+    func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem {
+        throw NSError(
+            domain: "WordZMac.EngineWorkspaceRepository",
+            code: 11,
+            userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持编辑语料元数据。"]
+        )
     }
 
     func renameCorpus(corpusId: String, newName: String) async throws -> LibraryCorpusItem {

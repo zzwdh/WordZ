@@ -66,7 +66,7 @@ struct TaskCenterWindowView: View {
                 ContentUnavailableView(
                     t("当前没有后台任务", "No background tasks"),
                     systemImage: "checklist",
-                    description: Text(t("更新检查、更新下载和诊断导出会在这里显示进度与结果。", "Update checks, downloads, and diagnostic exports will appear here."))
+                    description: Text(t("更新检查、更新下载和诊断包导出会在这里显示进度与结果。", "Update checks, downloads, and diagnostics bundle exports will appear here."))
                 )
             } else {
                 ScrollView {
@@ -267,7 +267,7 @@ struct HelpCenterWindowView: View {
                         Button(t("刷新工作区", "Refresh Workspace")) {
                             Task { await workspace.refreshAll() }
                         }
-                        Button(t("导出诊断", "Export Diagnostics")) {
+                        Button(t("导出诊断包", "Export Diagnostics Bundle")) {
                             Task { await workspace.exportDiagnostics() }
                         }
                         if !workspace.settings.scene.userDataDirectory.isEmpty {
@@ -280,7 +280,7 @@ struct HelpCenterWindowView: View {
 
                 WorkbenchPaneCard(title: t("支持与反馈", "Support & Feedback"), subtitle: workspace.settings.scene.supportStatus) {
                     HStack {
-                        Button(t("导出诊断", "Export Diagnostics")) { Task { await workspace.exportDiagnostics() } }
+                        Button(t("导出诊断包", "Export Diagnostics Bundle")) { Task { await workspace.exportDiagnostics() } }
                         Button(t("GitHub 反馈", "GitHub Feedback")) { Task { await workspace.openFeedback() } }
                         Button(t("版本说明", "Release Notes")) { Task { await workspace.openReleaseNotes() } }
                     }

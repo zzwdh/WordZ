@@ -7,6 +7,7 @@ struct CollocateSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        focusMetric: CollocateAssociationMetric,
         leftWindow: Int,
         rightWindow: Int,
         minFreq: Int,
@@ -40,7 +41,10 @@ struct CollocateSceneBuilder {
                 rightText: "\(row.right)",
                 wordFreqText: "\(row.wordFreq)",
                 keywordFreqText: "\(row.keywordFreq)",
-                rateText: String(format: "%.4f", row.rate)
+                rateText: String(format: "%.4f", row.rate),
+                logDiceText: String(format: "%.2f", row.logDice),
+                mutualInformationText: String(format: "%.2f", row.mutualInformation),
+                tScoreText: String(format: "%.2f", row.tScore)
             )
         }
         let tableRows = visibleSceneRows.map { row in
@@ -54,15 +58,53 @@ struct CollocateSceneBuilder {
                     CollocateColumnKey.right.rawValue: row.rightText,
                     CollocateColumnKey.wordFreq.rawValue: row.wordFreqText,
                     CollocateColumnKey.keywordFreq.rawValue: row.keywordFreqText,
-                    CollocateColumnKey.rate.rawValue: row.rateText
+                    CollocateColumnKey.rate.rawValue: row.rateText,
+                    CollocateColumnKey.logDice.rawValue: row.logDiceText,
+                    CollocateColumnKey.mutualInformation.rawValue: row.mutualInformationText,
+                    CollocateColumnKey.tScore.rawValue: row.tScoreText
                 ]
             )
         }
+
+        let methodNotes = [
+            focusMetric.summary(in: languageMode),
+            wordZText(
+                "建议先看 LogDice 或 T-Score，再结合原始频次判断是否稳定可靠。",
+                "A good workflow is to inspect LogDice or T-Score first, then confirm stability with raw frequency.",
+                mode: languageMode
+            ),
+            wordZText(
+                "MI 更适合找专属性强的低频搭配，但不宜单独作为最终结论。",
+                "MI is useful for highly exclusive low-frequency pairs, but it should not be used alone as the final criterion.",
+                mode: languageMode
+            )
+        ]
+
+        let exportMetadataLines = AnalysisExportMetadataSupport.notes(
+            analysisTitle: wordZText("搭配词", "Collocates", mode: languageMode),
+            languageMode: languageMode,
+            visibleRows: visibleSceneRows.count,
+            totalRows: sortedRows.count,
+            query: query,
+            queryLabel: wordZText("节点词", "Keyword", mode: languageMode),
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            additionalLines: [
+                "\(wordZText("左窗口", "Left Window", mode: languageMode)): \(leftWindow)",
+                "\(wordZText("右窗口", "Right Window", mode: languageMode)): \(rightWindow)",
+                "\(wordZText("最小频次", "Minimum Frequency", mode: languageMode)): \(minFreq)",
+                "\(wordZText("重点指标", "Focus Metric", mode: languageMode)): \(focusMetric.title(in: languageMode))",
+                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))"
+            ]
+        )
 
         return CollocateSceneModel(
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            focusMetric: focusMetric,
+            focusMetricSummary: focusMetric.summary(in: languageMode),
+            methodNotes: methodNotes,
             leftWindow: leftWindow,
             rightWindow: rightWindow,
             minFreq: minFreq,
@@ -91,6 +133,7 @@ struct CollocateSceneBuilder {
             visibleRows: visibleSceneRows.count,
             rows: visibleSceneRows,
             tableRows: tableRows,
+            exportMetadataLines: exportMetadataLines,
             searchError: ""
         )
     }
@@ -101,6 +144,8 @@ struct CollocateSceneBuilder {
             return .keyword
         case .rate:
             return .numeric(precision: 4)
+        case .logDice, .mutualInformation, .tScore:
+            return .numeric(precision: 2)
         default:
             return .numeric(precision: 0)
         }
@@ -141,6 +186,27 @@ struct CollocateSceneBuilder {
                     return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
                 }
                 return $0.rate > $1.rate
+            }
+        case .logDiceDescending:
+            return rows.sorted {
+                if $0.logDice == $1.logDice {
+                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
+                }
+                return $0.logDice > $1.logDice
+            }
+        case .mutualInformationDescending:
+            return rows.sorted {
+                if $0.mutualInformation == $1.mutualInformation {
+                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
+                }
+                return $0.mutualInformation > $1.mutualInformation
+            }
+        case .tScoreDescending:
+            return rows.sorted {
+                if $0.tScore == $1.tScore {
+                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
+                }
+                return $0.tScore > $1.tScore
             }
         }
     }
@@ -212,7 +278,10 @@ struct CollocateSceneBuilder {
              (.total, .frequencyAscending):
             return "↑"
         case (.total, .frequencyDescending),
-             (.rate, .rateDescending):
+             (.rate, .rateDescending),
+             (.logDice, .logDiceDescending),
+             (.mutualInformation, .mutualInformationDescending),
+             (.tScore, .tScoreDescending):
             return "↓"
         default:
             return nil

@@ -67,11 +67,11 @@ final class NativeCorpusStore {
                 "导入文本语料后，可直接运行 Stats / Word / KWIC / Collocate / N-Gram / Compare / Locator。"
             ],
             "releaseNotes": [
-                "原生工作区升级为多窗口结构：语料库、设置、任务中心和版本说明均可独立打开。",
-                "本地语料库存储升级为真正的 SQLite `.db`，并兼容历史语料自动迁移。",
-                "新增并完善 Chi-Square、Tokenize、Topics、Word Cloud、Keyness Compare 等分析能力。",
-                "统计与词表支持 Norm Frequency、Range、Rank、Norm Range，并统一导出到 CSV/XLSX。",
-                "表格系统重做：支持密度切换、语义列宽、KWIC 特化布局、详情面板与更稳定的大表渲染。"
+                "分析可信度升级：Compare 支持固定参考语料与 keyness/log ratio 结果恢复，导出自动写入更多分析元信息。",
+                "大语料性能专项推进：结果缓存、后台 scene build、SQLite 语料信息直读和更稳的大表渲染继续增强。",
+                "语料库体系升级：本地 `.db` 存储补齐语料元数据编辑、语料信息面板和后续扩展所需的结构化基础。",
+                "学术型阅读体验增强：KWIC / Locator 增加特化阅读与引文操作，Collocate 新增 LogDice / MI / T-Score。",
+                "发布与诊断工程加强：release manifest/checklist/smoke 更稳，诊断包默认进行本地路径脱敏。"
             ],
             "userDataDir": rootURL.path
         ])
@@ -115,6 +115,8 @@ final class NativeCorpusStore {
             searchQuery: draft.searchQuery,
             searchOptions: draft.searchOptions,
             stopwordFilter: draft.stopwordFilter,
+            compareReferenceCorpusID: draft.compareReferenceCorpusID,
+            compareSelectedCorpusIDs: draft.compareSelectedCorpusIDs,
             ngramSize: draft.ngramSize,
             ngramPageSize: draft.ngramPageSize,
             kwicLeftWindow: draft.kwicLeftWindow,
@@ -178,6 +180,89 @@ final class NativeCorpusStore {
             "content": content,
             "sourceType": record.sourceType
         ])
+    }
+
+    func loadCorpusInfo(corpusId: String) throws -> CorpusInfoSummary {
+        let corpora = try loadCorpora()
+        guard let record = corpora.first(where: { $0.id == corpusId }) else {
+            throw NSError(
+                domain: "WordZMac.NativeCorpusStore",
+                code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "未找到语料：\(corpusId)"]
+            )
+        }
+        let storageURL = corporaDirectoryURL.appendingPathComponent(record.storageFileName)
+        guard fileManager.fileExists(atPath: storageURL.path) else {
+            throw NSError(
+                domain: "WordZMac.NativeCorpusStore",
+                code: 410,
+                userInfo: [NSLocalizedDescriptionKey: "语料文件已丢失：\(record.name)"]
+            )
+        }
+
+        if var metadata = try NativeCorpusDatabaseSupport.readMetadata(at: storageURL) {
+            if shouldRefreshCorpusMetadata(metadata),
+               let databaseDocument = try NativeCorpusDatabaseSupport.readDocument(at: storageURL) {
+                try NativeCorpusDatabaseSupport.writeDocument(
+                    at: storageURL,
+                    document: DecodedTextDocument(
+                        text: databaseDocument.text,
+                        encodingName: databaseDocument.metadata.detectedEncoding
+                    ),
+                    sourceType: databaseDocument.metadata.sourceType,
+                    representedPath: databaseDocument.metadata.representedPath,
+                    importedAt: databaseDocument.metadata.importedAt,
+                    metadataProfile: databaseDocument.metadata.metadataProfile.merged(over: record.metadata)
+                )
+                metadata = try NativeCorpusDatabaseSupport.readMetadata(at: storageURL) ?? metadata
+            }
+            return corpusInfoSummary(from: record, metadata: metadata, fallbackPath: storageURL.path)
+        }
+
+        _ = try readStoredCorpusText(at: storageURL, record: record)
+        if let metadata = try NativeCorpusDatabaseSupport.readMetadata(at: storageURL) {
+            return corpusInfoSummary(from: record, metadata: metadata, fallbackPath: storageURL.path)
+        }
+
+        let content = try TextFileDecodingSupport.readTextDocument(at: storageURL).text
+        let stats = NativeAnalysisEngine().runStats(text: content)
+        return CorpusInfoSummary(json: [
+            "corpusId": record.id,
+            "title": record.name,
+            "folderName": record.folderName,
+            "sourceType": record.sourceType,
+            "representedPath": record.representedPath.isEmpty ? storageURL.path : record.representedPath,
+            "detectedEncoding": "",
+            "importedAt": "",
+            "tokenCount": stats.tokenCount,
+            "typeCount": stats.typeCount,
+            "sentenceCount": stats.sentenceCount,
+            "paragraphCount": stats.paragraphCount,
+            "characterCount": content.count,
+            "ttr": stats.ttr,
+            "sttr": stats.sttr,
+            "metadata": record.metadata.jsonObject
+        ])
+    }
+
+    func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) throws -> LibraryCorpusItem {
+        var corpora = try loadCorpora()
+        guard let index = corpora.firstIndex(where: { $0.id == corpusId }) else {
+            throw NSError(
+                domain: "WordZMac.NativeCorpusStore",
+                code: 404,
+                userInfo: [NSLocalizedDescriptionKey: "未找到语料：\(corpusId)"]
+            )
+        }
+
+        corpora[index].metadata = metadata
+        let storageURL = corporaDirectoryURL.appendingPathComponent(corpora[index].storageFileName)
+        if fileManager.fileExists(atPath: storageURL.path) {
+            _ = try readStoredCorpusText(at: storageURL, record: corpora[index])
+            try NativeCorpusDatabaseSupport.updateMetadata(at: storageURL, metadataProfile: metadata)
+        }
+        try saveCorpora(corpora)
+        return corpora[index].libraryItem
     }
 
     func importCorpusPaths(
@@ -525,7 +610,8 @@ final class NativeCorpusStore {
             document: document,
             sourceType: sourceType,
             representedPath: sourceURL.path,
-            importedAt: timestamp()
+            importedAt: timestamp(),
+            metadataProfile: .empty
         )
         return NativeCorpusRecord(
             id: id,
@@ -534,7 +620,8 @@ final class NativeCorpusStore {
             folderName: folder?.name ?? "未分类",
             sourceType: sourceType,
             representedPath: sourceURL.path,
-            storageFileName: storageFileName
+            storageFileName: storageFileName,
+            metadata: .empty
         )
     }
 
@@ -696,7 +783,8 @@ final class NativeCorpusStore {
                 document: decoded,
                 sourceType: document.sourceType,
                 representedPath: document.representedPath,
-                importedAt: document.importedAt
+                importedAt: document.importedAt,
+                metadataProfile: record.metadata
             )
             return document.text
         }
@@ -707,7 +795,8 @@ final class NativeCorpusStore {
             document: decoded,
             sourceType: record.sourceType,
             representedPath: record.representedPath,
-            importedAt: timestamp()
+            importedAt: timestamp(),
+            metadataProfile: record.metadata
         )
         return decoded.text
     }
@@ -716,6 +805,39 @@ final class NativeCorpusStore {
         guard fileManager.fileExists(atPath: url.path) else { return nil }
         let data = try Data(contentsOf: url, options: [.mappedIfSafe])
         return try? decoder.decode(NativeStoredCorpusDocument.self, from: data)
+    }
+
+    private func shouldRefreshCorpusMetadata(_ metadata: NativeStoredCorpusMetadata) -> Bool {
+        metadata.ttr == 0 && metadata.tokenCount > 0
+    }
+
+    private func corpusInfoSummary(
+        from record: NativeCorpusRecord,
+        metadata: NativeStoredCorpusMetadata,
+        fallbackPath: String
+    ) -> CorpusInfoSummary {
+        CorpusInfoSummary(json: [
+            "corpusId": record.id,
+            "title": record.name,
+            "folderName": record.folderName,
+            "sourceType": metadata.sourceType.isEmpty ? record.sourceType : metadata.sourceType,
+            "representedPath": metadata.representedPath.isEmpty ? (record.representedPath.isEmpty ? fallbackPath : record.representedPath) : metadata.representedPath,
+            "detectedEncoding": metadata.detectedEncoding,
+            "importedAt": metadata.importedAt,
+            "tokenCount": metadata.tokenCount,
+            "typeCount": metadata.typeCount,
+            "sentenceCount": metadata.sentenceCount,
+            "paragraphCount": metadata.paragraphCount,
+            "characterCount": metadata.characterCount,
+            "ttr": metadata.ttr > 0 ? metadata.ttr : fallbackTTR(typeCount: metadata.typeCount, tokenCount: metadata.tokenCount),
+            "sttr": metadata.sttr,
+            "metadata": metadata.metadataProfile.merged(over: record.metadata).jsonObject
+        ])
+    }
+
+    private func fallbackTTR(typeCount: Int, tokenCount: Int) -> Double {
+        guard tokenCount > 0 else { return 0 }
+        return Double(typeCount) / Double(tokenCount)
     }
 
     private func isStoredCorpusReadable(at url: URL) -> Bool {
@@ -783,6 +905,50 @@ private struct NativeCorpusRecord: Codable, Equatable, Identifiable {
     var sourceType: String
     var representedPath: String
     var storageFileName: String
+    var metadata: CorpusMetadataProfile
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case folderId
+        case folderName
+        case sourceType
+        case representedPath
+        case storageFileName
+        case metadata
+    }
+
+    init(
+        id: String,
+        name: String,
+        folderId: String,
+        folderName: String,
+        sourceType: String,
+        representedPath: String,
+        storageFileName: String,
+        metadata: CorpusMetadataProfile
+    ) {
+        self.id = id
+        self.name = name
+        self.folderId = folderId
+        self.folderName = folderName
+        self.sourceType = sourceType
+        self.representedPath = representedPath
+        self.storageFileName = storageFileName
+        self.metadata = metadata
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        folderId = try container.decode(String.self, forKey: .folderId)
+        folderName = try container.decode(String.self, forKey: .folderName)
+        sourceType = try container.decode(String.self, forKey: .sourceType)
+        representedPath = try container.decode(String.self, forKey: .representedPath)
+        storageFileName = try container.decode(String.self, forKey: .storageFileName)
+        metadata = try container.decodeIfPresent(CorpusMetadataProfile.self, forKey: .metadata) ?? .empty
+    }
 
     var libraryItem: LibraryCorpusItem {
         LibraryCorpusItem(json: jsonObject)
@@ -795,7 +961,8 @@ private struct NativeCorpusRecord: Codable, Equatable, Identifiable {
             "folderId": folderId,
             "folderName": folderName,
             "sourceType": sourceType,
-            "representedPath": representedPath
+            "representedPath": representedPath,
+            "metadata": metadata.jsonObject
         ]
     }
 }
@@ -834,6 +1001,8 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let searchQuery: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let compareReferenceCorpusID: String
+    let compareSelectedCorpusIDs: [String]
     let ngramSize: String
     let ngramPageSize: String
     let kwicLeftWindow: String
@@ -862,6 +1031,8 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case searchQuery
         case searchOptions
         case stopwordFilter
+        case compareReferenceCorpusID
+        case compareSelectedCorpusIDs
         case ngramSize
         case ngramPageSize
         case kwicLeftWindow
@@ -891,6 +1062,8 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         searchQuery: "",
         searchOptions: .default,
         stopwordFilter: .default,
+        compareReferenceCorpusID: "",
+        compareSelectedCorpusIDs: [],
         ngramSize: "2",
         ngramPageSize: "10",
         kwicLeftWindow: "5",
@@ -920,6 +1093,8 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         searchQuery: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        compareReferenceCorpusID: String,
+        compareSelectedCorpusIDs: [String],
         ngramSize: String,
         ngramPageSize: String,
         kwicLeftWindow: String,
@@ -947,6 +1122,8 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.searchQuery = searchQuery
         self.searchOptions = searchOptions
         self.stopwordFilter = stopwordFilter
+        self.compareReferenceCorpusID = compareReferenceCorpusID
+        self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
         self.ngramSize = ngramSize
         self.ngramPageSize = ngramPageSize
         self.kwicLeftWindow = kwicLeftWindow
@@ -977,6 +1154,8 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.searchQuery = try container.decodeIfPresent(String.self, forKey: .searchQuery) ?? ""
         self.searchOptions = try container.decodeIfPresent(SearchOptionsState.self, forKey: .searchOptions) ?? .default
         self.stopwordFilter = try container.decodeIfPresent(StopwordFilterState.self, forKey: .stopwordFilter) ?? .default
+        self.compareReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .compareReferenceCorpusID) ?? ""
+        self.compareSelectedCorpusIDs = try container.decodeIfPresent([String].self, forKey: .compareSelectedCorpusIDs) ?? []
         self.ngramSize = try container.decodeIfPresent(String.self, forKey: .ngramSize) ?? "2"
         self.ngramPageSize = try container.decodeIfPresent(String.self, forKey: .ngramPageSize) ?? "10"
         self.kwicLeftWindow = try container.decodeIfPresent(String.self, forKey: .kwicLeftWindow) ?? "5"
@@ -1010,6 +1189,10 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
                 "query": searchQuery,
                 "options": searchOptions.asJSONObject(),
                 "stopwordFilter": stopwordFilter.asJSONObject()
+            ],
+            "compare": [
+                "referenceCorpusID": compareReferenceCorpusID,
+                "selectedCorpusIDs": compareSelectedCorpusIDs
             ],
             "ngram": [
                 "size": ngramSize,

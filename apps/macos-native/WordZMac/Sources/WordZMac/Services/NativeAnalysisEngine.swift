@@ -163,6 +163,7 @@ final class NativeAnalysisEngine {
         let index = indexedDocument(for: text)
         let document = index.document
         let frequency = index.frequencyMap
+        let tokenCount = max(index.tokenCount, 1)
         let safeLeft = max(0, leftWindow)
         let safeRight = max(0, rightWindow)
         let safeMinFreq = max(1, minFreq)
@@ -196,14 +197,29 @@ final class NativeAnalysisEngine {
         let rows = totalByWord
             .filter { $0.value >= safeMinFreq }
             .map { word, total in
-                [
+                let wordFreq = frequency[word, default: 0]
+                let observed = Double(total)
+                let expected = (Double(keywordFreq) * Double(wordFreq)) / Double(tokenCount)
+                let mutualInformation = expected > 0 && observed > 0
+                    ? log2(observed / expected)
+                    : 0
+                let tScore = observed > 0
+                    ? (observed - expected) / sqrt(observed)
+                    : 0
+                let logDice = (keywordFreq + wordFreq) > 0 && observed > 0
+                    ? 14 + log2((2 * observed) / Double(keywordFreq + wordFreq))
+                    : 0
+                return [
                     "word": word,
                     "total": total,
                     "left": leftByWord[word, default: 0],
                     "right": rightByWord[word, default: 0],
-                    "wordFreq": frequency[word, default: 0],
+                    "wordFreq": wordFreq,
                     "keywordFreq": keywordFreq,
-                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0
+                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0,
+                    "logDice": logDice,
+                    "mutualInformation": mutualInformation,
+                    "tScore": tScore
                 ] as JSONObject
             }
 

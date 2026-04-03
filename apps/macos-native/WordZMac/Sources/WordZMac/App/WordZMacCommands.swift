@@ -161,7 +161,7 @@ struct WordZMacCommands: Commands {
                     Task { await workspace.revealDownloadedUpdate() }
                 }
             }
-            Button(t("导出诊断…", "Export Diagnostics…")) {
+            Button(t("导出诊断包…", "Export Diagnostics Bundle…")) {
                 NativeAppCommandCenter.post(.exportDiagnostics)
             }
 

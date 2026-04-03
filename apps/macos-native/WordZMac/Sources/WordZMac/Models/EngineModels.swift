@@ -52,6 +52,96 @@ enum JSONFieldReader {
     static func array(_ object: JSONObject, key: String) -> [Any] {
         object[key] as? [Any] ?? []
     }
+
+    static func stringArray(_ object: JSONObject, key: String) -> [String] {
+        if let values = object[key] as? [String] {
+            return values
+        }
+        if let values = object[key] as? [Any] {
+            return values.compactMap { $0 as? String }
+        }
+        if let value = object[key] as? String {
+            return value
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+        return []
+    }
+}
+
+struct CorpusMetadataProfile: Codable, Equatable, Hashable, Sendable {
+    let sourceLabel: String
+    let yearLabel: String
+    let genreLabel: String
+    let tags: [String]
+
+    static let empty = CorpusMetadataProfile()
+
+    init(
+        sourceLabel: String = "",
+        yearLabel: String = "",
+        genreLabel: String = "",
+        tags: [String] = []
+    ) {
+        self.sourceLabel = sourceLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.yearLabel = yearLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.genreLabel = genreLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.tags = Self.normalizeTags(tags)
+    }
+
+    init(json: JSONObject) {
+        self.init(
+            sourceLabel: JSONFieldReader.string(json, key: "sourceLabel"),
+            yearLabel: JSONFieldReader.string(json, key: "yearLabel"),
+            genreLabel: JSONFieldReader.string(json, key: "genreLabel"),
+            tags: JSONFieldReader.stringArray(json, key: "tags")
+        )
+    }
+
+    var hasContent: Bool {
+        !sourceLabel.isEmpty || !yearLabel.isEmpty || !genreLabel.isEmpty || !tags.isEmpty
+    }
+
+    var tagsText: String {
+        tags.joined(separator: ", ")
+    }
+
+    var jsonObject: JSONObject {
+        [
+            "sourceLabel": sourceLabel,
+            "yearLabel": yearLabel,
+            "genreLabel": genreLabel,
+            "tags": tags
+        ]
+    }
+
+    func compactSummary(in mode: AppLanguageMode) -> String {
+        let parts = [sourceLabel, yearLabel, genreLabel] + Array(tags.prefix(2))
+        let summary = parts.filter { !$0.isEmpty }.joined(separator: " · ")
+        if !summary.isEmpty {
+            return summary
+        }
+        return wordZText("未设置元数据", "No metadata yet", mode: mode)
+    }
+
+    func merged(over fallback: CorpusMetadataProfile) -> CorpusMetadataProfile {
+        CorpusMetadataProfile(
+            sourceLabel: sourceLabel.isEmpty ? fallback.sourceLabel : sourceLabel,
+            yearLabel: yearLabel.isEmpty ? fallback.yearLabel : yearLabel,
+            genreLabel: genreLabel.isEmpty ? fallback.genreLabel : genreLabel,
+            tags: tags.isEmpty ? fallback.tags : tags
+        )
+    }
+
+    private static func normalizeTags(_ tags: [String]) -> [String] {
+        var seen = Set<String>()
+        return tags
+            .flatMap { $0.split(separator: ",").map(String.init) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { seen.insert($0).inserted }
+    }
 }
 
 struct AppInfoSummary: Equatable, Sendable {
@@ -87,6 +177,7 @@ struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
     let folderName: String
     let sourceType: String
     let representedPath: String
+    let metadata: CorpusMetadataProfile
 
     init(json: JSONObject) {
         self.id = JSONFieldReader.string(json, key: "id")
@@ -95,6 +186,9 @@ struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
         self.folderName = JSONFieldReader.string(json, key: "folderName", fallback: "未分类")
         self.sourceType = JSONFieldReader.string(json, key: "sourceType", fallback: "txt")
         self.representedPath = JSONFieldReader.string(json, key: "representedPath")
+        self.metadata = CorpusMetadataProfile(
+            json: JSONFieldReader.dictionary(json, key: "metadata").isEmpty ? json : JSONFieldReader.dictionary(json, key: "metadata")
+        )
     }
 }
 
@@ -235,6 +329,44 @@ struct LibrarySnapshot: Equatable, Sendable {
     }
 }
 
+struct CorpusInfoSummary: Equatable, Sendable {
+    let corpusId: String
+    let title: String
+    let folderName: String
+    let sourceType: String
+    let representedPath: String
+    let detectedEncoding: String
+    let importedAt: String
+    let tokenCount: Int
+    let typeCount: Int
+    let sentenceCount: Int
+    let paragraphCount: Int
+    let characterCount: Int
+    let ttr: Double
+    let sttr: Double
+    let metadata: CorpusMetadataProfile
+
+    init(json: JSONObject) {
+        self.corpusId = JSONFieldReader.string(json, key: "corpusId")
+        self.title = JSONFieldReader.string(json, key: "title", fallback: "未命名语料")
+        self.folderName = JSONFieldReader.string(json, key: "folderName", fallback: "未分类")
+        self.sourceType = JSONFieldReader.string(json, key: "sourceType", fallback: "txt")
+        self.representedPath = JSONFieldReader.string(json, key: "representedPath")
+        self.detectedEncoding = JSONFieldReader.string(json, key: "detectedEncoding")
+        self.importedAt = JSONFieldReader.string(json, key: "importedAt")
+        self.tokenCount = JSONFieldReader.int(json, key: "tokenCount")
+        self.typeCount = JSONFieldReader.int(json, key: "typeCount")
+        self.sentenceCount = JSONFieldReader.int(json, key: "sentenceCount")
+        self.paragraphCount = JSONFieldReader.int(json, key: "paragraphCount")
+        self.characterCount = JSONFieldReader.int(json, key: "characterCount")
+        self.ttr = JSONFieldReader.double(json, key: "ttr")
+        self.sttr = JSONFieldReader.double(json, key: "sttr")
+        self.metadata = CorpusMetadataProfile(
+            json: JSONFieldReader.dictionary(json, key: "metadata").isEmpty ? json : JSONFieldReader.dictionary(json, key: "metadata")
+        )
+    }
+}
+
 struct OpenedCorpus: Equatable, Sendable {
     let mode: String
     let filePath: String
@@ -259,6 +391,8 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let searchQuery: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let compareReferenceCorpusID: String
+    let compareSelectedCorpusIDs: [String]
     let ngramSize: String
     let ngramPageSize: String
     let kwicLeftWindow: String
@@ -289,6 +423,8 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         searchQuery: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        compareReferenceCorpusID: String = "",
+        compareSelectedCorpusIDs: [String] = [],
         ngramSize: String,
         ngramPageSize: String,
         kwicLeftWindow: String,
@@ -316,6 +452,8 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.searchQuery = searchQuery
         self.searchOptions = searchOptions
         self.stopwordFilter = stopwordFilter
+        self.compareReferenceCorpusID = compareReferenceCorpusID
+        self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
         self.ngramSize = ngramSize
         self.ngramPageSize = ngramPageSize
         self.kwicLeftWindow = kwicLeftWindow
@@ -347,6 +485,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.searchQuery = JSONFieldReader.string(search, key: "query")
         self.searchOptions = SearchOptionsState(json: JSONFieldReader.dictionary(search, key: "options"))
         self.stopwordFilter = StopwordFilterState(json: JSONFieldReader.dictionary(search, key: "stopwordFilter"))
+        let compare = JSONFieldReader.dictionary(json, key: "compare")
+        self.compareReferenceCorpusID = JSONFieldReader.string(compare, key: "referenceCorpusID")
+        self.compareSelectedCorpusIDs = JSONFieldReader.array(compare, key: "selectedCorpusIDs").compactMap { $0 as? String }
         let ngram = JSONFieldReader.dictionary(json, key: "ngram")
         self.ngramSize = JSONFieldReader.string(ngram, key: "size", fallback: "2")
         self.ngramPageSize = JSONFieldReader.string(ngram, key: "pageSize", fallback: "10")
@@ -388,6 +529,8 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             searchQuery: draft.searchQuery,
             searchOptions: draft.searchOptions,
             stopwordFilter: draft.stopwordFilter,
+            compareReferenceCorpusID: draft.compareReferenceCorpusID,
+            compareSelectedCorpusIDs: draft.compareSelectedCorpusIDs,
             ngramSize: draft.ngramSize,
             ngramPageSize: draft.ngramPageSize,
             kwicLeftWindow: draft.kwicLeftWindow,
@@ -455,6 +598,8 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let searchQuery: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let compareReferenceCorpusID: String
+    let compareSelectedCorpusIDs: [String]
     let ngramSize: String
     let ngramPageSize: String
     let kwicLeftWindow: String
@@ -483,6 +628,8 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         searchQuery: "",
         searchOptions: .default,
         stopwordFilter: .default,
+        compareReferenceCorpusID: "",
+        compareSelectedCorpusIDs: [],
         ngramSize: "2",
         ngramPageSize: "10",
         kwicLeftWindow: "5",
@@ -512,6 +659,8 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         searchQuery: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        compareReferenceCorpusID: String = "",
+        compareSelectedCorpusIDs: [String] = [],
         ngramSize: String,
         ngramPageSize: String,
         kwicLeftWindow: String,
@@ -539,6 +688,8 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.searchQuery = searchQuery
         self.searchOptions = searchOptions
         self.stopwordFilter = stopwordFilter
+        self.compareReferenceCorpusID = compareReferenceCorpusID
+        self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
         self.ngramSize = ngramSize
         self.ngramPageSize = ngramPageSize
         self.kwicLeftWindow = kwicLeftWindow
@@ -572,6 +723,10 @@ struct WorkspaceStateDraft: Equatable, Sendable {
                 "query": searchQuery,
                 "options": searchOptions.asJSONObject(),
                 "stopwordFilter": stopwordFilter.asJSONObject()
+            ],
+            "compare": [
+                "referenceCorpusID": compareReferenceCorpusID,
+                "selectedCorpusIDs": compareSelectedCorpusIDs
             ],
             "ngram": [
                 "pageSize": ngramPageSize,
@@ -802,6 +957,9 @@ struct CollocateRow: Identifiable, Hashable, Sendable {
     let wordFreq: Int
     let keywordFreq: Int
     let rate: Double
+    let logDice: Double
+    let mutualInformation: Double
+    let tScore: Double
 
     init(json: JSONObject) {
         self.word = JSONFieldReader.string(json, key: "word")
@@ -811,6 +969,9 @@ struct CollocateRow: Identifiable, Hashable, Sendable {
         self.wordFreq = JSONFieldReader.int(json, key: "wordFreq")
         self.keywordFreq = JSONFieldReader.int(json, key: "keywordFreq")
         self.rate = JSONFieldReader.double(json, key: "rate")
+        self.logDice = JSONFieldReader.double(json, key: "logDice")
+        self.mutualInformation = JSONFieldReader.double(json, key: "mutualInformation")
+        self.tScore = JSONFieldReader.double(json, key: "tScore")
         self.id = word.isEmpty ? UUID().uuidString : word
     }
 }

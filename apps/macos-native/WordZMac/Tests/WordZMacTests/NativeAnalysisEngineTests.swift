@@ -122,6 +122,26 @@ final class NativeAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(result.typeCount, 2)
     }
 
+    func testRunCollocateComputesAssociationMetrics() throws {
+        let engine = NativeAnalysisEngine()
+        let result = try engine.runCollocate(
+            text: "alpha beta alpha beta alpha gamma beta",
+            keyword: "alpha",
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1,
+            searchOptions: .default
+        )
+
+        let beta = result.rows.first(where: { $0.word == "beta" })
+        let gamma = result.rows.first(where: { $0.word == "gamma" })
+
+        XCTAssertEqual(beta?.total, 4)
+        XCTAssertGreaterThan(beta?.logDice ?? 0, gamma?.logDice ?? 0)
+        XCTAssertGreaterThan(beta?.tScore ?? 0, 0)
+        XCTAssertGreaterThan(beta?.mutualInformation ?? 0, 0)
+    }
+
     func testRunCompareComputesSignedKeynessAgainstReferenceCorpora() {
         let engine = NativeAnalysisEngine()
         let result = engine.runCompare(comparisonEntries: [

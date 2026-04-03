@@ -10,6 +10,8 @@ enum LibraryManagementAction: Equatable {
     case openSelectedCorpus
     case quickLookSelectedCorpus
     case showSelectedCorpusInfo
+    case editSelectedCorpusMetadata
+    case saveSelectedCorpusMetadata(CorpusMetadataProfile)
     case renameSelectedCorpus
     case moveSelectedCorpusToSelectedFolder
     case deleteSelectedCorpus

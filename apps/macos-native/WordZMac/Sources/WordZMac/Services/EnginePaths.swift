@@ -139,4 +139,9 @@ enum EnginePaths {
         try? FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
         return userDataURL
     }
+
+    static func startupCrashLogURL() -> URL {
+        URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-startup-crash.log")
+    }
 }

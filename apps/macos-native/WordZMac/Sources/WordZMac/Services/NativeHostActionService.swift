@@ -11,7 +11,7 @@ protocol NativeHostActionServicing: AnyObject {
     func share(paths: [String]) async throws
     func openDownloadedUpdate(path: String) async throws
     func revealDownloadedUpdate(path: String) async throws
-    func exportDiagnostics(report: String, suggestedName: String) async throws -> String?
+    func exportDiagnosticBundle(archivePath: String, suggestedName: String) async throws -> String?
     func clearRecentDocuments() async throws
     func noteRecentDocument(path: String) async
 }
@@ -21,6 +21,7 @@ final class NativeHostActionService: NativeHostActionServicing {
     private let dialogService: NativeDialogServicing
     private let quickLookService: any NativeQuickLookServicing
     private let sharingService: any NativeSharingServicing
+    private let fileManager: FileManager
     private let workspace = NSWorkspace.shared
     private let homepageURL = URL(string: "https://github.com/zzwdh/WordZ")!
     private let feedbackURL = URL(string: "https://github.com/zzwdh/WordZ/issues/new/choose")!
@@ -29,11 +30,13 @@ final class NativeHostActionService: NativeHostActionServicing {
     init(
         dialogService: NativeDialogServicing,
         quickLookService: any NativeQuickLookServicing = NativeQuickLookService(),
-        sharingService: any NativeSharingServicing = NativeSharingService()
+        sharingService: any NativeSharingServicing = NativeSharingService(),
+        fileManager: FileManager = .default
     ) {
         self.dialogService = dialogService
         self.quickLookService = quickLookService
         self.sharingService = sharingService
+        self.fileManager = fileManager
     }
 
     private var languageMode: AppLanguageMode {
@@ -88,16 +91,20 @@ final class NativeHostActionService: NativeHostActionServicing {
         workspace.activateFileViewerSelecting([url])
     }
 
-    func exportDiagnostics(report: String, suggestedName: String) async throws -> String? {
+    func exportDiagnosticBundle(archivePath: String, suggestedName: String) async throws -> String? {
         guard let destinationPath = await dialogService.chooseSavePath(
-            title: t("导出诊断报告", "Export Diagnostics"),
+            title: t("导出诊断包", "Export Diagnostics Bundle"),
             suggestedName: suggestedName,
-            allowedExtension: "txt"
+            allowedExtension: "zip"
         ) else {
             return nil
         }
+        let sourceURL = URL(fileURLWithPath: archivePath)
         let destinationURL = URL(fileURLWithPath: destinationPath)
-        try report.write(to: destinationURL, atomically: true, encoding: .utf8)
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        try fileManager.copyItem(at: sourceURL, to: destinationURL)
         return destinationPath
     }
 

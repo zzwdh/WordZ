@@ -1,10 +1,11 @@
 #!/bin/zsh
 set -euo pipefail
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 APP_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 REPO_ROOT=$(cd "$APP_ROOT/../../.." && pwd)
-DIST_DIR="${WORDZ_MAC_DIST_DIR:-$REPO_ROOT/dist-native}"
+DIST_DIR="${WORDZ_MAC_DIST_DIR:-$APP_ROOT/dist-native}"
 APP_NAME="${WORDZ_MAC_APP_NAME:-WordZ}"
 VERSION="${WORDZ_MAC_VERSION:-$(node -p "require('$REPO_ROOT/package.json').version")}"
 ARCH_NAME="${WORDZ_MAC_ARCH:-$(uname -m)}"
@@ -23,6 +24,12 @@ ln -s /Applications "$STAGING_DIR/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG_PATH" >/dev/null
 rm -rf "$STAGING_DIR"
 
+CHECKSUMS_AND_MANIFEST=($(zsh "$SCRIPT_DIR/release-manifest.sh" "$APP_NAME" "$VERSION" "$DIST_DIR" "$ARCH_NAME"))
+CHECKSUMS_PATH="${CHECKSUMS_AND_MANIFEST[1]}"
+MANIFEST_PATH="${CHECKSUMS_AND_MANIFEST[2]}"
+
 echo "$APP_BUNDLE"
 echo "$ZIP_PATH"
 echo "$DMG_PATH"
+echo "$CHECKSUMS_PATH"
+echo "$MANIFEST_PATH"

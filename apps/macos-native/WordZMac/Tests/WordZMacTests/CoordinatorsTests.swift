@@ -342,6 +342,48 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertEqual(features.compare.scene?.totalRows, repository.compareResult.rows.count)
     }
 
+    func testWorkspaceFlowCoordinatorCurrentDraftIncludesCompareSelection() {
+        let repository = FakeWorkspaceRepository()
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let flowCoordinator = WorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        let compare = ComparePageViewModel()
+        compare.syncLibrarySnapshot(repository.bootstrapState.librarySnapshot)
+        compare.handle(.changeReferenceCorpus("corpus-2"))
+        let features = WorkspaceFeatureSet(
+            sidebar: sidebar,
+            shell: WorkspaceShellViewModel(),
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            compare: compare,
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            wordCloud: WordCloudPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        let draft = flowCoordinator.currentWorkspaceDraft(features: features)
+
+        XCTAssertEqual(Set(draft.compareSelectedCorpusIDs), Set(["corpus-1", "corpus-2"]))
+        XCTAssertEqual(draft.compareReferenceCorpusID, "corpus-2")
+    }
+
     func testWorkspaceFlowCoordinatorRunChiSquareBuildsSceneAndSwitchesTab() async {
         let repository = FakeWorkspaceRepository()
         let sceneStore = WorkspaceSceneStore()

@@ -146,6 +146,11 @@ struct CompareSelectableCorpusSceneItem: Identifiable, Equatable {
     let isSelected: Bool
 }
 
+struct CompareReferenceOptionSceneItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+}
+
 struct CompareCorpusSummarySceneItem: Identifiable, Equatable {
     let id: String
     let title: String
@@ -162,9 +167,12 @@ struct CompareSceneRow: Identifiable, Equatable {
     let word: String
     let keynessText: String
     let effectText: String
+    let pValueText: String
     let spreadText: String
     let totalText: String
     let rangeText: String
+    let referenceNormFreqText: String
+    let referenceLabelText: String
     let dominantCorpus: String
     let distributionText: String
 }
@@ -180,6 +188,10 @@ struct CompareSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let referenceSummary: String
+    let methodSummary: String
+    let methodNotes: [String]
+    let exportMetadataLines: [String]
     let sorting: CompareSortingSceneModel
     let pagination: ResultPaginationSceneModel
     let table: NativeTableDescriptor

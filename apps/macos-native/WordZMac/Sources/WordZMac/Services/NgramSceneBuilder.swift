@@ -45,6 +45,20 @@ struct NgramSceneBuilder {
             )
         }
 
+        let exportMetadataLines = AnalysisExportMetadataSupport.notes(
+            analysisTitle: "\(result.n)-gram",
+            languageMode: languageMode,
+            visibleRows: visibleSceneRows.count,
+            totalRows: filteredRows.count,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            additionalLines: [
+                "\(wordZText("N-Gram 阶数", "N-Gram Size", mode: languageMode)): \(result.n)",
+                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))"
+            ]
+        )
+
         return NgramSceneModel(
             query: query,
             searchOptions: searchOptions,
@@ -75,6 +89,7 @@ struct NgramSceneBuilder {
             filteredRows: filteredRows.count,
             rows: visibleSceneRows,
             tableRows: tableRows,
+            exportMetadataLines: exportMetadataLines,
             searchError: filtered.error
         )
     }

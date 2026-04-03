@@ -75,6 +75,11 @@ struct PersistedNativeBackgroundTaskAction: Codable, Equatable {
     let kind: String
     let value: String
 
+    init(kind: String, value: String) {
+        self.kind = kind
+        self.value = value
+    }
+
     init?(action: NativeBackgroundTaskAction?) {
         guard let action else { return nil }
         switch action {
@@ -115,6 +120,26 @@ struct PersistedNativeBackgroundTaskItem: Codable, Equatable {
     let startedAt: Date
     let updatedAt: Date
     let primaryAction: PersistedNativeBackgroundTaskAction?
+
+    init(
+        id: UUID,
+        title: String,
+        detail: String,
+        state: NativeBackgroundTaskState,
+        progress: Double?,
+        startedAt: Date,
+        updatedAt: Date,
+        primaryAction: PersistedNativeBackgroundTaskAction?
+    ) {
+        self.id = id
+        self.title = title
+        self.detail = detail
+        self.state = state
+        self.progress = progress
+        self.startedAt = startedAt
+        self.updatedAt = updatedAt
+        self.primaryAction = primaryAction
+    }
 
     init(item: NativeBackgroundTaskItem) {
         self.id = item.id

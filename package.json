@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -68,9 +68,9 @@
       "channel": "stable"
     },
     "releaseNotes": [
-      "新增超大语料分段分析模式：自动启用内存保护，统计与 Ngram 可继续稳定运行，并给出内存压力提醒。",
-      "任务中心增强：支持取消排队任务、重试失败任务以及排队耗时预估（ETA），并同步优化提醒与状态显示。",
-      "缓存与存储稳定性进一步加固：设置中新增分析缓存可视化管理（查看/清空/重建），存储写入加入串行队列与原子写校验。"
+      "分析可信度升级：Compare 支持固定参考语料、多语料选择恢复以及更稳定的 keyness/log ratio 工作流。",
+      "大语料性能继续增强：结果缓存、后台 scene build、SQLite 语料信息直读与更稳的大表格渲染同步推进。",
+      "学术型分析与工程化一起升级：Collocate 新增 LogDice/MI/T-Score，KWIC/Locator 阅读体验提升，诊断包与发布流程更完整。"
     ]
   },
   "license": "MIT",

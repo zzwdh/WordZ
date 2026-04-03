@@ -1,8 +1,16 @@
 import Foundation
 
+private struct CollocateRunConfiguration: Equatable {
+    let query: String
+    let searchOptions: SearchOptionsState
+    let leftWindow: Int
+    let rightWindow: Int
+    let minFreq: Int
+}
+
 @MainActor
 final class CollocatePageViewModel: ObservableObject {
-    private static let defaultVisibleColumns: Set<CollocateColumnKey> = [.word, .total, .rate]
+    private static let defaultVisibleColumns: Set<CollocateColumnKey> = [.word, .total, .logDice, .rate]
     private var isApplyingState = false
 
     @Published var keyword = "" {
@@ -43,14 +51,17 @@ final class CollocatePageViewModel: ObservableObject {
     }
     @Published var isEditingStopwords = false
     @Published var scene: CollocateSceneModel?
+    @Published private(set) var selectedRowID: String?
 
     var onInputChange: (() -> Void)?
     private let sceneBuilder: CollocateSceneBuilder
     private var result: CollocateResult?
-    private var sortMode: CollocateSortMode = .frequencyDescending
+    private var sortMode: CollocateSortMode = .logDiceDescending
     private var pageSize: CollocatePageSize = .fifty
     private var currentPage = 1
     private var visibleColumns: Set<CollocateColumnKey> = CollocatePageViewModel.defaultVisibleColumns
+    private var focusMetric: CollocateAssociationMetric = .logDice
+    private var lastRunConfiguration: CollocateRunConfiguration?
 
     init(sceneBuilder: CollocateSceneBuilder = CollocateSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -70,6 +81,28 @@ final class CollocatePageViewModel: ObservableObject {
 
     var minFreqValue: Int {
         Int(minFreq) ?? 1
+    }
+
+    var focusMetricValue: CollocateAssociationMetric {
+        focusMetric
+    }
+
+    var hasPendingRunChanges: Bool {
+        guard let lastRunConfiguration else { return false }
+        return lastRunConfiguration.query != normalizedKeyword
+            || lastRunConfiguration.leftWindow != leftWindowValue
+            || lastRunConfiguration.rightWindow != rightWindowValue
+            || lastRunConfiguration.minFreq != minFreqValue
+            || lastRunConfiguration.searchOptions != searchOptions
+    }
+
+    var selectedSceneRow: CollocateSceneRow? {
+        guard let scene else { return nil }
+        if let selectedRowID,
+           let row = scene.rows.first(where: { $0.id == selectedRowID }) {
+            return row
+        }
+        return scene.rows.first
     }
 
     func apply(_ snapshot: WorkspaceSnapshotSummary) {
@@ -92,10 +125,18 @@ final class CollocatePageViewModel: ObservableObject {
         rebuildScene()
     }
 
+    func recordPendingRunConfiguration() {
+        lastRunConfiguration = currentRunConfiguration
+    }
+
     func handle(_ action: CollocatePageAction) {
         switch action {
         case .run:
             return
+        case .applyPreset(let preset):
+            applyPreset(preset)
+        case .changeFocusMetric(let nextMetric):
+            changeFocusMetric(nextMetric)
         case .changeSort(let nextSort):
             guard sortMode != nextSort else { return }
             sortMode = nextSort
@@ -110,6 +151,8 @@ final class CollocatePageViewModel: ObservableObject {
             rebuildScene()
         case .toggleColumn(let column):
             toggleColumn(column)
+        case .selectRow(let rowID):
+            selectedRowID = rowID
         case .previousPage:
             guard let scene, scene.pagination.canGoBackward else { return }
             currentPage = max(1, currentPage - 1)
@@ -132,10 +175,13 @@ final class CollocatePageViewModel: ObservableObject {
         stopwordFilter = .default
         isEditingStopwords = false
         result = nil
-        sortMode = .frequencyDescending
+        sortMode = .logDiceDescending
         pageSize = .fifty
         currentPage = 1
         visibleColumns = Self.defaultVisibleColumns
+        focusMetric = .logDice
+        selectedRowID = nil
+        lastRunConfiguration = nil
         scene = nil
     }
 
@@ -152,20 +198,33 @@ final class CollocatePageViewModel: ObservableObject {
             scene = nil
             return
         }
+        let configuration = lastRunConfiguration ?? currentRunConfiguration
         scene = sceneBuilder.build(
             from: result,
-            query: normalizedKeyword,
-            searchOptions: searchOptions,
+            query: configuration.query,
+            searchOptions: configuration.searchOptions,
             stopwordFilter: stopwordFilter,
-            leftWindow: leftWindowValue,
-            rightWindow: rightWindowValue,
-            minFreq: minFreqValue,
+            focusMetric: focusMetric,
+            leftWindow: configuration.leftWindow,
+            rightWindow: configuration.rightWindow,
+            minFreq: configuration.minFreq,
             sortMode: sortMode,
             pageSize: pageSize,
             currentPage: currentPage,
             visibleColumns: visibleColumns
         )
         currentPage = scene?.pagination.currentPage ?? 1
+        syncSelectedRow()
+    }
+
+    private var currentRunConfiguration: CollocateRunConfiguration {
+        CollocateRunConfiguration(
+            query: normalizedKeyword,
+            searchOptions: searchOptions,
+            leftWindow: leftWindowValue,
+            rightWindow: rightWindowValue,
+            minFreq: minFreqValue
+        )
     }
 
     private func sortByColumn(_ column: CollocateColumnKey) {
@@ -177,6 +236,12 @@ final class CollocatePageViewModel: ObservableObject {
             nextSort = .alphabeticalAscending
         case .total:
             nextSort = sortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
+        case .logDice:
+            nextSort = .logDiceDescending
+        case .mutualInformation:
+            nextSort = .mutualInformationDescending
+        case .tScore:
+            nextSort = .tScoreDescending
         case .rate:
             nextSort = .rateDescending
         case .left, .right, .wordFreq, .keywordFreq:
@@ -196,5 +261,52 @@ final class CollocatePageViewModel: ObservableObject {
             visibleColumns.insert(column)
         }
         rebuildScene()
+    }
+
+    private func changeFocusMetric(_ nextMetric: CollocateAssociationMetric) {
+        guard focusMetric != nextMetric else { return }
+        focusMetric = nextMetric
+        switch nextMetric {
+        case .logDice:
+            sortMode = .logDiceDescending
+            visibleColumns.insert(.logDice)
+        case .mutualInformation:
+            sortMode = .mutualInformationDescending
+            visibleColumns.insert(.mutualInformation)
+        case .tScore:
+            sortMode = .tScoreDescending
+            visibleColumns.insert(.tScore)
+        case .rate:
+            sortMode = .rateDescending
+            visibleColumns.insert(.rate)
+        case .frequency:
+            sortMode = .frequencyDescending
+            visibleColumns.insert(.total)
+        }
+        currentPage = 1
+        rebuildScene()
+    }
+
+    private func applyPreset(_ preset: CollocatePreset) {
+        let configuration = preset.configuration
+        isApplyingState = true
+        leftWindow = configuration.leftWindow
+        rightWindow = configuration.rightWindow
+        minFreq = configuration.minFreq
+        isApplyingState = false
+        onInputChange?()
+        changeFocusMetric(configuration.metric)
+    }
+
+    private func syncSelectedRow() {
+        guard let scene else {
+            selectedRowID = nil
+            return
+        }
+        if let selectedRowID,
+           scene.rows.contains(where: { $0.id == selectedRowID }) {
+            return
+        }
+        selectedRowID = scene.rows.first?.id
     }
 }

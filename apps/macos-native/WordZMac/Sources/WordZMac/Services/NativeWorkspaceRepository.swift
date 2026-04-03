@@ -28,6 +28,14 @@ final class NativeWorkspaceRepository: WorkspaceRepository, TopicProgressReporti
         try await core.openSavedCorpus(corpusId: corpusId)
     }
 
+    func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
+        try await core.loadCorpusInfo(corpusId: corpusId)
+    }
+
+    func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem {
+        try await core.updateCorpusMetadata(corpusId: corpusId, metadata: metadata)
+    }
+
     func renameCorpus(corpusId: String, newName: String) async throws -> LibraryCorpusItem {
         try await core.renameCorpus(corpusId: corpusId, newName: newName)
     }
@@ -174,7 +182,17 @@ private actor NativeWorkspaceRepositoryCore {
     private var corpusStore: NativeCorpusStore
     private let analysisEngine: NativeAnalysisEngine
     private let topicEngine: NativeTopicEngine
+    private let analysisResultCache = NativeAnalysisResultCache(
+        maxEntries: 32,
+        maxEntriesByKind: [
+            "compare": 8,
+            "kwic": 12,
+            "collocate": 12,
+            "locator": 12
+        ]
+    )
     private var openedCorpusCache: [String: OpenedCorpus] = [:]
+    private var corpusInfoCache: [String: CorpusInfoSummary] = [:]
 
     init(rootURL: URL) {
         self.rootURL = rootURL
@@ -189,6 +207,8 @@ private actor NativeWorkspaceRepositoryCore {
             rootURL = resolvedRoot
             corpusStore = NativeCorpusStore(rootURL: resolvedRoot)
             openedCorpusCache = [:]
+            corpusInfoCache = [:]
+            analysisResultCache.removeAll()
         }
         try corpusStore.ensureInitialized()
     }
@@ -210,9 +230,7 @@ private actor NativeWorkspaceRepositoryCore {
 
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) throws -> LibraryImportResult {
         try ensureReady()
-        let result = try corpusStore.importCorpusPaths(paths, folderId: folderId, preserveHierarchy: preserveHierarchy)
-        invalidateOpenedCorpusCache()
-        return result
+        return try corpusStore.importCorpusPaths(paths, folderId: folderId, preserveHierarchy: preserveHierarchy)
     }
 
     func openSavedCorpus(corpusId: String) throws -> OpenedCorpus {
@@ -225,17 +243,37 @@ private actor NativeWorkspaceRepositoryCore {
         return openedCorpus
     }
 
+    func loadCorpusInfo(corpusId: String) throws -> CorpusInfoSummary {
+        try ensureReady()
+        if let cached = corpusInfoCache[corpusId] {
+            return cached
+        }
+        let summary = try corpusStore.loadCorpusInfo(corpusId: corpusId)
+        corpusInfoCache[corpusId] = summary
+        return summary
+    }
+
+    func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) throws -> LibraryCorpusItem {
+        try ensureReady()
+        let item = try corpusStore.updateCorpusMetadata(corpusId: corpusId, metadata: metadata)
+        invalidateCorpusInfoCache(corpusId: corpusId)
+        return item
+    }
+
     func renameCorpus(corpusId: String, newName: String) throws -> LibraryCorpusItem {
         try ensureReady()
         let item = try corpusStore.renameCorpus(corpusId: corpusId, newName: newName)
         invalidateOpenedCorpusCache(corpusId: corpusId)
+        invalidateCorpusInfoCache(corpusId: corpusId)
+        invalidateCompareCache()
         return item
     }
 
     func moveCorpus(corpusId: String, targetFolderId: String) throws -> LibraryCorpusItem {
         try ensureReady()
         let item = try corpusStore.moveCorpus(corpusId: corpusId, targetFolderId: targetFolderId)
-        invalidateOpenedCorpusCache(corpusId: corpusId)
+        invalidateCorpusInfoCache(corpusId: corpusId)
+        invalidateCompareCache()
         return item
     }
 
@@ -243,6 +281,8 @@ private actor NativeWorkspaceRepositoryCore {
         try ensureReady()
         try corpusStore.deleteCorpus(corpusId: corpusId)
         invalidateOpenedCorpusCache(corpusId: corpusId)
+        invalidateCorpusInfoCache(corpusId: corpusId)
+        invalidateCompareCache()
     }
 
     func createFolder(name: String) throws -> LibraryFolderItem {
@@ -252,12 +292,18 @@ private actor NativeWorkspaceRepositoryCore {
 
     func renameFolder(folderId: String, newName: String) throws -> LibraryFolderItem {
         try ensureReady()
-        return try corpusStore.renameFolder(folderId: folderId, newName: newName)
+        let item = try corpusStore.renameFolder(folderId: folderId, newName: newName)
+        invalidateCorpusInfoCache()
+        invalidateCompareCache()
+        return item
     }
 
     func deleteFolder(folderId: String) throws {
         try ensureReady()
         try corpusStore.deleteFolder(folderId: folderId)
+        invalidateOpenedCorpusCache()
+        invalidateCorpusInfoCache()
+        invalidateCompareCache()
     }
 
     func listRecycleBin() throws -> RecycleBinSnapshot {
@@ -269,12 +315,16 @@ private actor NativeWorkspaceRepositoryCore {
         try ensureReady()
         try corpusStore.restoreRecycleEntry(recycleEntryId: recycleEntryId)
         invalidateOpenedCorpusCache()
+        invalidateCorpusInfoCache()
+        invalidateCompareCache()
     }
 
     func purgeRecycleEntry(recycleEntryId: String) throws {
         try ensureReady()
         try corpusStore.purgeRecycleEntry(recycleEntryId: recycleEntryId)
         invalidateOpenedCorpusCache()
+        invalidateCorpusInfoCache()
+        invalidateCompareCache()
     }
 
     func backupLibrary(destinationPath: String) throws -> LibraryBackupSummary {
@@ -286,6 +336,8 @@ private actor NativeWorkspaceRepositoryCore {
         try ensureReady()
         let summary = try corpusStore.restoreLibrary(sourcePath: sourcePath)
         invalidateOpenedCorpusCache()
+        invalidateCorpusInfoCache()
+        analysisResultCache.removeAll()
         return summary
     }
 
@@ -293,15 +345,29 @@ private actor NativeWorkspaceRepositoryCore {
         try ensureReady()
         let summary = try corpusStore.repairLibrary()
         invalidateOpenedCorpusCache()
+        invalidateCorpusInfoCache()
+        invalidateCompareCache()
         return summary
     }
 
     func runStats(text: String) -> StatsResult {
-        analysisEngine.runStats(text: text)
+        let key = NativeAnalysisResultCacheKey.stats(text: text)
+        if let cached: StatsResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = analysisEngine.runStats(text: text)
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runTokenize(text: String) -> TokenizeResult {
-        analysisEngine.runTokenize(text: text)
+        let key = NativeAnalysisResultCacheKey.tokenize(text: text)
+        if let cached: TokenizeResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = analysisEngine.runTokenize(text: text)
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runTopics(
@@ -313,7 +379,13 @@ private actor NativeWorkspaceRepositoryCore {
     }
 
     func runCompare(comparisonEntries: [CompareRequestEntry]) -> CompareResult {
-        analysisEngine.runCompare(comparisonEntries: comparisonEntries)
+        let key = NativeAnalysisResultCacheKey.compare(entries: comparisonEntries)
+        if let cached: CompareResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = analysisEngine.runCompare(comparisonEntries: comparisonEntries)
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runChiSquare(a: Int, b: Int, c: Int, d: Int, yates: Bool) -> ChiSquareResult {
@@ -321,7 +393,13 @@ private actor NativeWorkspaceRepositoryCore {
     }
 
     func runNgram(text: String, n: Int) -> NgramResult {
-        analysisEngine.runNgram(text: text, n: n)
+        let key = NativeAnalysisResultCacheKey.ngram(text: text, n: n)
+        if let cached: NgramResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = analysisEngine.runNgram(text: text, n: n)
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runKWIC(
@@ -331,13 +409,25 @@ private actor NativeWorkspaceRepositoryCore {
         rightWindow: Int,
         searchOptions: SearchOptionsState
     ) throws -> KWICResult {
-        try analysisEngine.runKWIC(
+        let key = NativeAnalysisResultCacheKey.kwic(
             text: text,
             keyword: keyword,
             leftWindow: leftWindow,
             rightWindow: rightWindow,
             searchOptions: searchOptions
         )
+        if let cached: KWICResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = try analysisEngine.runKWIC(
+            text: text,
+            keyword: keyword,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            searchOptions: searchOptions
+        )
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runCollocate(
@@ -348,7 +438,7 @@ private actor NativeWorkspaceRepositoryCore {
         minFreq: Int,
         searchOptions: SearchOptionsState
     ) throws -> CollocateResult {
-        try analysisEngine.runCollocate(
+        let key = NativeAnalysisResultCacheKey.collocate(
             text: text,
             keyword: keyword,
             leftWindow: leftWindow,
@@ -356,20 +446,51 @@ private actor NativeWorkspaceRepositoryCore {
             minFreq: minFreq,
             searchOptions: searchOptions
         )
+        if let cached: CollocateResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = try analysisEngine.runCollocate(
+            text: text,
+            keyword: keyword,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            minFreq: minFreq,
+            searchOptions: searchOptions
+        )
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runWordCloud(text: String, limit: Int) -> WordCloudResult {
-        analysisEngine.runWordCloud(text: text, limit: limit)
+        let key = NativeAnalysisResultCacheKey.wordCloud(text: text)
+        if let cached: WordCloudResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = analysisEngine.runWordCloud(text: text, limit: limit)
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func runLocator(text: String, sentenceId: Int, nodeIndex: Int, leftWindow: Int, rightWindow: Int) -> LocatorResult {
-        analysisEngine.runLocator(
+        let key = NativeAnalysisResultCacheKey.locator(
             text: text,
             sentenceId: sentenceId,
             nodeIndex: nodeIndex,
             leftWindow: leftWindow,
             rightWindow: rightWindow
         )
+        if let cached: LocatorResult = analysisResultCache.value(for: key) {
+            return cached
+        }
+        let result = analysisEngine.runLocator(
+            text: text,
+            sentenceId: sentenceId,
+            nodeIndex: nodeIndex,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow
+        )
+        analysisResultCache.store(result, for: key)
+        return result
     }
 
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) throws {
@@ -394,5 +515,17 @@ private actor NativeWorkspaceRepositoryCore {
         } else {
             openedCorpusCache.removeAll()
         }
+    }
+
+    private func invalidateCorpusInfoCache(corpusId: String? = nil) {
+        if let corpusId {
+            corpusInfoCache[corpusId] = nil
+        } else {
+            corpusInfoCache.removeAll()
+        }
+    }
+
+    private func invalidateCompareCache() {
+        analysisResultCache.remove(kind: "compare")
     }
 }

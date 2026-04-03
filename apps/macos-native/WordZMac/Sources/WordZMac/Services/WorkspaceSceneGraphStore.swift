@@ -245,7 +245,8 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
-            tableRows: scene.tableRows
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
         )
     }
 
@@ -263,7 +264,8 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
-            tableRows: scene.tableRows
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
         )
     }
 
@@ -287,7 +289,8 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
-            tableRows: scene.tableRows
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
         )
     }
 
@@ -329,7 +332,8 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
-            tableRows: scene.tableRows
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
         )
     }
 
@@ -347,7 +351,8 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
-            tableRows: scene.tableRows
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
         )
     }
 

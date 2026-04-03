@@ -45,6 +45,44 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene?.rows.first?.word, "alpha")
     }
 
+    func testComparePageViewModelRestoresAndAppliesFixedReferenceCorpus() {
+        let viewModel = ComparePageViewModel()
+        viewModel.syncLibrarySnapshot(makeBootstrapState().librarySnapshot)
+        viewModel.apply(makeCompareResult())
+
+        viewModel.handle(.changeReferenceCorpus("corpus-1"))
+        XCTAssertEqual(viewModel.selectedReferenceOptionID, "corpus-1")
+        XCTAssertEqual(viewModel.scene?.rows.first?.word, "beta")
+
+        viewModel.apply(makeWorkspaceSnapshot(currentTab: "compare", compareReferenceCorpusID: "corpus-2"))
+        XCTAssertEqual(viewModel.selectedReferenceOptionID, "corpus-2")
+    }
+
+    func testComparePageViewModelRestoresSelectedCorpusSetFromSnapshot() {
+        let viewModel = ComparePageViewModel()
+        let librarySnapshot = LibrarySnapshot(
+            folders: [LibraryFolderItem(json: ["id": "folder-1", "name": "Default"])],
+            corpora: [
+                LibraryCorpusItem(json: ["id": "corpus-1", "name": "Corpus 1", "folderId": "folder-1", "folderName": "Default", "sourceType": "txt"]),
+                LibraryCorpusItem(json: ["id": "corpus-2", "name": "Corpus 2", "folderId": "folder-1", "folderName": "Default", "sourceType": "txt"]),
+                LibraryCorpusItem(json: ["id": "corpus-3", "name": "Corpus 3", "folderId": "folder-1", "folderName": "Default", "sourceType": "txt"])
+            ]
+        )
+        viewModel.syncLibrarySnapshot(librarySnapshot)
+
+        viewModel.apply(
+            makeWorkspaceSnapshot(
+                currentTab: "compare",
+                compareReferenceCorpusID: "corpus-3",
+                compareSelectedCorpusIDs: ["corpus-1", "corpus-3"]
+            )
+        )
+
+        XCTAssertEqual(Set(viewModel.selectedCorpusIDsSnapshot), Set(["corpus-1", "corpus-3"]))
+        XCTAssertEqual(viewModel.selectedCorpusCount, 2)
+        XCTAssertEqual(viewModel.selectedReferenceOptionID, "corpus-3")
+    }
+
     func testChiSquarePageViewModelValidatesAndResets() throws {
         let viewModel = ChiSquarePageViewModel()
         viewModel.a = "10"
@@ -149,6 +187,15 @@ final class ViewModelsTests: XCTestCase {
 
         viewModel.handle(.toggleColumn(.rate))
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.rate) ?? true)
+
+        viewModel.recordPendingRunConfiguration()
+        viewModel.keyword = "updated"
+        XCTAssertTrue(viewModel.hasPendingRunChanges)
+
+        viewModel.handle(.changeFocusMetric(.mutualInformation))
+        XCTAssertEqual(viewModel.scene?.focusMetric, .mutualInformation)
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.mutualInformation) ?? false)
+        XCTAssertEqual(viewModel.selectedSceneRow?.id, viewModel.selectedRowID)
     }
 
     func testLocatorPageViewModelTracksSourcePagingAndColumns() {
@@ -197,6 +244,8 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.inspector.title, "Compare Corpus")
         XCTAssertEqual(viewModel.scene.inspector.actions.first?.action, .openSelectedCorpus)
         XCTAssertTrue(viewModel.scene.inspector.actions.contains(where: { $0.action == .showSelectedCorpusInfo }))
+        XCTAssertTrue(viewModel.scene.inspector.actions.contains(where: { $0.action == .editSelectedCorpusMetadata }))
+        XCTAssertTrue(viewModel.scene.inspector.details.contains(where: { $0.title == "体裁" && $0.value == "学术" }))
     }
 
     func testWordCloudPageViewModelSupportsLimitAndColumns() {

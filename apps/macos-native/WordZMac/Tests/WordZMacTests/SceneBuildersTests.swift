@@ -105,6 +105,9 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertFalse(scene.isColumnVisible(.leftContext))
         XCTAssertTrue(scene.isColumnVisible(.keyword))
         XCTAssertEqual(scene.columnTitle(for: .sentenceIndex), "句号 ↑")
+        XCTAssertEqual(scene.rows.first?.concordanceText, "a [alpha] r0")
+        XCTAssertTrue(scene.rows.first?.citationText.contains("Sentence 1") ?? false)
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("节点词") || $0.contains("Keyword") }))
     }
 
     func testCollocateSceneBuilderBuildsRankAndColumnIndicators() {
@@ -116,7 +119,10 @@ final class SceneBuildersTests: XCTestCase {
                 "right": 3,
                 "wordFreq": 9,
                 "keywordFreq": 12,
-                "rate": 0.4
+                "rate": 0.4,
+                "logDice": 8.1,
+                "mutualInformation": 2.1,
+                "tScore": 3.2
             ],
             [
                 "word": "alpha",
@@ -125,7 +131,10 @@ final class SceneBuildersTests: XCTestCase {
                 "right": 3,
                 "wordFreq": 11,
                 "keywordFreq": 12,
-                "rate": 0.7
+                "rate": 0.7,
+                "logDice": 10.2,
+                "mutualInformation": 1.8,
+                "tScore": 4.7
             ]
         ])
 
@@ -134,21 +143,24 @@ final class SceneBuildersTests: XCTestCase {
             query: "node",
             searchOptions: .default,
             stopwordFilter: .default,
+            focusMetric: .logDice,
             leftWindow: 4,
             rightWindow: 6,
             minFreq: 2,
-            sortMode: .frequencyDescending,
+            sortMode: .logDiceDescending,
             pageSize: .fifty,
             currentPage: 1,
-            visibleColumns: [.rank, .word, .total, .rate]
+            visibleColumns: [.rank, .word, .total, .logDice, .rate]
         )
 
         XCTAssertEqual(scene.rows.map(\.rankText), ["1", "2"])
         XCTAssertEqual(scene.rows.map(\.word), ["alpha", "beta"])
         XCTAssertEqual(scene.filteredRows, 2)
-        XCTAssertEqual(scene.columnTitle(for: .total), "FreqLR ↓")
+        XCTAssertEqual(scene.columnTitle(for: .logDice), "LogDice ↓")
+        XCTAssertEqual(scene.focusMetric, .logDice)
         XCTAssertTrue(scene.isColumnVisible(.rate))
         XCTAssertFalse(scene.isColumnVisible(.left))
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("最小频次") || $0.contains("Minimum Frequency") }))
     }
 
     func testCompareSceneBuilderBuildsSelectionSummariesAndSortedRows() {
@@ -174,6 +186,30 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertEqual(scene.columnTitle(for: CompareColumnKey.word), "词 ↑")
         XCTAssertTrue(scene.columnTitle(for: CompareColumnKey.keyness).contains("Keyness"))
         XCTAssertFalse(scene.isColumnVisible(CompareColumnKey.range))
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Selected Corpora") || $0.contains("所选语料") }))
+    }
+
+    func testCompareSceneBuilderRecomputesAndResortsForFixedReferenceCorpus() {
+        let scene = CompareSceneBuilder().build(
+            selection: [
+                CompareSelectableCorpusSceneItem(id: "corpus-1", title: "Demo Corpus", subtitle: "Default", isSelected: true),
+                CompareSelectableCorpusSceneItem(id: "corpus-2", title: "Compare Corpus", subtitle: "Default", isSelected: true)
+            ],
+            from: makeCompareResult(),
+            query: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            referenceCorpusID: "corpus-1",
+            sortMode: .keynessDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: [.word, .keyness, .effect]
+        )
+
+        XCTAssertEqual(scene.rows.first?.word, "beta")
+        XCTAssertEqual(scene.rows.first?.referenceLabelText, "Demo Corpus")
+        XCTAssertTrue(scene.referenceSummary.contains("Demo Corpus"))
+        XCTAssertTrue(scene.methodSummary.contains("固定参考语料") || scene.methodSummary.contains("fixed reference corpus"))
     }
 
     func testChiSquareSceneBuilderBuildsMetricsAndWarnings() {
@@ -205,6 +241,8 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertEqual(scene.pagination.rangeLabel, "1-25 / 30")
         XCTAssertFalse(scene.isColumnVisible(.leftWords))
         XCTAssertTrue(scene.isColumnVisible(.text))
+        XCTAssertTrue(scene.rows[1].concordanceText.contains("[node]"))
+        XCTAssertTrue(scene.rows[1].citationText.contains("Full: sentence-1"))
     }
 
     func testNgramSceneBuilderRespectsFilterSortingAndPaging() {
@@ -235,5 +273,22 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertEqual(scene.visibleRows, 3)
         XCTAssertFalse(scene.isColumnVisible(NgramColumnKey.rank))
         XCTAssertEqual(scene.columnTitle(for: NgramColumnKey.phrase), "N-Gram ↑")
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("N-Gram 阶数") || $0.contains("N-Gram Size") }))
+    }
+
+    func testWordCloudSceneBuilderIncludesExportMetadata() {
+        let result = makeWordCloudResult(rowCount: 8)
+
+        let scene = WordCloudSceneBuilder().build(
+            from: result,
+            query: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            limit: 5,
+            visibleColumns: Set(WordCloudColumnKey.allCases)
+        )
+
+        XCTAssertEqual(scene.visibleRows, 5)
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Top 5") }))
     }
 }

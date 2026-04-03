@@ -37,6 +37,15 @@ struct SidebarView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 Spacer(minLength: 0)
                                 Button {
+                                    onAction(.showCorpusInfoSelected(corpus.id))
+                                } label: {
+                                    Image(systemName: "info.circle.fill")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(Color.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                                .help(wordZText("查看这条语料的基础统计与来源信息", "Show corpus statistics and source information", mode: languageMode))
+                                Button {
                                     onAction(.quickLookSelected(corpus.id))
                                 } label: {
                                     Image(systemName: "eye.circle.fill")

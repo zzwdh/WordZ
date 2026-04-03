@@ -98,6 +98,8 @@ struct LocatorSceneRow: Identifiable, Equatable {
     let leftWords: String
     let nodeWord: String
     let rightWords: String
+    let concordanceText: String
+    let citationText: String
     let text: String
     let sourceCandidate: LocatorSource
 }

@@ -7,7 +7,8 @@ struct WordCloudSceneBuilder {
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
         limit: Int,
-        visibleColumns: Set<WordCloudColumnKey>
+        visibleColumns: Set<WordCloudColumnKey>,
+        languageMode: AppLanguageMode = .system
     ) -> WordCloudSceneModel {
         let filtered = SearchFilterSupport.filterWordLikeRows(
             result.rows,
@@ -55,6 +56,19 @@ struct WordCloudSceneBuilder {
             )
         }
 
+        let exportMetadataLines = AnalysisExportMetadataSupport.notes(
+            analysisTitle: wordZText("词云", "Word Cloud", mode: languageMode),
+            languageMode: languageMode,
+            visibleRows: tableRows.count,
+            totalRows: filtered.rows.count,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            additionalLines: [
+                "Top \(limit)"
+            ]
+        )
+
         return WordCloudSceneModel(
             query: query,
             searchOptions: searchOptions,
@@ -66,6 +80,7 @@ struct WordCloudSceneBuilder {
             table: NativeTableDescriptor(storageKey: "wordcloud", columns: columns, defaultDensity: .compact),
             tableRows: tableRows,
             cloudItems: cloudItems,
+            exportMetadataLines: exportMetadataLines,
             searchError: filtered.error
         )
     }

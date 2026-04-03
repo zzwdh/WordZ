@@ -12,6 +12,7 @@ struct LibraryManagementCorpusSceneItem: Identifiable, Equatable {
     let title: String
     let subtitle: String
     let sourceType: String
+    let metadataSummary: String
     let isSelected: Bool
 }
 
@@ -61,11 +62,30 @@ struct LibraryCorpusInfoSceneModel: Identifiable, Equatable {
     let subtitle: String
     let folderName: String
     let sourceType: String
+    let sourceLabelText: String
+    let yearText: String
+    let genreText: String
+    let tagsText: String
+    let importedAtText: String
+    let encodingText: String
     let tokenCountText: String
     let typeCountText: String
+    let sentenceCountText: String
+    let paragraphCountText: String
+    let characterCountText: String
     let ttrText: String
     let sttrText: String
     let representedPath: String
+}
+
+struct LibraryCorpusMetadataEditorSceneModel: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let sourceLabel: String
+    let yearLabel: String
+    let genreLabel: String
+    let tagsText: String
 }
 
 struct LibraryManagementSceneModel: Equatable {

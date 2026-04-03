@@ -58,6 +58,16 @@ struct WordSceneBuilder {
                 ]
             )
         }
+        let exportMetadataLines = AnalysisExportMetadataSupport.notes(
+            analysisTitle: wordZText("词表", "Word List", mode: languageMode),
+            languageMode: languageMode,
+            visibleRows: sceneRows.count,
+            totalRows: filtered.rows.count,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            additionalLines: [definition.summary(in: languageMode)]
+        )
 
         return WordSceneModel(
             query: query,
@@ -65,7 +75,7 @@ struct WordSceneBuilder {
             stopwordFilter: stopwordFilter,
             definition: definition,
             definitionSummary: definition.summary(in: languageMode),
-            exportMetadataLines: definition.exportNotes(in: languageMode, visibleRows: sceneRows.count, totalRows: filtered.rows.count),
+            exportMetadataLines: exportMetadataLines,
             sorting: WordSortingSceneModel(
                 selectedSort: sortMode,
                 selectedPageSize: pageSize

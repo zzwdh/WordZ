@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct WorkbenchSectionCard<Content: View>: View {
@@ -187,6 +188,112 @@ struct WorkbenchPaneCard<Content: View>: View {
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+struct WorkbenchMethodNoteCard: View {
+    let title: String
+    let summary: String
+    let notes: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(title, systemImage: "text.book.closed")
+                .font(.headline)
+            Text(summary)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .padding(.top, 2)
+                            Text(note)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+struct WorkbenchEmptyStateCard<Actions: View>: View {
+    let title: String
+    let systemImage: String
+    let message: String
+    let suggestions: [String]
+    private let actions: Actions
+
+    init(
+        title: String,
+        systemImage: String,
+        message: String,
+        suggestions: [String] = [],
+        @ViewBuilder actions: () -> Actions
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.message = message
+        self.suggestions = suggestions
+        self.actions = actions()
+    }
+
+    var body: some View {
+        WorkbenchSectionCard {
+            HStack(alignment: .top, spacing: 16) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 34)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(title)
+                        .font(.headline)
+                    Text(message)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if !suggestions.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(Array(suggestions.enumerated()), id: \.offset) { _, suggestion in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("•")
+                                        .foregroundStyle(.secondary)
+                                    Text(suggestion)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+
+                    actions
+                }
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+}
+
+extension WorkbenchEmptyStateCard where Actions == EmptyView {
+    init(title: String, systemImage: String, message: String, suggestions: [String] = []) {
+        self.init(title: title, systemImage: systemImage, message: message, suggestions: suggestions) {
+            EmptyView()
+        }
     }
 }
 
@@ -396,5 +503,54 @@ struct WorkbenchColumnMenu<Key: Identifiable>: View {
                 }
             }
         }
+    }
+}
+
+struct WorkbenchCopyTextButton: View {
+    let title: String
+    let systemImage: String
+    let text: String
+
+    init(title: String, systemImage: String = "doc.on.doc", text: String) {
+        self.title = title
+        self.systemImage = systemImage
+        self.text = text
+    }
+
+    var body: some View {
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        } label: {
+            Label(title, systemImage: systemImage)
+        }
+    }
+}
+
+struct WorkbenchConcordanceLineView: View {
+    let leftContext: String
+    let keyword: String
+    let rightContext: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(leftContext)
+                .frame(minWidth: 180, maxWidth: .infinity, alignment: .trailing)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(3)
+
+            Text(keyword)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.accentColor)
+                .fixedSize(horizontal: true, vertical: false)
+
+            Text(rightContext)
+                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                .multilineTextAlignment(.leading)
+                .lineLimit(3)
+        }
+        .font(.system(.body, design: .monospaced))
+        .textSelection(.enabled)
     }
 }

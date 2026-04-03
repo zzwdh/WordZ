@@ -249,8 +249,37 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         dispatcher.handleLibraryAction(.showSelectedCorpusInfo)
         try? await Task.sleep(nanoseconds: 50_000_000)
 
-        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
-        XCTAssertEqual(repository.runStatsCallCount, 1)
+        XCTAssertEqual(repository.loadCorpusInfoCallCount, 1)
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 0)
+        XCTAssertEqual(repository.runStatsCallCount, 0)
         XCTAssertEqual(workspace.library.corpusInfoSheet?.title, "Demo Corpus")
+    }
+
+    func testDispatcherSidebarCorpusInfoActionSelectsCorpusAndShowsInfo() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleSidebarAction(.showCorpusInfoSelected("corpus-2"))
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(workspace.sidebar.selectedCorpusID, "corpus-2")
+        XCTAssertEqual(workspace.library.scene.selectedCorpusID, "corpus-2")
+        XCTAssertEqual(repository.loadCorpusInfoCallCount, 1)
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.title, "Demo Corpus")
+    }
+
+    func testDispatcherLibraryEditMetadataActionPresentsEditorSheet() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleLibraryAction(.selectCorpus("corpus-2"))
+        dispatcher.handleLibraryAction(.editSelectedCorpusMetadata)
+
+        XCTAssertEqual(workspace.library.metadataEditorSheet?.id, "corpus-2")
+        XCTAssertEqual(workspace.library.metadataEditorSheet?.genreLabel, "学术")
     }
 }

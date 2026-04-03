@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class ComparePageViewModel: ObservableObject {
     private static let defaultVisibleColumns: Set<CompareColumnKey> = [.word, .keyness, .effect, .dominantCorpus]
+    private static let automaticReferenceOptionID = ""
     private var isApplyingState = false
 
     @Published var query = "" {
@@ -25,6 +26,7 @@ final class ComparePageViewModel: ObservableObject {
     }
     @Published var isEditingStopwords = false
     @Published private(set) var selectionItems: [CompareSelectableCorpusSceneItem] = []
+    @Published private(set) var referenceOptions: [CompareReferenceOptionSceneItem] = []
     @Published var scene: CompareSceneModel?
     @Published private(set) var selectedRowID: String?
 
@@ -38,6 +40,7 @@ final class ComparePageViewModel: ObservableObject {
     private var visibleColumns: Set<CompareColumnKey> = ComparePageViewModel.defaultVisibleColumns
     private var availableCorpora: [LibraryCorpusItem] = []
     private var selectedCorpusIDs: Set<String> = []
+    private var selectedReferenceCorpusID: String?
     private var sceneBuildRevision = 0
 
     init(sceneBuilder: CompareSceneBuilder = CompareSceneBuilder()) {
@@ -49,7 +52,23 @@ final class ComparePageViewModel: ObservableObject {
     }
 
     var selectedCorpusIDsSnapshot: [String] {
-        selectionItems.filter(\.isSelected).map(\.id)
+        let visibleSelection = selectionItems.filter(\.isSelected).map(\.id)
+        if !visibleSelection.isEmpty {
+            return visibleSelection
+        }
+        let orderedAvailableIDs = availableCorpora.map(\.id).filter { selectedCorpusIDs.contains($0) }
+        if !orderedAvailableIDs.isEmpty {
+            return orderedAvailableIDs
+        }
+        return Array(selectedCorpusIDs).sorted()
+    }
+
+    var selectedReferenceOptionID: String {
+        selectedReferenceCorpusID ?? Self.automaticReferenceOptionID
+    }
+
+    var selectedReferenceCorpusIDSnapshot: String {
+        selectedReferenceCorpusID ?? ""
     }
 
     var selectedSceneRow: CompareSceneRow? {
@@ -65,11 +84,32 @@ final class ComparePageViewModel: ObservableObject {
         isApplyingState = true
         defer {
             isApplyingState = false
+            rebuildReferenceOptions()
             rebuildScene()
         }
         query = snapshot.searchQuery
         searchOptions = snapshot.searchOptions
         stopwordFilter = snapshot.stopwordFilter
+        let snapshotSelection = Set(snapshot.compareSelectedCorpusIDs)
+        if !snapshotSelection.isEmpty {
+            selectedCorpusIDs = snapshotSelection
+        } else if selectionItems.isEmpty {
+            selectedCorpusIDs = []
+        }
+        if !selectionItems.isEmpty {
+            selectionItems = selectionItems.map { item in
+                CompareSelectableCorpusSceneItem(
+                    id: item.id,
+                    title: item.title,
+                    subtitle: item.subtitle,
+                    isSelected: selectedCorpusIDs.contains(item.id)
+                )
+            }
+        }
+        selectedReferenceCorpusID = snapshot.compareReferenceCorpusID.isEmpty ? nil : snapshot.compareReferenceCorpusID
+        if !selectionItems.isEmpty {
+            normalizeReferenceSelection()
+        }
     }
 
     func syncLibrarySnapshot(_ snapshot: LibrarySnapshot) {
@@ -93,6 +133,8 @@ final class ComparePageViewModel: ObservableObject {
                 isSelected: selectedCorpusIDs.contains(corpus.id)
             )
         }
+        normalizeReferenceSelection()
+        rebuildReferenceOptions()
 
         if previousSelection != selectedCorpusIDs {
             result = nil
@@ -107,6 +149,8 @@ final class ComparePageViewModel: ObservableObject {
             return
         case .toggleCorpusSelection(let corpusID):
             toggleCorpusSelection(corpusID)
+        case .changeReferenceCorpus(let corpusID):
+            changeReferenceCorpus(corpusID)
         case .changeSort(let nextSort):
             guard sortMode != nextSort else { return }
             sortMode = nextSort
@@ -153,6 +197,8 @@ final class ComparePageViewModel: ObservableObject {
         pageSize = .fifty
         currentPage = 1
         visibleColumns = Self.defaultVisibleColumns
+        selectedReferenceCorpusID = nil
+        referenceOptions = []
         selectedRowID = nil
         scene = nil
     }
@@ -182,6 +228,7 @@ final class ComparePageViewModel: ObservableObject {
                 query: normalizedQuery,
                 searchOptions: searchOptions,
                 stopwordFilter: stopwordFilter,
+                referenceCorpusID: selectedReferenceCorpusID,
                 sortMode: sortMode,
                 pageSize: pageSize,
                 currentPage: currentPage,
@@ -202,6 +249,7 @@ final class ComparePageViewModel: ObservableObject {
         let pageSizeSnapshot = pageSize
         let currentPageSnapshot = currentPage
         let visibleColumnsSnapshot = visibleColumns
+        let referenceCorpusIDSnapshot = selectedReferenceCorpusID
 
         LargeResultSceneBuildSupport.queue.async { [sceneBuilder] in
             let nextScene = sceneBuilder.build(
@@ -210,6 +258,7 @@ final class ComparePageViewModel: ObservableObject {
                 query: querySnapshot,
                 searchOptions: optionsSnapshot,
                 stopwordFilter: stopwordSnapshot,
+                referenceCorpusID: referenceCorpusIDSnapshot,
                 sortMode: sortSnapshot,
                 pageSize: pageSizeSnapshot,
                 currentPage: currentPageSnapshot,
@@ -252,10 +301,23 @@ final class ComparePageViewModel: ObservableObject {
                 isSelected: selectedCorpusIDs.contains($0.id)
             )
         }
+        normalizeReferenceSelection()
+        rebuildReferenceOptions()
         result = nil
         currentPage = 1
         selectedRowID = nil
         scene = nil
+        onInputChange?()
+    }
+
+    private func changeReferenceCorpus(_ corpusID: String?) {
+        let normalized = (corpusID?.isEmpty == true) ? nil : corpusID
+        guard selectedReferenceCorpusID != normalized else { return }
+        selectedReferenceCorpusID = normalized
+        normalizeReferenceSelection()
+        rebuildReferenceOptions()
+        currentPage = 1
+        rebuildScene()
         onInputChange?()
     }
 
@@ -303,5 +365,29 @@ final class ComparePageViewModel: ObservableObject {
         } else {
             selectedRowID = scene.rows.first?.id
         }
+    }
+
+    private func normalizeReferenceSelection() {
+        guard let selectedReferenceCorpusID,
+              selectedCorpusIDs.contains(selectedReferenceCorpusID) else {
+            self.selectedReferenceCorpusID = nil
+            return
+        }
+    }
+
+    private func rebuildReferenceOptions() {
+        let automatic = CompareReferenceOptionSceneItem(
+            id: Self.automaticReferenceOptionID,
+            title: wordZText("自动选择主导语料", "Automatic: dominant corpus per word", mode: WordZLocalization.shared.effectiveMode)
+        )
+        let manualOptions = selectionItems
+            .filter(\.isSelected)
+            .map { item in
+                CompareReferenceOptionSceneItem(
+                    id: item.id,
+                    title: wordZText("参考语料：", "Reference: ", mode: WordZLocalization.shared.effectiveMode) + item.title
+                )
+            }
+        referenceOptions = [automatic] + manualOptions
     }
 }

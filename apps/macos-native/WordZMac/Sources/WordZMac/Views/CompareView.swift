@@ -40,6 +40,7 @@ struct CompareView: View {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
                         searchField
+                        referencePicker
                         selectedCountLabel
                         runButton
                     }
@@ -48,9 +49,16 @@ struct CompareView: View {
                             searchField
                             runButton
                         }
-                        selectedCountLabel
+                        HStack(spacing: 12) {
+                            referencePicker
+                            selectedCountLabel
+                        }
                     }
                 }
+
+                Text(t("自动模式会按每个词项选择主导语料；固定参考语料更适合做可复现的对比实验。", "Automatic mode chooses the dominant corpus per word; a fixed reference corpus is better for reproducible comparison studies."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 SearchOptionTogglesView(options: $viewModel.searchOptions)
                 StopwordControlsView(
@@ -70,11 +78,20 @@ struct CompareView: View {
                     }
                 }
 
+                WorkbenchMethodNoteCard(
+                    title: t("结果说明", "How to Read These Results"),
+                    summary: scene.methodSummary,
+                    notes: scene.methodNotes
+                )
+
                 WorkbenchToolbarSection {
                     WorkbenchResultHeaderRow {
                         Text(scene.query.isEmpty ? t("显示全部对比词项", "Showing all comparison rows") : t("过滤词：", "Filter: ") + scene.query)
                             .font(.headline)
-                        Text(t("Keyness 以最显著语料对比其余所选语料（LL + Log Ratio）。", "Keyness compares the most distinctive corpus against the remaining selection (LL + Log Ratio)."))
+                        Text(scene.referenceSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(t("Keyness 使用带方向的 log-likelihood，并同时给出 Log Ratio 作为效应值。", "Keyness uses signed log-likelihood and reports Log Ratio as the effect size."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if !scene.searchError.isEmpty {
@@ -168,7 +185,7 @@ struct CompareView: View {
                             HStack(spacing: 12) {
                                 Text(selectedRow.word)
                                     .font(.headline)
-                                Text("Keyness \(selectedRow.keynessText) · Log Ratio \(selectedRow.effectText)")
+                                Text("Keyness \(selectedRow.keynessText) · Log Ratio \(selectedRow.effectText) · p \(selectedRow.pValueText)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .monospacedDigit()
@@ -182,6 +199,12 @@ struct CompareView: View {
                                 compareDetailMetric(t("覆盖", "Spread"), value: selectedRow.spreadText)
                                 compareDetailMetric(t("总频", "Total"), value: selectedRow.totalText)
                                 compareDetailMetric(t("差异", "Range"), value: selectedRow.rangeText)
+                                compareDetailMetric(t("参考标准频次", "Reference Norm Freq"), value: selectedRow.referenceNormFreqText)
+                            }
+
+                            HStack(spacing: 16) {
+                                compareDetailMetric(t("参考语料", "Reference Corpus"), value: selectedRow.referenceLabelText)
+                                compareDetailMetric(t("主导语料", "Dominant Corpus"), value: selectedRow.dominantCorpus)
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
@@ -200,10 +223,22 @@ struct CompareView: View {
                     }
                 }
             } else {
-                ContentUnavailableView(
-                    t("尚未生成对比结果", "No comparison results yet"),
-                    systemImage: "square.2.layers.3d.top.filled"
-                )
+                WorkbenchEmptyStateCard(
+                    title: t("尚未生成对比结果", "No comparison results yet"),
+                    systemImage: "square.2.layers.3d.top.filled",
+                    message: t("先选择至少两条语料，再运行对比。系统会用 Keyness 和 Log Ratio 帮你判断哪些词在哪个语料中更突出。", "Select at least two corpora and run Compare. WordZ will use Keyness and Log Ratio to show which words are most distinctive in each corpus."),
+                    suggestions: [
+                        t("优先选择体裁或来源差异明显的语料，结果更容易解释。", "Start with corpora that differ clearly by genre or source so the contrast is easier to interpret."),
+                        t("需要做课堂演示时，先保留默认搜索设置，再逐步加入停用词过滤。", "For teaching demos, keep the default search settings first, then add stopword filtering step by step.")
+                    ]
+                ) {
+                    HStack(spacing: 12) {
+                        runButton
+                        Text(t("至少选择 2 条语料后才可运行。", "Run becomes available after at least two corpora are selected."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .padding(20)
@@ -216,6 +251,23 @@ struct CompareView: View {
     private var searchField: some View {
         TextField(t("过滤词（留空显示全部）", "Filter term (leave blank for all)"), text: $viewModel.query)
             .textFieldStyle(.roundedBorder)
+    }
+
+    private var referencePicker: some View {
+        Picker(
+            t("参考语料", "Reference Corpus"),
+            selection: Binding(
+                get: { viewModel.selectedReferenceOptionID },
+                set: { onAction(.changeReferenceCorpus($0.isEmpty ? nil : $0)) }
+            )
+        ) {
+            ForEach(viewModel.referenceOptions) { option in
+                Text(option.title).tag(option.id)
+            }
+        }
+        .pickerStyle(.menu)
+        .frame(minWidth: 220, alignment: .leading)
+        .disabled(viewModel.referenceOptions.isEmpty)
     }
 
     private var selectedCountLabel: some View {

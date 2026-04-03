@@ -176,11 +176,15 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await workspace.initializeIfNeeded()
         await workspace.handleLibraryAction(.showSelectedCorpusInfo)
 
-        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
-        XCTAssertEqual(repository.runStatsCallCount, 1)
+        XCTAssertEqual(repository.loadCorpusInfoCallCount, 1)
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 0)
+        XCTAssertEqual(repository.runStatsCallCount, 0)
         XCTAssertEqual(workspace.library.corpusInfoSheet?.title, "Demo Corpus")
-        XCTAssertEqual(workspace.library.corpusInfoSheet?.tokenCountText, "\(repository.statsResult.tokenCount)")
-        XCTAssertEqual(workspace.library.corpusInfoSheet?.typeCountText, "\(repository.statsResult.typeCount)")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.tokenCountText, "\(repository.corpusInfoResult.tokenCount)")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.typeCountText, "\(repository.corpusInfoResult.typeCount)")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.encodingText, "UTF-8")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.genreText, "教学")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.tagsText, "课堂, 基础")
     }
 
     func testShutdownStopsRepository() async {
@@ -255,19 +259,44 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
     func testExportDiagnosticsWritesReportThroughHostActionService() async {
         let repository = FakeWorkspaceRepository()
+        let hostPreferences = InMemoryHostPreferencesStore()
+        hostPreferences.snapshot.recentDocuments = [
+            RecentDocumentItem(
+                corpusID: "corpus-1",
+                title: "Demo Corpus",
+                subtitle: "Default",
+                representedPath: "/tmp/demo.txt",
+                lastOpenedAt: "2026-04-03T00:00:00Z"
+            )
+        ]
+        hostPreferences.snapshot.downloadedUpdatePath = "/tmp/WordZ-1.2.0-mac-arm64.dmg"
         let hostActions = FakeHostActionService()
+        let diagnosticsBundleService = FakeDiagnosticsBundleService()
         let workspace = MainWorkspaceViewModel(
             repository: repository,
-            hostPreferencesStore: InMemoryHostPreferencesStore(),
-            hostActionService: hostActions
+            hostPreferencesStore: hostPreferences,
+            hostActionService: hostActions,
+            diagnosticsBundleService: diagnosticsBundleService
         )
 
         await workspace.initializeIfNeeded()
         await workspace.exportDiagnostics()
 
-        XCTAssertNotNil(hostActions.exportedReport)
-        XCTAssertTrue(hostActions.exportedReport?.contains("WordZMac Diagnostics") == true)
-        XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出诊断到 /tmp/WordZMac-diagnostics.txt")
+        XCTAssertNotNil(diagnosticsBundleService.lastPayload)
+        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("WordZMac Diagnostics") == true)
+        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("Bundle ID") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Bundle Identifier") == true)
+        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("引擎入口") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Engine Entry") == true)
+        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("后台任务摘要") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Task Center Summary") == true)
+        XCTAssertFalse(diagnosticsBundleService.lastPayload?.reportText.contains("/tmp/WordZ-1.2.0-mac-arm64.dmg") == true)
+        XCTAssertEqual(diagnosticsBundleService.lastPayload?.hostPreferences.recentDocuments.first?.representedPath, "<redacted>/demo.txt")
+        XCTAssertEqual(diagnosticsBundleService.lastPayload?.hostPreferences.downloadedUpdatePath, "<redacted>/WordZ-1.2.0-mac-arm64.dmg")
+        XCTAssertEqual(diagnosticsBundleService.lastPayload?.generatedFiles.map(\.relativePath), [
+            "persisted/workspace-state.json",
+            "persisted/ui-settings.json",
+            "persisted/native-host-preferences.json"
+        ])
+        XCTAssertEqual(hostActions.exportedDiagnosticArchivePath, "/tmp/WordZMac-diagnostics.zip")
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出诊断包到 /tmp/WordZMac-diagnostics.zip")
     }
 
     func testQuickLookCurrentContentUsesSelectedCorpusPathWhenNoResultSceneIsActive() async {

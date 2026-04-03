@@ -39,6 +39,7 @@ struct WordCloudSceneModel: Equatable {
     let table: NativeTableDescriptor
     let tableRows: [NativeTableRowDescriptor]
     let cloudItems: [WordCloudTermSceneItem]
+    let exportMetadataLines: [String]
     let searchError: String
 
     func column(for key: WordCloudColumnKey) -> NativeTableColumnDescriptor? {

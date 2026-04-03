@@ -101,10 +101,65 @@ struct LocatorView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .layoutPriority(1)
                 }
+
+                if let selectedRow = viewModel.selectedSceneRow {
+                    WorkbenchSectionCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 12) {
+                                Text(t("句内定位视图", "Sentence Locator View"))
+                                    .font(.headline)
+                                Spacer()
+                                if !selectedRow.status.isEmpty {
+                                    Text(selectedRow.status)
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(t("句", "Sentence") + " \(selectedRow.sentenceId + 1)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+
+                            WorkbenchConcordanceLineView(
+                                leftContext: selectedRow.leftWords,
+                                keyword: selectedRow.nodeWord,
+                                rightContext: selectedRow.rightWords
+                            )
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(t("完整原句", "Full Sentence"))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Text(selectedRow.text)
+                                    .font(.callout)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            HStack(spacing: 12) {
+                                WorkbenchCopyTextButton(
+                                    title: t("复制引文", "Copy Citation"),
+                                    text: selectedRow.citationText
+                                )
+                                Button {
+                                    onAction(.activateRow(selectedRow.id))
+                                } label: {
+                                    Label(t("以此句继续定位", "Continue from This Sentence"), systemImage: "arrowshape.turn.up.right")
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                }
             } else {
-                ContentUnavailableView(
-                    t("尚未生成定位结果", "No locator results yet"),
-                    systemImage: "scope"
+                WorkbenchEmptyStateCard(
+                    title: t("尚未生成定位结果", "No locator results yet"),
+                    systemImage: "scope",
+                    message: t("先从 KWIC 选择一条索引行，再运行定位器，这里会显示句内位置、完整句子和可复制的研究引文。", "Choose a concordance line from KWIC, then run Locator to inspect its sentence position, full sentence, and a citation-ready excerpt."),
+                    suggestions: [
+                        t("定位器适合确认节点词是否真的是你要研究的用法。", "Use Locator to verify whether the node really shows the usage you want to study."),
+                        t("双击任意句子可以把它作为新的定位源继续展开。", "Double-click any sentence to promote it as the next locator source.")
+                    ]
                 )
             }
         }

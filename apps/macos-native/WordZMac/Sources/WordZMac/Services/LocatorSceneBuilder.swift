@@ -15,17 +15,33 @@ struct LocatorSceneBuilder {
         let pagination = buildPagination(totalRows: result.rows.count, currentPage: currentPage, pageSize: pageSize, languageMode: languageMode)
         let pageRows = sliceRows(result.rows, currentPage: pagination.currentPage, pageSize: pageSize)
         let sceneRows = pageRows.map { row in
-            LocatorSceneRow(
+            let leftWords = ConcordancePresentationSupport.normalizedContext(row.leftWords)
+            let nodeWord = ConcordancePresentationSupport.normalizedContext(row.nodeWord.isEmpty ? source.keyword : row.nodeWord)
+            let rightWords = ConcordancePresentationSupport.normalizedContext(row.rightWords)
+            let sentenceText = ConcordancePresentationSupport.normalizedContext(row.text)
+            return LocatorSceneRow(
                 id: row.id,
                 sentenceId: row.sentenceId,
                 sentenceIdText: "\(row.sentenceId + 1)",
                 status: row.status,
-                leftWords: row.leftWords,
-                nodeWord: row.nodeWord,
-                rightWords: row.rightWords,
-                text: row.text,
+                leftWords: leftWords,
+                nodeWord: nodeWord,
+                rightWords: rightWords,
+                concordanceText: ConcordancePresentationSupport.annotatedLine(
+                    left: leftWords,
+                    keyword: nodeWord,
+                    right: rightWords
+                ),
+                citationText: ConcordancePresentationSupport.citationText(
+                    sentenceNumber: row.sentenceId + 1,
+                    keyword: nodeWord,
+                    left: leftWords,
+                    right: rightWords,
+                    fullText: sentenceText
+                ),
+                text: sentenceText,
                 sourceCandidate: LocatorSource(
-                    keyword: row.nodeWord.isEmpty ? source.keyword : row.nodeWord,
+                    keyword: nodeWord,
                     sentenceId: row.sentenceId,
                     nodeIndex: source.nodeIndex
                 )

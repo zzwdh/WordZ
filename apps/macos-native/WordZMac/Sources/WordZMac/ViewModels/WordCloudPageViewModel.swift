@@ -110,7 +110,8 @@ final class WordCloudPageViewModel: ObservableObject {
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
             limit: limit,
-            visibleColumns: visibleColumns
+            visibleColumns: visibleColumns,
+            languageMode: WordZLocalization.shared.effectiveMode
         )
     }
 }

@@ -129,6 +129,7 @@ struct NgramSceneModel: Equatable {
     let filteredRows: Int
     let rows: [NgramSceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let exportMetadataLines: [String]
     let searchError: String
 
     func column(for key: NgramColumnKey) -> NativeTableColumnDescriptor? {

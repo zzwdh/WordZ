@@ -248,7 +248,7 @@ struct SettingsPaneView: View {
     private var supportSection: some View {
         WorkbenchPaneCard(title: t("支持与诊断", "Support & Diagnostics"), subtitle: settings.scene.supportStatus) {
             HStack {
-                Button(t("导出诊断", "Export Diagnostics")) { onAction(.exportDiagnostics) }
+                Button(t("导出诊断包", "Export Diagnostics Bundle")) { onAction(.exportDiagnostics) }
                 Button(t("打开用户数据目录", "Open User Data Folder")) { onAction(.openUserDataDirectory) }
             }
 

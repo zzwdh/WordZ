@@ -130,7 +130,7 @@ struct RootContentView: View {
                 Button(wordZText("使用说明", "Usage Guide", mode: languageMode)) {
                     openWindow(id: NativeWindowRoute.help.id)
                 }
-                Button(wordZText("导出诊断", "Export Diagnostics", mode: languageMode)) {
+                Button(wordZText("导出诊断包", "Export Diagnostics Bundle", mode: languageMode)) {
                     Task { await viewModel.exportDiagnostics() }
                 }
                 if !viewModel.settings.scene.userDataDirectory.isEmpty {
@@ -301,7 +301,7 @@ struct RootContentView: View {
         case .checkForUpdates:
             return wordZText("重新检查更新", "Retry Update Check", mode: languageMode)
         case .exportDiagnostics:
-            return wordZText("重试导出诊断", "Retry Export", mode: languageMode)
+            return wordZText("重试导出诊断包", "Retry Export Diagnostics Bundle", mode: languageMode)
         }
     }
 

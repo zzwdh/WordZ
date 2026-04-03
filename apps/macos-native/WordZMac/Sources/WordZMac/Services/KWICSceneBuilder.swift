@@ -35,11 +35,25 @@ struct KWICSceneBuilder {
             pageSize: pageSize
         )
         let visibleRows = pageRows.map { row in
-            KWICSceneRow(
+            let leftContext = ConcordancePresentationSupport.normalizedContext(row.left)
+            let keyword = ConcordancePresentationSupport.normalizedContext(row.node)
+            let rightContext = ConcordancePresentationSupport.normalizedContext(row.right)
+            return KWICSceneRow(
                 id: row.id,
-                leftContext: row.left,
-                keyword: row.node,
-                rightContext: row.right,
+                leftContext: leftContext,
+                keyword: keyword,
+                rightContext: rightContext,
+                concordanceText: ConcordancePresentationSupport.annotatedLine(
+                    left: leftContext,
+                    keyword: keyword,
+                    right: rightContext
+                ),
+                citationText: ConcordancePresentationSupport.citationText(
+                    sentenceNumber: row.sentenceId + 1,
+                    keyword: keyword,
+                    left: leftContext,
+                    right: rightContext
+                ),
                 sentenceIndexText: "\(row.sentenceId + 1)",
                 sentenceId: row.sentenceId,
                 sentenceTokenIndex: row.sentenceTokenIndex
@@ -56,6 +70,22 @@ struct KWICSceneBuilder {
                 ]
             )
         }
+
+        let exportMetadataLines = AnalysisExportMetadataSupport.notes(
+            analysisTitle: "KWIC",
+            languageMode: languageMode,
+            visibleRows: visibleRows.count,
+            totalRows: sortedRows.count,
+            query: query,
+            queryLabel: wordZText("节点词", "Keyword", mode: languageMode),
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            additionalLines: [
+                "\(wordZText("左窗口", "Left Window", mode: languageMode)): \(leftWindow)",
+                "\(wordZText("右窗口", "Right Window", mode: languageMode)): \(rightWindow)",
+                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))"
+            ]
+        )
 
         return KWICSceneModel(
             query: query,
@@ -88,6 +118,7 @@ struct KWICSceneBuilder {
             visibleRows: visibleRows.count,
             rows: visibleRows,
             tableRows: tableRows,
+            exportMetadataLines: exportMetadataLines,
             searchError: ""
         )
     }

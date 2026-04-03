@@ -68,6 +68,45 @@ final class LibraryManagementCoordinator {
         try await refreshLibraryState(into: library, sidebar: sidebar)
     }
 
+    func updateSelectedCorpusMetadata(
+        _ metadata: CorpusMetadataProfile,
+        into library: LibraryManagementViewModel,
+        sidebar: LibrarySidebarViewModel
+    ) async throws {
+        guard let selectedCorpus = library.selectedCorpus ?? sidebar.selectedCorpus else { return }
+        let updated = try await repository.updateCorpusMetadata(corpusId: selectedCorpus.id, metadata: metadata)
+        sidebar.selectedCorpusID = updated.id
+        library.dismissMetadataEditor()
+        library.setStatus("已更新“\(updated.name)”的语料元数据。")
+        try await refreshLibraryState(into: library, sidebar: sidebar)
+        if library.corpusInfoSheet?.id == updated.id {
+            let summary = try await repository.loadCorpusInfo(corpusId: updated.id)
+            library.presentCorpusInfo(
+                LibraryCorpusInfoSceneModel(
+                    id: summary.corpusId,
+                    title: summary.title,
+                    subtitle: "语料信息",
+                    folderName: summary.folderName,
+                    sourceType: summary.sourceType,
+                    sourceLabelText: summary.metadata.sourceLabel.isEmpty ? "—" : summary.metadata.sourceLabel,
+                    yearText: summary.metadata.yearLabel.isEmpty ? "—" : summary.metadata.yearLabel,
+                    genreText: summary.metadata.genreLabel.isEmpty ? "—" : summary.metadata.genreLabel,
+                    tagsText: summary.metadata.tagsText.isEmpty ? "—" : summary.metadata.tagsText,
+                    importedAtText: summary.importedAt.isEmpty ? "—" : summary.importedAt,
+                    encodingText: summary.detectedEncoding.isEmpty ? "—" : summary.detectedEncoding,
+                    tokenCountText: "\(summary.tokenCount)",
+                    typeCountText: "\(summary.typeCount)",
+                    sentenceCountText: "\(summary.sentenceCount)",
+                    paragraphCountText: "\(summary.paragraphCount)",
+                    characterCountText: "\(summary.characterCount)",
+                    ttrText: String(format: "%.4f", summary.ttr),
+                    sttrText: summary.sttr > 0 ? String(format: "%.4f", summary.sttr) : "—",
+                    representedPath: summary.representedPath
+                )
+            )
+        }
+    }
+
     func moveSelectedCorpusToFolder(into library: LibraryManagementViewModel, sidebar: LibrarySidebarViewModel) async throws {
         guard let selectedCorpus = library.selectedCorpus ?? sidebar.selectedCorpus else { return }
         let targetFolderID = library.selectedFolderID ?? ""

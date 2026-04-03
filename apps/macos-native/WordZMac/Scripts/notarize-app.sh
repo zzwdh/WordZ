@@ -1,5 +1,6 @@
 #!/bin/zsh
 set -euo pipefail
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 if [[ $# -lt 1 ]]; then
   echo "usage: $0 <artifact-path>" >&2

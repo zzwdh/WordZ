@@ -49,6 +49,8 @@ final class MainWorkspaceViewModel: ObservableObject {
     private let quickLookPreviewFileService: QuickLookPreviewFileService
     private let updateService: any NativeUpdateServicing
     private let notificationService: any NativeNotificationServicing
+    private let buildMetadataProvider: any NativeBuildMetadataProviding
+    private let diagnosticsBundleService: any NativeDiagnosticsBundleServicing
     private var initialized = false
     private var inputChangeSyncTask: Task<Void, Never>?
     private var updateState = NativeUpdateStateSnapshot.empty
@@ -76,6 +78,8 @@ final class MainWorkspaceViewModel: ObservableObject {
         quickLookPreviewFileService: QuickLookPreviewFileService = QuickLookPreviewFileService(),
         updateService: (any NativeUpdateServicing)? = nil,
         notificationService: (any NativeNotificationServicing)? = nil,
+        buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService(),
+        diagnosticsBundleService: any NativeDiagnosticsBundleServicing = NativeDiagnosticsBundleService(),
         taskCenter: NativeTaskCenter = NativeTaskCenter(),
         sessionStore: WorkspaceSessionStore = WorkspaceSessionStore(),
         libraryCoordinator: LibraryCoordinator? = nil,
@@ -109,6 +113,8 @@ final class MainWorkspaceViewModel: ObservableObject {
             }
             return NativeNotificationService()
         }()
+        self.buildMetadataProvider = buildMetadataProvider
+        self.diagnosticsBundleService = diagnosticsBundleService
         self.taskCenter = taskCenter
         self.sidebar = sidebar
         self.shell = shell
@@ -149,7 +155,8 @@ final class MainWorkspaceViewModel: ObservableObject {
             sceneStore: sceneStore,
             sessionStore: sessionStore,
             flowCoordinator: flowCoordinator,
-            hostPreferencesStore: hostPreferencesStore
+            hostPreferencesStore: hostPreferencesStore,
+            buildMetadataProvider: buildMetadataProvider
         )
         self.settings.onLanguageModeChange = { [weak self] in
             self?.syncSceneGraph()
@@ -589,29 +596,31 @@ final class MainWorkspaceViewModel: ObservableObject {
     }
 
     func exportDiagnostics() async {
-        let taskID = taskCenter.beginTask(title: t("导出诊断", "Export Diagnostics"), detail: t("正在生成诊断报告…", "Generating diagnostics report…"))
+        let taskID = taskCenter.beginTask(title: t("导出诊断包", "Export Diagnostics Bundle"), detail: t("正在生成诊断包…", "Preparing the diagnostics bundle…"))
         do {
-            let path = try await hostActionService.exportDiagnostics(
-                report: buildDiagnosticsReport(),
-                suggestedName: "WordZMac-diagnostics-\(diagnosticTimestamp()).txt"
+            let artifact = try buildDiagnosticsBundleArtifact()
+            defer { diagnosticsBundleService.cleanup(artifact) }
+            let path = try await hostActionService.exportDiagnosticBundle(
+                archivePath: artifact.archiveURL.path,
+                suggestedName: "WordZMac-diagnostics-\(diagnosticTimestamp()).zip"
             )
             if let path {
-                settings.setSupportStatus("\(t("已导出诊断到", "Exported diagnostics to")) \(path)")
-                taskCenter.completeTask(id: taskID, detail: "\(t("诊断已导出到", "Diagnostics exported to")) \(path)", action: .openFile(path: path))
+                settings.setSupportStatus("\(t("已导出诊断包到", "Exported diagnostics bundle to")) \(path)")
+                taskCenter.completeTask(id: taskID, detail: "\(t("诊断包已导出到", "Diagnostics bundle exported to")) \(path)", action: .openFile(path: path))
                 await notificationService.notify(
-                    title: t("WordZ 诊断已导出", "WordZ Diagnostics Exported"),
-                    subtitle: t("可直接打开生成文件", "The generated file is ready to open"),
+                    title: t("WordZ 诊断包已导出", "WordZ Diagnostics Bundle Exported"),
+                    subtitle: t("压缩包已准备好", "The archive is ready to open"),
                     body: path
                 )
                 clearActiveIssue()
             } else {
-                taskCenter.completeTask(id: taskID, detail: t("已取消导出诊断。", "Diagnostics export cancelled."))
+                taskCenter.completeTask(id: taskID, detail: t("已取消导出诊断包。", "Diagnostics bundle export cancelled."))
             }
         } catch {
             presentIssue(
                 error,
-                titleZh: "导出诊断失败",
-                titleEn: "Diagnostics Export Failed",
+                titleZh: "导出诊断包失败",
+                titleEn: "Diagnostics Bundle Export Failed",
                 recoveryAction: .exportDiagnostics
             )
             taskCenter.failTask(id: taskID, detail: error.localizedDescription)
@@ -1151,21 +1160,54 @@ final class MainWorkspaceViewModel: ObservableObject {
         )
     }
 
-    private func buildDiagnosticsReport() -> String {
+    private func buildDiagnosticsReport(redactingPaths: Bool = false) -> String {
         let uiSettings = settings.exportSnapshot()
-        let hostSettings = settings.exportHostPreferences()
+        let hostSettings = currentDiagnosticsHostPreferences(redactingPaths: redactingPaths)
+        let buildMetadata = redactingPaths ? buildMetadataProvider.current().redactedForDiagnostics() : buildMetadataProvider.current()
         let selectedCorpusName = sidebar.selectedCorpus?.name ?? t("未选择", "None")
         let selectedFolderName = sidebar.selectedCorpus?.folderName ?? t("全部", "All")
+        let rawEngineEntryPath = (try? EnginePaths.engineEntryURL().path) ?? t("不可用", "Unavailable")
+        let rawRuntimeWorkingDirectory = EnginePaths.runtimeWorkingDirectoryURL().path
+        let engineEntryPath = redactingPaths
+            ? NativeDiagnosticsRedactionSupport.redactPath(rawEngineEntryPath)
+            : rawEngineEntryPath
+        let runtimeWorkingDirectory = redactingPaths
+            ? NativeDiagnosticsRedactionSupport.redactPath(rawRuntimeWorkingDirectory)
+            : rawRuntimeWorkingDirectory
+        let userDataDirectory = redactingPaths
+            ? NativeDiagnosticsRedactionSupport.redactPath(settings.scene.userDataDirectory)
+            : settings.scene.userDataDirectory
+        let downloadedUpdateSummary: String = {
+            guard !hostSettings.downloadedUpdateVersion.isEmpty || !hostSettings.downloadedUpdateName.isEmpty else {
+                return t("无", "None")
+            }
+            return [hostSettings.downloadedUpdateVersion, hostSettings.downloadedUpdateName]
+                .filter { !$0.isEmpty }
+                .joined(separator: " · ")
+        }()
         return [
             "WordZMac Diagnostics",
             diagnosticLine("生成时间", "Generated At", NativeDateFormatting.iso8601String(from: Date())),
             diagnosticLine("应用", "App", sceneStore.context.appName),
             diagnosticLine("版本", "Version", sceneStore.context.versionLabel),
             diagnosticLine("构建", "Build", sceneStore.context.buildSummary),
+            diagnosticLine("Bundle ID", "Bundle Identifier", diagnosticValue(buildMetadata.bundleIdentifier)),
+            diagnosticLine("构建号", "Build Number", diagnosticValue(buildMetadata.buildNumber)),
+            diagnosticLine("架构", "Architecture", diagnosticValue(buildMetadata.architecture)),
+            diagnosticLine("构建时间", "Built At", diagnosticValue(buildMetadata.builtAt)),
+            diagnosticLine("分发渠道", "Distribution Channel", diagnosticValue(buildMetadata.distributionChannel)),
+            diagnosticLine("Git 提交", "Git Commit", diagnosticValue(buildMetadata.gitCommit)),
+            diagnosticLine("Git 分支", "Git Branch", diagnosticValue(buildMetadata.gitBranch)),
+            diagnosticLine("可执行 SHA256", "Executable SHA256", diagnosticValue(buildMetadata.executableSHA256)),
+            diagnosticLine("构建信息来源", "Build Info Source", diagnosticValue(buildMetadata.sourceLabel)),
+            diagnosticLine("Bundle 路径", "Bundle Path", diagnosticValue(buildMetadata.bundlePath)),
+            diagnosticLine("可执行路径", "Executable Path", diagnosticValue(buildMetadata.executablePath)),
             diagnosticLine("工作区", "Workspace", sceneStore.context.workspaceSummary),
             diagnosticLine("选中文件夹", "Selected Folder", selectedFolderName),
             diagnosticLine("选中语料", "Selected Corpus", selectedCorpusName),
             diagnosticLine("当前模块", "Active Tab", shell.selectedTab.rawValue),
+            diagnosticLine("引擎入口", "Engine Entry", engineEntryPath),
+            diagnosticLine("运行目录", "Runtime Working Directory", runtimeWorkingDirectory),
             diagnosticLine("显示欢迎页", "Show Welcome", "\(uiSettings.showWelcomeScreen)"),
             diagnosticLine("恢复工作区", "Restore Workspace", "\(uiSettings.restoreWorkspace)"),
             diagnosticLine("调试日志", "Debug Logging", "\(uiSettings.debugLogging)"),
@@ -1175,8 +1217,57 @@ final class MainWorkspaceViewModel: ObservableObject {
             diagnosticLine("最近打开数量", "Recent Documents", "\(hostSettings.recentDocuments.count)"),
             diagnosticLine("上次检查更新", "Last Update Check", hostSettings.lastUpdateCheckAt),
             diagnosticLine("上次更新状态", "Last Update Status", hostSettings.lastUpdateStatus),
-            diagnosticLine("用户数据目录", "User Data Directory", settings.scene.userDataDirectory)
+            diagnosticLine("已下载更新", "Downloaded Update", downloadedUpdateSummary),
+            diagnosticLine("已下载更新路径", "Downloaded Update Path", diagnosticValue(hostSettings.downloadedUpdatePath)),
+            diagnosticLine("后台任务摘要", "Task Center Summary", taskCenter.scene.summary),
+            diagnosticLine("运行中任务数", "Running Task Count", "\(taskCenter.scene.runningCount)"),
+            diagnosticLine("历史任务数", "Persisted Task Count", "\(hostSettings.taskHistory.count)"),
+            diagnosticLine("用户数据目录", "User Data Directory", userDataDirectory)
         ].joined(separator: "\n")
+    }
+
+    private func buildDiagnosticsBundleArtifact() throws -> NativeDiagnosticsBundleArtifact {
+        let generatedAt = NativeDateFormatting.iso8601String(from: Date())
+        let buildMetadata = buildMetadataProvider.current().redactedForDiagnostics()
+        let selectedCorpusName = sidebar.selectedCorpus?.name ?? t("未选择", "None")
+        let selectedFolderName = sidebar.selectedCorpus?.folderName ?? t("全部", "All")
+        let engineEntryPath = (try? EnginePaths.engineEntryURL().path) ?? t("不可用", "Unavailable")
+        let runtimeWorkingDirectory = EnginePaths.runtimeWorkingDirectoryURL().path
+        let hostPreferences = currentDiagnosticsHostPreferences(redactingPaths: true)
+        let workspaceDraft = flowCoordinator.currentWorkspaceDraft(features: features)
+        let diagnosticsContext = NativeDiagnosticsBundleContext(
+            generatedAt: generatedAt,
+            appName: sceneStore.context.appName,
+            versionLabel: sceneStore.context.versionLabel,
+            buildSummary: sceneStore.context.buildSummary,
+            workspaceSummary: sceneStore.context.workspaceSummary,
+            activeTab: shell.selectedTab.rawValue,
+            selectedFolderName: selectedFolderName,
+            selectedCorpusName: selectedCorpusName,
+            engineEntryPath: engineEntryPath,
+            runtimeWorkingDirectory: runtimeWorkingDirectory,
+            userDataDirectory: settings.scene.userDataDirectory,
+            taskCenterSummary: taskCenter.scene.summary,
+            runningTaskCount: taskCenter.scene.runningCount,
+            persistedTaskCount: hostPreferences.taskHistory.count
+        ).redactedForDiagnostics()
+        let payload = NativeDiagnosticsBundlePayload(
+            bundleBaseName: "WordZMac-diagnostics-\(diagnosticTimestamp())",
+            reportText: buildDiagnosticsReport(redactingPaths: true),
+            buildMetadata: buildMetadata,
+            context: diagnosticsContext,
+            hostPreferences: hostPreferences,
+            taskHistory: hostPreferences.taskHistory,
+            workspaceDraft: workspaceDraft,
+            uiSettings: settings.exportSnapshot(),
+            generatedFiles: try diagnosticsGeneratedFiles(
+                hostPreferences: hostPreferences,
+                workspaceDraft: workspaceDraft,
+                uiSettings: settings.exportSnapshot()
+            ),
+            extraFiles: diagnosticsSourceFiles()
+        )
+        return try diagnosticsBundleService.buildBundle(payload: payload)
     }
 
     private func diagnosticTimestamp() -> String {
@@ -1219,6 +1310,54 @@ final class MainWorkspaceViewModel: ObservableObject {
 
     private func diagnosticLine(_ zh: String, _ en: String, _ value: String) -> String {
         "\(t(zh, en)): \(value)"
+    }
+
+    private func diagnosticValue(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? t("无", "None") : trimmed
+    }
+
+    private func currentDiagnosticsHostPreferences(redactingPaths: Bool = false) -> NativeHostPreferencesSnapshot {
+        var snapshot = settings.exportHostPreferences()
+        snapshot.taskHistory = taskCenter.persistedHistory()
+        return redactingPaths ? snapshot.redactedForDiagnostics() : snapshot
+    }
+
+    private func diagnosticsSourceFiles() -> [NativeDiagnosticsBundleSourceFile] {
+        let startupCrashLogURL = EnginePaths.startupCrashLogURL()
+        return [
+            NativeDiagnosticsBundleSourceFile(
+                sourceURL: startupCrashLogURL,
+                relativePath: "logs/startup-crash.log",
+                description: "Most recent startup crash log if one was captured."
+            )
+        ]
+    }
+
+    private func diagnosticsGeneratedFiles(
+        hostPreferences: NativeHostPreferencesSnapshot,
+        workspaceDraft: WorkspaceStateDraft,
+        uiSettings: UISettingsSnapshot
+    ) throws -> [NativeDiagnosticsBundleGeneratedFile] {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return [
+            NativeDiagnosticsBundleGeneratedFile(
+                data: try JSONSerialization.data(withJSONObject: workspaceDraft.asJSONObject(), options: [.prettyPrinted, .sortedKeys]),
+                relativePath: "persisted/workspace-state.json",
+                description: "Sanitized persisted workspace state snapshot."
+            ),
+            NativeDiagnosticsBundleGeneratedFile(
+                data: try JSONSerialization.data(withJSONObject: uiSettings.asJSONObject(), options: [.prettyPrinted, .sortedKeys]),
+                relativePath: "persisted/ui-settings.json",
+                description: "Sanitized persisted UI settings snapshot."
+            ),
+            NativeDiagnosticsBundleGeneratedFile(
+                data: try encoder.encode(hostPreferences),
+                relativePath: "persisted/native-host-preferences.json",
+                description: "Sanitized persisted host preferences snapshot."
+            )
+        ]
     }
 
     private func refreshShellAvailability() {

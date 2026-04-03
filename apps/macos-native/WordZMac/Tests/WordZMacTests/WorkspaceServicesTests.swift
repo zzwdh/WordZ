@@ -280,11 +280,42 @@ final class WorkspaceServicesTests: XCTestCase {
                 at: rootURL.appendingPathComponent("corpora").appendingPathComponent(storageFileName)
             )
         )
-        XCTAssertEqual(storedDocument.metadata.schemaVersion, 1)
+        XCTAssertEqual(storedDocument.metadata.schemaVersion, 3)
         XCTAssertEqual(storedDocument.metadata.detectedEncoding, "utf-8")
         XCTAssertEqual(storedDocument.metadata.tokenCount, 3)
         XCTAssertEqual(storedDocument.metadata.typeCount, 3)
+        XCTAssertEqual(storedDocument.metadata.metadataProfile.sourceLabel, "")
         XCTAssertEqual(storedDocument.text, "alpha beta gamma")
+    }
+
+    func testNativeCorpusStoreUpdatesCorpusMetadataAndInfoSummary() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-metadata-\(UUID().uuidString)", isDirectory: true)
+        let sourceURL = rootURL.appendingPathComponent("sample.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta gamma".write(to: sourceURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths([sourceURL.path], folderId: "", preserveHierarchy: false)
+        let corpus = try XCTUnwrap(imported.importedItems.first)
+
+        let updated = try store.updateCorpusMetadata(
+            corpusId: corpus.id,
+            metadata: CorpusMetadataProfile(
+                sourceLabel: "教材",
+                yearLabel: "2024",
+                genreLabel: "教学",
+                tags: ["课堂", "基础"]
+            )
+        )
+        let info = try store.loadCorpusInfo(corpusId: corpus.id)
+
+        XCTAssertEqual(updated.metadata.sourceLabel, "教材")
+        XCTAssertEqual(updated.metadata.genreLabel, "教学")
+        XCTAssertEqual(updated.metadata.tags, ["课堂", "基础"])
+        XCTAssertEqual(info.metadata.yearLabel, "2024")
+        XCTAssertEqual(info.metadata.tagsText, "课堂, 基础")
     }
 
     func testNativeCorpusStoreImportsGB18030TextWithoutMojibake() throws {
@@ -390,6 +421,8 @@ final class WorkspaceServicesTests: XCTestCase {
             searchQuery: "cloud-1*",
             searchOptions: .default,
             stopwordFilter: .default,
+            compareReferenceCorpusID: "corpus-2",
+            compareSelectedCorpusIDs: ["corpus-1", "corpus-2"],
             ngramSize: "3",
             ngramPageSize: "100",
             kwicLeftWindow: "4",
@@ -411,6 +444,8 @@ final class WorkspaceServicesTests: XCTestCase {
 
         let snapshot = try store.loadWorkspaceSnapshot()
         XCTAssertEqual(snapshot.currentTab, WorkspaceDetailTab.wordCloud.snapshotValue)
+        XCTAssertEqual(snapshot.compareReferenceCorpusID, "corpus-2")
+        XCTAssertEqual(snapshot.compareSelectedCorpusIDs, ["corpus-1", "corpus-2"])
         XCTAssertEqual(snapshot.topicsMinTopicSize, "4")
         XCTAssertFalse(snapshot.topicsIncludeOutliers)
         XCTAssertEqual(snapshot.topicsPageSize, "25")
@@ -451,6 +486,7 @@ final class WorkspaceServicesTests: XCTestCase {
         let snapshot = try store.loadWorkspaceSnapshot()
 
         XCTAssertEqual(snapshot.currentTab, "kwic")
+        XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
         XCTAssertEqual(snapshot.wordCloudLimit, 80)
         XCTAssertEqual(snapshot.topicsMinTopicSize, "2")
         XCTAssertTrue(snapshot.topicsIncludeOutliers)
@@ -479,6 +515,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.searchOptions, SearchOptionsState(words: false, caseSensitive: true, regex: true))
         XCTAssertEqual(snapshot.stopwordFilter.mode, .include)
         XCTAssertEqual(snapshot.stopwordFilter.parsedWords, ["foo", "bar"])
+        XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
         XCTAssertEqual(snapshot.wordCloudLimit, 80)
         XCTAssertEqual(snapshot.topicsPageSize, "50")
         XCTAssertEqual(snapshot.chiSquareA, "")

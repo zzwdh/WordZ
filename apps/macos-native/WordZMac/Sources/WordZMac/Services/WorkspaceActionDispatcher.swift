@@ -58,6 +58,12 @@ final class WorkspaceActionDispatcher: ObservableObject {
             workspace.library.selectCorpus(corpusID)
             workspace.syncSceneGraph(source: .librarySelection)
             Task { await workspace.quickLookSelectedCorpus() }
+        case .showCorpusInfoSelected(let corpusID):
+            workspace.sidebar.selectedCorpusID = corpusID
+            workspace.library.selectCorpus(corpusID)
+            workspace.syncSceneGraph(source: .librarySelection)
+            NativeAppCommandCenter.post(.showLibrary)
+            Task { await workspace.handleLibraryAction(.showSelectedCorpusInfo) }
         }
     }
 
@@ -89,7 +95,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
         switch action {
         case .run:
             Task { await workspace.runCompare() }
-        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectRow, .previousPage, .nextPage, .toggleCorpusSelection:
+        case .changeReferenceCorpus, .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectRow, .previousPage, .nextPage, .toggleCorpusSelection:
             workspace.compare.handle(action)
             workspace.syncSceneGraph(source: .resultContent)
         }
@@ -195,7 +201,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
         switch action {
         case .run:
             Task { await workspace.runCollocate() }
-        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage:
+        case .applyPreset, .changeFocusMetric, .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectRow, .previousPage, .nextPage:
             workspace.collocate.handle(action)
             workspace.syncSceneGraph(source: .resultContent)
         }
@@ -293,6 +299,10 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.openSelectedCorpus() }
         case .quickLookSelectedCorpus:
             Task { await workspace.quickLookSelectedCorpus() }
+        case .editSelectedCorpusMetadata:
+            if let selectedCorpus = workspace.library.selectedCorpus ?? workspace.sidebar.selectedCorpus {
+                workspace.library.presentMetadataEditor(for: selectedCorpus)
+            }
         default:
             Task { await workspace.handleLibraryAction(action) }
         }

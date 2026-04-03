@@ -370,6 +370,7 @@ final class WorkspaceFlowCoordinator {
 
         await performWorkspaceRunTask(.collocate, features: features) {
             let corpus = try await self.ensureOpenedCorpus(features: features)
+            features.collocate.recordPendingRunConfiguration()
             let result = try await self.repository.runCollocate(
                 text: corpus.content,
                 keyword: keyword,
@@ -434,10 +435,23 @@ final class WorkspaceFlowCoordinator {
 
     func handleLibraryAction(_ action: LibraryManagementAction, features: WorkspaceFeatureSet) async {
         do {
-            features.library.setBusy(true)
-            defer { features.library.setBusy(false) }
+            let shouldTrackBusy: Bool
             switch action {
-            case .selectFolder, .selectCorpus, .selectRecycleEntry, .openSelectedCorpus, .quickLookSelectedCorpus:
+            case .selectFolder, .selectCorpus, .selectRecycleEntry, .openSelectedCorpus, .quickLookSelectedCorpus, .editSelectedCorpusMetadata:
+                shouldTrackBusy = false
+            default:
+                shouldTrackBusy = true
+            }
+            if shouldTrackBusy {
+                features.library.setBusy(true)
+            }
+            defer {
+                if shouldTrackBusy {
+                    features.library.setBusy(false)
+                }
+            }
+            switch action {
+            case .selectFolder, .selectCorpus, .selectRecycleEntry, .openSelectedCorpus, .quickLookSelectedCorpus, .editSelectedCorpusMetadata:
                 break
             case .refresh:
                 try await libraryManagementCoordinator.refreshLibraryState(into: features.library, sidebar: features.sidebar)
@@ -453,6 +467,8 @@ final class WorkspaceFlowCoordinator {
                 try await libraryManagementCoordinator.deleteSelectedCorpus(into: features.library, sidebar: features.sidebar)
             case .showSelectedCorpusInfo:
                 try await showSelectedCorpusInfo(features: features)
+            case .saveSelectedCorpusMetadata(let metadata):
+                try await libraryManagementCoordinator.updateSelectedCorpusMetadata(metadata, into: features.library, sidebar: features.sidebar)
             case .renameSelectedFolder:
                 try await libraryManagementCoordinator.renameSelectedFolder(into: features.library, sidebar: features.sidebar)
             case .deleteSelectedFolder:
@@ -480,20 +496,28 @@ final class WorkspaceFlowCoordinator {
         guard let selectedCorpus = features.library.selectedCorpus ?? features.sidebar.selectedCorpus else {
             return
         }
-        let opened = try await repository.openSavedCorpus(corpusId: selectedCorpus.id)
-        let stats = try await repository.runStats(text: opened.content)
+        let summary = try await repository.loadCorpusInfo(corpusId: selectedCorpus.id)
         features.library.presentCorpusInfo(
             LibraryCorpusInfoSceneModel(
-                id: selectedCorpus.id,
-                title: selectedCorpus.name,
+                id: summary.corpusId,
+                title: summary.title,
                 subtitle: wordZText("语料信息", "Corpus Info", mode: .system),
-                folderName: selectedCorpus.folderName,
-                sourceType: selectedCorpus.sourceType,
-                tokenCountText: "\(stats.tokenCount)",
-                typeCountText: "\(stats.typeCount)",
-                ttrText: String(format: "%.4f", stats.ttr),
-                sttrText: String(format: "%.4f", stats.sttr),
-                representedPath: selectedCorpus.representedPath.isEmpty ? opened.filePath : selectedCorpus.representedPath
+                folderName: summary.folderName,
+                sourceType: summary.sourceType,
+                sourceLabelText: summary.metadata.sourceLabel.isEmpty ? "—" : summary.metadata.sourceLabel,
+                yearText: summary.metadata.yearLabel.isEmpty ? "—" : summary.metadata.yearLabel,
+                genreText: summary.metadata.genreLabel.isEmpty ? "—" : summary.metadata.genreLabel,
+                tagsText: summary.metadata.tagsText.isEmpty ? "—" : summary.metadata.tagsText,
+                importedAtText: summary.importedAt.isEmpty ? "—" : summary.importedAt,
+                encodingText: summary.detectedEncoding.isEmpty ? "—" : summary.detectedEncoding,
+                tokenCountText: "\(summary.tokenCount)",
+                typeCountText: "\(summary.typeCount)",
+                sentenceCountText: "\(summary.sentenceCount)",
+                paragraphCountText: "\(summary.paragraphCount)",
+                characterCountText: "\(summary.characterCount)",
+                ttrText: String(format: "%.4f", summary.ttr),
+                sttrText: summary.sttr > 0 ? String(format: "%.4f", summary.sttr) : "—",
+                representedPath: summary.representedPath
             )
         )
         features.library.setStatus(wordZText("已载入语料信息。", "Loaded corpus information.", mode: .system))
@@ -730,8 +754,27 @@ final class WorkspaceFlowCoordinator {
 
     private func persistWorkspaceState(features: WorkspaceFeatureSet) {
         guard !sessionStore.isRestoringState else { return }
+        let draft = currentWorkspaceDraft(features: features)
+
+        Task {
+            do {
+                try await repository.saveWorkspaceState(draft)
+                await MainActor.run {
+                    self.sessionStore.applySavedDraft(draft)
+                    self.applyWorkspacePresentation(features: features)
+                    self.syncWindowDocumentState(features: features)
+                }
+            } catch {
+                await MainActor.run {
+                    features.sidebar.setError(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func currentWorkspaceDraft(features: WorkspaceFeatureSet) -> WorkspaceStateDraft {
         let searchState = makeSearchPersistenceState(features: features)
-        let draft = workspacePersistence.buildDraft(
+        return workspacePersistence.buildDraft(
             selectedTab: features.shell.selectedTab,
             selectedFolderID: features.library.selectedFolderID ?? "all",
             selectedCorpus: features.sidebar.selectedCorpus,
@@ -739,6 +782,8 @@ final class WorkspaceFlowCoordinator {
             searchQuery: searchState.query,
             searchOptions: searchState.options,
             stopwordFilter: searchState.stopwordFilter,
+            compareReferenceCorpusID: features.compare.selectedReferenceCorpusIDSnapshot,
+            compareSelectedCorpusIDs: features.compare.selectedCorpusIDsSnapshot,
             ngramSize: features.ngram.ngramSize,
             ngramPageSize: features.ngram.pageSizeSnapshotValue,
             kwicLeftWindow: features.kwic.leftWindow,
@@ -759,21 +804,6 @@ final class WorkspaceFlowCoordinator {
             chiSquareD: features.chiSquare.d,
             chiSquareUseYates: features.chiSquare.useYates
         )
-
-        Task {
-            do {
-                try await repository.saveWorkspaceState(draft)
-                await MainActor.run {
-                    self.sessionStore.applySavedDraft(draft)
-                    self.applyWorkspacePresentation(features: features)
-                    self.syncWindowDocumentState(features: features)
-                }
-            } catch {
-                await MainActor.run {
-                    features.sidebar.setError(error.localizedDescription)
-                }
-            }
-        }
     }
 
     private func applyWorkspaceSnapshot(_ workspaceSnapshot: WorkspaceSnapshotSummary, features: WorkspaceFeatureSet) {
