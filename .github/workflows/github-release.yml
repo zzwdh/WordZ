@@ -74,22 +74,17 @@ jobs:
         run: npm run build:assets
 
       - name: Run verification
-        run: npm run release:verify -- --target=mac
+        run: npm run verify:mac
 
       - name: Build macOS artifacts
-        run: npm run dist:mac
+        run: npm run native:mac:package
 
       - name: Verify macOS build artifacts
         run: npm run release:artifacts -- --target=mac
 
-      - name: Run packaged macOS smoke
-        run: npm run test:packaged-smoke
-
       - name: Publish macOS release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WORDZ_AUTO_UPDATE_GITHUB_OWNER: ${{ github.repository_owner }}
-          WORDZ_AUTO_UPDATE_GITHUB_REPO: ${{ github.event.repository.name }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           CSC_NAME: ${{ secrets.CSC_NAME }}
@@ -101,7 +96,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_KEYCHAIN: ${{ secrets.APPLE_KEYCHAIN }}
           APPLE_KEYCHAIN_PROFILE: ${{ secrets.APPLE_KEYCHAIN_PROFILE }}
-        run: npm run release:github:mac
+        run: gh release upload "${{ needs.prepare-release.outputs.release_tag }}" dist-native/*.zip dist-native/*.dmg --clobber
 
   release-win:
     needs: prepare-release

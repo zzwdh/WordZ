@@ -15,7 +15,7 @@ final class EngineIntegrationTests: XCTestCase {
             XCTAssertEqual(bootstrap.appInfo.name, "WordZ")
             XCTAssertEqual(bootstrap.librarySnapshot.folders.count, 0)
             XCTAssertEqual(bootstrap.librarySnapshot.corpora.count, 0)
-            XCTAssertEqual(bootstrap.workspaceSnapshot.currentTab, "library")
+            XCTAssertEqual(bootstrap.workspaceSnapshot.currentTab, "stats")
         } catch {
             XCTFail("Native engine bootstrap failed: \(error.localizedDescription)")
         }

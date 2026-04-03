@@ -16,8 +16,10 @@ final class WorkspaceSceneGraphStore: ObservableObject {
         settings: SettingsPaneSceneModel,
         activeTab: WorkspaceDetailTab,
         word: WordSceneModel? = nil,
+        tokenize: TokenizeSceneModel? = nil,
         wordCloud: WordCloudSceneModel?,
         stats: StatsSceneModel?,
+        topics: TopicsSceneModel? = nil,
         compare: CompareSceneModel?,
         chiSquare: ChiSquareSceneModel?,
         ngram: NgramSceneModel?,
@@ -25,7 +27,7 @@ final class WorkspaceSceneGraphStore: ObservableObject {
         collocate: CollocateSceneModel?,
         locator: LocatorSceneModel?
     ) {
-        graph = WorkspaceSceneGraph(
+        updateGraph(
             context: context,
             sidebar: sidebar,
             shell: shell,
@@ -33,14 +35,110 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             settings: settings,
             activeTab: activeTab,
             word: makeWordNode(from: word),
+            tokenize: makeTokenizeNode(from: tokenize),
             wordCloud: makeWordCloudNode(from: wordCloud),
             stats: makeStatsNode(from: stats),
+            topics: makeTopicsNode(from: topics),
             compare: makeCompareNode(from: compare),
             chiSquare: makeChiSquareNode(from: chiSquare),
             ngram: makeNgramNode(from: ngram),
             kwic: makeKWICNode(from: kwic),
             collocate: makeCollocateNode(from: collocate),
             locator: makeLocatorNode(from: locator)
+        )
+    }
+
+    func syncShellNavigation(shell: WorkspaceShellSceneModel, activeTab: WorkspaceDetailTab) {
+        updateGraph(shell: shell, activeTab: activeTab)
+    }
+
+    func syncSidebarAndLibrary(
+        sidebar: WorkspaceSidebarSceneModel,
+        library: LibraryManagementSceneModel,
+        shell: WorkspaceShellSceneModel? = nil,
+        activeTab: WorkspaceDetailTab? = nil
+    ) {
+        updateGraph(
+            sidebar: sidebar,
+            shell: shell,
+            library: library,
+            activeTab: activeTab
+        )
+    }
+
+    func syncSettings(_ settings: SettingsPaneSceneModel) {
+        updateGraph(settings: settings)
+    }
+
+    func syncResults(
+        shell: WorkspaceShellSceneModel? = nil,
+        activeTab: WorkspaceDetailTab,
+        word: WordSceneModel? = nil,
+        tokenize: TokenizeSceneModel? = nil,
+        wordCloud: WordCloudSceneModel?,
+        stats: StatsSceneModel?,
+        topics: TopicsSceneModel? = nil,
+        compare: CompareSceneModel?,
+        chiSquare: ChiSquareSceneModel?,
+        ngram: NgramSceneModel?,
+        kwic: KWICSceneModel?,
+        collocate: CollocateSceneModel?,
+        locator: LocatorSceneModel?
+    ) {
+        updateGraph(
+            shell: shell,
+            activeTab: activeTab,
+            word: makeWordNode(from: word),
+            tokenize: makeTokenizeNode(from: tokenize),
+            wordCloud: makeWordCloudNode(from: wordCloud),
+            stats: makeStatsNode(from: stats),
+            topics: makeTopicsNode(from: topics),
+            compare: makeCompareNode(from: compare),
+            chiSquare: makeChiSquareNode(from: chiSquare),
+            ngram: makeNgramNode(from: ngram),
+            kwic: makeKWICNode(from: kwic),
+            collocate: makeCollocateNode(from: collocate),
+            locator: makeLocatorNode(from: locator)
+        )
+    }
+
+    private func updateGraph(
+        context: WorkspaceSceneContext? = nil,
+        sidebar: WorkspaceSidebarSceneModel? = nil,
+        shell: WorkspaceShellSceneModel? = nil,
+        library: LibraryManagementSceneModel? = nil,
+        settings: SettingsPaneSceneModel? = nil,
+        activeTab: WorkspaceDetailTab? = nil,
+        word: WorkspaceResultSceneNode? = nil,
+        tokenize: WorkspaceResultSceneNode? = nil,
+        wordCloud: WorkspaceResultSceneNode? = nil,
+        stats: WorkspaceResultSceneNode? = nil,
+        topics: WorkspaceResultSceneNode? = nil,
+        compare: WorkspaceResultSceneNode? = nil,
+        chiSquare: WorkspaceResultSceneNode? = nil,
+        ngram: WorkspaceResultSceneNode? = nil,
+        kwic: WorkspaceResultSceneNode? = nil,
+        collocate: WorkspaceResultSceneNode? = nil,
+        locator: WorkspaceResultSceneNode? = nil
+    ) {
+        graph = WorkspaceSceneGraph(
+            context: context ?? graph.context,
+            sidebar: sidebar ?? graph.sidebar,
+            shell: shell ?? graph.shell,
+            library: library ?? graph.library,
+            settings: settings ?? graph.settings,
+            activeTab: activeTab ?? graph.activeTab,
+            word: word ?? graph.word,
+            tokenize: tokenize ?? graph.tokenize,
+            wordCloud: wordCloud ?? graph.wordCloud,
+            stats: stats ?? graph.stats,
+            topics: topics ?? graph.topics,
+            compare: compare ?? graph.compare,
+            chiSquare: chiSquare ?? graph.chiSquare,
+            ngram: ngram ?? graph.ngram,
+            kwic: kwic ?? graph.kwic,
+            collocate: collocate ?? graph.collocate,
+            locator: locator ?? graph.locator
         )
     }
 
@@ -64,7 +162,8 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
-            tableRows: scene.tableRows
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
         )
     }
 
@@ -82,6 +181,52 @@ final class WorkspaceSceneGraphStore: ObservableObject {
             visibleRows: scene.visibleRows,
             hasResult: true,
             table: scene.table,
+            tableRows: scene.tableRows,
+            exportMetadataLines: scene.exportMetadataLines
+        )
+    }
+
+    private func makeTokenizeNode(from scene: TokenizeSceneModel?) -> WorkspaceResultSceneNode {
+        guard let scene else {
+            return .empty(
+                title: WorkspaceDetailTab.tokenize.displayTitle(in: languageMode),
+                status: wordZText("尚未生成分词结果", "No tokenization results yet", mode: languageMode)
+            )
+        }
+        let status: String
+        if scene.query.isEmpty {
+            status = wordZText("显示", "Showing", mode: languageMode) + " \(scene.visibleTokens) / \(scene.filteredTokens)"
+        } else {
+            status = wordZText("过滤", "Filter", mode: languageMode) + " \(scene.query) · "
+                + wordZText("显示", "Showing", mode: languageMode) + " \(scene.visibleTokens) / \(scene.filteredTokens)"
+        }
+        return WorkspaceResultSceneNode(
+            title: WorkspaceDetailTab.tokenize.displayTitle(in: languageMode),
+            status: status,
+            totalRows: scene.totalTokens,
+            visibleRows: scene.visibleTokens,
+            hasResult: true,
+            table: scene.table,
+            tableRows: scene.tableRows
+        )
+    }
+
+    private func makeTopicsNode(from scene: TopicsSceneModel?) -> WorkspaceResultSceneNode {
+        guard let scene else {
+            return .empty(
+                title: WorkspaceDetailTab.topics.displayTitle(in: languageMode),
+                status: wordZText("尚未生成 Topics 结果", "No Topics results yet", mode: languageMode)
+            )
+        }
+        let clusterStatus = "\(wordZText("主题", "Topics", mode: languageMode)) \(scene.visibleClusters) / \(scene.totalClusters)"
+        let segmentStatus = "\(wordZText("片段", "Segments", mode: languageMode)) \(scene.visibleSegments) / \(scene.totalSegments)"
+        return WorkspaceResultSceneNode(
+            title: WorkspaceDetailTab.topics.displayTitle(in: languageMode),
+            status: "\(clusterStatus) · \(segmentStatus)",
+            totalRows: scene.totalSegments,
+            visibleRows: scene.visibleSegments,
+            hasResult: true,
+            table: scene.table,
             tableRows: scene.tableRows
         )
     }
@@ -95,7 +240,7 @@ final class WorkspaceSceneGraphStore: ObservableObject {
         }
         return WorkspaceResultSceneNode(
             title: WorkspaceDetailTab.wordCloud.displayTitle(in: languageMode),
-            status: wordZText("显示", "Showing", mode: languageMode) + " \(scene.visibleRows) / \(scene.totalRows) · Top \(scene.limit)",
+            status: wordZText("显示", "Showing", mode: languageMode) + " \(scene.visibleRows) / \(scene.filteredRows) · Top \(scene.limit)",
             totalRows: scene.totalRows,
             visibleRows: scene.visibleRows,
             hasResult: true,
@@ -156,11 +301,11 @@ final class WorkspaceSceneGraphStore: ObservableObject {
         return WorkspaceResultSceneNode(
             title: WorkspaceDetailTab.chiSquare.displayTitle(in: languageMode),
             status: scene.summary,
-            totalRows: 1,
-            visibleRows: 1,
+            totalRows: scene.tableRows.count,
+            visibleRows: scene.tableRows.count,
             hasResult: true,
-            table: .empty,
-            tableRows: []
+            table: scene.table,
+            tableRows: scene.tableRows
         )
     }
 

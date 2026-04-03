@@ -4,6 +4,8 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
     case library = "Library"
     case stats = "Stats"
     case word = "Word"
+    case tokenize = "Tokenize"
+    case topics = "Topics"
     case compare = "Compare"
     case chiSquare = "Chi-Square"
     case ngram = "N-Gram"
@@ -15,6 +17,19 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    static var mainWorkspaceTabs: [WorkspaceDetailTab] {
+        allCases.filter { $0 != .library && $0 != .settings }
+    }
+
+    var mainWorkspaceTab: WorkspaceDetailTab {
+        switch self {
+        case .library, .settings:
+            return .stats
+        default:
+            return self
+        }
+    }
+
     func displayTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .library:
@@ -23,6 +38,10 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
             return wordZText("统计", "Stats", mode: mode)
         case .word:
             return wordZText("词表", "Word", mode: mode)
+        case .tokenize:
+            return wordZText("分词", "Tokenize", mode: mode)
+        case .topics:
+            return wordZText("主题", "Topics", mode: mode)
         case .compare:
             return wordZText("对比", "Compare", mode: mode)
         case .chiSquare:
@@ -58,6 +77,10 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
             return .stats
         case "word":
             return .word
+        case "tokenize", "token":
+            return .tokenize
+        case "topics", "topic":
+            return .topics
         case "compare":
             return .compare
         case "chi-square", "chisquare", "chi_square":

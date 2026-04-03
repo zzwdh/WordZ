@@ -1,5 +1,49 @@
 import SwiftUI
 
+struct LibraryWindowView: View {
+    @ObservedObject var workspace: MainWorkspaceViewModel
+    @StateObject private var dispatcher: WorkspaceActionDispatcher
+
+    init(workspace: MainWorkspaceViewModel) {
+        self.workspace = workspace
+        _dispatcher = StateObject(wrappedValue: WorkspaceActionDispatcher(workspace: workspace))
+    }
+
+    var body: some View {
+        LibraryManagementView(
+            viewModel: workspace.library,
+            onAction: dispatcher.handleLibraryAction
+        )
+        .task {
+            await workspace.initializeIfNeeded()
+            await workspace.refreshLibraryManagement()
+        }
+        .frame(minWidth: 1120, minHeight: 760)
+    }
+}
+
+struct SettingsWindowView: View {
+    @ObservedObject var workspace: MainWorkspaceViewModel
+    @StateObject private var dispatcher: WorkspaceActionDispatcher
+
+    init(workspace: MainWorkspaceViewModel) {
+        self.workspace = workspace
+        _dispatcher = StateObject(wrappedValue: WorkspaceActionDispatcher(workspace: workspace))
+    }
+
+    var body: some View {
+        SettingsPaneView(
+            settings: workspace.settings,
+            onAction: dispatcher.handleSettingsAction
+        )
+        .task {
+            await workspace.initializeIfNeeded()
+            workspace.syncSceneGraph(source: .settings)
+        }
+        .frame(minWidth: 980, minHeight: 720)
+    }
+}
+
 struct TaskCenterWindowView: View {
     @Environment(\.wordZLanguageMode) private var languageMode
     @ObservedObject var workspace: MainWorkspaceViewModel
@@ -16,6 +60,8 @@ struct TaskCenterWindowView: View {
                 .disabled(workspace.taskCenter.scene.items.allSatisfy { $0.state == .running })
             }
 
+            metricsRow
+
             if workspace.taskCenter.scene.items.isEmpty {
                 ContentUnavailableView(
                     t("当前没有后台任务", "No background tasks"),
@@ -27,28 +73,46 @@ struct TaskCenterWindowView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(workspace.taskCenter.scene.items) { item in
                             WorkbenchPaneCard(title: item.title, subtitle: item.detail) {
-                                HStack(spacing: 12) {
-                                    Label(item.state.displayLabel(in: languageMode), systemImage: item.state.symbolName)
-                                        .symbolRenderingMode(.multicolor)
+                                VStack(alignment: .leading, spacing: 10) {
+                                    HStack(spacing: 12) {
+                                        Label(item.state.displayLabel(in: languageMode), systemImage: item.state.symbolName)
+                                            .symbolRenderingMode(.multicolor)
 
-                                    if item.state == .running {
-                                        ProgressView(value: item.progress)
-                                            .frame(maxWidth: 220)
-                                    } else {
-                                        Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                        Spacer()
+
+                                        if item.state == .running {
+                                            Text(item.progressLabel(in: languageMode))
+                                                .font(.caption.monospacedDigit())
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
 
-                                    Spacer()
+                                    if item.state == .running {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            ProgressView(value: item.normalizedProgress)
+                                                .frame(maxWidth: .infinity)
+                                                .tint(.accentColor)
+                                            Text(item.detail)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
 
                                     if let action = item.primaryAction {
-                                        Button(action.title(in: languageMode)) {
-                                            Task {
-                                                await workspace.performTaskAction(action)
+                                        HStack {
+                                            Spacer()
+                                            Button(action.title(in: languageMode)) {
+                                                Task {
+                                                    await workspace.performTaskAction(action)
+                                                }
                                             }
+                                            .buttonStyle(.borderedProminent)
                                         }
-                                        .buttonStyle(.borderedProminent)
                                     }
                                 }
                             }
@@ -60,6 +124,30 @@ struct TaskCenterWindowView: View {
         }
         .padding(20)
         .frame(minWidth: 560, minHeight: 420)
+    }
+
+    private var metricsRow: some View {
+        HStack(spacing: 12) {
+            WorkbenchMetricCard(
+                title: t("进行中", "Running"),
+                value: "\(workspace.taskCenter.scene.runningCount)"
+            )
+            WorkbenchMetricCard(
+                title: t("已完成", "Completed"),
+                value: "\(workspace.taskCenter.scene.completedCount)"
+            )
+            WorkbenchMetricCard(
+                title: t("失败", "Failed"),
+                value: "\(workspace.taskCenter.scene.failedCount)"
+            )
+            WorkbenchMetricCard(
+                title: t("整体进度", "Overall Progress"),
+                value: workspace.taskCenter.scene.aggregateProgress.map { "\(Int(($0 * 100).rounded()))%" } ?? "—",
+                subtitle: workspace.taskCenter.scene.runningCount > 0
+                    ? t("按当前运行任务计算", "Based on currently running tasks")
+                    : t("当前没有运行中的任务", "No tasks are currently running")
+            )
+        }
     }
 
     private func t(_ zh: String, _ en: String) -> String {
@@ -136,17 +224,39 @@ struct HelpCenterWindowView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                WorkbenchHeaderCard(title: t("帮助中心", "Help Center"), subtitle: t("原生版工作流与常用入口", "Native workflows and common entry points")) {
+                WorkbenchHeaderCard(title: t("使用说明", "Usage Guide")) {
                     Button(t("打开项目主页", "Open Project Home")) {
                         Task { await workspace.openProjectHome() }
                     }
                 }
 
-                WorkbenchPaneCard(title: t("开始使用", "Getting Started"), subtitle: t("最常用的入口与快捷键", "The most common entry points and shortcuts")) {
+                WorkbenchPaneCard(title: t("快速开始", "Quick Start")) {
                     helpRow(t("导入语料", "Import Corpus"), shortcut: "⌘O")
                     helpRow(t("打开设置", "Open Settings"), shortcut: "⌘,")
                     helpRow(t("刷新工作区", "Refresh Workspace"), shortcut: "⌘R")
-                    helpRow(t("打开任务中心", "Open Task Center"), shortcut: "⌥⌘0")
+                    helpRow(t("运行当前页面", "Run Current Page"), shortcut: "主按钮 / Main button")
+                }
+
+                WorkbenchPaneCard(title: t("搜索语法", "Search Syntax")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("• \(t("普通词：hacker 只匹配 hacker", "Literal term: hacker only matches hacker"))")
+                        Text("• \(t("通配：hacker* 可匹配 hacker / hackers", "Wildcard: hacker* can match hacker / hackers"))")
+                        Text("• \(t("单字符：hack?r 可匹配 hacker / hackor", "Single character: hack?r can match hacker / hackor"))")
+                        Text("• \(t("开启正则后，* 和 ? 将按正则语义处理", "When regex is enabled, * and ? follow regex rules"))")
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                }
+
+                WorkbenchPaneCard(title: t("常用流程", "Common Workflows")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("1. \(t("在语料库里导入并打开语料", "Import and open a corpus from Library"))")
+                        Text("2. \(t("在下拉页面菜单里切到统计、词表、KWIC 或 Topics", "Use the page dropdown to switch to Stats, Word, KWIC, or Topics"))")
+                        Text("3. \(t("设置检索词或筛选条件后运行当前页面", "Set a query or filters, then run the current page"))")
+                        Text("4. \(t("需要表格时用列菜单、排序和导出", "Use columns, sorting, and export when you need a table"))")
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 }
 
                 WorkbenchPaneCard(title: t("排查问题", "Troubleshooting"), subtitle: workspace.settings.scene.supportStatus) {
@@ -164,17 +274,6 @@ struct HelpCenterWindowView: View {
                             Button(t("打开数据目录", "Open Data Directory")) {
                                 Task { await workspace.openUserDataDirectory() }
                             }
-                        }
-                    }
-                }
-
-                WorkbenchPaneCard(title: t("帮助主题", "Help Topics"), subtitle: "\(workspace.settings.scene.help.count) \(t("条", "items"))") {
-                    if workspace.settings.scene.help.isEmpty {
-                        Text(t("当前还没有额外帮助条目。", "No additional help topics yet."))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(workspace.settings.scene.help, id: \.self) { line in
-                            Text("• \(line)")
                         }
                     }
                 }

@@ -20,7 +20,7 @@ final class RootContentSceneTests: XCTestCase {
 
         XCTAssertEqual(scene.windowTitle, "Demo Corpus")
         XCTAssertEqual(scene.selectedTab, .kwic)
-        XCTAssertEqual(scene.tabs.map(\.tab), WorkspaceDetailTab.allCases)
+        XCTAssertEqual(scene.tabs.map(\.tab), WorkspaceDetailTab.mainWorkspaceTabs)
         XCTAssertEqual(scene.tabs.first(where: { $0.tab == .stats })?.title, "统计")
         XCTAssertEqual(scene.toolbar.items, toolbar.items)
     }
@@ -33,8 +33,10 @@ final class RootContentSceneTests: XCTestCase {
 
         XCTAssertEqual(workspace.rootScene.windowTitle, "WordZ")
         XCTAssertEqual(workspace.rootScene.selectedTab, .kwic)
-        XCTAssertEqual(workspace.rootScene.tabs.count, WorkspaceDetailTab.allCases.count)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.count, 13)
+        XCTAssertEqual(workspace.rootScene.tabs.count, WorkspaceDetailTab.mainWorkspaceTabs.count)
+        XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .library }))
+        XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .settings }))
+        XCTAssertEqual(workspace.rootScene.toolbar.items.count, 17)
         XCTAssertEqual(workspace.rootScene.toolbar.items.first?.action, .refresh)
         XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .showLibrary })?.isEnabled, true)
         XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .openSelected })?.isEnabled, true)

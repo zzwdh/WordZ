@@ -6,6 +6,8 @@ struct WorkspaceFeatureSet {
     let library: LibraryManagementViewModel
     let stats: StatsPageViewModel
     let word: WordPageViewModel
+    let tokenize: TokenizePageViewModel
+    let topics: TopicsPageViewModel
     let compare: ComparePageViewModel
     let chiSquare: ChiSquarePageViewModel
     let ngram: NgramPageViewModel
@@ -22,6 +24,8 @@ struct WorkspaceFeatureSet {
         library: LibraryManagementViewModel,
         stats: StatsPageViewModel,
         word: WordPageViewModel = WordPageViewModel(),
+        tokenize: TokenizePageViewModel = TokenizePageViewModel(),
+        topics: TopicsPageViewModel = TopicsPageViewModel(),
         compare: ComparePageViewModel,
         chiSquare: ChiSquarePageViewModel,
         ngram: NgramPageViewModel,
@@ -36,6 +40,8 @@ struct WorkspaceFeatureSet {
         self.library = library
         self.stats = stats
         self.word = word
+        self.tokenize = tokenize
+        self.topics = topics
         self.compare = compare
         self.chiSquare = chiSquare
         self.ngram = ngram

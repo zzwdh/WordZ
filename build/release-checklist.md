@@ -1,7 +1,7 @@
 `WordZ` 稳定版签名后发布检查清单
 
 适用场景：
-- macOS 产物已经完成签名，且如需外部分发，已完成 notarization。
+- 原生 macOS 产物已经完成签名，且如需外部分发，已完成 notarization。
 - Windows 产物已经完成签名。
 
 正式发布前建议逐项确认：
@@ -13,7 +13,7 @@
 - `npm run release:artifacts -- --target=mac` / `--target=win` 已通过。
 - `npm run test:packaged-smoke` 已在对应平台通过。
 
-2. macOS 安装器
+2. macOS 原生安装包
 - 打开 `.dmg` 后，背景图、图标大小、拖拽到 `/Applications` 的布局正常。
 - `WordZ.app` 图标、名称、版本号正确。
 - 从 `/Applications` 首次启动能正常进入主界面。
@@ -45,7 +45,7 @@
 
 建议的最终动作顺序：
 1. 本地跑 `npm run verify:smoke`
-2. 本地或 CI 完成 `dist:mac` / `dist:win`
+2. 本地或 CI 完成 `native:mac:package` / `dist:win`
 3. 完成签名与 notarization
 4. 按本清单做一次人工复核
 5. 再把 Release 标记为正式稳定版

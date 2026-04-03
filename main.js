@@ -5,6 +5,24 @@ const os = require('os')
 const fsSync = require('fs')
 const fs = require('fs/promises')
 const packageManifest = require('./package.json')
+
+const LEGACY_ELECTRON_MAC_ALLOWED = ['1', 'true', 'yes', 'on'].includes(
+  String(process.env.WORDZ_ALLOW_LEGACY_ELECTRON_MAC || '').trim().toLowerCase()
+)
+const LEGACY_ELECTRON_MAC_DISABLED = process.platform === 'darwin' && !LEGACY_ELECTRON_MAC_ALLOWED
+
+if (LEGACY_ELECTRON_MAC_DISABLED) {
+  app.once('ready', () => {
+    try {
+      dialog.showErrorBox(
+        'WordZ Electron macOS 版已停用',
+        'macOS 端已经切换到原生 Swift 版，请改用原生应用包或 apps/macos-native/WordZMac。若必须调试旧 Electron 壳，请设置 WORDZ_ALLOW_LEGACY_ELECTRON_MAC=1。'
+      )
+    } finally {
+      app.exit(0)
+    }
+  })
+}
 const { createAutoUpdateController } = require('./autoUpdate')
 const { createDiagnosticsController } = require('./diagnostics')
 const { getAppInfo } = require('./main/helpers/appInfo')

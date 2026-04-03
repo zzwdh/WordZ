@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 const distDir = path.join(projectRoot, 'dist')
+const nativeDistDir = path.join(projectRoot, 'dist-native')
 
 function normalizeText(value, fallback = '') {
   return String(value ?? fallback).trim()
@@ -79,14 +80,9 @@ async function buildArtifactRecord(relativePath) {
 }
 
 async function collectMacArtifacts({ productName, version }) {
-  const entries = await readDirectoryNames(distDir)
+  const entries = await readDirectoryNames(nativeDistDir)
   const dmgPattern = new RegExp(`^${escapeRegExp(productName)}-${escapeRegExp(version)}-mac-.*\\.dmg$`, 'i')
   const zipPattern = new RegExp(`^${escapeRegExp(productName)}-${escapeRegExp(version)}-mac-.*\\.zip$`, 'i')
-  const blockmapPattern = /\.(?:dmg|zip)\.blockmap$/i
-
-  const macBuildDirs = entries
-    .filter(entry => entry.isDirectory && /^mac-/i.test(entry.name))
-    .map(entry => entry.name)
 
   const candidateFiles = entries
     .filter(entry => !entry.isDirectory)
@@ -95,39 +91,27 @@ async function collectMacArtifacts({ productName, version }) {
   const records = []
 
   for (const filename of candidateFiles.filter(name => dmgPattern.test(name))) {
-    records.push(await buildArtifactRecord(path.join('dist', filename)))
+    records.push(await buildArtifactRecord(path.join('dist-native', filename)))
   }
   for (const filename of candidateFiles.filter(name => zipPattern.test(name))) {
-    records.push(await buildArtifactRecord(path.join('dist', filename)))
-  }
-  for (const filename of candidateFiles.filter(name => blockmapPattern.test(name) && name.includes(`-${version}-mac-`))) {
-    records.push(await buildArtifactRecord(path.join('dist', filename)))
+    records.push(await buildArtifactRecord(path.join('dist-native', filename)))
   }
 
-  for (const buildDir of macBuildDirs) {
-    const appRelativePath = path.join('dist', buildDir, `${productName}.app`, 'Contents', 'MacOS', productName)
-    const asarRelativePath = path.join('dist', buildDir, `${productName}.app`, 'Contents', 'Resources', 'app.asar')
-    records.push(await buildArtifactRecord(appRelativePath))
-    records.push(await buildArtifactRecord(asarRelativePath))
-  }
+  const appRelativePath = path.join('dist-native', `${productName}.app`, 'Contents', 'MacOS', 'WordZMac')
+  records.push(await buildArtifactRecord(appRelativePath))
 
   const hasDmg = records.some(record => record.present && /\.dmg$/i.test(record.path))
   const hasZip = records.some(record => record.present && /\.zip$/i.test(record.path))
-  const hasDmgBlockmap = records.some(record => record.present && /\.dmg\.blockmap$/i.test(record.path))
-  const hasZipBlockmap = records.some(record => record.present && /\.zip\.blockmap$/i.test(record.path))
   const hasPackagedApp = records.some(record => record.present && record.path.endsWith(`/MacOS/${productName}`))
-  const hasAsar = records.some(record => record.present && record.path.endsWith('/Resources/app.asar'))
+    || records.some(record => record.present && record.path.endsWith('/MacOS/WordZMac'))
 
   return {
     target: 'mac',
-    ok: hasDmg && hasZip && hasDmgBlockmap && hasZipBlockmap && hasPackagedApp && hasAsar,
+    ok: hasDmg && hasZip && hasPackagedApp,
     checks: [
       { label: 'DMG 安装包', ok: hasDmg },
       { label: 'ZIP 归档包', ok: hasZip },
-      { label: 'DMG blockmap', ok: hasDmgBlockmap },
-      { label: 'ZIP blockmap', ok: hasZipBlockmap },
-      { label: '打包后应用可执行文件', ok: hasPackagedApp },
-      { label: 'app.asar', ok: hasAsar }
+      { label: '原生应用可执行文件', ok: hasPackagedApp }
     ],
     records
   }

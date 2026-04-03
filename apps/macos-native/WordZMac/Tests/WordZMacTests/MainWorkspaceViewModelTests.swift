@@ -15,7 +15,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.sceneGraph.context.appName, "WordZ")
         XCTAssertEqual(workspace.sceneGraph.activeTab, .kwic)
         XCTAssertEqual(workspace.sceneGraph.sidebar.currentCorpus?.title, "Demo Corpus")
-        XCTAssertEqual(workspace.sceneGraph.settings.zoomLabel, "100%")
+        XCTAssertEqual(workspace.sceneGraph.settings.workspaceSummary, "工作区：Demo Corpus ｜ 当前语料：Demo Corpus")
         XCTAssertTrue(workspace.isWelcomePresented)
     }
 
@@ -36,6 +36,10 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await workspace.runStats()
         XCTAssertTrue(workspace.sceneGraph.stats.hasResult)
         XCTAssertEqual(workspace.sceneGraph.activeTab, .stats)
+
+        await workspace.runTokenize()
+        XCTAssertTrue(workspace.sceneGraph.tokenize.hasResult)
+        XCTAssertEqual(workspace.sceneGraph.activeTab, .tokenize)
 
         await workspace.runCompare()
         XCTAssertTrue(workspace.sceneGraph.compare.hasResult)
@@ -66,17 +70,17 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.sceneGraph.activeTab, .locator)
     }
 
-    func testSceneGraphTracksManualSyncAfterTabAndSettingsChanges() async {
+    func testSettingsSceneSyncDoesNotHijackMainWorkspaceTab() async {
         let repository = FakeWorkspaceRepository()
         let workspace = MainWorkspaceViewModel(repository: repository)
 
         await workspace.initializeIfNeeded()
-        workspace.selectedTab = .settings
-        workspace.settings.zoom = 140
-        workspace.syncSceneGraph()
+        workspace.selectedTab = .word
+        workspace.settings.debugLogging = true
+        workspace.syncSceneGraph(source: .settings)
 
-        XCTAssertEqual(workspace.sceneGraph.activeTab, .settings)
-        XCTAssertEqual(workspace.sceneGraph.settings.zoomLabel, "140%")
+        XCTAssertEqual(workspace.sceneGraph.activeTab, .word)
+        XCTAssertTrue(workspace.settings.debugLogging)
     }
 
     func testOpenSelectedCorpusUpdatesSidebarAndPersistsWorkspace() async {
@@ -105,40 +109,78 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await workspace.initializeIfNeeded()
         await workspace.newWorkspace()
 
-        XCTAssertEqual(workspace.selectedTab, .library)
+        XCTAssertEqual(workspace.selectedTab, .stats)
         XCTAssertNil(workspace.sidebar.selectedCorpusID)
         XCTAssertTrue(repository.savedWorkspaceDrafts.contains(where: { draft in
-            draft.currentTab == WorkspaceDetailTab.library.snapshotValue && draft.corpusIds.isEmpty
+            draft.currentTab == WorkspaceDetailTab.stats.snapshotValue && draft.corpusIds.isEmpty
         }))
     }
 
     func testRestoreSavedWorkspaceReappliesSavedQueryState() async {
-        let repository = FakeWorkspaceRepository()
+        let repository = FakeWorkspaceRepository(
+            bootstrapState: makeBootstrapState(
+                workspaceSnapshot: makeWorkspaceSnapshot(
+                    currentTab: "chi-square",
+                    searchQuery: "cloud-1*",
+                    topicsMinTopicSize: "4",
+                    topicsIncludeOutliers: false,
+                    topicsPageSize: "25",
+                    topicsActiveTopicID: "topic-2",
+                    wordCloudLimit: 140,
+                    chiSquareA: "10",
+                    chiSquareB: "20",
+                    chiSquareC: "6",
+                    chiSquareD: "14",
+                    chiSquareUseYates: true
+                )
+            )
+        )
         let workspace = MainWorkspaceViewModel(repository: repository)
 
         await workspace.initializeIfNeeded()
         workspace.kwic.keyword = ""
+        workspace.wordCloud.limit = 20
+        workspace.topics.minTopicSize = "2"
+        workspace.chiSquare.a = ""
 
         await workspace.restoreSavedWorkspace()
 
-        XCTAssertEqual(workspace.selectedTab, .kwic)
-        XCTAssertEqual(workspace.kwic.keyword, "keyword")
+        XCTAssertEqual(workspace.selectedTab, .chiSquare)
+        XCTAssertEqual(workspace.wordCloud.query, "cloud-1*")
+        XCTAssertEqual(workspace.wordCloud.limit, 140)
+        XCTAssertEqual(workspace.topics.minTopicSize, "4")
+        XCTAssertFalse(workspace.topics.includeOutliers)
+        XCTAssertEqual(workspace.chiSquare.a, "10")
+        XCTAssertEqual(workspace.chiSquare.d, "14")
+        XCTAssertTrue(workspace.chiSquare.useYates)
     }
 
     func testSaveSettingsPersistsCurrentSnapshot() async {
         let repository = FakeWorkspaceRepository()
         let workspace = MainWorkspaceViewModel(repository: repository)
 
-        workspace.settings.zoom = 150
-        workspace.settings.fontScale = 90
+        workspace.settings.showWelcomeScreen = false
         workspace.settings.debugLogging = true
 
         await workspace.saveSettings()
 
         XCTAssertEqual(repository.savedUISettings.count, 1)
-        XCTAssertEqual(repository.savedUISettings.first?.zoom, 150)
-        XCTAssertEqual(repository.savedUISettings.first?.fontScale, 90)
+        XCTAssertEqual(repository.savedUISettings.first?.showWelcomeScreen, false)
         XCTAssertEqual(repository.savedUISettings.first?.debugLogging, true)
+    }
+
+    func testShowSelectedCorpusInfoBuildsLibraryInfoSheet() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        await workspace.handleLibraryAction(.showSelectedCorpusInfo)
+
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
+        XCTAssertEqual(repository.runStatsCallCount, 1)
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.title, "Demo Corpus")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.tokenCountText, "\(repository.statsResult.tokenCount)")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.typeCountText, "\(repository.statsResult.typeCount)")
     }
 
     func testShutdownStopsRepository() async {
@@ -168,9 +210,47 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(updateService.checkCallCount, 1)
         XCTAssertEqual(hostPreferences.recordUpdateCheckCallCount, 1)
         XCTAssertTrue(workspace.settings.scene.updateSummary.contains("发现新版本"))
-        XCTAssertEqual(workspace.settings.scene.latestReleaseTitle, "WordZ 1.0.22")
-        XCTAssertEqual(workspace.settings.scene.latestAssetName, "WordZ-1.0.22-mac-arm64.dmg")
+        XCTAssertEqual(workspace.settings.scene.latestReleaseTitle, "WordZ 1.1.1")
+        XCTAssertEqual(workspace.settings.scene.latestAssetName, "WordZ-1.1.1-mac-arm64.dmg")
         XCTAssertEqual(workspace.settings.scene.latestReleaseNotes, ["Native table layout persistence"])
+    }
+
+    func testConcurrentCheckForUpdatesSharesSingleInFlightRequest() async {
+        let repository = FakeWorkspaceRepository()
+        let updateService = FakeUpdateService()
+        updateService.checkDelayNanoseconds = 80_000_000
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            updateService: updateService
+        )
+
+        await workspace.initializeIfNeeded()
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await workspace.checkForUpdatesNow() }
+            group.addTask { await workspace.checkForUpdatesNow() }
+            await group.waitForAll()
+        }
+
+        XCTAssertEqual(updateService.checkCallCount, 1)
+    }
+
+    func testAutoDownloadReusesCheckedResultWithoutSecondCheck() async {
+        let repository = FakeWorkspaceRepository()
+        let updateService = FakeUpdateService()
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            updateService: updateService
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.settings.autoDownloadUpdates = true
+        await workspace.checkForUpdatesNow()
+
+        XCTAssertEqual(updateService.checkCallCount, 1)
+        XCTAssertEqual(updateService.downloadCallCount, 1)
+        XCTAssertEqual(workspace.settings.scene.downloadedUpdateName, "WordZ-1.1.1-mac-arm64.dmg")
     }
 
     func testExportDiagnosticsWritesReportThroughHostActionService() async {
@@ -188,6 +268,137 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertNotNil(hostActions.exportedReport)
         XCTAssertTrue(hostActions.exportedReport?.contains("WordZMac Diagnostics") == true)
         XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出诊断到 /tmp/WordZMac-diagnostics.txt")
+    }
+
+    func testQuickLookCurrentContentUsesSelectedCorpusPathWhenNoResultSceneIsActive() async {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.quickLookCurrentCorpus()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/demo.txt")
+    }
+
+    func testQuickLookCurrentContentBuildsTemporaryCSVForResultScene() async throws {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-quicklook-\(UUID().uuidString)", isDirectory: true)
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.runStats()
+        await workspace.quickLookCurrentCorpus()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        let previewPath = try XCTUnwrap(hostActions.lastQuickLookPath)
+        XCTAssertTrue(previewPath.hasSuffix(".csv"))
+        let contents = try String(contentsOfFile: previewPath, encoding: .utf8)
+        XCTAssertTrue(contents.contains("word-0"))
+    }
+
+    func testQuickLookCurrentContentBuildsTemporaryCSVForChiSquareScene() async throws {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-chi-square-quicklook-\(UUID().uuidString)", isDirectory: true)
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.chiSquare.a = "10"
+        workspace.chiSquare.b = "20"
+        workspace.chiSquare.c = "6"
+        workspace.chiSquare.d = "14"
+        await workspace.runChiSquare()
+        await workspace.quickLookCurrentCorpus()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        let previewPath = try XCTUnwrap(hostActions.lastQuickLookPath)
+        XCTAssertTrue(previewPath.hasSuffix(".csv"))
+        let contents = try String(contentsOfFile: previewPath, encoding: .utf8)
+        XCTAssertTrue(contents.contains("section"))
+        XCTAssertTrue(contents.contains("summary"))
+    }
+
+    func testShareCurrentContentBuildsTemporaryCSVForResultScene() async throws {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-share-\(UUID().uuidString)", isDirectory: true)
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.runStats()
+        await workspace.shareCurrentContent()
+
+        XCTAssertEqual(hostActions.shareCallCount, 1)
+        let sharedPath = try XCTUnwrap(hostActions.lastSharedPaths.first)
+        XCTAssertTrue(sharedPath.hasSuffix(".csv"))
+        XCTAssertTrue(try String(contentsOfFile: sharedPath, encoding: .utf8).contains("word-0"))
+    }
+
+    func testShareCurrentContentBuildsTemporaryCSVForChiSquareScene() async throws {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-chi-square-share-\(UUID().uuidString)", isDirectory: true)
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.chiSquare.a = "10"
+        workspace.chiSquare.b = "20"
+        workspace.chiSquare.c = "6"
+        workspace.chiSquare.d = "14"
+        await workspace.runChiSquare()
+        await workspace.shareCurrentContent()
+
+        XCTAssertEqual(hostActions.shareCallCount, 1)
+        let sharedPath = try XCTUnwrap(hostActions.lastSharedPaths.first)
+        XCTAssertTrue(sharedPath.hasSuffix(".csv"))
+        XCTAssertTrue(try String(contentsOfFile: sharedPath, encoding: .utf8).contains("effect-summary"))
+    }
+
+    func testAdjustingWordCloudLimitAfterRunDoesNotRerunAnalysis() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        await workspace.runWordCloud()
+        XCTAssertEqual(repository.runWordCloudCallCount, 1)
+
+        workspace.wordCloud.handle(.changeLimit(10))
+        workspace.syncSceneGraph(source: .resultContent)
+
+        XCTAssertEqual(repository.runWordCloudCallCount, 1)
+        XCTAssertEqual(workspace.wordCloud.scene?.visibleRows, 10)
+        XCTAssertEqual(workspace.wordCloud.scene?.filteredRows, repository.wordCloudResult.rows.count)
     }
 
     func testIssueBannerAppearsWhenBootstrapFails() async {
@@ -285,6 +496,6 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await workspace.revealDownloadedUpdate()
 
         XCTAssertEqual(hostActions.revealDownloadedUpdateCallCount, 1)
-        XCTAssertEqual(hostActions.lastRevealedDownloadedUpdatePath, "/tmp/WordZ-1.0.22-mac-arm64.dmg")
+        XCTAssertEqual(hostActions.lastRevealedDownloadedUpdatePath, "/tmp/WordZ-1.1.1-mac-arm64.dmg")
     }
 }

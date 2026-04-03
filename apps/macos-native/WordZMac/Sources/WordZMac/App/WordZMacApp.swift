@@ -12,7 +12,7 @@ struct WordZMacApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: NativeWindowRoute.mainWorkspace.id) {
             RootContentView(
                 viewModel: workspace,
                 applicationDelegate: applicationDelegate
@@ -21,10 +21,20 @@ struct WordZMacApp: App {
             .environment(\.wordZLanguageMode, localization.effectiveMode)
             .frame(minWidth: 1180, minHeight: 760)
         }
-        .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
             WordZMacCommands(workspace: workspace)
+        }
+
+        Window("语料库", id: NativeWindowRoute.library.id) {
+            LibraryWindowView(workspace: workspace)
+                .environmentObject(localization)
+                .environment(\.wordZLanguageMode, localization.effectiveMode)
+        }
+
+        Window("设置", id: NativeWindowRoute.settings.id) {
+            SettingsWindowView(workspace: workspace)
+                .environmentObject(localization)
+                .environment(\.wordZLanguageMode, localization.effectiveMode)
         }
 
         Window("任务中心", id: NativeWindowRoute.taskCenter.id) {
@@ -41,7 +51,7 @@ struct WordZMacApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window("帮助中心", id: NativeWindowRoute.help.id) {
+        Window("使用说明", id: NativeWindowRoute.help.id) {
             HelpCenterWindowView(workspace: workspace)
                 .environmentObject(localization)
                 .environment(\.wordZLanguageMode, localization.effectiveMode)
@@ -54,5 +64,20 @@ struct WordZMacApp: App {
                 .environment(\.wordZLanguageMode, localization.effectiveMode)
         }
         .windowResizability(.contentSize)
+
+        MenuBarExtra {
+            MenuBarStatusMenuView(
+                workspace: workspace,
+                sidebar: workspace.sidebar,
+                settings: workspace.settings,
+                taskCenter: workspace.taskCenter
+            )
+                .environmentObject(localization)
+                .environment(\.wordZLanguageMode, localization.effectiveMode)
+        } label: {
+            Image(nsImage: WordZMenuBarIcon.image())
+                .accessibilityLabel("WordZ")
+        }
+        .menuBarExtraStyle(.menu)
     }
 }

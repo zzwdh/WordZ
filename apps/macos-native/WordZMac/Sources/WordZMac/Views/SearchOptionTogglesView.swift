@@ -6,19 +6,13 @@ struct SearchOptionTogglesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                Toggle(wordZText("整词", "Whole words", mode: languageMode), isOn: $options.words)
-                    .toggleStyle(.checkbox)
-                    .accessibilityLabel(wordZText("整词匹配", "Whole word matching", mode: languageMode))
-                    .accessibilityHint(wordZText("开启后只匹配完整词项。", "When enabled, only full-word matches are returned.", mode: languageMode))
-                Toggle(wordZText("区分大小写", "Case sensitive", mode: languageMode), isOn: $options.caseSensitive)
-                    .toggleStyle(.checkbox)
-                    .accessibilityLabel(wordZText("区分大小写", "Case sensitive", mode: languageMode))
-                    .accessibilityHint(wordZText("开启后会区分大小写。", "When enabled, searches respect letter casing.", mode: languageMode))
-                Toggle("Regex", isOn: $options.regex)
-                    .toggleStyle(.checkbox)
-                    .accessibilityLabel(wordZText("正则表达式", "Regular expression", mode: languageMode))
-                    .accessibilityHint(wordZText("开启后按正则表达式解释搜索词。", "When enabled, the query is interpreted as a regular expression.", mode: languageMode))
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    optionToggles
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    optionToggles
+                }
             }
 
             Text(wordZText("通配支持：`*` 表示任意多个字符，`?` 表示单个字符；开启正则后改按正则解释。", "Wildcard support: `*` matches any number of characters, `?` matches a single character; regex mode keeps true regex behavior.", mode: languageMode))
@@ -28,6 +22,22 @@ struct SearchOptionTogglesView: View {
         .font(.caption)
         .padding(.vertical, 2)
     }
+
+    @ViewBuilder
+    private var optionToggles: some View {
+        Toggle(wordZText("整词", "Whole words", mode: languageMode), isOn: $options.words)
+            .toggleStyle(.checkbox)
+            .accessibilityLabel(wordZText("整词匹配", "Whole word matching", mode: languageMode))
+            .accessibilityHint(wordZText("开启后只匹配完整词项。", "When enabled, only full-word matches are returned.", mode: languageMode))
+        Toggle(wordZText("区分大小写", "Case sensitive", mode: languageMode), isOn: $options.caseSensitive)
+            .toggleStyle(.checkbox)
+            .accessibilityLabel(wordZText("区分大小写", "Case sensitive", mode: languageMode))
+            .accessibilityHint(wordZText("开启后会区分大小写。", "When enabled, searches respect letter casing.", mode: languageMode))
+        Toggle("Regex", isOn: $options.regex)
+            .toggleStyle(.checkbox)
+            .accessibilityLabel(wordZText("正则表达式", "Regular expression", mode: languageMode))
+            .accessibilityHint(wordZText("开启后按正则表达式解释搜索词。", "When enabled, the query is interpreted as a regular expression.", mode: languageMode))
+    }
 }
 
 struct StopwordControlsView: View {
@@ -36,33 +46,60 @@ struct StopwordControlsView: View {
     @Binding var isEditorPresented: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            Toggle(wordZText("启用停用词", "Enable stopwords", mode: languageMode), isOn: $filter.enabled)
-                .toggleStyle(.checkbox)
-                .accessibilityLabel(wordZText("启用停用词过滤", "Enable stopword filtering", mode: languageMode))
-                .accessibilityHint(wordZText("开启后会按停用词表保留或筛去词项。", "When enabled, the stopword list will include or exclude matching terms.", mode: languageMode))
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                stopwordToggle
+                modePicker
+                editButton
+                summaryLabel(lineLimit: 1)
+            }
 
-            Picker(wordZText("模式", "Mode", mode: languageMode), selection: $filter.mode) {
-                ForEach(StopwordFilterMode.allCases) { mode in
-                    Text(mode.title(in: languageMode)).tag(mode)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    stopwordToggle
+                    modePicker
+                }
+                HStack(spacing: 12) {
+                    editButton
+                    summaryLabel(lineLimit: 2)
                 }
             }
-            .pickerStyle(.menu)
-            .disabled(!filter.enabled)
-            .accessibilityLabel(wordZText("停用词模式", "Stopword mode", mode: languageMode))
-            .accessibilityHint(wordZText("选择保留词表中的词，或筛去词表中的词。", "Choose whether to include only listed words or exclude listed words.", mode: languageMode))
-
-            Button(wordZText("编辑词表", "Edit list", mode: languageMode)) {
-                isEditorPresented = true
-            }
-            .accessibilityLabel(wordZText("编辑停用词词表", "Edit stopword list", mode: languageMode))
-            .accessibilityHint(wordZText("打开词表编辑器以修改停用词列表。", "Open the editor to modify the stopword list.", mode: languageMode))
-
-            Text(filter.summaryText(in: languageMode))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
+    }
+
+    private var stopwordToggle: some View {
+        Toggle(wordZText("启用停用词", "Enable stopwords", mode: languageMode), isOn: $filter.enabled)
+            .toggleStyle(.checkbox)
+            .accessibilityLabel(wordZText("启用停用词过滤", "Enable stopword filtering", mode: languageMode))
+            .accessibilityHint(wordZText("开启后会按停用词表保留或筛去词项。", "When enabled, the stopword list will include or exclude matching terms.", mode: languageMode))
+    }
+
+    private var modePicker: some View {
+        Picker(wordZText("模式", "Mode", mode: languageMode), selection: $filter.mode) {
+            ForEach(StopwordFilterMode.allCases) { mode in
+                Text(mode.title(in: languageMode)).tag(mode)
+            }
+        }
+        .pickerStyle(.menu)
+        .disabled(!filter.enabled)
+        .accessibilityLabel(wordZText("停用词模式", "Stopword mode", mode: languageMode))
+        .accessibilityHint(wordZText("选择保留词表中的词，或筛去词表中的词。", "Choose whether to include only listed words or exclude listed words.", mode: languageMode))
+    }
+
+    private var editButton: some View {
+        Button(wordZText("编辑词表", "Edit list", mode: languageMode)) {
+            isEditorPresented = true
+        }
+        .accessibilityLabel(wordZText("编辑停用词词表", "Edit stopword list", mode: languageMode))
+        .accessibilityHint(wordZText("打开词表编辑器以修改停用词列表。", "Open the editor to modify the stopword list.", mode: languageMode))
+    }
+
+    private func summaryLabel(lineLimit: Int) -> some View {
+        Text(filter.summaryText(in: languageMode))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(lineLimit)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

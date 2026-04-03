@@ -38,11 +38,39 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         workspace.syncSceneGraph()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
 
-        XCTAssertTrue(workspace.sceneGraph.compare.table.isVisible("distribution"))
+        XCTAssertFalse(workspace.sceneGraph.compare.table.isVisible("distribution"))
 
         dispatcher.handleCompareAction(.toggleColumn(.distribution))
 
-        XCTAssertFalse(workspace.sceneGraph.compare.table.isVisible("distribution"))
+        XCTAssertTrue(workspace.sceneGraph.compare.table.isVisible("distribution"))
+    }
+
+    func testDispatcherTopicsLocalActionResyncsSceneGraph() {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+        workspace.topics.apply(makeTopicAnalysisResult())
+        workspace.syncSceneGraph()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        XCTAssertTrue(workspace.sceneGraph.topics.table.isVisible(TopicsColumnKey.score.rawValue))
+
+        dispatcher.handleTopicsAction(.toggleColumn(.score))
+
+        XCTAssertFalse(workspace.sceneGraph.topics.table.isVisible(TopicsColumnKey.score.rawValue))
+    }
+
+    func testDispatcherTokenizeLocalActionResyncsSceneGraph() {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+        workspace.tokenize.apply(makeTokenizeResult())
+        workspace.syncSceneGraph()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        XCTAssertTrue(workspace.sceneGraph.tokenize.table.isVisible(TokenizeColumnKey.normalized.rawValue))
+
+        dispatcher.handleTokenizeAction(.toggleColumn(.normalized))
+
+        XCTAssertFalse(workspace.sceneGraph.tokenize.table.isVisible(TokenizeColumnKey.normalized.rawValue))
     }
 
     func testDispatcherChiSquareResetResyncsSceneGraph() {
@@ -157,20 +185,72 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
     }
 
+    func testDispatcherLibraryQuickLookActionUsesSelectedCorpus() async {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions
+        )
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleLibraryAction(.quickLookSelectedCorpus)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/demo.txt")
+    }
+
+    func testDispatcherToolbarShareActionUsesCurrentContent() async {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-dispatch-share-\(UUID().uuidString)", isDirectory: true)
+        let workspace = MainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
+        )
+        await workspace.initializeIfNeeded()
+        await workspace.runStats()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleToolbarAction(.shareCurrentContent)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(hostActions.shareCallCount, 1)
+        XCTAssertEqual(hostActions.lastSharedPaths.count, 1)
+    }
+
     func testDispatcherSettingsSavePersistsSnapshot() async {
         let repository = FakeWorkspaceRepository()
         let workspace = MainWorkspaceViewModel(repository: repository)
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
-        workspace.settings.zoom = 125
-        workspace.settings.fontScale = 110
+        workspace.settings.showWelcomeScreen = false
         workspace.settings.restoreWorkspace = false
 
         dispatcher.handleSettingsAction(.save)
         try? await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(repository.savedUISettings.count, 1)
-        XCTAssertEqual(repository.savedUISettings.first?.zoom, 125)
-        XCTAssertEqual(repository.savedUISettings.first?.fontScale, 110)
+        XCTAssertEqual(repository.savedUISettings.first?.showWelcomeScreen, false)
         XCTAssertEqual(repository.savedUISettings.first?.restoreWorkspace, false)
+    }
+
+    func testDispatcherLibraryInfoActionBuildsCorpusInfoSheet() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = MainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleLibraryAction(.showSelectedCorpusInfo)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
+        XCTAssertEqual(repository.runStatsCallCount, 1)
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.title, "Demo Corpus")
     }
 }

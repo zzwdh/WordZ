@@ -7,6 +7,7 @@ enum ComparePageAction: Equatable {
     case sortByColumn(CompareColumnKey)
     case changePageSize(ComparePageSize)
     case toggleColumn(CompareColumnKey)
+    case selectRow(String?)
     case previousPage
     case nextPage
 }

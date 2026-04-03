@@ -13,8 +13,12 @@ enum NativeAppCommand: String {
     case showReleaseNotesWindow
     case refreshWorkspace
     case openSelectedCorpus
+    case quickLookCurrentCorpus
+    case shareCurrentContent
     case runStats
     case runWord
+    case runTokenize
+    case runTopics
     case runCompare
     case runChiSquare
     case runNgram

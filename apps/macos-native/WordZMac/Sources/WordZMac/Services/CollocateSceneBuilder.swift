@@ -78,9 +78,13 @@ struct CollocateSceneBuilder {
                         id: key.rawValue,
                         title: key.title(in: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode)
+                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        presentation: presentation(for: key),
+                        widthPolicy: widthPolicy(for: key),
+                        isPinned: key == .rank || key == .word
                     )
-                }
+                },
+                defaultDensity: .compact
             ),
             totalRows: result.rows.count,
             filteredRows: sortedRows.count,
@@ -89,6 +93,26 @@ struct CollocateSceneBuilder {
             tableRows: tableRows,
             searchError: ""
         )
+    }
+
+    private func presentation(for key: CollocateColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .word:
+            return .keyword
+        case .rate:
+            return .numeric(precision: 4)
+        default:
+            return .numeric(precision: 0)
+        }
+    }
+
+    private func widthPolicy(for key: CollocateColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .word:
+            return .keyword
+        default:
+            return .numeric
+        }
     }
 
     private func sortRows(_ rows: [CollocateRow], mode: CollocateSortMode) -> [CollocateRow] {

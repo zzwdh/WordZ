@@ -7,27 +7,9 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            headerCard
-            actionRow
-
-            if let selected = viewModel.scene.currentCorpus {
-                WorkbenchSectionCard {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(wordZText("当前语料", "Current Corpus", mode: languageMode))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(selected.title)
-                            .font(.headline)
-                        Text(selected.subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
             WorkbenchPaneCard(
                 title: wordZText("本地语料库", "Local Library", mode: languageMode),
-                subtitle: viewModel.scene.errorMessage.isEmpty ? "\(wordZText("共", "Saved", mode: languageMode)) \(viewModel.scene.corpora.count) \(wordZText("条已保存语料", "corpora", mode: languageMode))" : viewModel.scene.errorMessage
+                subtitle: viewModel.scene.errorMessage.isEmpty ? nil : viewModel.scene.errorMessage
             ) {
                 if viewModel.scene.corpora.isEmpty {
                     ContentUnavailableView(
@@ -35,7 +17,7 @@ struct SidebarView: View {
                         systemImage: viewModel.scene.errorMessage.isEmpty ? "tray" : "exclamationmark.triangle",
                         description: Text(
                             viewModel.scene.errorMessage.isEmpty
-                            ? wordZText("等引擎连接完成后，这里会显示本地语料。", "Your local corpora will appear here after the engine connects.", mode: languageMode)
+                            ? wordZText("导入语料或刷新后，这里会显示本地语料。", "Import corpora or refresh to see your local library here.", mode: languageMode)
                             : viewModel.scene.errorMessage
                         )
                     )
@@ -43,11 +25,26 @@ struct SidebarView: View {
                 } else {
                     List(selection: $viewModel.selectedCorpusID) {
                         ForEach(viewModel.scene.corpora) { corpus in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(corpus.title)
-                                Text(corpus.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(corpus.title)
+                                        .lineLimit(1)
+                                    Text(corpus.subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                Spacer(minLength: 0)
+                                Button {
+                                    onAction(.quickLookSelected(corpus.id))
+                                } label: {
+                                    Image(systemName: "eye.circle.fill")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(Color.blue)
+                                }
+                                .buttonStyle(.borderless)
+                                .help(wordZText("快速预览这条语料", "Quick Look this corpus", mode: languageMode))
                             }
                             .tag(Optional(corpus.id))
                         }
@@ -58,69 +55,10 @@ struct SidebarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(16)
-        .frame(minWidth: 300, idealWidth: 320, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 16)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+        .frame(minWidth: 280, idealWidth: 320, maxWidth: 360, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(viewModel.scene.appName)
-                        .font(.title3.weight(.semibold))
-                    Text(viewModel.scene.versionLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                statusBadge
-            }
-
-            if !viewModel.scene.errorMessage.isEmpty {
-                Text(viewModel.scene.errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-        }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private var actionRow: some View {
-        HStack(spacing: 10) {
-            ForEach(viewModel.scene.actions) { item in
-                if item.action == .openSelected {
-                    Button(item.title) { onAction(item.action) }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!item.isEnabled)
-                } else {
-                    Button(item.title) { onAction(item.action) }
-                        .buttonStyle(.bordered)
-                        .disabled(!item.isEnabled)
-                }
-            }
-        }
-    }
-
-    private var statusBadge: some View {
-        let hasError = !viewModel.scene.errorMessage.isEmpty
-        let isConnecting = viewModel.scene.engineState == .connecting && !hasError
-
-        return HStack(spacing: 6) {
-            if isConnecting {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Image(systemName: hasError ? "xmark.octagon.fill" : "checkmark.circle.fill")
-                    .foregroundStyle(hasError ? .red : .green)
-            }
-            Text(viewModel.scene.engineStatus)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(hasError ? .red : .secondary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.quaternary, in: Capsule())
     }
 }

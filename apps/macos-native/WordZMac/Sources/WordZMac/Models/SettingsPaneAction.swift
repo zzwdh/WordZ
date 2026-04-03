@@ -6,7 +6,6 @@ enum SettingsPaneAction {
     case downloadUpdate
     case installDownloadedUpdate
     case revealDownloadedUpdate
-    case showTaskCenter
     case showHelpWindow
     case showAboutWindow
     case showReleaseNotesWindow

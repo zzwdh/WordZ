@@ -1,0 +1,7 @@
+{
+  "modelID": "wordz-topics-english",
+  "version": "1",
+  "language": "english",
+  "provider": "system-sentence-embedding",
+  "dimensions": 256
+}

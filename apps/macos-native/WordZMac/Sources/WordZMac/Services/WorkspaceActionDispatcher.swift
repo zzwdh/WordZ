@@ -13,13 +13,21 @@ final class WorkspaceActionDispatcher: ObservableObject {
         case .refresh:
             Task { await workspace.refreshAll() }
         case .showLibrary:
-            workspace.showLibrary()
+            NativeAppCommandCenter.post(.showLibrary)
         case .openSelected:
             Task { await workspace.openSelectedCorpus() }
+        case .previewCurrentCorpus:
+            Task { await workspace.quickLookCurrentCorpus() }
+        case .shareCurrentContent:
+            Task { await workspace.shareCurrentContent() }
         case .runStats:
             Task { await workspace.runStats() }
         case .runWord:
             Task { await workspace.runWord() }
+        case .runTokenize:
+            Task { await workspace.runTokenize() }
+        case .runTopics:
+            Task { await workspace.runTopics() }
         case .runCompare:
             Task { await workspace.runCompare() }
         case .runChiSquare:
@@ -45,6 +53,11 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.refreshLibraryManagement() }
         case .openSelected:
             Task { await workspace.openSelectedCorpus() }
+        case .quickLookSelected(let corpusID):
+            workspace.sidebar.selectedCorpusID = corpusID
+            workspace.library.selectCorpus(corpusID)
+            workspace.syncSceneGraph(source: .librarySelection)
+            Task { await workspace.quickLookSelectedCorpus() }
         }
     }
 
@@ -52,9 +65,23 @@ final class WorkspaceActionDispatcher: ObservableObject {
         switch action {
         case .run:
             Task { await workspace.runStats() }
+        case .changeNormalizationUnit(let unit):
+            workspace.updateFrequencyMetricDefinition(
+                FrequencyMetricDefinition(
+                    normalizationUnit: unit,
+                    rangeMode: workspace.stats.metricDefinition.rangeMode
+                )
+            )
+        case .changeRangeMode(let mode):
+            workspace.updateFrequencyMetricDefinition(
+                FrequencyMetricDefinition(
+                    normalizationUnit: workspace.stats.metricDefinition.normalizationUnit,
+                    rangeMode: mode
+                )
+            )
         case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage:
             workspace.stats.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         }
     }
 
@@ -62,9 +89,9 @@ final class WorkspaceActionDispatcher: ObservableObject {
         switch action {
         case .run:
             Task { await workspace.runCompare() }
-        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage, .toggleCorpusSelection:
+        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectRow, .previousPage, .nextPage, .toggleCorpusSelection:
             workspace.compare.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         }
     }
 
@@ -72,9 +99,49 @@ final class WorkspaceActionDispatcher: ObservableObject {
         switch action {
         case .run:
             Task { await workspace.runWord() }
+        case .changeNormalizationUnit(let unit):
+            workspace.updateFrequencyMetricDefinition(
+                FrequencyMetricDefinition(
+                    normalizationUnit: unit,
+                    rangeMode: workspace.word.metricDefinition.rangeMode
+                )
+            )
+        case .changeRangeMode(let mode):
+            workspace.updateFrequencyMetricDefinition(
+                FrequencyMetricDefinition(
+                    normalizationUnit: workspace.word.metricDefinition.normalizationUnit,
+                    rangeMode: mode
+                )
+            )
         case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage:
             workspace.word.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
+        }
+    }
+
+    func handleTokenizeAction(_ action: TokenizePageAction) {
+        switch action {
+        case .run:
+            Task { await workspace.runTokenize() }
+        case .exportText:
+            Task { await workspace.exportTokenizedText() }
+        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectRow, .previousPage, .nextPage:
+            workspace.tokenize.handle(action)
+            workspace.syncSceneGraph(source: .resultContent)
+        }
+    }
+
+    func handleTopicsAction(_ action: TopicsPageAction) {
+        switch action {
+        case .run:
+            Task { await workspace.runTopics() }
+        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectCluster, .previousPage, .nextPage:
+            workspace.topics.handle(action)
+            workspace.syncSceneGraph(source: .resultContent)
+        case .exportSummary:
+            Task { await workspace.exportTopicsSummary() }
+        case .exportSegments:
+            Task { await workspace.exportTopicsSegments() }
         }
     }
 
@@ -84,7 +151,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.runChiSquare() }
         case .reset:
             workspace.chiSquare.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         }
     }
 
@@ -95,11 +162,11 @@ final class WorkspaceActionDispatcher: ObservableObject {
         case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage, .selectRow:
             workspace.kwic.handle(action)
             workspace.syncLocatorSourceFromKWIC()
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         case .activateRow(let rowID):
             workspace.kwic.handle(.activateRow(rowID))
             workspace.syncLocatorSourceFromKWIC()
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
             Task { await workspace.runLocator() }
         }
     }
@@ -110,7 +177,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.runNgram() }
         case .changeSort, .sortByColumn, .changePageSize, .changeSize, .toggleColumn, .previousPage, .nextPage:
             workspace.ngram.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         }
     }
 
@@ -120,7 +187,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.runWordCloud() }
         case .changeLimit, .toggleColumn:
             workspace.wordCloud.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         }
     }
 
@@ -130,7 +197,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.runCollocate() }
         case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage:
             workspace.collocate.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         }
     }
 
@@ -140,10 +207,10 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.runLocator() }
         case .changePageSize, .toggleColumn, .previousPage, .nextPage, .selectRow:
             workspace.locator.handle(action)
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
         case .activateRow(let rowID):
             workspace.locator.handle(.activateRow(rowID))
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .resultContent)
             Task { await workspace.runLocator() }
         }
     }
@@ -160,8 +227,6 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.installDownloadedUpdate() }
         case .revealDownloadedUpdate:
             Task { await workspace.revealDownloadedUpdate() }
-        case .showTaskCenter:
-            NativeAppCommandCenter.post(.showTaskCenterWindow)
         case .showHelpWindow:
             NativeAppCommandCenter.post(.showHelpWindow)
         case .showAboutWindow:
@@ -194,7 +259,7 @@ final class WorkspaceActionDispatcher: ObservableObject {
             Task { await workspace.openSelectedCorpus() }
         case .showLibrary:
             workspace.dismissWelcome()
-            workspace.showLibrary()
+            NativeAppCommandCenter.post(.showLibrary)
         case .openRecent(let corpusID):
             Task { await workspace.openRecentDocument(corpusID) }
         case .openReleaseNotes:
@@ -211,21 +276,23 @@ final class WorkspaceActionDispatcher: ObservableObject {
             if workspace.sidebar.selectedCorpusID != workspace.library.selectedCorpusID {
                 workspace.sidebar.selectedCorpusID = workspace.library.selectedCorpusID
             }
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .librarySelection)
         case .selectCorpus(let corpusID):
             workspace.library.selectCorpus(corpusID)
             workspace.sidebar.selectedCorpusID = corpusID
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .librarySelection)
         case .selectRecycleEntry(let recycleEntryID):
             workspace.library.selectRecycleEntry(recycleEntryID)
             workspace.sidebar.selectedCorpusID = nil
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .librarySelection)
         case .openSelectedCorpus:
             if let selectedCorpusID = workspace.library.selectedCorpusID {
                 workspace.sidebar.selectedCorpusID = selectedCorpusID
             }
-            workspace.syncSceneGraph()
+            workspace.syncSceneGraph(source: .librarySelection)
             Task { await workspace.openSelectedCorpus() }
+        case .quickLookSelectedCorpus:
+            Task { await workspace.quickLookSelectedCorpus() }
         default:
             Task { await workspace.handleLibraryAction(action) }
         }

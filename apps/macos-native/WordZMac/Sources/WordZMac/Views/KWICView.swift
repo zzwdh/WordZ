@@ -7,21 +7,25 @@ struct KWICView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WorkbenchHeaderCard(title: "KWIC", subtitle: t("关键词在上下文中的分布与原句入口", "Keyword-in-context results with a direct path to the source sentence")) {
-                Button(t("开始检索", "Run KWIC")) { onAction(.run) }
-                    .buttonStyle(.borderedProminent)
-            }
-
             WorkbenchToolbarSection {
-                HStack(spacing: 12) {
-                    TextField(t("检索词", "Keyword"), text: $viewModel.keyword)
-                        .textFieldStyle(.roundedBorder)
-                    TextField(t("左窗口", "Left Window"), text: $viewModel.leftWindow)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
-                    TextField(t("右窗口", "Right Window"), text: $viewModel.rightWindow)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        keywordField
+                        leftWindowField
+                        rightWindowField
+                        runButton
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            keywordField
+                            runButton
+                        }
+                        HStack(spacing: 12) {
+                            leftWindowField
+                            rightWindowField
+                            Spacer(minLength: 0)
+                        }
+                    }
                 }
 
                 SearchOptionTogglesView(options: $viewModel.searchOptions)
@@ -33,21 +37,17 @@ struct KWICView: View {
 
             if let scene = viewModel.scene {
                 WorkbenchToolbarSection {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(t("关键词：", "Keyword: ") + scene.query)
-                                .font(.headline)
-                            Text(t("窗口：", "Window: ") + "L\(scene.leftWindow) / R\(scene.rightWindow)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                            Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-
-                        Spacer(minLength: 12)
-
+                    WorkbenchResultHeaderRow {
+                        Text(t("关键词：", "Keyword: ") + scene.query)
+                            .font(.headline)
+                        Text(t("窗口：", "Window: ") + "L\(scene.leftWindow) / R\(scene.rightWindow)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    } trailing: {
                         Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows) / \(scene.totalRows)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -69,57 +69,56 @@ struct KWICView: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                             Spacer()
-                            Text(t("双击表格行可直接切到定位页", "Double-click a row to jump straight to Locator"))
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
                         }
                     }
 
-                    HStack(spacing: 12) {
-                        Picker(
-                            t("排序", "Sort"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedSort },
-                                set: { onAction(.changeSort($0)) }
-                            )
-                        ) {
-                            ForEach(KWICSortMode.allCases) { mode in
-                                Text(mode.title(in: languageMode)).tag(mode)
+                    WorkbenchResultControlsRow {
+                        HStack(spacing: 12) {
+                            Picker(
+                                t("排序", "Sort"),
+                                selection: Binding(
+                                    get: { scene.sorting.selectedSort },
+                                    set: { onAction(.changeSort($0)) }
+                                )
+                            ) {
+                                ForEach(KWICSortMode.allCases) { mode in
+                                    Text(mode.title(in: languageMode)).tag(mode)
+                                }
                             }
-                        }
-                        .pickerStyle(.menu)
+                            .pickerStyle(.menu)
 
-                        Picker(
-                            t("页大小", "Page Size"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedPageSize },
-                                set: { onAction(.changePageSize($0)) }
-                            )
-                        ) {
-                            ForEach(KWICPageSize.allCases) { size in
-                                Text(size.title(in: languageMode)).tag(size)
+                            Picker(
+                                t("页大小", "Page Size"),
+                                selection: Binding(
+                                    get: { scene.sorting.selectedPageSize },
+                                    set: { onAction(.changePageSize($0)) }
+                                )
+                            ) {
+                                ForEach(KWICPageSize.allCases) { size in
+                                    Text(size.title(in: languageMode)).tag(size)
+                                }
                             }
+                            .pickerStyle(.segmented)
+                            .frame(maxWidth: 300)
                         }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 300)
+                    } trailing: {
+                        HStack(spacing: 12) {
+                            WorkbenchColumnMenu(
+                                title: t("列", "Columns"),
+                                keys: KWICColumnKey.allCases,
+                                label: { scene.columnTitle(for: $0, mode: languageMode) },
+                                isVisible: { scene.column(for: $0)?.isVisible ?? false },
+                                onToggle: { onAction(.toggleColumn($0)) }
+                            )
 
-                        WorkbenchColumnMenu(
-                            title: t("列", "Columns"),
-                            keys: KWICColumnKey.allCases,
-                            label: { scene.columnTitle(for: $0, mode: languageMode) },
-                            isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                            onToggle: { onAction(.toggleColumn($0)) }
-                        )
-
-                        Spacer()
-
-                        WorkbenchPaginationControls(
-                            canGoBackward: scene.pagination.canGoBackward,
-                            canGoForward: scene.pagination.canGoForward,
-                            rangeLabel: scene.pagination.rangeLabel,
-                            onPrevious: { onAction(.previousPage) },
-                            onNext: { onAction(.nextPage) }
-                        )
+                            WorkbenchPaginationControls(
+                                canGoBackward: scene.pagination.canGoBackward,
+                                canGoForward: scene.pagination.canGoForward,
+                                rangeLabel: scene.pagination.rangeLabel,
+                                onPrevious: { onAction(.previousPage) },
+                                onNext: { onAction(.nextPage) }
+                            )
+                        }
                     }
                 }
 
@@ -138,6 +137,7 @@ struct KWICView: View {
                             guard let column = KWICColumnKey(rawValue: columnID) else { return }
                             onAction(.toggleColumn(column))
                         },
+                        allowsMultipleSelection: false,
                         emptyMessage: t("当前 KWIC 结果没有可显示的行。", "No KWIC rows to display."),
                         accessibilityLabel: "KWIC",
                         activationHint: t("使用方向键浏览结果，按 Return 或空格可定位当前选中行。", "Use arrow keys to browse results, then press Return or Space to locate the selected row.")
@@ -145,11 +145,41 @@ struct KWICView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .layoutPriority(1)
                 }
+
+                if let selectedRow = viewModel.selectedSceneRow {
+                    WorkbenchSectionCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 12) {
+                                Text(t("完整索引行", "Full KWIC Line"))
+                                    .font(.headline)
+                                Spacer()
+                                Text(t("句", "Sentence") + " \(selectedRow.sentenceId + 1)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(selectedRow.leftContext)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.trailing)
+                                Text(selectedRow.keyword)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.accentColor)
+                                Text(selectedRow.rightContext)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .font(.body)
+                            .textSelection(.enabled)
+                        }
+                    }
+                }
             } else {
                 ContentUnavailableView(
                     t("尚未生成 KWIC 结果", "No KWIC results yet"),
-                    systemImage: "text.magnifyingglass",
-                    description: Text(t("打开语料后输入关键词，即可运行最小原生版 KWIC。", "Open a corpus, enter a keyword, and run KWIC."))
+                    systemImage: "text.magnifyingglass"
                 )
             }
         }
@@ -158,6 +188,28 @@ struct KWICView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var keywordField: some View {
+        TextField(t("检索词", "Keyword"), text: $viewModel.keyword)
+            .textFieldStyle(.roundedBorder)
+    }
+
+    private var leftWindowField: some View {
+        TextField(t("左窗口", "Left Window"), text: $viewModel.leftWindow)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 90)
+    }
+
+    private var rightWindowField: some View {
+        TextField(t("右窗口", "Right Window"), text: $viewModel.rightWindow)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 90)
+    }
+
+    private var runButton: some View {
+        Button(t("开始检索", "Run KWIC")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

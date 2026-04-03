@@ -45,4 +45,50 @@ final class SearchFilterSupportTests: XCTestCase {
         XCTAssertTrue(matcher.matches("hackers"))
         XCTAssertFalse(matcher.matches("hacking"))
     }
+
+    func testRegexModeCompilesCaseInsensitiveMatcherOnceAndMatchesUppercaseValues() {
+        let matcher = SearchTextMatcher(
+            query: "hack(er|ers)",
+            options: SearchOptionsState(words: true, caseSensitive: false, regex: true)
+        )
+
+        XCTAssertTrue(matcher.matches("HACKER"))
+        XCTAssertTrue(matcher.matches("Hackers"))
+        XCTAssertFalse(matcher.matches("HACKING"))
+    }
+
+    func testFilterWordLikeRowsReturnsOriginalRowsWhenNoFilterIsActive() {
+        let rows = ["alpha", "beta", "gamma"]
+
+        let result = SearchFilterSupport.filterWordLikeRows(
+            rows,
+            query: "",
+            options: .default,
+            stopword: .default
+        ) { $0 }
+
+        XCTAssertEqual(result.error, "")
+        XCTAssertEqual(result.rows, rows)
+    }
+
+    func testMatcherNormalizesFullWidthTextWhenCaseInsensitive() {
+        let matcher = SearchTextMatcher(
+            query: "alpha",
+            options: SearchOptionsState(words: true, caseSensitive: false, regex: false)
+        )
+
+        XCTAssertTrue(matcher.matches("ＡＬＰＨＡ"))
+        XCTAssertTrue(matcher.matches("Alpha"))
+        XCTAssertFalse(matcher.matches("alphabet"))
+    }
+
+    func testStopwordListNormalizationDeduplicatesFullWidthVariants() {
+        let state = StopwordFilterState(
+            enabled: true,
+            mode: .exclude,
+            listText: "Alpha\nＡＬＰＨＡ\nbeta"
+        )
+
+        XCTAssertEqual(state.parsedWords, ["alpha", "beta"])
+    }
 }

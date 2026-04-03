@@ -85,7 +85,7 @@ final class NativeTableViewTests: XCTestCase {
     @MainActor
     func testCoordinatorRestoresPersistedColumnOrder() {
         let storageKey = "native-table-test-\(UUID().uuidString)"
-        let orderKey = "wordz.nativeTable.\(storageKey).columnOrder"
+        let orderKey = "wordz.nativeTable.v3.\(storageKey).columnOrder"
         UserDefaults.standard.set(["count", "word"], forKey: orderKey)
         defer { UserDefaults.standard.removeObject(forKey: orderKey) }
 
@@ -120,8 +120,8 @@ final class NativeTableViewTests: XCTestCase {
     @MainActor
     func testResetLayoutClearsStoredWidthsAndColumnOrder() {
         let storageKey = "native-table-test-\(UUID().uuidString)"
-        let orderKey = "wordz.nativeTable.\(storageKey).columnOrder"
-        let widthKey = "wordz.nativeTable.\(storageKey).word.width"
+        let orderKey = "wordz.nativeTable.v3.\(storageKey).columnOrder"
+        let widthKey = "wordz.nativeTable.v3.\(storageKey).word.width"
         UserDefaults.standard.set(["count", "word"], forKey: orderKey)
         UserDefaults.standard.set(240.0, forKey: widthKey)
         defer {
@@ -160,6 +160,75 @@ final class NativeTableViewTests: XCTestCase {
         XCTAssertNil(UserDefaults.standard.stringArray(forKey: orderKey))
         XCTAssertEqual(UserDefaults.standard.double(forKey: widthKey), 0)
         XCTAssertEqual(tableView.tableColumns.map(\.identifier.rawValue), ["word", "count"])
+    }
+
+    @MainActor
+    func testCoordinatorClampsPersistedOversizedColumnWidthToCompactMaximum() {
+        let storageKey = "native-table-width-clamp-\(UUID().uuidString)"
+        let widthKey = "wordz.nativeTable.v3.\(storageKey).word.width"
+        UserDefaults.standard.set(1200.0, forKey: widthKey)
+        defer { UserDefaults.standard.removeObject(forKey: widthKey) }
+
+        let descriptor = NativeTableDescriptor(
+            storageKey: storageKey,
+            columns: [
+                NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil)
+            ]
+        )
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: [],
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = NSTableView(frame: .zero)
+
+        coordinator.attach(tableView: tableView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: [],
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+
+        XCTAssertEqual(Double(tableView.tableColumns.first?.width ?? 0), 280, accuracy: 0.1)
+    }
+
+    @MainActor
+    func testCoordinatorRestoresPersistedDensitySelection() {
+        let storageKey = "native-table-density-\(UUID().uuidString)"
+        let densityKey = "wordz.nativeTable.v3.\(storageKey).density"
+        UserDefaults.standard.set(NativeTableDensityPreset.reading.rawValue, forKey: densityKey)
+        defer { UserDefaults.standard.removeObject(forKey: densityKey) }
+
+        let descriptor = NativeTableDescriptor(
+            storageKey: storageKey,
+            columns: [
+                NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil)
+            ],
+            defaultDensity: .compact
+        )
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: [],
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = NativeTableView.ActionTableView(frame: .zero)
+
+        coordinator.attach(tableView: tableView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: [],
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+
+        XCTAssertEqual(tableView.rowHeight, 30, accuracy: 0.1)
     }
 
     @MainActor

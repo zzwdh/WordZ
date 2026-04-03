@@ -1,6 +1,6 @@
 import Foundation
 
-struct WorkspaceBootstrapState {
+struct WorkspaceBootstrapState: Sendable {
     let appInfo: AppInfoSummary
     let librarySnapshot: LibrarySnapshot
     let workspaceSnapshot: WorkspaceSnapshotSummary
@@ -27,6 +27,8 @@ protocol WorkspaceRepository: AnyObject {
     func restoreLibrary(sourcePath: String) async throws -> LibraryRestoreSummary
     func repairLibrary() async throws -> LibraryRepairSummary
     func runStats(text: String) async throws -> StatsResult
+    func runTokenize(text: String) async throws -> TokenizeResult
+    func runTopics(text: String, options: TopicAnalysisOptions) async throws -> TopicAnalysisResult
     func runCompare(comparisonEntries: [CompareRequestEntry]) async throws -> CompareResult
     func runChiSquare(a: Int, b: Int, c: Int, d: Int, yates: Bool) async throws -> ChiSquareResult
     func runNgram(text: String, n: Int) async throws -> NgramResult
@@ -37,6 +39,15 @@ protocol WorkspaceRepository: AnyObject {
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws
     func saveUISettings(_ snapshot: UISettingsSnapshot) async throws
     func stop() async
+}
+
+@MainActor
+protocol TopicProgressReportingRepository: AnyObject {
+    func runTopics(
+        text: String,
+        options: TopicAnalysisOptions,
+        progress: (@Sendable (TopicAnalysisProgress) -> Void)?
+    ) async throws -> TopicAnalysisResult
 }
 
 @MainActor
@@ -127,6 +138,18 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
 
     func runStats(text: String) async throws -> StatsResult {
         try await engineClient.runStats(text: text)
+    }
+
+    func runTokenize(text: String) async throws -> TokenizeResult {
+        throw NSError(
+            domain: "WordZMac.EngineWorkspaceRepository",
+            code: 10,
+            userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持分词分析。"]
+        )
+    }
+
+    func runTopics(text: String, options: TopicAnalysisOptions) async throws -> TopicAnalysisResult {
+        throw TopicAnalysisError.unsupportedRepository
     }
 
     func runCompare(comparisonEntries: [CompareRequestEntry]) async throws -> CompareResult {

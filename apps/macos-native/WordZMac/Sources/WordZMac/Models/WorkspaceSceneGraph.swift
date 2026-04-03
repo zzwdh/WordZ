@@ -8,6 +8,27 @@ struct WorkspaceResultSceneNode: Equatable {
     let hasResult: Bool
     let table: NativeTableDescriptor
     let tableRows: [NativeTableRowDescriptor]
+    let exportMetadataLines: [String]
+
+    init(
+        title: String,
+        status: String,
+        totalRows: Int,
+        visibleRows: Int,
+        hasResult: Bool,
+        table: NativeTableDescriptor,
+        tableRows: [NativeTableRowDescriptor],
+        exportMetadataLines: [String] = []
+    ) {
+        self.title = title
+        self.status = status
+        self.totalRows = totalRows
+        self.visibleRows = visibleRows
+        self.hasResult = hasResult
+        self.table = table
+        self.tableRows = tableRows
+        self.exportMetadataLines = exportMetadataLines
+    }
 
     static func empty(title: String, status: String) -> WorkspaceResultSceneNode {
         WorkspaceResultSceneNode(
@@ -17,7 +38,8 @@ struct WorkspaceResultSceneNode: Equatable {
             visibleRows: 0,
             hasResult: false,
             table: .empty,
-            tableRows: []
+            tableRows: [],
+            exportMetadataLines: []
         )
     }
 
@@ -26,7 +48,8 @@ struct WorkspaceResultSceneNode: Equatable {
         return NativeTableExportSnapshot(
             suggestedBaseName: title.lowercased().replacingOccurrences(of: " ", with: "-"),
             table: table,
-            rows: tableRows
+            rows: tableRows,
+            metadataLines: exportMetadataLines
         )
     }
 }
@@ -39,8 +62,10 @@ struct WorkspaceSceneGraph: Equatable {
     let settings: SettingsPaneSceneModel
     let activeTab: WorkspaceDetailTab
     let word: WorkspaceResultSceneNode
+    let tokenize: WorkspaceResultSceneNode
     let wordCloud: WorkspaceResultSceneNode
     let stats: WorkspaceResultSceneNode
+    let topics: WorkspaceResultSceneNode
     let compare: WorkspaceResultSceneNode
     let chiSquare: WorkspaceResultSceneNode
     let ngram: WorkspaceResultSceneNode
@@ -56,8 +81,10 @@ struct WorkspaceSceneGraph: Equatable {
         settings: SettingsPaneSceneModel,
         activeTab: WorkspaceDetailTab,
         word: WorkspaceResultSceneNode = .empty(title: "Word", status: "尚未生成 Word 结果"),
+        tokenize: WorkspaceResultSceneNode = .empty(title: "Tokenize", status: "尚未生成分词结果"),
         wordCloud: WorkspaceResultSceneNode,
         stats: WorkspaceResultSceneNode,
+        topics: WorkspaceResultSceneNode = .empty(title: "Topics", status: "尚未生成 Topics 结果"),
         compare: WorkspaceResultSceneNode,
         chiSquare: WorkspaceResultSceneNode,
         ngram: WorkspaceResultSceneNode,
@@ -72,8 +99,10 @@ struct WorkspaceSceneGraph: Equatable {
         self.settings = settings
         self.activeTab = activeTab
         self.word = word
+        self.tokenize = tokenize
         self.wordCloud = wordCloud
         self.stats = stats
+        self.topics = topics
         self.compare = compare
         self.chiSquare = chiSquare
         self.ngram = ngram
@@ -92,10 +121,12 @@ struct WorkspaceSceneGraph: Equatable {
         ),
         library: .empty,
         settings: .empty,
-        activeTab: .library,
+        activeTab: .stats,
         word: .empty(title: "Word", status: "尚未生成 Word 结果"),
+        tokenize: .empty(title: "Tokenize", status: "尚未生成分词结果"),
         wordCloud: .empty(title: "Word Cloud", status: "尚未生成词云结果"),
         stats: .empty(title: "Stats", status: "尚未生成统计结果"),
+        topics: .empty(title: "Topics", status: "尚未生成 Topics 结果"),
         compare: .empty(title: "Compare", status: "尚未生成 Compare 结果"),
         chiSquare: .empty(title: "Chi-Square", status: "尚未生成 Chi-Square 结果"),
         ngram: .empty(title: "N-Gram", status: "尚未生成 N-Gram 结果"),

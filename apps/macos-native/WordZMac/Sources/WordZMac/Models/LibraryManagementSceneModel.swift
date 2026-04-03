@@ -55,6 +55,19 @@ struct LibraryManagementInspectorSceneModel: Equatable {
     )
 }
 
+struct LibraryCorpusInfoSceneModel: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let folderName: String
+    let sourceType: String
+    let tokenCountText: String
+    let typeCountText: String
+    let ttrText: String
+    let sttrText: String
+    let representedPath: String
+}
+
 struct LibraryManagementSceneModel: Equatable {
     let librarySummary: String
     let recycleSummary: String

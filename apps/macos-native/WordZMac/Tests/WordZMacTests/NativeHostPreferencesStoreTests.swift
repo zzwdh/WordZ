@@ -20,7 +20,21 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
                 lastUpdateStatus: "尚未检查更新。",
                 downloadedUpdateVersion: "",
                 downloadedUpdateName: "",
-                downloadedUpdatePath: ""
+                downloadedUpdatePath: "",
+                taskHistory: [
+                    PersistedNativeBackgroundTaskItem(
+                        item: NativeBackgroundTaskItem(
+                            id: UUID(),
+                            title: "Export",
+                            detail: "Done",
+                            state: .completed,
+                            progress: 1,
+                            startedAt: Date(timeIntervalSince1970: 1),
+                            updatedAt: Date(timeIntervalSince1970: 2),
+                            primaryAction: .openFile(path: "/tmp/demo.csv")
+                        )
+                    )
+                ]
             )
         )
 
@@ -35,5 +49,6 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
         XCTAssertEqual(store.load().recentDocuments.first?.corpusID, "corpus-1")
         XCTAssertFalse(store.load().autoUpdateEnabled)
         XCTAssertEqual(store.load().languageMode, .bilingual)
+        XCTAssertEqual(store.load().taskHistory.first?.primaryAction?.action, .openFile(path: "/tmp/demo.csv"))
     }
 }

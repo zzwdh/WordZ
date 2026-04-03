@@ -1,7 +1,6 @@
 import Foundation
 
 struct CompareSceneBuilder {
-    @MainActor
     func build(
         selection: [CompareSelectableCorpusSceneItem],
         from result: CompareResult,
@@ -11,9 +10,9 @@ struct CompareSceneBuilder {
         sortMode: CompareSortMode,
         pageSize: ComparePageSize,
         currentPage: Int,
-        visibleColumns: Set<CompareColumnKey>
+        visibleColumns: Set<CompareColumnKey>,
+        languageMode: AppLanguageMode = .system
     ) -> CompareSceneModel {
-        let languageMode = WordZLocalization.shared.effectiveMode
         let filtered = SearchFilterSupport.filterWordLikeRows(
             result.rows,
             query: query,
@@ -29,12 +28,14 @@ struct CompareSceneBuilder {
             CompareSceneRow(
                 id: row.id,
                 word: row.word,
+                keynessText: String(format: "%.2f", row.keyness),
+                effectText: String(format: "%.2f", row.effectSize),
                 spreadText: "\(row.spread)",
                 totalText: "\(row.total)",
                 rangeText: String(format: "%.2f", row.range),
                 dominantCorpus: row.dominantCorpusName,
                 distributionText: row.perCorpus
-                    .map { "\($0.corpusName) \($0.count)" }
+                    .map { "\($0.corpusName) \($0.count) (\(String(format: "%.1f", $0.normFreq)))" }
                     .joined(separator: " · ")
             )
         }
@@ -43,6 +44,8 @@ struct CompareSceneBuilder {
                 id: row.id,
                 values: [
                     CompareColumnKey.word.rawValue: row.word,
+                    CompareColumnKey.keyness.rawValue: row.keynessText,
+                    CompareColumnKey.effect.rawValue: row.effectText,
                     CompareColumnKey.spread.rawValue: row.spreadText,
                     CompareColumnKey.total.rawValue: row.totalText,
                     CompareColumnKey.range.rawValue: row.rangeText,
@@ -83,9 +86,13 @@ struct CompareSceneBuilder {
                         id: key.rawValue,
                         title: key.title(in: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode)
+                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        presentation: presentation(for: key),
+                        widthPolicy: widthPolicy(for: key),
+                        isPinned: key == .word || key == .keyness
                     )
-                }
+                },
+                defaultDensity: .standard
             ),
             totalRows: result.rows.count,
             filteredRows: sortedRows.count,
@@ -96,8 +103,43 @@ struct CompareSceneBuilder {
         )
     }
 
+    private func presentation(for key: CompareColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .word:
+            return .keyword
+        case .keyness, .effect, .range:
+            return .numeric(precision: 2)
+        case .spread, .total:
+            return .numeric(precision: 0)
+        case .distribution:
+            return .summary
+        case .dominantCorpus:
+            return .label
+        }
+    }
+
+    private func widthPolicy(for key: CompareColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .word:
+            return .keyword
+        case .keyness, .effect, .spread, .total, .range:
+            return .numeric
+        case .distribution:
+            return .summary
+        case .dominantCorpus:
+            return .standard
+        }
+    }
+
     private func sortRows(_ rows: [CompareRow], mode: CompareSortMode) -> [CompareRow] {
         switch mode {
+        case .keynessDescending:
+            return rows.sorted {
+                if $0.keyness == $1.keyness {
+                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
+                }
+                return $0.keyness > $1.keyness
+            }
         case .spreadDescending:
             return rows.sorted {
                 if $0.spread == $1.spread {
@@ -122,6 +164,13 @@ struct CompareSceneBuilder {
                 }
                 return $0.range > $1.range
             }
+        case .effectDescending:
+            return rows.sorted {
+                if $0.effectSize == $1.effectSize {
+                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
+                }
+                return $0.effectSize > $1.effectSize
+            }
         case .alphabeticalAscending:
             return rows.sorted {
                 $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
@@ -133,7 +182,9 @@ struct CompareSceneBuilder {
         switch (key, sortMode) {
         case (.word, .alphabeticalAscending):
             return "↑"
-        case (.spread, .spreadDescending),
+        case (.keyness, .keynessDescending),
+             (.effect, .effectDescending),
+             (.spread, .spreadDescending),
              (.total, .totalDescending),
              (.range, .rangeDescending):
             return "↓"

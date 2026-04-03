@@ -81,6 +81,10 @@ export function buildPublishEnvironment(baseEnv, githubToken) {
 }
 
 export function resolveGitHubReleaseConfig(env = process.env, argv = process.argv.slice(2)) {
+  if (argv.includes('--mac')) {
+    throw new Error('Electron macOS 发布链已退役，请改用 npm run native:mac:package 并上传原生 macOS 产物。')
+  }
+
   const { owner, repo } = resolveGitHubRepo(env)
   if (!owner || !repo) {
     throw new Error('缺少 GitHub 仓库信息，请设置 WORDZ_AUTO_UPDATE_GITHUB_OWNER/REPO 或 GITHUB_REPOSITORY。')

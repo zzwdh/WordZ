@@ -2,35 +2,37 @@ import Foundation
 
 @MainActor
 final class KWICPageViewModel: ObservableObject {
+    private static let defaultVisibleColumns: Set<KWICColumnKey> = [.leftContext, .keyword, .rightContext]
+    private var isApplyingState = false
+
     @Published var keyword = "" {
         didSet {
             guard oldValue != keyword else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var leftWindow = "5" {
         didSet {
             guard oldValue != leftWindow else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var rightWindow = "5" {
         didSet {
             guard oldValue != rightWindow else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var searchOptions = SearchOptionsState.default {
         didSet {
             guard oldValue != searchOptions else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var stopwordFilter = StopwordFilterState.default {
         didSet {
             guard oldValue != stopwordFilter else { return }
-            onInputChange?()
-            rebuildScene()
+            handleInputChange(rebuildScene: true)
         }
     }
     @Published var isEditingStopwords = false
@@ -43,7 +45,7 @@ final class KWICPageViewModel: ObservableObject {
     private var sortMode: KWICSortMode = .original
     private var pageSize: KWICPageSize = .fifty
     private var currentPage = 1
-    private var visibleColumns: Set<KWICColumnKey> = Set(KWICColumnKey.allCases)
+    private var visibleColumns: Set<KWICColumnKey> = KWICPageViewModel.defaultVisibleColumns
 
     init(sceneBuilder: KWICSceneBuilder = KWICSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -80,6 +82,11 @@ final class KWICPageViewModel: ObservableObject {
     }
 
     func apply(_ snapshot: WorkspaceSnapshotSummary) {
+        isApplyingState = true
+        defer {
+            isApplyingState = false
+            rebuildScene()
+        }
         keyword = snapshot.searchQuery
         leftWindow = snapshot.kwicLeftWindow
         rightWindow = snapshot.kwicRightWindow
@@ -127,10 +134,29 @@ final class KWICPageViewModel: ObservableObject {
     }
 
     func reset() {
+        isApplyingState = true
+        defer { isApplyingState = false }
+        keyword = ""
+        leftWindow = "5"
+        rightWindow = "5"
+        searchOptions = .default
+        stopwordFilter = .default
+        isEditingStopwords = false
         result = nil
+        sortMode = .original
+        pageSize = .fifty
         currentPage = 1
+        visibleColumns = Self.defaultVisibleColumns
         selectedRowID = nil
         scene = nil
+    }
+
+    private func handleInputChange(rebuildScene shouldRebuildScene: Bool) {
+        guard !isApplyingState else { return }
+        onInputChange?()
+        if shouldRebuildScene {
+            rebuildScene()
+        }
     }
 
     private func rebuildScene() {

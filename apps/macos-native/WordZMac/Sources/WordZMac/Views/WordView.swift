@@ -7,14 +7,20 @@ struct WordView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WorkbenchHeaderCard(title: t("词表", "Word"), subtitle: t("在统计结果上继续做筛选、停用词和分页浏览", "Filter, paginate, and apply stopwords on top of stats results")) {
-                Button(t("开始统计", "Run Stats")) { onAction(.run) }
-                    .buttonStyle(.borderedProminent)
-            }
-
             WorkbenchToolbarSection {
-                TextField(t("搜索词（留空显示全部）", "Search term (leave blank for all)"), text: $viewModel.query)
-                    .textFieldStyle(.roundedBorder)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        searchField
+                        runButton
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        searchField
+                        HStack(spacing: 12) {
+                            runButton
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
                 SearchOptionTogglesView(options: $viewModel.searchOptions)
                 StopwordControlsView(
                     filter: $viewModel.stopwordFilter,
@@ -24,73 +30,77 @@ struct WordView: View {
 
             if let scene = viewModel.scene {
                 WorkbenchToolbarSection {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(scene.query.isEmpty ? t("显示全部词项", "Showing all terms") : t("过滤词：", "Filter: ") + scene.query)
-                                .font(.headline)
-                            Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
+                    WorkbenchResultHeaderRow {
+                        Text(scene.query.isEmpty ? t("显示全部词项", "Showing all terms") : t("过滤词：", "Filter: ") + scene.query)
+                            .font(.headline)
+                        Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(scene.definitionSummary)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        if !scene.searchError.isEmpty {
+                            Text(scene.searchError)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if !scene.searchError.isEmpty {
-                                Text(scene.searchError)
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
+                                .foregroundStyle(.red)
                         }
-
-                        Spacer(minLength: 12)
-
+                    } trailing: {
                         Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows)（\(t("总计", "Total")) \(scene.totalRows)）")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
 
-                    HStack(spacing: 12) {
-                        Picker(
-                            t("排序", "Sort"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedSort },
-                                set: { onAction(.changeSort($0)) }
-                            )
-                        ) {
-                            ForEach(WordSortMode.allCases) { mode in
-                                Text(mode.title(in: languageMode)).tag(mode)
+                    WorkbenchResultControlsRow {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) {
+                                sortPicker(for: scene)
+                                definitionControls(for: scene)
+                                pageSizePicker(for: scene)
+                            }
+                            VStack(alignment: .leading, spacing: 12) {
+                                sortPicker(for: scene)
+                                definitionControls(for: scene)
+                                pageSizePicker(for: scene)
                             }
                         }
-                        .pickerStyle(.menu)
+                    } trailing: {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) {
+                                WorkbenchColumnMenu(
+                                    title: t("列与导出", "Columns & Export"),
+                                    keys: WordColumnKey.allCases,
+                                    label: { scene.columnTitle(for: $0, mode: languageMode) },
+                                    isVisible: { scene.column(for: $0)?.isVisible ?? false },
+                                    onToggle: { onAction(.toggleColumn($0)) }
+                                )
 
-                        Picker(
-                            t("页大小", "Page Size"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedPageSize },
-                                set: { onAction(.changePageSize($0)) }
-                            )
-                        ) {
-                            ForEach(WordPageSize.allCases) { size in
-                                Text(size.title(in: languageMode)).tag(size)
+                                WorkbenchPaginationControls(
+                                    canGoBackward: scene.pagination.canGoBackward,
+                                    canGoForward: scene.pagination.canGoForward,
+                                    rangeLabel: scene.pagination.rangeLabel,
+                                    onPrevious: { onAction(.previousPage) },
+                                    onNext: { onAction(.nextPage) }
+                                )
+                            }
+                            VStack(alignment: .leading, spacing: 12) {
+                                WorkbenchColumnMenu(
+                                    title: t("列与导出", "Columns & Export"),
+                                    keys: WordColumnKey.allCases,
+                                    label: { scene.columnTitle(for: $0, mode: languageMode) },
+                                    isVisible: { scene.column(for: $0)?.isVisible ?? false },
+                                    onToggle: { onAction(.toggleColumn($0)) }
+                                )
+
+                                WorkbenchPaginationControls(
+                                    canGoBackward: scene.pagination.canGoBackward,
+                                    canGoForward: scene.pagination.canGoForward,
+                                    rangeLabel: scene.pagination.rangeLabel,
+                                    onPrevious: { onAction(.previousPage) },
+                                    onNext: { onAction(.nextPage) }
+                                )
                             }
                         }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 300)
-
-                        WorkbenchColumnMenu(
-                            title: t("列", "Columns"),
-                            keys: WordColumnKey.allCases,
-                            label: { scene.columnTitle(for: $0, mode: languageMode) },
-                            isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                            onToggle: { onAction(.toggleColumn($0)) }
-                        )
-
-                        Spacer()
-
-                        WorkbenchPaginationControls(
-                            canGoBackward: scene.pagination.canGoBackward,
-                            canGoForward: scene.pagination.canGoForward,
-                            rangeLabel: scene.pagination.rangeLabel,
-                            onPrevious: { onAction(.previousPage) },
-                            onNext: { onAction(.nextPage) }
-                        )
                     }
                 }
 
@@ -116,8 +126,7 @@ struct WordView: View {
             } else {
                 ContentUnavailableView(
                     t("尚未生成词表结果", "No word results yet"),
-                    systemImage: "character.book.closed",
-                    description: Text(t("打开语料后开始统计。词表视图会基于词频结果提供独立筛选。", "Open a corpus and run stats. The Word view adds its own filters on top of the frequency results."))
+                    systemImage: "character.book.closed"
                 )
             }
         }
@@ -126,6 +135,77 @@ struct WordView: View {
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)
         }
+    }
+
+    private func sortPicker(for scene: WordSceneModel) -> some View {
+        Picker(
+            t("排序", "Sort"),
+            selection: Binding(
+                get: { scene.sorting.selectedSort },
+                set: { onAction(.changeSort($0)) }
+            )
+        ) {
+            ForEach(WordSortMode.allCases) { mode in
+                Text(mode.title(in: languageMode)).tag(mode)
+            }
+        }
+        .pickerStyle(.menu)
+    }
+
+    private func definitionControls(for scene: WordSceneModel) -> some View {
+        HStack(spacing: 12) {
+            Picker(
+                t("标准频次", "Norm Frequency"),
+                selection: Binding(
+                    get: { scene.definition.normalizationUnit },
+                    set: { onAction(.changeNormalizationUnit($0)) }
+                )
+            ) {
+                ForEach(FrequencyNormalizationUnit.allCases) { unit in
+                    Text(unit.title(in: languageMode)).tag(unit)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Picker(
+                t("Range 口径", "Range Definition"),
+                selection: Binding(
+                    get: { scene.definition.rangeMode },
+                    set: { onAction(.changeRangeMode($0)) }
+                )
+            ) {
+                ForEach(FrequencyRangeMode.allCases) { mode in
+                    Text(mode.title(in: languageMode)).tag(mode)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+
+    private func pageSizePicker(for scene: WordSceneModel) -> some View {
+        Picker(
+            t("页大小", "Page Size"),
+            selection: Binding(
+                get: { scene.sorting.selectedPageSize },
+                set: { onAction(.changePageSize($0)) }
+            )
+        ) {
+            ForEach(WordPageSize.allCases) { size in
+                Text(size.title(in: languageMode)).tag(size)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 300)
+    }
+
+    private var searchField: some View {
+        TextField(t("搜索词（留空显示全部）", "Search term (leave blank for all)"), text: $viewModel.query)
+            .textFieldStyle(.roundedBorder)
+    }
+
+    private var runButton: some View {
+        Button(t("开始统计", "Run Stats")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

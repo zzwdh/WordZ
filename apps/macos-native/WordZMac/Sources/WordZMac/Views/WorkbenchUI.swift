@@ -31,6 +31,54 @@ struct WorkbenchToolbarSection<Content: View>: View {
     }
 }
 
+struct WorkbenchResultHeaderRow<Leading: View, Trailing: View>: View {
+    private let leading: Leading
+    private let trailing: Trailing
+
+    init(
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                leading
+            }
+
+            Spacer(minLength: 12)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                trailing
+            }
+        }
+    }
+}
+
+struct WorkbenchResultControlsRow<Leading: View, Trailing: View>: View {
+    private let leading: Leading
+    private let trailing: Trailing
+
+    init(
+        @ViewBuilder leading: () -> Leading,
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            leading
+            Spacer(minLength: 12)
+            trailing
+        }
+    }
+}
+
 struct WorkbenchHeaderCard<Trailing: View>: View {
     let title: String
     let subtitle: String?
@@ -196,6 +244,68 @@ extension WorkbenchIssueBanner where Actions == EmptyView {
         self.init(tone: tone, title: title, message: message) {
             EmptyView()
         }
+    }
+}
+
+struct WorkbenchTaskPreviewStrip: View {
+    @Environment(\.wordZLanguageMode) private var languageMode
+    let scene: NativeTaskCenterSceneModel
+
+    var body: some View {
+        WorkbenchSectionCard {
+            HStack(spacing: 12) {
+                Label(activeTitle, systemImage: "bolt.horizontal.circle")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+
+                if let aggregateProgress {
+                    ProgressView(value: aggregateProgress)
+                        .tint(.accentColor)
+                        .frame(maxWidth: 220)
+                }
+
+                Text(activeDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                if let aggregateProgress {
+                    Text("\(Int((aggregateProgress * 100).rounded()))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(scene.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    private var aggregateProgress: Double? {
+        scene.aggregateProgress
+    }
+
+    private var activeItem: NativeBackgroundTaskItem? {
+        scene.highlightedItems.first
+    }
+
+    private var activeTitle: String {
+        activeItem?.title ?? t("后台任务", "Background Tasks")
+    }
+
+    private var activeDetail: String {
+        if let activeItem {
+            return activeItem.detail
+        }
+        return scene.summary
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
     }
 }
 

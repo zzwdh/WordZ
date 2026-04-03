@@ -4,8 +4,12 @@ enum WorkspaceToolbarAction: String, Identifiable, CaseIterable {
     case refresh
     case showLibrary
     case openSelected
+    case previewCurrentCorpus
+    case shareCurrentContent
     case runStats
     case runWord
+    case runTokenize
+    case runTopics
     case runCompare
     case runChiSquare
     case runNgram

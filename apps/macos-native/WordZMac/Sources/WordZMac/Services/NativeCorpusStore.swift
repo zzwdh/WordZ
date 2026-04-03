@@ -1,10 +1,16 @@
 import Foundation
 
-struct NativeCorpusStore {
+final class NativeCorpusStore {
     private let rootURL: URL
     private let fileManager: FileManager
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var isInitialized = false
+    private var cachedFolders: [NativeFolderRecord]?
+    private var cachedCorpora: [NativeCorpusRecord]?
+    private var cachedRecycleEntries: [NativeRecycleRecord]?
+    private var cachedWorkspaceSnapshot: NativePersistedWorkspaceSnapshot?
+    private var cachedUISettings: NativePersistedUISettings?
 
     private var corporaDirectoryURL: URL { rootURL.appendingPathComponent("corpora", isDirectory: true) }
     private var recycleDirectoryURL: URL { rootURL.appendingPathComponent("recycle", isDirectory: true) }
@@ -22,6 +28,7 @@ struct NativeCorpusStore {
     }
 
     func ensureInitialized() throws {
+        guard !isInitialized else { return }
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: corporaDirectoryURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: recycleDirectoryURL, withIntermediateDirectories: true)
@@ -41,6 +48,13 @@ struct NativeCorpusStore {
         if !fileManager.fileExists(atPath: uiSettingsURL.path) {
             try saveUISettings(.default)
         }
+
+        _ = try loadFolders()
+        _ = try loadCorpora()
+        _ = try loadRecycleEntries()
+        _ = try loadWorkspacePersistedSnapshot()
+        _ = try loadPersistedUISettings()
+        isInitialized = true
     }
 
     func appInfo() -> AppInfoSummary {
@@ -53,8 +67,11 @@ struct NativeCorpusStore {
                 "导入文本语料后，可直接运行 Stats / Word / KWIC / Collocate / N-Gram / Compare / Locator。"
             ],
             "releaseNotes": [
-                "Swift native preview",
-                "本地语料库与分析结果已不再依赖 Node sidecar。"
+                "原生工作区升级为多窗口结构：语料库、设置、任务中心和版本说明均可独立打开。",
+                "本地语料库存储升级为真正的 SQLite `.db`，并兼容历史语料自动迁移。",
+                "新增并完善 Chi-Square、Tokenize、Topics、Word Cloud、Keyness Compare 等分析能力。",
+                "统计与词表支持 Norm Frequency、Range、Rank、Norm Range，并统一导出到 CSV/XLSX。",
+                "表格系统重做：支持密度切换、语义列宽、KWIC 特化布局、详情面板与更稳定的大表渲染。"
             ],
             "userDataDir": rootURL.path
         ])
@@ -86,8 +103,7 @@ struct NativeCorpusStore {
     }
 
     func loadWorkspaceSnapshot() throws -> WorkspaceSnapshotSummary {
-        let persisted = try readIfPresent(NativePersistedWorkspaceSnapshot.self, from: workspaceURL) ?? .empty
-        return persisted.workspaceSnapshot
+        try loadWorkspacePersistedSnapshot().workspaceSnapshot
     }
 
     func saveWorkspaceSnapshot(_ draft: WorkspaceStateDraft) throws {
@@ -105,28 +121,36 @@ struct NativeCorpusStore {
             kwicRightWindow: draft.kwicRightWindow,
             collocateLeftWindow: draft.collocateLeftWindow,
             collocateRightWindow: draft.collocateRightWindow,
-            collocateMinFreq: draft.collocateMinFreq
+            collocateMinFreq: draft.collocateMinFreq,
+            topicsMinTopicSize: draft.topicsMinTopicSize,
+            topicsIncludeOutliers: draft.topicsIncludeOutliers,
+            topicsPageSize: draft.topicsPageSize,
+            topicsActiveTopicID: draft.topicsActiveTopicID,
+            wordCloudLimit: draft.wordCloudLimit,
+            frequencyNormalizationUnit: draft.frequencyNormalizationUnit,
+            frequencyRangeMode: draft.frequencyRangeMode,
+            chiSquareA: draft.chiSquareA,
+            chiSquareB: draft.chiSquareB,
+            chiSquareC: draft.chiSquareC,
+            chiSquareD: draft.chiSquareD,
+            chiSquareUseYates: draft.chiSquareUseYates
         )
+        cachedWorkspaceSnapshot = persisted
         try write(persisted, to: workspaceURL)
     }
 
     func loadUISettings() throws -> UISettingsSnapshot {
-        let persisted = try readIfPresent(NativePersistedUISettings.self, from: uiSettingsURL) ?? .default
-        return persisted.uiSettings
+        try loadPersistedUISettings().uiSettings
     }
 
     func saveUISettings(_ snapshot: UISettingsSnapshot) throws {
-        try write(
-            NativePersistedUISettings(
-                zoom: snapshot.zoom,
-                fontScale: snapshot.fontScale,
-                fontFamily: snapshot.fontFamily,
-                showWelcomeScreen: snapshot.showWelcomeScreen,
-                restoreWorkspace: snapshot.restoreWorkspace,
-                debugLogging: snapshot.debugLogging
-            ),
-            to: uiSettingsURL
+        let persisted = NativePersistedUISettings(
+            showWelcomeScreen: snapshot.showWelcomeScreen,
+            restoreWorkspace: snapshot.restoreWorkspace,
+            debugLogging: snapshot.debugLogging
         )
+        cachedUISettings = persisted
+        try write(persisted, to: uiSettingsURL)
     }
 
     func openSavedCorpus(corpusId: String) throws -> OpenedCorpus {
@@ -146,7 +170,7 @@ struct NativeCorpusStore {
                 userInfo: [NSLocalizedDescriptionKey: "语料文件已丢失：\(record.name)"]
             )
         }
-        let content = try readTextFile(at: storageURL)
+        let content = try readStoredCorpusText(at: storageURL, record: record)
         return OpenedCorpus(json: [
             "mode": "saved",
             "filePath": record.representedPath.isEmpty ? storageURL.path : record.representedPath,
@@ -171,11 +195,11 @@ struct NativeCorpusStore {
 
         for request in requests {
             do {
-                let content = try readTextFile(at: request.sourceURL)
+                let document = try TextFileDecodingSupport.readImportedTextDocument(at: request.sourceURL)
                 let folder = request.folder ?? requestedFolder
                 let record = try writeImportedCorpus(
                     sourceURL: request.sourceURL,
-                    content: content,
+                    document: document,
                     folder: folder
                 )
                 corpora.append(record)
@@ -375,6 +399,7 @@ struct NativeCorpusStore {
 
         try removeDirectoryContents(at: rootURL)
         try copyDirectoryContents(from: sourceRoot, to: rootURL)
+        invalidateCaches()
         try ensureInitialized()
 
         let corpora = try loadCorpora()
@@ -395,11 +420,12 @@ struct NativeCorpusStore {
 
         var quarantinedCorpora = 0
         corpora.removeAll { corpus in
-            let exists = fileManager.fileExists(atPath: corporaDirectoryURL.appendingPathComponent(corpus.storageFileName).path)
-            if !exists {
+            let storageURL = corporaDirectoryURL.appendingPathComponent(corpus.storageFileName)
+            let isReadable = fileManager.fileExists(atPath: storageURL.path) && isStoredCorpusReadable(at: storageURL)
+            if !isReadable {
                 quarantinedCorpora += 1
             }
-            return !exists
+            return !isReadable
         }
 
         try saveCorpora(corpora)
@@ -420,68 +446,87 @@ struct NativeCorpusStore {
     }
 
     private func loadFolders() throws -> [NativeFolderRecord] {
-        try readIfPresent([NativeFolderRecord].self, from: foldersURL) ?? []
+        if let cachedFolders {
+            return cachedFolders
+        }
+        let folders = try readIfPresent([NativeFolderRecord].self, from: foldersURL) ?? []
+        cachedFolders = folders
+        return folders
     }
 
     private func saveFolders(_ folders: [NativeFolderRecord]) throws {
+        cachedFolders = folders
         try write(folders, to: foldersURL)
     }
 
     private func loadCorpora() throws -> [NativeCorpusRecord] {
-        try readIfPresent([NativeCorpusRecord].self, from: corporaURL) ?? []
+        if let cachedCorpora {
+            return cachedCorpora
+        }
+        var corpora = try readIfPresent([NativeCorpusRecord].self, from: corporaURL) ?? []
+        if try migrateStorageFileNames(in: &corpora, directoryURL: corporaDirectoryURL) {
+            try saveCorpora(corpora)
+        }
+        cachedCorpora = corpora
+        return corpora
     }
 
     private func saveCorpora(_ corpora: [NativeCorpusRecord]) throws {
+        cachedCorpora = corpora
         try write(corpora, to: corporaURL)
     }
 
     private func loadRecycleEntries() throws -> [NativeRecycleRecord] {
-        try readIfPresent([NativeRecycleRecord].self, from: recycleURL) ?? []
+        if let cachedRecycleEntries {
+            return cachedRecycleEntries
+        }
+        var entries = try readIfPresent([NativeRecycleRecord].self, from: recycleURL) ?? []
+        if try migrateStorageFileNames(in: &entries) {
+            try saveRecycleEntries(entries)
+        }
+        cachedRecycleEntries = entries
+        return entries
     }
 
     private func saveRecycleEntries(_ entries: [NativeRecycleRecord]) throws {
+        cachedRecycleEntries = entries
         try write(entries, to: recycleURL)
     }
 
-    private func readTextFile(at url: URL) throws -> String {
-        let data = try Data(contentsOf: url)
-        let encodings: [String.Encoding] = [
-            .utf8,
-            .utf16,
-            .utf16LittleEndian,
-            .utf16BigEndian,
-            .utf32,
-            .ascii,
-            .isoLatin1,
-            .windowsCP1252,
-            .gb18030
-        ]
-        for encoding in encodings {
-            if let string = String(data: data, encoding: encoding), !string.isEmpty {
-                return string
-            }
+    private func loadWorkspacePersistedSnapshot() throws -> NativePersistedWorkspaceSnapshot {
+        if let cachedWorkspaceSnapshot {
+            return cachedWorkspaceSnapshot
         }
-        let fallback = String(decoding: data, as: UTF8.self)
-        if !fallback.isEmpty {
-            return fallback
+        let snapshot = try readIfPresent(NativePersistedWorkspaceSnapshot.self, from: workspaceURL) ?? .empty
+        cachedWorkspaceSnapshot = snapshot
+        return snapshot
+    }
+
+    private func loadPersistedUISettings() throws -> NativePersistedUISettings {
+        if let cachedUISettings {
+            return cachedUISettings
         }
-        throw NSError(
-            domain: "WordZMac.NativeCorpusStore",
-            code: 415,
-            userInfo: [NSLocalizedDescriptionKey: "暂不支持读取该语料文件格式：\(url.lastPathComponent)"]
-        )
+        let settings = try readIfPresent(NativePersistedUISettings.self, from: uiSettingsURL) ?? .default
+        cachedUISettings = settings
+        return settings
     }
 
     private func writeImportedCorpus(
         sourceURL: URL,
-        content: String,
+        document: DecodedTextDocument,
         folder: NativeFolderRecord?
     ) throws -> NativeCorpusRecord {
         let sourceType = sourceURL.pathExtension.lowercased().isEmpty ? "txt" : sourceURL.pathExtension.lowercased()
         let id = UUID().uuidString
-        let storageFileName = "\(id).txt"
+        let storageFileName = "\(id).db"
         let storageURL = corporaDirectoryURL.appendingPathComponent(storageFileName)
-        try content.write(to: storageURL, atomically: true, encoding: .utf8)
+        try NativeCorpusDatabaseSupport.writeDocument(
+            at: storageURL,
+            document: document,
+            sourceType: sourceType,
+            representedPath: sourceURL.path,
+            importedAt: timestamp()
+        )
         return NativeCorpusRecord(
             id: id,
             name: sourceURL.deletingPathExtension().lastPathComponent,
@@ -583,18 +628,109 @@ struct NativeCorpusStore {
     }
 
     private func timestamp() -> String {
-        ISO8601DateFormatter().string(from: Date())
+        NativeDateFormatting.iso8601String(from: Date())
     }
 
     private func compactTimestamp() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd-HHmmss"
-        return formatter.string(from: Date())
+        NativeDateFormatting.compactTimestampString(from: Date())
+    }
+
+    private func migrateStorageFileNames(
+        in corpora: inout [NativeCorpusRecord],
+        directoryURL: URL
+    ) throws -> Bool {
+        var migrated = false
+        for index in corpora.indices {
+            let normalized = try migrateStorageFileNameIfNeeded(
+                corpora[index].storageFileName,
+                directoryURL: directoryURL
+            )
+            if normalized != corpora[index].storageFileName {
+                corpora[index].storageFileName = normalized
+                migrated = true
+            }
+        }
+        return migrated
+    }
+
+    private func migrateStorageFileNames(in entries: inout [NativeRecycleRecord]) throws -> Bool {
+        var migrated = false
+        for entryIndex in entries.indices {
+            if try migrateStorageFileNames(in: &entries[entryIndex].corpora, directoryURL: recycleDirectoryURL) {
+                migrated = true
+            }
+        }
+        return migrated
+    }
+
+    private func migrateStorageFileNameIfNeeded(_ storageFileName: String, directoryURL: URL) throws -> String {
+        let normalized = normalizedStorageFileName(for: storageFileName)
+        guard normalized != storageFileName else {
+            return storageFileName
+        }
+
+        let legacyURL = directoryURL.appendingPathComponent(storageFileName)
+        let normalizedURL = directoryURL.appendingPathComponent(normalized)
+        if fileManager.fileExists(atPath: legacyURL.path),
+           !fileManager.fileExists(atPath: normalizedURL.path) {
+            try fileManager.moveItem(at: legacyURL, to: normalizedURL)
+        }
+        return normalized
+    }
+
+    private func normalizedStorageFileName(for storageFileName: String) -> String {
+        let storageURL = URL(fileURLWithPath: storageFileName)
+        let stem = storageURL.deletingPathExtension().lastPathComponent
+        return "\(stem).db"
+    }
+
+    private func readStoredCorpusText(at url: URL, record: NativeCorpusRecord) throws -> String {
+        if let document = try NativeCorpusDatabaseSupport.readDocument(at: url) {
+            return document.text
+        }
+
+        if let document = try readStoredCorpusDocumentIfPresent(at: url) {
+            let decoded = DecodedTextDocument(text: document.text, encodingName: document.detectedEncoding)
+            try NativeCorpusDatabaseSupport.writeDocument(
+                at: url,
+                document: decoded,
+                sourceType: document.sourceType,
+                representedPath: document.representedPath,
+                importedAt: document.importedAt
+            )
+            return document.text
+        }
+
+        let decoded = try TextFileDecodingSupport.readTextDocument(at: url)
+        try NativeCorpusDatabaseSupport.writeDocument(
+            at: url,
+            document: decoded,
+            sourceType: record.sourceType,
+            representedPath: record.representedPath,
+            importedAt: timestamp()
+        )
+        return decoded.text
+    }
+
+    private func readStoredCorpusDocumentIfPresent(at url: URL) throws -> NativeStoredCorpusDocument? {
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+        return try? decoder.decode(NativeStoredCorpusDocument.self, from: data)
+    }
+
+    private func isStoredCorpusReadable(at url: URL) -> Bool {
+        if let databaseDocument = try? NativeCorpusDatabaseSupport.readDocument(at: url) {
+            return !databaseDocument.text.isEmpty || databaseDocument.metadata.characterCount == 0
+        }
+        if (try? readStoredCorpusDocumentIfPresent(at: url)) != nil {
+            return true
+        }
+        return (try? TextFileDecodingSupport.readTextDocument(at: url)) != nil
     }
 
     private func readIfPresent<T: Decodable>(_ type: T.Type, from url: URL) throws -> T? {
         guard fileManager.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
+        let data = try Data(contentsOf: url, options: [.mappedIfSafe])
         return try decoder.decode(type, from: data)
     }
 
@@ -602,11 +738,29 @@ struct NativeCorpusStore {
         let data = try encoder.encode(value)
         try data.write(to: url, options: .atomic)
     }
+
+    private func invalidateCaches() {
+        isInitialized = false
+        cachedFolders = nil
+        cachedCorpora = nil
+        cachedRecycleEntries = nil
+        cachedWorkspaceSnapshot = nil
+        cachedUISettings = nil
+    }
 }
 
 private struct NativeImportRequest {
     let sourceURL: URL
     let folder: NativeFolderRecord?
+}
+
+private struct NativeStoredCorpusDocument: Codable, Equatable {
+    let schemaVersion: Int
+    let importedAt: String
+    let sourceType: String
+    let representedPath: String
+    let detectedEncoding: String
+    let text: String
 }
 
 private struct NativeFolderRecord: Codable, Equatable, Identifiable {
@@ -640,7 +794,8 @@ private struct NativeCorpusRecord: Codable, Equatable, Identifiable {
             "name": name,
             "folderId": folderId,
             "folderName": folderName,
-            "sourceType": sourceType
+            "sourceType": sourceType,
+            "representedPath": representedPath
         ]
     }
 }
@@ -654,7 +809,7 @@ private struct NativeRecycleRecord: Codable, Equatable, Identifiable {
     let sourceType: String
     let itemCount: Int
     let folder: NativeFolderRecord?
-    let corpora: [NativeCorpusRecord]
+    var corpora: [NativeCorpusRecord]
 
     var id: String { recycleEntryId }
 
@@ -686,6 +841,47 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let collocateLeftWindow: String
     let collocateRightWindow: String
     let collocateMinFreq: String
+    let topicsMinTopicSize: String
+    let topicsIncludeOutliers: Bool
+    let topicsPageSize: String
+    let topicsActiveTopicID: String
+    let wordCloudLimit: Int
+    let frequencyNormalizationUnit: FrequencyNormalizationUnit
+    let frequencyRangeMode: FrequencyRangeMode
+    let chiSquareA: String
+    let chiSquareB: String
+    let chiSquareC: String
+    let chiSquareD: String
+    let chiSquareUseYates: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case currentTab
+        case currentLibraryFolderId
+        case corpusIds
+        case corpusNames
+        case searchQuery
+        case searchOptions
+        case stopwordFilter
+        case ngramSize
+        case ngramPageSize
+        case kwicLeftWindow
+        case kwicRightWindow
+        case collocateLeftWindow
+        case collocateRightWindow
+        case collocateMinFreq
+        case topicsMinTopicSize
+        case topicsIncludeOutliers
+        case topicsPageSize
+        case topicsActiveTopicID
+        case wordCloudLimit
+        case frequencyNormalizationUnit
+        case frequencyRangeMode
+        case chiSquareA
+        case chiSquareB
+        case chiSquareC
+        case chiSquareD
+        case chiSquareUseYates
+    }
 
     static let empty = NativePersistedWorkspaceSnapshot(
         currentTab: "stats",
@@ -701,8 +897,106 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         kwicRightWindow: "5",
         collocateLeftWindow: "5",
         collocateRightWindow: "5",
-        collocateMinFreq: "1"
+        collocateMinFreq: "1",
+        topicsMinTopicSize: "2",
+        topicsIncludeOutliers: true,
+        topicsPageSize: "50",
+        topicsActiveTopicID: "",
+        wordCloudLimit: 80,
+        frequencyNormalizationUnit: FrequencyMetricDefinition.default.normalizationUnit,
+        frequencyRangeMode: FrequencyMetricDefinition.default.rangeMode,
+        chiSquareA: "",
+        chiSquareB: "",
+        chiSquareC: "",
+        chiSquareD: "",
+        chiSquareUseYates: false
     )
+
+    init(
+        currentTab: String,
+        currentLibraryFolderId: String,
+        corpusIds: [String],
+        corpusNames: [String],
+        searchQuery: String,
+        searchOptions: SearchOptionsState,
+        stopwordFilter: StopwordFilterState,
+        ngramSize: String,
+        ngramPageSize: String,
+        kwicLeftWindow: String,
+        kwicRightWindow: String,
+        collocateLeftWindow: String,
+        collocateRightWindow: String,
+        collocateMinFreq: String,
+        topicsMinTopicSize: String,
+        topicsIncludeOutliers: Bool,
+        topicsPageSize: String,
+        topicsActiveTopicID: String,
+        wordCloudLimit: Int,
+        frequencyNormalizationUnit: FrequencyNormalizationUnit,
+        frequencyRangeMode: FrequencyRangeMode,
+        chiSquareA: String,
+        chiSquareB: String,
+        chiSquareC: String,
+        chiSquareD: String,
+        chiSquareUseYates: Bool
+    ) {
+        self.currentTab = currentTab
+        self.currentLibraryFolderId = currentLibraryFolderId
+        self.corpusIds = corpusIds
+        self.corpusNames = corpusNames
+        self.searchQuery = searchQuery
+        self.searchOptions = searchOptions
+        self.stopwordFilter = stopwordFilter
+        self.ngramSize = ngramSize
+        self.ngramPageSize = ngramPageSize
+        self.kwicLeftWindow = kwicLeftWindow
+        self.kwicRightWindow = kwicRightWindow
+        self.collocateLeftWindow = collocateLeftWindow
+        self.collocateRightWindow = collocateRightWindow
+        self.collocateMinFreq = collocateMinFreq
+        self.topicsMinTopicSize = topicsMinTopicSize
+        self.topicsIncludeOutliers = topicsIncludeOutliers
+        self.topicsPageSize = topicsPageSize
+        self.topicsActiveTopicID = topicsActiveTopicID
+        self.wordCloudLimit = wordCloudLimit
+        self.frequencyNormalizationUnit = frequencyNormalizationUnit
+        self.frequencyRangeMode = frequencyRangeMode
+        self.chiSquareA = chiSquareA
+        self.chiSquareB = chiSquareB
+        self.chiSquareC = chiSquareC
+        self.chiSquareD = chiSquareD
+        self.chiSquareUseYates = chiSquareUseYates
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.currentTab = try container.decodeIfPresent(String.self, forKey: .currentTab) ?? "stats"
+        self.currentLibraryFolderId = try container.decodeIfPresent(String.self, forKey: .currentLibraryFolderId) ?? "all"
+        self.corpusIds = try container.decodeIfPresent([String].self, forKey: .corpusIds) ?? []
+        self.corpusNames = try container.decodeIfPresent([String].self, forKey: .corpusNames) ?? []
+        self.searchQuery = try container.decodeIfPresent(String.self, forKey: .searchQuery) ?? ""
+        self.searchOptions = try container.decodeIfPresent(SearchOptionsState.self, forKey: .searchOptions) ?? .default
+        self.stopwordFilter = try container.decodeIfPresent(StopwordFilterState.self, forKey: .stopwordFilter) ?? .default
+        self.ngramSize = try container.decodeIfPresent(String.self, forKey: .ngramSize) ?? "2"
+        self.ngramPageSize = try container.decodeIfPresent(String.self, forKey: .ngramPageSize) ?? "10"
+        self.kwicLeftWindow = try container.decodeIfPresent(String.self, forKey: .kwicLeftWindow) ?? "5"
+        self.kwicRightWindow = try container.decodeIfPresent(String.self, forKey: .kwicRightWindow) ?? "5"
+        self.collocateLeftWindow = try container.decodeIfPresent(String.self, forKey: .collocateLeftWindow) ?? "5"
+        self.collocateRightWindow = try container.decodeIfPresent(String.self, forKey: .collocateRightWindow) ?? "5"
+        self.collocateMinFreq = try container.decodeIfPresent(String.self, forKey: .collocateMinFreq) ?? "1"
+        self.topicsMinTopicSize = try container.decodeIfPresent(String.self, forKey: .topicsMinTopicSize) ?? "2"
+        self.topicsIncludeOutliers = try container.decodeIfPresent(Bool.self, forKey: .topicsIncludeOutliers) ?? true
+        self.topicsPageSize = try container.decodeIfPresent(String.self, forKey: .topicsPageSize) ?? "50"
+        self.topicsActiveTopicID = try container.decodeIfPresent(String.self, forKey: .topicsActiveTopicID) ?? ""
+        self.wordCloudLimit = try container.decodeIfPresent(Int.self, forKey: .wordCloudLimit) ?? 80
+        self.frequencyNormalizationUnit = try container.decodeIfPresent(FrequencyNormalizationUnit.self, forKey: .frequencyNormalizationUnit) ?? FrequencyMetricDefinition.default.normalizationUnit
+        self.frequencyRangeMode = try container.decodeIfPresent(FrequencyRangeMode.self, forKey: .frequencyRangeMode) ?? FrequencyMetricDefinition.default.rangeMode
+        self.chiSquareA = try container.decodeIfPresent(String.self, forKey: .chiSquareA) ?? ""
+        self.chiSquareB = try container.decodeIfPresent(String.self, forKey: .chiSquareB) ?? ""
+        self.chiSquareC = try container.decodeIfPresent(String.self, forKey: .chiSquareC) ?? ""
+        self.chiSquareD = try container.decodeIfPresent(String.self, forKey: .chiSquareD) ?? ""
+        self.chiSquareUseYates = try container.decodeIfPresent(Bool.self, forKey: .chiSquareUseYates) ?? false
+    }
 
     var workspaceSnapshot: WorkspaceSnapshotSummary {
         WorkspaceSnapshotSummary(json: [
@@ -729,23 +1023,37 @@ private struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
                 "leftWindow": collocateLeftWindow,
                 "rightWindow": collocateRightWindow,
                 "minFreq": collocateMinFreq
+            ],
+            "topics": [
+                "minTopicSize": topicsMinTopicSize,
+                "includeOutliers": topicsIncludeOutliers,
+                "pageSize": topicsPageSize,
+                "activeTopicID": topicsActiveTopicID
+            ],
+            "wordCloud": [
+                "limit": wordCloudLimit
+            ],
+            "frequencyMetrics": [
+                "normalizationUnit": frequencyNormalizationUnit.rawValue,
+                "rangeMode": frequencyRangeMode.rawValue
+            ],
+            "chiSquare": [
+                "a": chiSquareA,
+                "b": chiSquareB,
+                "c": chiSquareC,
+                "d": chiSquareD,
+                "useYates": chiSquareUseYates
             ]
         ])
     }
 }
 
 private struct NativePersistedUISettings: Codable, Equatable {
-    let zoom: Int
-    let fontScale: Int
-    let fontFamily: String
     let showWelcomeScreen: Bool
     let restoreWorkspace: Bool
     let debugLogging: Bool
 
     static let `default` = NativePersistedUISettings(
-        zoom: 100,
-        fontScale: 100,
-        fontFamily: "system",
         showWelcomeScreen: true,
         restoreWorkspace: true,
         debugLogging: false
@@ -753,20 +1061,9 @@ private struct NativePersistedUISettings: Codable, Equatable {
 
     var uiSettings: UISettingsSnapshot {
         UISettingsSnapshot(
-            zoom: zoom,
-            fontScale: fontScale,
-            fontFamily: fontFamily,
             showWelcomeScreen: showWelcomeScreen,
             restoreWorkspace: restoreWorkspace,
             debugLogging: debugLogging
         )
     }
-}
-
-private extension String.Encoding {
-    static let gb18030 = String.Encoding(
-        rawValue: CFStringConvertEncodingToNSStringEncoding(
-            CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue)
-        )
-    )
 }

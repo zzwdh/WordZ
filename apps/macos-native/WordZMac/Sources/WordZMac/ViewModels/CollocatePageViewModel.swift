@@ -2,41 +2,43 @@ import Foundation
 
 @MainActor
 final class CollocatePageViewModel: ObservableObject {
+    private static let defaultVisibleColumns: Set<CollocateColumnKey> = [.word, .total, .rate]
+    private var isApplyingState = false
+
     @Published var keyword = "" {
         didSet {
             guard oldValue != keyword else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var leftWindow = "5" {
         didSet {
             guard oldValue != leftWindow else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var rightWindow = "5" {
         didSet {
             guard oldValue != rightWindow else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var minFreq = "1" {
         didSet {
             guard oldValue != minFreq else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var searchOptions = SearchOptionsState.default {
         didSet {
             guard oldValue != searchOptions else { return }
-            onInputChange?()
+            handleInputChange(rebuildScene: false)
         }
     }
     @Published var stopwordFilter = StopwordFilterState.default {
         didSet {
             guard oldValue != stopwordFilter else { return }
-            onInputChange?()
-            rebuildScene()
+            handleInputChange(rebuildScene: true)
         }
     }
     @Published var isEditingStopwords = false
@@ -48,7 +50,7 @@ final class CollocatePageViewModel: ObservableObject {
     private var sortMode: CollocateSortMode = .frequencyDescending
     private var pageSize: CollocatePageSize = .fifty
     private var currentPage = 1
-    private var visibleColumns: Set<CollocateColumnKey> = Set(CollocateColumnKey.allCases)
+    private var visibleColumns: Set<CollocateColumnKey> = CollocatePageViewModel.defaultVisibleColumns
 
     init(sceneBuilder: CollocateSceneBuilder = CollocateSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -71,6 +73,11 @@ final class CollocatePageViewModel: ObservableObject {
     }
 
     func apply(_ snapshot: WorkspaceSnapshotSummary) {
+        isApplyingState = true
+        defer {
+            isApplyingState = false
+            rebuildScene()
+        }
         keyword = snapshot.searchQuery
         leftWindow = snapshot.collocateLeftWindow
         rightWindow = snapshot.collocateRightWindow
@@ -115,9 +122,29 @@ final class CollocatePageViewModel: ObservableObject {
     }
 
     func reset() {
+        isApplyingState = true
+        defer { isApplyingState = false }
+        keyword = ""
+        leftWindow = "5"
+        rightWindow = "5"
+        minFreq = "1"
+        searchOptions = .default
+        stopwordFilter = .default
+        isEditingStopwords = false
         result = nil
+        sortMode = .frequencyDescending
+        pageSize = .fifty
         currentPage = 1
+        visibleColumns = Self.defaultVisibleColumns
         scene = nil
+    }
+
+    private func handleInputChange(rebuildScene shouldRebuildScene: Bool) {
+        guard !isApplyingState else { return }
+        onInputChange?()
+        if shouldRebuildScene {
+            rebuildScene()
+        }
     }
 
     private func rebuildScene() {

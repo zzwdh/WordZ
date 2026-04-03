@@ -2,6 +2,7 @@ import Foundation
 
 @MainActor
 final class LocatorPageViewModel: ObservableObject {
+    private static let defaultVisibleColumns: Set<LocatorColumnKey> = [.sentenceId, .status, .text]
     @Published var leftWindow = "5"
     @Published var rightWindow = "5"
     @Published private(set) var source: LocatorSource?
@@ -12,7 +13,7 @@ final class LocatorPageViewModel: ObservableObject {
     private var result: LocatorResult?
     private var pageSize: LocatorPageSize = .fifty
     private var currentPage = 1
-    private var visibleColumns: Set<LocatorColumnKey> = Set(LocatorColumnKey.allCases)
+    private var visibleColumns: Set<LocatorColumnKey> = LocatorPageViewModel.defaultVisibleColumns
 
     init(sceneBuilder: LocatorSceneBuilder = LocatorSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -95,6 +96,7 @@ final class LocatorPageViewModel: ObservableObject {
         result = nil
         source = nil
         currentPage = 1
+        visibleColumns = Self.defaultVisibleColumns
         selectedRowID = nil
         scene = nil
     }

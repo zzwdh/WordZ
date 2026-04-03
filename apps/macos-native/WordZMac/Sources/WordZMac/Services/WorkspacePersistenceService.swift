@@ -15,7 +15,19 @@ struct WorkspacePersistenceService {
         kwicRightWindow: String,
         collocateLeftWindow: String,
         collocateRightWindow: String,
-        collocateMinFreq: String
+        collocateMinFreq: String,
+        topicsMinTopicSize: String,
+        topicsIncludeOutliers: Bool,
+        topicsPageSize: String,
+        topicsActiveTopicID: String,
+        wordCloudLimit: Int,
+        frequencyNormalizationUnit: FrequencyNormalizationUnit = FrequencyMetricDefinition.default.normalizationUnit,
+        frequencyRangeMode: FrequencyRangeMode = FrequencyMetricDefinition.default.rangeMode,
+        chiSquareA: String,
+        chiSquareB: String,
+        chiSquareC: String,
+        chiSquareD: String,
+        chiSquareUseYates: Bool
     ) -> WorkspaceStateDraft {
         let corpusName = openedCorpus?.displayName ?? selectedCorpus?.name ?? ""
         let corpusID = selectedCorpus?.id ?? ""
@@ -34,7 +46,19 @@ struct WorkspacePersistenceService {
             kwicRightWindow: kwicRightWindow,
             collocateLeftWindow: collocateLeftWindow,
             collocateRightWindow: collocateRightWindow,
-            collocateMinFreq: collocateMinFreq
+            collocateMinFreq: collocateMinFreq,
+            topicsMinTopicSize: topicsMinTopicSize,
+            topicsIncludeOutliers: topicsIncludeOutliers,
+            topicsPageSize: topicsPageSize,
+            topicsActiveTopicID: topicsActiveTopicID,
+            wordCloudLimit: wordCloudLimit,
+            frequencyNormalizationUnit: frequencyNormalizationUnit,
+            frequencyRangeMode: frequencyRangeMode,
+            chiSquareA: chiSquareA,
+            chiSquareB: chiSquareB,
+            chiSquareC: chiSquareC,
+            chiSquareD: chiSquareD,
+            chiSquareUseYates: chiSquareUseYates
         )
     }
 }

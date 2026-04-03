@@ -10,8 +10,6 @@ struct SettingsPaneSceneModel: Equatable {
     let userDataDirectory: String
     let updateSummary: String
     let supportStatus: String
-    let zoomLabel: String
-    let fontScaleLabel: String
     let latestVersionLabel: String
     let latestReleaseTitle: String
     let latestReleasePublishedLabel: String
@@ -35,8 +33,6 @@ struct SettingsPaneSceneModel: Equatable {
         userDataDirectory: "",
         updateSummary: "尚未检查更新。",
         supportStatus: "准备就绪",
-        zoomLabel: "100%",
-        fontScaleLabel: "100%",
         latestVersionLabel: "未知",
         latestReleaseTitle: "",
         latestReleasePublishedLabel: "",

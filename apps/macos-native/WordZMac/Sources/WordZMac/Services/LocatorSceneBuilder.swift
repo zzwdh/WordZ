@@ -59,15 +59,51 @@ struct LocatorSceneBuilder {
                         id: key.rawValue,
                         title: key.title(in: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: nil
+                        sortIndicator: nil,
+                        presentation: presentation(for: key),
+                        widthPolicy: widthPolicy(for: key),
+                        isPinned: key == .sentenceId || key == .nodeWord
                     )
-                }
+                },
+                defaultDensity: .standard
             ),
             totalRows: result.rows.count,
             visibleRows: sceneRows.count,
             rows: sceneRows,
             tableRows: tableRows
         )
+    }
+
+    private func presentation(for key: LocatorColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .sentenceId:
+            return .numeric(precision: 0)
+        case .status:
+            return .label
+        case .leftWords:
+            return .contextLeading
+        case .nodeWord:
+            return .keyword
+        case .rightWords:
+            return .contextTrailing
+        case .text:
+            return .summary
+        }
+    }
+
+    private func widthPolicy(for key: LocatorColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .sentenceId:
+            return .compact
+        case .status:
+            return .standard
+        case .leftWords, .rightWords:
+            return .context
+        case .nodeWord:
+            return .keyword
+        case .text:
+            return .summary
+        }
     }
 
     private func buildPagination(

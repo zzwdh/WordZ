@@ -9,8 +9,8 @@ struct RootContentSceneBuilder {
     ) -> RootContentSceneModel {
         RootContentSceneModel(
             windowTitle: windowTitle,
-            selectedTab: activeTab,
-            tabs: WorkspaceDetailTab.allCases.map {
+            selectedTab: activeTab.mainWorkspaceTab,
+            tabs: WorkspaceDetailTab.mainWorkspaceTabs.map {
                 RootContentTabSceneItem(tab: $0, title: $0.displayTitle(in: languageMode))
             },
             toolbar: toolbar

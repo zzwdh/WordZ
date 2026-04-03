@@ -15,6 +15,14 @@ final class ChiSquarePageViewModel: ObservableObject {
         self.sceneBuilder = sceneBuilder
     }
 
+    func apply(_ snapshot: WorkspaceSnapshotSummary) {
+        a = snapshot.chiSquareA
+        b = snapshot.chiSquareB
+        c = snapshot.chiSquareC
+        d = snapshot.chiSquareD
+        useYates = snapshot.chiSquareUseYates
+    }
+
     func apply(_ result: ChiSquareResult) {
         scene = sceneBuilder.build(from: result)
     }

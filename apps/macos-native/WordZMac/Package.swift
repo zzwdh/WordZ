@@ -12,7 +12,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "WordZMac",
-            path: "Sources/WordZMac"
+            path: "Sources/WordZMac",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "WordZMacTests",

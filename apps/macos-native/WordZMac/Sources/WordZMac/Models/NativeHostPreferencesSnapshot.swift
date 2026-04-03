@@ -11,6 +11,7 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
     var downloadedUpdateVersion: String
     var downloadedUpdateName: String
     var downloadedUpdatePath: String
+    var taskHistory: [PersistedNativeBackgroundTaskItem]
 
     static let `default` = NativeHostPreferencesSnapshot(
         languageMode: .system,
@@ -22,7 +23,8 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         lastUpdateStatus: "尚未检查更新。",
         downloadedUpdateVersion: "",
         downloadedUpdateName: "",
-        downloadedUpdatePath: ""
+        downloadedUpdatePath: "",
+        taskHistory: []
     )
 
     enum CodingKeys: String, CodingKey {
@@ -36,6 +38,7 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         case downloadedUpdateVersion
         case downloadedUpdateName
         case downloadedUpdatePath
+        case taskHistory
     }
 
     init(
@@ -48,7 +51,8 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         lastUpdateStatus: String,
         downloadedUpdateVersion: String,
         downloadedUpdateName: String,
-        downloadedUpdatePath: String
+        downloadedUpdatePath: String,
+        taskHistory: [PersistedNativeBackgroundTaskItem] = []
     ) {
         self.languageMode = languageMode
         self.autoUpdateEnabled = autoUpdateEnabled
@@ -60,6 +64,7 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         self.downloadedUpdateVersion = downloadedUpdateVersion
         self.downloadedUpdateName = downloadedUpdateName
         self.downloadedUpdatePath = downloadedUpdatePath
+        self.taskHistory = taskHistory
     }
 
     init(from decoder: any Decoder) throws {
@@ -74,5 +79,6 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         self.downloadedUpdateVersion = try container.decodeIfPresent(String.self, forKey: .downloadedUpdateVersion) ?? ""
         self.downloadedUpdateName = try container.decodeIfPresent(String.self, forKey: .downloadedUpdateName) ?? ""
         self.downloadedUpdatePath = try container.decodeIfPresent(String.self, forKey: .downloadedUpdatePath) ?? ""
+        self.taskHistory = try container.decodeIfPresent([PersistedNativeBackgroundTaskItem].self, forKey: .taskHistory) ?? []
     }
 }

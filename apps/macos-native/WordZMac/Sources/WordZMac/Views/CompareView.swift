@@ -7,12 +7,6 @@ struct CompareView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WorkbenchHeaderCard(title: t("对比", "Compare"), subtitle: t("多语料对照词项分布、范围与主导语料", "Compare distributions, spread, and dominant corpus across multiple corpora")) {
-                Button(t("开始对比", "Run Compare")) { onAction(.run) }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.selectedCorpusCount < 2)
-            }
-
             WorkbenchToolbarSection {
                 Text(t("选择至少 2 条语料", "Select at least 2 corpora"))
                     .font(.headline)
@@ -43,13 +37,19 @@ struct CompareView: View {
                     }
                 }
 
-                HStack(spacing: 12) {
-                    TextField(t("过滤词（留空显示全部）", "Filter term (leave blank for all)"), text: $viewModel.query)
-                        .textFieldStyle(.roundedBorder)
-                    Text("\(t("已选", "Selected")) \(viewModel.selectedCorpusCount) \(t("条", "items"))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        searchField
+                        selectedCountLabel
+                        runButton
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            searchField
+                            runButton
+                        }
+                        selectedCountLabel
+                    }
                 }
 
                 SearchOptionTogglesView(options: $viewModel.searchOptions)
@@ -71,68 +71,71 @@ struct CompareView: View {
                 }
 
                 WorkbenchToolbarSection {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(scene.query.isEmpty ? t("显示全部对比词项", "Showing all comparison rows") : t("过滤词：", "Filter: ") + scene.query)
-                                .font(.headline)
-                            if !scene.searchError.isEmpty {
-                                Text(scene.searchError)
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
+                    WorkbenchResultHeaderRow {
+                        Text(scene.query.isEmpty ? t("显示全部对比词项", "Showing all comparison rows") : t("过滤词：", "Filter: ") + scene.query)
+                            .font(.headline)
+                        Text(t("Keyness 以最显著语料对比其余所选语料（LL + Log Ratio）。", "Keyness compares the most distinctive corpus against the remaining selection (LL + Log Ratio)."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if !scene.searchError.isEmpty {
+                            Text(scene.searchError)
+                                .font(.caption)
+                                .foregroundStyle(.red)
                         }
-                        Spacer(minLength: 12)
+                    } trailing: {
                         Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows)（\(t("总计", "Total")) \(scene.totalRows)）")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
 
-                    HStack(spacing: 12) {
-                        Picker(
-                            t("排序", "Sort"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedSort },
-                                set: { onAction(.changeSort($0)) }
-                            )
-                        ) {
-                            ForEach(CompareSortMode.allCases) { mode in
-                                Text(mode.title(in: languageMode)).tag(mode)
+                    WorkbenchResultControlsRow {
+                        HStack(spacing: 12) {
+                            Picker(
+                                t("排序", "Sort"),
+                                selection: Binding(
+                                    get: { scene.sorting.selectedSort },
+                                    set: { onAction(.changeSort($0)) }
+                                )
+                            ) {
+                                ForEach(CompareSortMode.allCases) { mode in
+                                    Text(mode.title(in: languageMode)).tag(mode)
+                                }
                             }
-                        }
-                        .pickerStyle(.menu)
+                            .pickerStyle(.menu)
 
-                        Picker(
-                            t("页大小", "Page Size"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedPageSize },
-                                set: { onAction(.changePageSize($0)) }
-                            )
-                        ) {
-                            ForEach(ComparePageSize.allCases) { size in
-                                Text(size.title(in: languageMode)).tag(size)
+                            Picker(
+                                t("页大小", "Page Size"),
+                                selection: Binding(
+                                    get: { scene.sorting.selectedPageSize },
+                                    set: { onAction(.changePageSize($0)) }
+                                )
+                            ) {
+                                ForEach(ComparePageSize.allCases) { size in
+                                    Text(size.title(in: languageMode)).tag(size)
+                                }
                             }
+                            .pickerStyle(.segmented)
+                            .frame(maxWidth: 300)
                         }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 300)
+                    } trailing: {
+                        HStack(spacing: 12) {
+                            WorkbenchColumnMenu(
+                                title: t("列", "Columns"),
+                                keys: CompareColumnKey.allCases,
+                                label: { scene.columnTitle(for: $0, mode: languageMode) },
+                                isVisible: { scene.column(for: $0)?.isVisible ?? false },
+                                onToggle: { onAction(.toggleColumn($0)) }
+                            )
 
-                        WorkbenchColumnMenu(
-                            title: t("列", "Columns"),
-                            keys: CompareColumnKey.allCases,
-                            label: { scene.columnTitle(for: $0, mode: languageMode) },
-                            isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                            onToggle: { onAction(.toggleColumn($0)) }
-                        )
-
-                        Spacer()
-
-                        WorkbenchPaginationControls(
-                            canGoBackward: scene.pagination.canGoBackward,
-                            canGoForward: scene.pagination.canGoForward,
-                            rangeLabel: scene.pagination.rangeLabel,
-                            onPrevious: { onAction(.previousPage) },
-                            onNext: { onAction(.nextPage) }
-                        )
+                            WorkbenchPaginationControls(
+                                canGoBackward: scene.pagination.canGoBackward,
+                                canGoForward: scene.pagination.canGoForward,
+                                rangeLabel: scene.pagination.rangeLabel,
+                                onPrevious: { onAction(.previousPage) },
+                                onNext: { onAction(.nextPage) }
+                            )
+                        }
                     }
                 }
 
@@ -140,6 +143,8 @@ struct CompareView: View {
                     NativeTableView(
                         descriptor: scene.table,
                         rows: scene.tableRows,
+                        selectedRowID: viewModel.selectedRowID,
+                        onSelectionChange: { onAction(.selectRow($0)) },
                         onSortByColumn: { columnID in
                             guard let column = CompareColumnKey(rawValue: columnID) else { return }
                             onAction(.sortByColumn(column))
@@ -148,6 +153,7 @@ struct CompareView: View {
                             guard let column = CompareColumnKey(rawValue: columnID) else { return }
                             onAction(.toggleColumn(column))
                         },
+                        allowsMultipleSelection: false,
                         emptyMessage: t("当前对比结果没有可显示的词项。", "No comparison rows to display."),
                         accessibilityLabel: t("对比结果表格", "Compare results table"),
                         activationHint: t("使用方向键浏览结果，按 Return 可触发表格默认动作。", "Use arrow keys to browse results, then press Return to trigger the default table action.")
@@ -155,11 +161,48 @@ struct CompareView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .layoutPriority(1)
                 }
+
+                if let selectedRow = viewModel.selectedSceneRow {
+                    WorkbenchSectionCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 12) {
+                                Text(selectedRow.word)
+                                    .font(.headline)
+                                Text("Keyness \(selectedRow.keynessText) · Log Ratio \(selectedRow.effectText)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                Spacer()
+                                Text("\(t("主导语料", "Dominant")): \(selectedRow.dominantCorpus)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack(spacing: 16) {
+                                compareDetailMetric(t("覆盖", "Spread"), value: selectedRow.spreadText)
+                                compareDetailMetric(t("总频", "Total"), value: selectedRow.totalText)
+                                compareDetailMetric(t("差异", "Range"), value: selectedRow.rangeText)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(t("完整分布", "Full Distribution"))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                ScrollView {
+                                    Text(selectedRow.distributionText)
+                                        .font(.caption)
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .frame(minHeight: 54, maxHeight: 96)
+                            }
+                        }
+                    }
+                }
             } else {
                 ContentUnavailableView(
                     t("尚未生成对比结果", "No comparison results yet"),
-                    systemImage: "square.2.layers.3d.top.filled",
-                    description: Text(t("先在上方选择至少两条语料，再开始对比。", "Select at least two corpora above, then run compare."))
+                    systemImage: "square.2.layers.3d.top.filled"
                 )
             }
         }
@@ -168,6 +211,24 @@ struct CompareView: View {
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)
         }
+    }
+
+    private var searchField: some View {
+        TextField(t("过滤词（留空显示全部）", "Filter term (leave blank for all)"), text: $viewModel.query)
+            .textFieldStyle(.roundedBorder)
+    }
+
+    private var selectedCountLabel: some View {
+        Text("\(t("已选", "Selected")) \(viewModel.selectedCorpusCount) \(t("条", "items"))")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+    }
+
+    private var runButton: some View {
+        Button(t("开始对比", "Run Compare")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
+            .disabled(viewModel.selectedCorpusCount < 2)
     }
 
     private func compareSummaryCard(_ corpus: CompareCorpusSummarySceneItem) -> some View {
@@ -189,6 +250,17 @@ struct CompareView: View {
         .padding(12)
         .frame(width: 220, alignment: .leading)
         .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func compareDetailMetric(_ title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.weight(.medium))
+                .monospacedDigit()
+        }
     }
 
     private func t(_ zh: String, _ en: String) -> String {

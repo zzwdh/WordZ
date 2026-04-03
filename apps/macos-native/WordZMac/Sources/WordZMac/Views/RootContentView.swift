@@ -17,34 +17,20 @@ struct RootContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(
-                viewModel: viewModel.sidebar,
-                onAction: dispatcher.handleSidebarAction
-            )
-        } detail: {
-            VStack(spacing: 0) {
-                workspaceHeader
-                if let banner = viewModel.issueBanner {
-                    issueBannerView(banner)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 12)
-                }
-                Divider()
-                currentDetailView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(nsColor: .windowBackgroundColor))
+        VStack(spacing: 0) {
+            workspaceChrome
+            currentDetailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .toolbar {
+            ToolbarItemGroup {
+                toolbarButton(.refresh)
+                toolbarButton(.openSelected)
+                toolbarButton(.exportCurrent)
             }
-            .toolbar {
-                ToolbarItemGroup {
-                    toolbarButton(.showLibrary)
-                    toolbarButton(.openSelected)
-                    toolbarButton(.runStats)
-                    toolbarButton(.runWord)
-                    toolbarButton(.runKWIC)
-                    toolbarButton(.runCollocate)
-                    toolbarButton(.exportCurrent)
-                }
+            if !secondaryToolbarItems.isEmpty {
                 ToolbarItem {
                     Menu(wordZText("更多", "More", mode: languageMode)) {
                         ForEach(secondaryToolbarItems) { item in
@@ -57,7 +43,6 @@ struct RootContentView: View {
                 }
             }
         }
-        .navigationTitle(viewModel.rootScene.windowTitle)
         .background(
             WindowAccessor { window in
                 viewModel.attachWindow(window)
@@ -93,64 +78,39 @@ struct RootContentView: View {
         }
     }
 
-    private var settingsView: some View {
-        SettingsPaneView(
-            settings: viewModel.settings,
-            onAction: dispatcher.handleSettingsAction
-        )
+    private var workspaceChrome: some View {
+        VStack(spacing: 0) {
+            workspaceHeader
+            if let banner = viewModel.issueBanner {
+                issueBannerView(banner)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+            }
+            if viewModel.taskCenter.scene.runningCount > 0 {
+                taskProgressPreview
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+            }
+            Divider()
+        }
+        .background(.ultraThinMaterial)
     }
 
     private var workspaceHeader: some View {
-        WorkbenchSectionCard {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.rootScene.windowTitle)
-                            .font(.title2.weight(.semibold))
-                        Text(activeStatusLine)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: 16)
-
-                    Text(currentTabTitle)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.quaternary, in: Capsule())
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(viewModel.rootScene.tabs) { item in
-                            Button {
-                                viewModel.selectedTab = item.tab
-                            } label: {
-                                Text(item.title)
-                                    .font(.callout.weight(.medium))
-                                    .padding(.horizontal, 13)
-                                    .padding(.vertical, 8)
-                                    .frame(minWidth: 72)
-                                    .background(
-                                        viewModel.rootScene.selectedTab == item.tab
-                                        ? Color.accentColor.opacity(0.16)
-                                        : Color.secondary.opacity(0.07),
-                                        in: Capsule()
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 1)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(viewModel.rootScene.tabs) { item in
+                    workspaceTabButton(item)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(.thinMaterial)
+        .frame(minHeight: 56)
+    }
+
+    private var taskProgressPreview: some View {
+        WorkbenchTaskPreviewStrip(scene: viewModel.taskCenter.scene)
     }
 
     @ViewBuilder
@@ -167,7 +127,7 @@ struct RootContentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                Button(wordZText("帮助中心", "Help Center", mode: languageMode)) {
+                Button(wordZText("使用说明", "Usage Guide", mode: languageMode)) {
                     openWindow(id: NativeWindowRoute.help.id)
                 }
                 Button(wordZText("导出诊断", "Export Diagnostics", mode: languageMode)) {
@@ -185,12 +145,14 @@ struct RootContentView: View {
     @ViewBuilder
     private var currentDetailView: some View {
         switch viewModel.rootScene.selectedTab {
-        case .library:
-            LibraryManagementView(viewModel: viewModel.library, onAction: dispatcher.handleLibraryAction)
-        case .stats:
+        case .library, .settings, .stats:
             StatsView(viewModel: viewModel.stats, onAction: dispatcher.handleStatsAction)
         case .word:
             WordView(viewModel: viewModel.word, onAction: dispatcher.handleWordAction)
+        case .tokenize:
+            TokenizeView(viewModel: viewModel.tokenize, onAction: dispatcher.handleTokenizeAction)
+        case .topics:
+            TopicsView(viewModel: viewModel.topics, onAction: dispatcher.handleTopicsAction)
         case .compare:
             CompareView(viewModel: viewModel.compare, onAction: dispatcher.handleCompareAction)
         case .chiSquare:
@@ -205,8 +167,6 @@ struct RootContentView: View {
             CollocateView(viewModel: viewModel.collocate, onAction: dispatcher.handleCollocateAction)
         case .locator:
             LocatorView(viewModel: viewModel.locator, onAction: dispatcher.handleLocatorAction)
-        case .settings:
-            settingsView
         }
     }
 
@@ -222,51 +182,48 @@ struct RootContentView: View {
 
     private var secondaryToolbarItems: [WorkspaceToolbarActionItem] {
         viewModel.rootScene.toolbar.items.filter {
-            ![WorkspaceToolbarAction.showLibrary,
+            ![WorkspaceToolbarAction.refresh,
               .openSelected,
+              .showLibrary,
               .runStats,
               .runWord,
+              .runTokenize,
+              .runTopics,
+              .runCompare,
+              .runChiSquare,
+              .runNgram,
+              .runWordCloud,
               .runKWIC,
               .runCollocate,
+              .runLocator,
               .exportCurrent].contains($0.action)
         }
     }
 
-    private var activeStatusLine: String {
-        switch viewModel.rootScene.selectedTab {
-        case .library:
-            return viewModel.sceneGraph.library.librarySummary
-        case .stats:
-            return viewModel.sceneGraph.stats.status
-        case .word:
-            return viewModel.sceneGraph.word.status
-        case .compare:
-            return viewModel.sceneGraph.compare.status
-        case .chiSquare:
-            return viewModel.sceneGraph.chiSquare.status
-        case .ngram:
-            return viewModel.sceneGraph.ngram.status
-        case .wordCloud:
-            return viewModel.sceneGraph.wordCloud.status
-        case .kwic:
-            return viewModel.sceneGraph.kwic.status
-        case .collocate:
-            return viewModel.sceneGraph.collocate.status
-        case .locator:
-            return viewModel.sceneGraph.locator.status
-        case .settings:
-            return viewModel.sceneGraph.settings.buildSummary
+    private func workspaceTabButton(_ item: RootContentTabSceneItem) -> some View {
+        let resolvedSelectedTab = viewModel.rootScene.selectedTab
+        let isSelected = item.tab == resolvedSelectedTab
+        return Button {
+            viewModel.selectedTab = item.tab
+        } label: {
+            Text(item.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSelected ? .white : Color.blue)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    isSelected
+                    ? AnyShapeStyle(Color.blue.gradient)
+                    : AnyShapeStyle(Color.blue.opacity(0.12))
+                , in: Capsule())
         }
-    }
-
-    private var currentTabTitle: String {
-        viewModel.rootScene.tabs.first(where: { $0.tab == viewModel.rootScene.selectedTab })?.title
-        ?? viewModel.rootScene.selectedTab.displayTitle
+        .buttonStyle(.plain)
     }
 
     private func handleAppCommand(_ command: NativeAppCommand) {
         switch command {
         case .importCorpora:
+            openWindow(id: NativeWindowRoute.library.id)
             Task { await viewModel.importCorpusFromDialog() }
         case .newWorkspace:
             Task { await viewModel.newWorkspace() }
@@ -275,9 +232,9 @@ struct RootContentView: View {
         case .showWelcome:
             viewModel.presentWelcome()
         case .showLibrary:
-            viewModel.showLibrary()
+            openWindow(id: NativeWindowRoute.library.id)
         case .showSettings:
-            viewModel.showSettings()
+            openWindow(id: NativeWindowRoute.settings.id)
         case .showTaskCenterWindow:
             openWindow(id: NativeWindowRoute.taskCenter.id)
         case .showAboutWindow:
@@ -290,10 +247,18 @@ struct RootContentView: View {
             Task { await viewModel.refreshAll() }
         case .openSelectedCorpus:
             Task { await viewModel.openSelectedCorpus() }
+        case .quickLookCurrentCorpus:
+            Task { await viewModel.quickLookCurrentCorpus() }
+        case .shareCurrentContent:
+            Task { await viewModel.shareCurrentContent() }
         case .runStats:
             Task { await viewModel.runStats() }
         case .runWord:
             Task { await viewModel.runWord() }
+        case .runTokenize:
+            Task { await viewModel.runTokenize() }
+        case .runTopics:
+            Task { await viewModel.runTopics() }
         case .runCompare:
             Task { await viewModel.runCompare() }
         case .runChiSquare:

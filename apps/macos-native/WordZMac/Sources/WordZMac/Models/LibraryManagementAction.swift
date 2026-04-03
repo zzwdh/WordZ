@@ -8,6 +8,8 @@ enum LibraryManagementAction: Equatable {
     case selectCorpus(String?)
     case selectRecycleEntry(String?)
     case openSelectedCorpus
+    case quickLookSelectedCorpus
+    case showSelectedCorpusInfo
     case renameSelectedCorpus
     case moveSelectedCorpusToSelectedFolder
     case deleteSelectedCorpus

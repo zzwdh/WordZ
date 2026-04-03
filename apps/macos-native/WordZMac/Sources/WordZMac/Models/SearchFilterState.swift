@@ -1,6 +1,6 @@
 import Foundation
 
-enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable {
+enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable {
     case exclude
     case include
 
@@ -20,7 +20,7 @@ enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct SearchOptionsState: Equatable, Codable {
+struct SearchOptionsState: Equatable, Codable, Sendable {
     var words: Bool = true
     var caseSensitive: Bool = false
     var regex: Bool = false
@@ -63,7 +63,7 @@ struct SearchOptionsState: Equatable, Codable {
     }
 }
 
-struct StopwordFilterState: Equatable, Codable {
+struct StopwordFilterState: Equatable, Codable, Sendable {
     static let defaultListText = """
     a
     an
@@ -190,7 +190,7 @@ struct StopwordFilterState: Equatable, Codable {
         var words: [String] = []
         let separators = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",，;；"))
         for part in normalized.components(separatedBy: separators) {
-            let word = part.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let word = AnalysisTextNormalizationSupport.normalizeToken(part)
             guard !word.isEmpty, !seen.contains(word) else { continue }
             seen.insert(word)
             words.append(word)

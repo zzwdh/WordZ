@@ -1,21 +1,27 @@
 import Foundation
 
 enum CompareSortMode: String, CaseIterable, Identifiable {
+    case keynessDescending
     case spreadDescending
     case totalDescending
     case rangeDescending
+    case effectDescending
     case alphabeticalAscending
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .keynessDescending:
+            return "Keyness 降序"
         case .spreadDescending:
             return "覆盖降序"
         case .totalDescending:
             return "总频降序"
         case .rangeDescending:
             return "差异降序"
+        case .effectDescending:
+            return "效应值降序"
         case .alphabeticalAscending:
             return "按词升序"
         }
@@ -23,12 +29,16 @@ enum CompareSortMode: String, CaseIterable, Identifiable {
 
     func title(in mode: AppLanguageMode) -> String {
         switch self {
+        case .keynessDescending:
+            return wordZText("Keyness 降序", "Keyness Descending", mode: mode)
         case .spreadDescending:
             return wordZText("覆盖降序", "Spread Descending", mode: mode)
         case .totalDescending:
             return wordZText("总频降序", "Total Descending", mode: mode)
         case .rangeDescending:
             return wordZText("差异降序", "Range Descending", mode: mode)
+        case .effectDescending:
+            return wordZText("效应值降序", "Effect Descending", mode: mode)
         case .alphabeticalAscending:
             return wordZText("按词升序", "Alphabetical Ascending", mode: mode)
         }
@@ -76,6 +86,8 @@ enum ComparePageSize: Int, CaseIterable, Identifiable {
 
 enum CompareColumnKey: String, CaseIterable, Identifiable, Hashable {
     case word
+    case keyness
+    case effect
     case spread
     case total
     case range
@@ -88,6 +100,10 @@ enum CompareColumnKey: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .word:
             return "词"
+        case .keyness:
+            return "Keyness"
+        case .effect:
+            return "Log Ratio"
         case .spread:
             return "覆盖语料"
         case .total:
@@ -105,6 +121,10 @@ enum CompareColumnKey: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .word:
             return wordZText("词", "Word", mode: mode)
+        case .keyness:
+            return wordZText("Keyness", "Keyness", mode: mode)
+        case .effect:
+            return wordZText("Log Ratio", "Log Ratio", mode: mode)
         case .spread:
             return wordZText("覆盖语料", "Spread", mode: mode)
         case .total:
@@ -140,6 +160,8 @@ struct CompareCorpusSummarySceneItem: Identifiable, Equatable {
 struct CompareSceneRow: Identifiable, Equatable {
     let id: String
     let word: String
+    let keynessText: String
+    let effectText: String
     let spreadText: String
     let totalText: String
     let rangeText: String

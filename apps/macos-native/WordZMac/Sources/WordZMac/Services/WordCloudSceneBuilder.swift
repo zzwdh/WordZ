@@ -37,7 +37,10 @@ struct WordCloudSceneBuilder {
                 id: key.rawValue,
                 title: key.title,
                 isVisible: visibleColumns.contains(key),
-                sortIndicator: nil
+                sortIndicator: nil,
+                presentation: presentation(for: key),
+                widthPolicy: widthPolicy(for: key),
+                isPinned: key == .word
             )
         }
 
@@ -58,11 +61,32 @@ struct WordCloudSceneBuilder {
             stopwordFilter: stopwordFilter,
             limit: limit,
             totalRows: result.rows.count,
+            filteredRows: filtered.rows.count,
             visibleRows: tableRows.count,
-            table: NativeTableDescriptor(storageKey: "wordcloud", columns: columns),
+            table: NativeTableDescriptor(storageKey: "wordcloud", columns: columns, defaultDensity: .compact),
             tableRows: tableRows,
             cloudItems: cloudItems,
             searchError: filtered.error
         )
+    }
+
+    private func presentation(for key: WordCloudColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .word:
+            return .keyword
+        case .count:
+            return .numeric(precision: 0)
+        case .prominence:
+            return .numeric(precision: 2)
+        }
+    }
+
+    private func widthPolicy(for key: WordCloudColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .word:
+            return .keyword
+        default:
+            return .numeric
+        }
     }
 }

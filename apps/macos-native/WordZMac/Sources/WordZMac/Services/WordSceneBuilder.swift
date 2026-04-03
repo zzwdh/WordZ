@@ -1,37 +1,47 @@
 import Foundation
 
 struct WordSceneBuilder {
-    @MainActor
     func build(
         from result: StatsResult,
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        definition: FrequencyMetricDefinition = .default,
         sortMode: WordSortMode,
         pageSize: WordPageSize,
         currentPage: Int,
-        visibleColumns: Set<WordColumnKey>
+        visibleColumns: Set<WordColumnKey>,
+        languageMode: AppLanguageMode = .system,
+        prefilteredDisplayableRows: [FrequencyRow]? = nil,
+        filteredRows: [FrequencyRow]? = nil,
+        filteredError: String? = nil,
+        sortedRows: [FrequencyRow]? = nil
     ) -> WordSceneModel {
-        let languageMode = WordZLocalization.shared.effectiveMode
-        let filtered = SearchFilterSupport.filterWordLikeRows(
-            result.frequencyRows,
-            query: query,
-            options: searchOptions,
-            stopword: stopwordFilter
-        ) { $0.word }
-        let sortedRows = sortRows(filtered.rows, mode: sortMode)
+        let resolvedDisplayableRows = prefilteredDisplayableRows ?? displayableRows(from: result)
+        let filtered = filteredRows.map { (rows: $0, error: filteredError ?? "") }
+            ?? filterRows(
+                from: resolvedDisplayableRows,
+                query: query,
+                searchOptions: searchOptions,
+                stopwordFilter: stopwordFilter
+            )
+        let sortedRows = sortedRows ?? sortRows(filtered.rows, mode: sortMode, definition: definition)
         let pagination = buildPagination(totalRows: sortedRows.count, currentPage: currentPage, pageSize: pageSize, languageMode: languageMode)
         let pageRows = sliceRows(sortedRows, currentPage: pagination.currentPage, pageSize: pageSize)
         let pageOffset = pagination.currentPage == 1 || pageSize.rowLimit == nil
             ? 0
             : (pagination.currentPage - 1) * (pageSize.rowLimit ?? 0)
 
-        let sceneRows = pageRows.enumerated().map { index, row in
-            WordSceneRow(
+        let sceneRows = pageRows.enumerated().map { offset, row in
+            let displayRank = row.rank > 0 ? row.rank : pageOffset + offset + 1
+            return WordSceneRow(
                 id: row.id,
-                rankText: "\(pageOffset + index + 1)",
+                rankText: "\(displayRank)",
                 word: row.word,
-                countText: "\(row.count)"
+                countText: "\(row.count)",
+                normFrequencyText: String(format: "%.2f", FrequencyRowSupport.normalizedFrequency(for: row, tokenCount: result.tokenCount, definition: definition)),
+                rangeText: "\(FrequencyRowSupport.rangeValue(for: row, definition: definition))",
+                normRangeText: String(format: "%.2f", FrequencyRowSupport.normalizedRange(for: row, paragraphCount: result.paragraphCount, sentenceCount: result.sentenceCount, definition: definition))
             )
         }
 
@@ -41,7 +51,10 @@ struct WordSceneBuilder {
                 values: [
                     WordColumnKey.rank.rawValue: row.rankText,
                     WordColumnKey.word.rawValue: row.word,
-                    WordColumnKey.count.rawValue: row.countText
+                    WordColumnKey.count.rawValue: row.countText,
+                    WordColumnKey.normFrequency.rawValue: row.normFrequencyText,
+                    WordColumnKey.range.rawValue: row.rangeText,
+                    WordColumnKey.normRange.rawValue: row.normRangeText
                 ]
             )
         }
@@ -50,6 +63,9 @@ struct WordSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            definition: definition,
+            definitionSummary: definition.summary(in: languageMode),
+            exportMetadataLines: definition.exportNotes(in: languageMode, visibleRows: sceneRows.count, totalRows: filtered.rows.count),
             sorting: WordSortingSceneModel(
                 selectedSort: sortMode,
                 selectedPageSize: pageSize
@@ -60,13 +76,17 @@ struct WordSceneBuilder {
                 columns: WordColumnKey.allCases.map { key in
                     NativeTableColumnDescriptor(
                         id: key.rawValue,
-                        title: key.title(in: languageMode),
+                        title: columnTitle(for: key, definition: definition, mode: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode)
+                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        presentation: presentation(for: key),
+                        widthPolicy: widthPolicy(for: key),
+                        isPinned: key == .rank || key == .word
                     )
-                }
+                },
+                defaultDensity: .compact
             ),
-            totalRows: result.frequencyRows.count,
+            totalRows: resolvedDisplayableRows.count,
             filteredRows: filtered.rows.count,
             visibleRows: sceneRows.count,
             rows: sceneRows,
@@ -75,38 +95,109 @@ struct WordSceneBuilder {
         )
     }
 
-    private func sortRows(_ rows: [FrequencyRow], mode: WordSortMode) -> [FrequencyRow] {
+    private func presentation(for key: WordColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .word:
+            return .keyword
+        case .rank, .count, .range:
+            return .numeric(precision: 0)
+        case .normFrequency, .normRange:
+            return .numeric(precision: 2)
+        }
+    }
+
+    private func widthPolicy(for key: WordColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .word:
+            return .keyword
+        default:
+            return .numeric
+        }
+    }
+
+    func displayableRows(from result: StatsResult) -> [FrequencyRow] {
+        FrequencyRowSupport.lexicalRows(from: result.frequencyRows)
+    }
+
+    func filterRows(
+        from result: StatsResult,
+        query: String,
+        searchOptions: SearchOptionsState,
+        stopwordFilter: StopwordFilterState
+    ) -> (rows: [FrequencyRow], error: String) {
+        filterRows(
+            from: displayableRows(from: result),
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter
+        )
+    }
+
+    func filterRows(
+        from rows: [FrequencyRow],
+        query: String,
+        searchOptions: SearchOptionsState,
+        stopwordFilter: StopwordFilterState
+    ) -> (rows: [FrequencyRow], error: String) {
+        SearchFilterSupport.filterWordLikeRows(
+            rows,
+            query: query,
+            options: searchOptions,
+            stopword: stopwordFilter
+        ) { $0.word }
+    }
+
+    func sortRows(_ rows: [FrequencyRow], mode: WordSortMode, definition: FrequencyMetricDefinition) -> [FrequencyRow] {
         switch mode {
         case .frequencyDescending:
-            return rows.sorted {
-                if $0.count == $1.count {
-                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
-                }
-                return $0.count > $1.count
-            }
+            return FrequencyRowSupport.sortRows(rows, criterion: .count, direction: .descending, definition: definition)
         case .frequencyAscending:
-            return rows.sorted {
-                if $0.count == $1.count {
-                    return $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
-                }
-                return $0.count < $1.count
-            }
+            return FrequencyRowSupport.sortRows(rows, criterion: .count, direction: .ascending, definition: definition)
+        case .rankAscending:
+            return FrequencyRowSupport.sortRows(rows, criterion: .rank, direction: .ascending, definition: definition)
+        case .rankDescending:
+            return FrequencyRowSupport.sortRows(rows, criterion: .rank, direction: .descending, definition: definition)
+        case .rangeDescending:
+            return FrequencyRowSupport.sortRows(rows, criterion: .range, direction: .descending, definition: definition)
+        case .rangeAscending:
+            return FrequencyRowSupport.sortRows(rows, criterion: .range, direction: .ascending, definition: definition)
         case .alphabeticalAscending:
-            return rows.sorted {
-                $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedAscending
-            }
+            return FrequencyRowSupport.sortRows(rows, criterion: .word, direction: .ascending, definition: definition)
         case .alphabeticalDescending:
-            return rows.sorted {
-                $0.word.localizedCaseInsensitiveCompare($1.word) == .orderedDescending
-            }
+            return FrequencyRowSupport.sortRows(rows, criterion: .word, direction: .descending, definition: definition)
+        }
+    }
+
+    private func columnTitle(
+        for key: WordColumnKey,
+        definition: FrequencyMetricDefinition,
+        mode: AppLanguageMode
+    ) -> String {
+        switch key {
+        case .normFrequency:
+            return definition.normFrequencyTitle(in: mode)
+        case .range:
+            return definition.rangeTitle(in: mode)
+        case .normRange:
+            return definition.normRangeTitle(in: mode)
+        default:
+            return key.title(in: mode)
         }
     }
 
     private func sortIndicator(for key: WordColumnKey, sortMode: WordSortMode) -> String? {
         switch (key, sortMode) {
-        case (.word, .alphabeticalAscending), (.count, .frequencyAscending):
+        case (.rank, .rankAscending):
             return "↑"
-        case (.word, .alphabeticalDescending), (.count, .frequencyDescending):
+        case (.rank, .rankDescending):
+            return "↓"
+        case (.word, .alphabeticalAscending), (.count, .frequencyAscending), (.normFrequency, .frequencyAscending):
+            return "↑"
+        case (.word, .alphabeticalDescending), (.count, .frequencyDescending), (.normFrequency, .frequencyDescending):
+            return "↓"
+        case (.range, .rangeAscending), (.normRange, .rangeAscending):
+            return "↑"
+        case (.range, .rangeDescending), (.normRange, .rangeDescending):
             return "↓"
         default:
             return nil

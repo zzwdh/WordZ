@@ -9,6 +9,8 @@ final class ViewModelsTests: XCTestCase {
 
         XCTAssertEqual(viewModel.scene?.rows.count, 100)
         XCTAssertEqual(viewModel.scene?.pagination.rangeLabel, "1-100 / 120")
+        XCTAssertFalse(viewModel.scene?.isColumnVisible(.rank) ?? true)
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.word) ?? false)
 
         viewModel.handle(.nextPage)
         XCTAssertEqual(viewModel.scene?.rows.count, 20)
@@ -21,8 +23,8 @@ final class ViewModelsTests: XCTestCase {
         viewModel.handle(.toggleColumn(.count))
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.count) ?? true)
 
-        viewModel.handle(.toggleColumn(.word))
-        XCTAssertTrue(viewModel.scene?.isColumnVisible(.word) ?? false)
+        viewModel.handle(.toggleColumn(.count))
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.count) ?? false)
     }
 
     func testComparePageViewModelTracksSelectionAndColumns() {
@@ -32,8 +34,12 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedCorpusCount, 2)
 
         viewModel.apply(makeCompareResult())
-        viewModel.handle(.toggleColumn(.distribution))
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.distribution) ?? true)
+        viewModel.handle(.toggleColumn(.distribution))
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.distribution) ?? false)
+        XCTAssertEqual(viewModel.selectedSceneRow?.word, "alpha")
+        viewModel.handle(.selectRow("beta"))
+        XCTAssertEqual(viewModel.selectedSceneRow?.word, "beta")
 
         viewModel.handle(.changeSort(.alphabeticalAscending))
         XCTAssertEqual(viewModel.scene?.rows.first?.word, "alpha")
@@ -52,6 +58,17 @@ final class ViewModelsTests: XCTestCase {
 
         viewModel.apply(makeChiSquareResult())
         XCTAssertNotNil(viewModel.scene)
+        viewModel.apply(makeWorkspaceSnapshot(
+            currentTab: "chi-square",
+            chiSquareA: "12",
+            chiSquareB: "18",
+            chiSquareC: "7",
+            chiSquareD: "9",
+            chiSquareUseYates: true
+        ))
+        XCTAssertEqual(viewModel.a, "12")
+        XCTAssertEqual(viewModel.d, "9")
+        XCTAssertTrue(viewModel.useYates)
         viewModel.handle(.reset)
         XCTAssertNil(viewModel.scene)
         XCTAssertEqual(viewModel.a, "")
@@ -70,6 +87,7 @@ final class ViewModelsTests: XCTestCase {
         viewModel.apply(makeKWICResult(rowCount: 40))
         viewModel.handle(.changeSort(.sentenceAscending))
         XCTAssertEqual(viewModel.scene?.rows.first?.sentenceIndexText, "2")
+        XCTAssertFalse(viewModel.scene?.isColumnVisible(.sentenceIndex) ?? true)
 
         viewModel.handle(.toggleColumn(.leftContext))
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.leftContext) ?? true)
@@ -100,6 +118,7 @@ final class ViewModelsTests: XCTestCase {
 
         viewModel.apply(makeNgramResult(rowCount: 40, n: 4))
         XCTAssertEqual(viewModel.ngramSizeValue, 4)
+        XCTAssertFalse(viewModel.scene?.isColumnVisible(.rank) ?? true)
 
         viewModel.query = "phrase-1"
         XCTAssertTrue(viewModel.scene?.filteredRows ?? 0 > 0)
@@ -123,6 +142,7 @@ final class ViewModelsTests: XCTestCase {
         viewModel.apply(makeCollocateResult(rowCount: 40))
         viewModel.handle(.changePageSize(.twentyFive))
         XCTAssertEqual(viewModel.scene?.rows.count, 25)
+        XCTAssertFalse(viewModel.scene?.isColumnVisible(.rank) ?? true)
 
         viewModel.handle(.nextPage)
         XCTAssertEqual(viewModel.scene?.rows.count, 15)
@@ -176,6 +196,7 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.selectedCorpusID, "corpus-2")
         XCTAssertEqual(viewModel.scene.inspector.title, "Compare Corpus")
         XCTAssertEqual(viewModel.scene.inspector.actions.first?.action, .openSelectedCorpus)
+        XCTAssertTrue(viewModel.scene.inspector.actions.contains(where: { $0.action == .showSelectedCorpusInfo }))
     }
 
     func testWordCloudPageViewModelSupportsLimitAndColumns() {
@@ -183,11 +204,97 @@ final class ViewModelsTests: XCTestCase {
         viewModel.apply(makeWordCloudResult(rowCount: 24))
 
         XCTAssertEqual(viewModel.scene?.visibleRows, 24)
+        XCTAssertEqual(viewModel.scene?.filteredRows, 24)
 
         viewModel.handle(.changeLimit(20))
         XCTAssertEqual(viewModel.scene?.visibleRows, 20)
+        XCTAssertEqual(viewModel.scene?.filteredRows, 24)
 
         viewModel.handle(.toggleColumn(.prominence))
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.prominence) ?? true)
+
+        viewModel.apply(makeWorkspaceSnapshot(searchQuery: "cloud-1*", wordCloudLimit: 10))
+        XCTAssertEqual(viewModel.query, "cloud-1*")
+        XCTAssertEqual(viewModel.limit, 10)
+        XCTAssertEqual(viewModel.scene?.filteredRows, 11)
+        XCTAssertEqual(viewModel.scene?.visibleRows, 10)
+    }
+
+    func testTopicsPageViewModelAppliesSnapshotWithoutTriggeringRepeatedInputCallbacks() {
+        let viewModel = TopicsPageViewModel()
+        var inputChangeCount = 0
+        viewModel.onInputChange = {
+            inputChangeCount += 1
+        }
+
+        viewModel.apply(makeTopicAnalysisResult())
+        viewModel.apply(makeWorkspaceSnapshot(searchQuery: "hack*"))
+
+        XCTAssertEqual(inputChangeCount, 0)
+        XCTAssertEqual(viewModel.query, "hack*")
+        XCTAssertEqual(viewModel.scene?.query, "hack*")
+        XCTAssertEqual(viewModel.scene?.visibleSegments, 2)
+    }
+
+    func testTokenizePageViewModelBuildsFilteredExportDocument() {
+        let viewModel = TokenizePageViewModel()
+        let snapshot = makeWorkspaceSnapshot(currentTab: "tokenize", searchQuery: "alpha")
+        viewModel.apply(snapshot)
+        viewModel.apply(makeTokenizeResult())
+
+        XCTAssertEqual(viewModel.scene?.filteredTokens, 2)
+        XCTAssertEqual(viewModel.scene?.visibleSentences, 2)
+        XCTAssertEqual(viewModel.exportDocument?.text, "alpha\nalpha\n")
+        XCTAssertFalse(viewModel.scene?.column(for: .position)?.isVisible ?? true)
+
+        viewModel.handle(.toggleColumn(.normalized))
+        XCTAssertFalse(viewModel.scene?.column(for: .normalized)?.isVisible ?? true)
+    }
+
+    func testWordPageViewModelAppliesSnapshotWithoutTriggeringRepeatedInputCallbacks() {
+        let viewModel = WordPageViewModel()
+        var inputChangeCount = 0
+        viewModel.onInputChange = {
+            inputChangeCount += 1
+        }
+
+        viewModel.apply(makeStatsResult(rowCount: 12))
+        viewModel.apply(makeWorkspaceSnapshot(searchQuery: "Alpha", frequencyNormalizationUnit: .perMillion, frequencyRangeMode: .paragraph))
+
+        XCTAssertEqual(inputChangeCount, 0)
+        XCTAssertEqual(viewModel.query, "Alpha")
+        XCTAssertEqual(viewModel.metricDefinition.normalizationUnit, .perMillion)
+        XCTAssertEqual(viewModel.metricDefinition.rangeMode, .paragraph)
+        XCTAssertEqual(viewModel.scene?.query, "Alpha")
+    }
+
+    func testNgramPageViewModelSnapshotAndResultDoNotTriggerInputCallbacks() {
+        let viewModel = NgramPageViewModel()
+        var inputChangeCount = 0
+        viewModel.onInputChange = {
+            inputChangeCount += 1
+        }
+
+        viewModel.apply(makeWorkspaceSnapshot(searchQuery: "beta", ngramSize: "4"))
+        viewModel.apply(makeNgramResult(rowCount: 10, n: 4))
+
+        XCTAssertEqual(inputChangeCount, 0)
+        XCTAssertEqual(viewModel.query, "beta")
+        XCTAssertEqual(viewModel.ngramSizeValue, 4)
+        XCTAssertEqual(viewModel.scene?.query, "beta")
+    }
+
+    func testWordPageViewModelBuildsLargeScenesOffMainPath() {
+        let viewModel = WordPageViewModel()
+        let expectation = expectation(description: "large scene built")
+
+        viewModel.apply(makeStatsResult(rowCount: LargeResultSceneBuildSupport.asyncThreshold + 50))
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            XCTAssertEqual(viewModel.scene?.totalRows, LargeResultSceneBuildSupport.asyncThreshold + 50)
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 1.0)
     }
 }

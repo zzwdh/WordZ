@@ -1,6 +1,6 @@
 import Foundation
 
-enum NativeBackgroundTaskState: Equatable {
+enum NativeBackgroundTaskState: String, Codable, Equatable {
     case running
     case completed
     case failed
@@ -29,12 +29,15 @@ enum NativeBackgroundTaskState: Equatable {
 }
 
 enum NativeBackgroundTaskAction: Equatable {
+    case cancelTask(id: UUID)
     case openFile(path: String)
     case openURL(String)
     case installDownloadedUpdate(path: String)
 
     func title(in mode: AppLanguageMode) -> String {
         switch self {
+        case .cancelTask:
+            return wordZText("取消", "Cancel", mode: mode)
         case .openFile:
             return wordZText("打开文件", "Open File", mode: mode)
         case .openURL:
@@ -54,6 +57,95 @@ struct NativeBackgroundTaskItem: Identifiable, Equatable {
     let startedAt: Date
     let updatedAt: Date
     let primaryAction: NativeBackgroundTaskAction?
+
+    var normalizedProgress: Double? {
+        guard let progress else { return nil }
+        return min(max(progress, 0), 1)
+    }
+
+    func progressLabel(in mode: AppLanguageMode) -> String {
+        guard let normalizedProgress else {
+            return state.displayLabel(in: mode)
+        }
+        return "\(Int((normalizedProgress * 100).rounded()))%"
+    }
+}
+
+struct PersistedNativeBackgroundTaskAction: Codable, Equatable {
+    let kind: String
+    let value: String
+
+    init?(action: NativeBackgroundTaskAction?) {
+        guard let action else { return nil }
+        switch action {
+        case .cancelTask:
+            return nil
+        case .openFile(let path):
+            self.kind = "openFile"
+            self.value = path
+        case .openURL(let url):
+            self.kind = "openURL"
+            self.value = url
+        case .installDownloadedUpdate(let path):
+            self.kind = "installDownloadedUpdate"
+            self.value = path
+        }
+    }
+
+    var action: NativeBackgroundTaskAction? {
+        switch kind {
+        case "openFile":
+            return .openFile(path: value)
+        case "openURL":
+            return .openURL(value)
+        case "installDownloadedUpdate":
+            return .installDownloadedUpdate(path: value)
+        default:
+            return nil
+        }
+    }
+}
+
+struct PersistedNativeBackgroundTaskItem: Codable, Equatable {
+    let id: UUID
+    let title: String
+    let detail: String
+    let state: NativeBackgroundTaskState
+    let progress: Double?
+    let startedAt: Date
+    let updatedAt: Date
+    let primaryAction: PersistedNativeBackgroundTaskAction?
+
+    init(item: NativeBackgroundTaskItem) {
+        self.id = item.id
+        self.title = item.title
+        self.detail = item.detail
+        self.state = item.state
+        self.progress = item.progress
+        self.startedAt = item.startedAt
+        self.updatedAt = item.updatedAt
+        self.primaryAction = PersistedNativeBackgroundTaskAction(action: item.primaryAction)
+    }
+
+    func restoredItem(interruptedDetail: String) -> NativeBackgroundTaskItem {
+        let restoredState: NativeBackgroundTaskState = state == .running ? .failed : state
+        let restoredDetail: String
+        if state == .running {
+            restoredDetail = detail.isEmpty ? interruptedDetail : "\(detail) \(interruptedDetail)"
+        } else {
+            restoredDetail = detail
+        }
+        return NativeBackgroundTaskItem(
+            id: id,
+            title: title,
+            detail: restoredDetail,
+            state: restoredState,
+            progress: restoredState == .completed ? 1 : (restoredState == .running ? progress : nil),
+            startedAt: startedAt,
+            updatedAt: updatedAt,
+            primaryAction: restoredState == .running ? nil : primaryAction?.action
+        )
+    }
 }
 
 struct NativeTaskCenterSceneModel: Equatable {
@@ -62,13 +154,17 @@ struct NativeTaskCenterSceneModel: Equatable {
     let completedCount: Int
     let failedCount: Int
     let summary: String
+    let aggregateProgress: Double?
+    let highlightedItems: [NativeBackgroundTaskItem]
 
     static let empty = NativeTaskCenterSceneModel(
         items: [],
         runningCount: 0,
         completedCount: 0,
         failedCount: 0,
-        summary: "当前没有后台任务。"
+        summary: "当前没有后台任务。",
+        aggregateProgress: nil,
+        highlightedItems: []
     )
 }
 

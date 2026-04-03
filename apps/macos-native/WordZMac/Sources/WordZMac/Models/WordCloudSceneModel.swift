@@ -34,6 +34,7 @@ struct WordCloudSceneModel: Equatable {
     let stopwordFilter: StopwordFilterState
     let limit: Int
     let totalRows: Int
+    let filteredRows: Int
     let visibleRows: Int
     let table: NativeTableDescriptor
     let tableRows: [NativeTableRowDescriptor]

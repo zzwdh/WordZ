@@ -7,58 +7,48 @@ struct LocatorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WorkbenchHeaderCard(title: t("定位", "Locator"), subtitle: t("围绕当前 KWIC 结果查看原句与邻近上下文", "Inspect the source sentence and nearby context around the current KWIC result")) {
-                Button(t("定位当前 KWIC", "Locate Current KWIC")) { onAction(.run) }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!viewModel.hasSource)
-            }
-
             WorkbenchToolbarSection {
-                HStack(spacing: 12) {
-                    TextField(t("左窗口", "Left Window"), text: $viewModel.leftWindow)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
-                    TextField(t("右窗口", "Right Window"), text: $viewModel.rightWindow)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
-                    if let source = viewModel.currentSource {
-                        Text(t("当前源：句", "Current Source: sentence") + " \(source.sentenceId + 1) · " + t("节点词", "Node") + " \(source.keyword)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    } else {
-                        Text(t("请先运行 KWIC，定位页会默认使用当前 KWIC 第一条结果。", "Run KWIC first. Locator will use the first current KWIC row by default."))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        leftWindowField
+                        rightWindowField
+                        sourceStatus
+                        runButton
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            leftWindowField
+                            rightWindowField
+                            runButton
+                        }
+                        sourceStatus
                     }
                 }
             }
 
             if let scene = viewModel.scene {
                 WorkbenchToolbarSection {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(t("句", "Sentence") + " \(scene.source.sentenceId + 1) · " + t("节点词", "Node") + " \(scene.source.keyword)")
-                                .font(.headline)
-                            if let selectedRow = viewModel.selectedSceneRow {
-                                Text(t("当前选择：句", "Selected: sentence") + " \(selectedRow.sentenceId + 1) · \(selectedRow.nodeWord.isEmpty ? t("无节点词", "No node") : selectedRow.nodeWord)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                Text(selectedRow.text)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(2)
-                            }
+                    WorkbenchResultHeaderRow {
+                        Text(t("句", "Sentence") + " \(scene.source.sentenceId + 1) · " + t("节点词", "Node") + " \(scene.source.keyword)")
+                            .font(.headline)
+                        if let selectedRow = viewModel.selectedSceneRow {
+                            Text(t("当前选择：句", "Selected: sentence") + " \(selectedRow.sentenceId + 1) · \(selectedRow.nodeWord.isEmpty ? t("无节点词", "No node") : selectedRow.nodeWord)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                            Text(selectedRow.text)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(2)
                         }
-                        Spacer(minLength: 12)
+                    } trailing: {
                         Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.totalRows)（\(t("共", "Across")) \(scene.sentenceCount) \(t("句", "sentences") )")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
 
-                    HStack(spacing: 12) {
+                    WorkbenchResultControlsRow {
                         Picker(
                             t("页大小", "Page Size"),
                             selection: Binding(
@@ -72,24 +62,24 @@ struct LocatorView: View {
                         }
                         .pickerStyle(.segmented)
                         .frame(maxWidth: 300)
+                    } trailing: {
+                        HStack(spacing: 12) {
+                            WorkbenchColumnMenu(
+                                title: t("列", "Columns"),
+                                keys: LocatorColumnKey.allCases,
+                                label: { scene.columnTitle(for: $0, mode: languageMode) },
+                                isVisible: { scene.column(for: $0)?.isVisible ?? false },
+                                onToggle: { onAction(.toggleColumn($0)) }
+                            )
 
-                        WorkbenchColumnMenu(
-                            title: t("列", "Columns"),
-                            keys: LocatorColumnKey.allCases,
-                            label: { scene.columnTitle(for: $0, mode: languageMode) },
-                            isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                            onToggle: { onAction(.toggleColumn($0)) }
-                        )
-
-                        Spacer()
-
-                        WorkbenchPaginationControls(
-                            canGoBackward: scene.pagination.canGoBackward,
-                            canGoForward: scene.pagination.canGoForward,
-                            rangeLabel: scene.pagination.rangeLabel,
-                            onPrevious: { onAction(.previousPage) },
-                            onNext: { onAction(.nextPage) }
-                        )
+                            WorkbenchPaginationControls(
+                                canGoBackward: scene.pagination.canGoBackward,
+                                canGoForward: scene.pagination.canGoForward,
+                                rangeLabel: scene.pagination.rangeLabel,
+                                onPrevious: { onAction(.previousPage) },
+                                onNext: { onAction(.nextPage) }
+                            )
+                        }
                     }
                 }
 
@@ -114,13 +104,45 @@ struct LocatorView: View {
             } else {
                 ContentUnavailableView(
                     t("尚未生成定位结果", "No locator results yet"),
-                    systemImage: "scope",
-                    description: Text(t("运行 KWIC 后，定位页会默认打开当前 KWIC 第一条结果所在的原句。", "After KWIC runs, Locator opens the source sentence for the first current KWIC row by default."))
+                    systemImage: "scope"
                 )
             }
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var leftWindowField: some View {
+        TextField(t("左窗口", "Left Window"), text: $viewModel.leftWindow)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 90)
+    }
+
+    private var rightWindowField: some View {
+        TextField(t("右窗口", "Right Window"), text: $viewModel.rightWindow)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 90)
+    }
+
+    @ViewBuilder
+    private var sourceStatus: some View {
+        if let source = viewModel.currentSource {
+            Text(t("当前源：句", "Current Source: sentence") + " \(source.sentenceId + 1) · " + t("节点词", "Node") + " \(source.keyword)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+        } else {
+            Text(t("请先运行 KWIC。", "Run KWIC first."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var runButton: some View {
+        Button(t("定位当前 KWIC", "Locate Current KWIC")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
+            .disabled(!viewModel.hasSource)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

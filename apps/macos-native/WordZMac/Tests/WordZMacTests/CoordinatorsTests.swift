@@ -115,6 +115,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let taskCenter = NativeTaskCenter()
         let flowCoordinator = WorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
@@ -123,7 +124,8 @@ final class CoordinatorsTests: XCTestCase {
             windowDocumentController: NativeWindowDocumentController(),
             dialogService: FakeDialogService(),
             sessionStore: sessionStore,
-            libraryCoordinator: libraryCoordinator
+            libraryCoordinator: libraryCoordinator,
+            taskCenter: taskCenter
         )
         let sidebar = LibrarySidebarViewModel()
         sidebar.applyBootstrap(repository.bootstrapState)
@@ -151,6 +153,148 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertEqual(features.shell.selectedTab, .stats)
         XCTAssertEqual(features.stats.scene?.totalRows, repository.statsResult.frequencyRows.count)
         XCTAssertEqual(features.sidebar.lastErrorMessage, "")
+        XCTAssertFalse(repository.savedWorkspaceDrafts.isEmpty)
+        XCTAssertEqual(taskCenter.scene.completedCount, 1)
+        XCTAssertEqual(taskCenter.scene.items.first?.title, wordZText("统计分析", "Run Stats", mode: .system))
+    }
+
+    func testWorkspaceFlowCoordinatorRunTopicsBuildsSceneAndSwitchesTab() async {
+        let repository = FakeWorkspaceRepository()
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let flowCoordinator = WorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        sidebar.selectedCorpusID = "corpus-1"
+        let features = WorkspaceFeatureSet(
+            sidebar: sidebar,
+            shell: WorkspaceShellViewModel(),
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            topics: TopicsPageViewModel(),
+            compare: ComparePageViewModel(),
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            wordCloud: WordCloudPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        await flowCoordinator.runTopics(features: features)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
+        XCTAssertEqual(repository.runTopicsCallCount, 1)
+        XCTAssertEqual(features.shell.selectedTab, .topics)
+        XCTAssertEqual(features.topics.scene?.totalClusters, 2)
+        XCTAssertEqual(features.topics.scene?.visibleSegments, 2)
+        XCTAssertFalse(repository.savedWorkspaceDrafts.isEmpty)
+    }
+
+    func testWorkspaceFlowCoordinatorRunTopicsIgnoresConcurrentDuplicateRequests() async {
+        let repository = FakeWorkspaceRepository()
+        repository.topicsDelayNanoseconds = 80_000_000
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let flowCoordinator = WorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        sidebar.selectedCorpusID = "corpus-1"
+        let features = WorkspaceFeatureSet(
+            sidebar: sidebar,
+            shell: WorkspaceShellViewModel(),
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            topics: TopicsPageViewModel(),
+            compare: ComparePageViewModel(),
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            wordCloud: WordCloudPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await flowCoordinator.runTopics(features: features) }
+            group.addTask { await flowCoordinator.runTopics(features: features) }
+            await group.waitForAll()
+        }
+
+        XCTAssertEqual(repository.runTopicsCallCount, 1)
+        XCTAssertEqual(features.shell.selectedTab, .topics)
+    }
+
+    func testWorkspaceFlowCoordinatorRunTokenizeBuildsSceneAndSwitchesTab() async {
+        let repository = FakeWorkspaceRepository()
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let flowCoordinator = WorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        sidebar.selectedCorpusID = "corpus-1"
+        let features = WorkspaceFeatureSet(
+            sidebar: sidebar,
+            shell: WorkspaceShellViewModel(),
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            tokenize: TokenizePageViewModel(),
+            compare: ComparePageViewModel(),
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            wordCloud: WordCloudPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        await flowCoordinator.runTokenize(features: features)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
+        XCTAssertEqual(repository.runTokenizeCallCount, 1)
+        XCTAssertEqual(features.shell.selectedTab, .tokenize)
+        XCTAssertEqual(features.tokenize.scene?.totalTokens, repository.tokenizeResult.tokenCount)
         XCTAssertFalse(repository.savedWorkspaceDrafts.isEmpty)
     }
 
@@ -239,7 +383,7 @@ final class CoordinatorsTests: XCTestCase {
 
         XCTAssertEqual(repository.runChiSquareCallCount, 1)
         XCTAssertEqual(features.shell.selectedTab, .chiSquare)
-        XCTAssertEqual(features.chiSquare.scene?.metrics.count, 4)
+        XCTAssertEqual(features.chiSquare.scene?.metrics.count, 6)
     }
 
     func testWorkspaceFlowCoordinatorRunNgramBuildsSceneAndSwitchesTab() async {
@@ -397,5 +541,54 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertEqual(repository.importCorpusPathsCallCount, 1)
         XCTAssertTrue(sidebar.librarySnapshot.corpora.contains(where: { $0.name == "new-corpus" }))
         XCTAssertTrue(library.scene.statusMessage.contains("已导入"))
+    }
+
+    func testWorkspaceFlowCoordinatorExportCurrentWritesTokenizedTextAsUTF8() async throws {
+        let repository = FakeWorkspaceRepository()
+        let dialog = FakeDialogService()
+        let exportURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-tokenized-\(UUID().uuidString).txt")
+        try? FileManager.default.removeItem(at: exportURL)
+        dialog.savePathResult = exportURL.path
+
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let flowCoordinator = WorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: dialog,
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let shell = WorkspaceShellViewModel()
+        shell.selectedTab = .tokenize
+        let tokenize = TokenizePageViewModel()
+        tokenize.apply(makeTokenizeResult())
+        let features = WorkspaceFeatureSet(
+            sidebar: LibrarySidebarViewModel(),
+            shell: shell,
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            tokenize: tokenize,
+            compare: ComparePageViewModel(),
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            wordCloud: WordCloudPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        await flowCoordinator.exportCurrent(features: features)
+
+        let contents = try String(contentsOf: exportURL, encoding: .utf8)
+        XCTAssertEqual(contents, "alpha beta gamma\ndelta alpha\n")
+        XCTAssertTrue(features.library.scene.statusMessage.contains(exportURL.path))
     }
 }

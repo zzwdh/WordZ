@@ -26,8 +26,8 @@ function runStep(label, args) {
 }
 
 function resolveCurrentPlatformTarget() {
-  if (process.platform === 'darwin') return 'mac'
   if (process.platform === 'win32') return 'win'
+  if (process.platform === 'darwin') return 'mac'
   throw new Error(`当前平台 ${process.platform} 未提供默认打包烟测目标，请显式传入 --target=mac 或 --target=win`)
 }
 
@@ -40,6 +40,20 @@ function resolveSmokeTarget(target) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2))
+  if (options.target === 'mac') {
+    runStep('原生 macOS 校验', ['run', 'verify:mac'])
+    if (!options.skipDoctor) {
+      const doctorArgs = ['run', 'release:doctor', '--', '--target=mac']
+      if (!options.noStrictDoctor) {
+        doctorArgs.push('--strict')
+      }
+      runStep('发布医生检查', doctorArgs)
+    }
+    runStep('原生 macOS 打包', ['run', 'native:mac:package'])
+    process.stdout.write('\n[release-verify] 原生 macOS 发布检查通过，可以进入发布流程。\n')
+    return
+  }
+
   runStep('语法与单测校验', ['run', 'verify'])
 
   if (!options.skipSmoke) {

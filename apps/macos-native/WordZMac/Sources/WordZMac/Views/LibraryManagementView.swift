@@ -60,10 +60,13 @@ struct LibraryManagementView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .sheet(item: $viewModel.corpusInfoSheet) { scene in
+            LibraryCorpusInfoSheetView(scene: scene)
+        }
     }
 
     private var folderPane: some View {
-        WorkbenchPaneCard(title: t("文件夹", "Folders"), subtitle: t("按目录浏览已保存语料", "Browse saved corpora by folder")) {
+        WorkbenchPaneCard(title: t("文件夹", "Folders")) {
             Button {
                 onAction(.selectFolder(nil))
             } label: {
@@ -144,6 +147,14 @@ struct LibraryManagementView: View {
                                 onAction(.selectCorpus(corpus.id))
                                 onAction(.openSelectedCorpus)
                             }
+                            Button(t("快速预览", "Quick Look")) {
+                                onAction(.selectCorpus(corpus.id))
+                                onAction(.quickLookSelectedCorpus)
+                            }
+                            Button(t("语料信息", "Corpus Info")) {
+                                onAction(.selectCorpus(corpus.id))
+                                onAction(.showSelectedCorpusInfo)
+                            }
                             Button(t("重命名", "Rename")) {
                                 onAction(.selectCorpus(corpus.id))
                                 onAction(.renameSelectedCorpus)
@@ -167,6 +178,11 @@ struct LibraryManagementView: View {
                 Button(t("打开语料", "Open Corpus")) { onAction(.openSelectedCorpus) }
                     .buttonStyle(.borderedProminent)
                     .disabled(viewModel.scene.selectedCorpusID == nil)
+                Button(t("快速预览", "Quick Look")) { onAction(.quickLookSelectedCorpus) }
+                    .disabled(viewModel.scene.selectedCorpusID == nil)
+                    .keyboardShortcut(.space, modifiers: [])
+                Button(t("语料信息", "Corpus Info")) { onAction(.showSelectedCorpusInfo) }
+                    .disabled(viewModel.scene.selectedCorpusID == nil)
                 Button(t("重命名语料", "Rename Corpus")) { onAction(.renameSelectedCorpus) }
                     .disabled(viewModel.scene.selectedCorpusID == nil)
                 Button(t("移到选中文件夹", "Move to Selected Folder")) { onAction(.moveSelectedCorpusToSelectedFolder) }
@@ -174,6 +190,9 @@ struct LibraryManagementView: View {
                 Button(t("删除语料", "Delete Corpus")) { onAction(.deleteSelectedCorpus) }
                     .disabled(viewModel.scene.selectedCorpusID == nil)
                 Spacer()
+                Text(t("空格：快速预览", "Space: Quick Look"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -225,6 +244,59 @@ struct LibraryManagementView: View {
             return "\(selectedFolder.title) · \(viewModel.scene.corpora.count) \(t("条语料", "corpora"))"
         }
         return "\(t("全部语料", "All Corpora")) · \(viewModel.scene.corpora.count) \(t("条", "items"))"
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
+    }
+}
+
+private struct LibraryCorpusInfoSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.wordZLanguageMode) private var languageMode
+    let scene: LibraryCorpusInfoSceneModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            WorkbenchHeaderCard(title: scene.title, subtitle: scene.subtitle) {
+                Button(t("关闭", "Close")) {
+                    dismiss()
+                }
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                WorkbenchMetricCard(title: "Tokens", value: scene.tokenCountText)
+                WorkbenchMetricCard(title: "Types", value: scene.typeCountText)
+                WorkbenchMetricCard(title: "TTR", value: scene.ttrText)
+                WorkbenchMetricCard(title: "STTR", value: scene.sttrText)
+            }
+
+            WorkbenchPaneCard(
+                title: t("语料详情", "Corpus Details"),
+                subtitle: t("当前语料的基础统计与来源信息", "Core statistics and source information for the selected corpus")
+            ) {
+                detailRow(title: t("文件夹", "Folder"), value: scene.folderName)
+                detailRow(title: t("来源类型", "Source Type"), value: scene.sourceType.uppercased())
+                detailRow(title: t("原始路径", "Original Path"), value: scene.representedPath.isEmpty ? "—" : scene.representedPath)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .frame(minWidth: 560, minHeight: 360, alignment: .topLeading)
+    }
+
+    private func detailRow(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.callout)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

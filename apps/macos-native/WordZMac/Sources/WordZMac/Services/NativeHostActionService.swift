@@ -7,6 +7,8 @@ protocol NativeHostActionServicing: AnyObject {
     func openFeedback() async throws
     func openReleaseNotes() async throws
     func openProjectHome() async throws
+    func quickLook(path: String) async throws
+    func share(paths: [String]) async throws
     func openDownloadedUpdate(path: String) async throws
     func revealDownloadedUpdate(path: String) async throws
     func exportDiagnostics(report: String, suggestedName: String) async throws -> String?
@@ -17,13 +19,21 @@ protocol NativeHostActionServicing: AnyObject {
 @MainActor
 final class NativeHostActionService: NativeHostActionServicing {
     private let dialogService: NativeDialogServicing
+    private let quickLookService: any NativeQuickLookServicing
+    private let sharingService: any NativeSharingServicing
     private let workspace = NSWorkspace.shared
     private let homepageURL = URL(string: "https://github.com/zzwdh/WordZ")!
     private let feedbackURL = URL(string: "https://github.com/zzwdh/WordZ/issues/new/choose")!
     private let releasesURL = URL(string: "https://github.com/zzwdh/WordZ/releases")!
 
-    init(dialogService: NativeDialogServicing) {
+    init(
+        dialogService: NativeDialogServicing,
+        quickLookService: any NativeQuickLookServicing = NativeQuickLookService(),
+        sharingService: any NativeSharingServicing = NativeSharingService()
+    ) {
         self.dialogService = dialogService
+        self.quickLookService = quickLookService
+        self.sharingService = sharingService
     }
 
     private var languageMode: AppLanguageMode {
@@ -49,6 +59,14 @@ final class NativeHostActionService: NativeHostActionServicing {
 
     func openProjectHome() async throws {
         try open(url: homepageURL, errorDescription: t("无法打开项目主页。", "Unable to open the project home page."))
+    }
+
+    func quickLook(path: String) async throws {
+        try quickLookService.preview(path: path)
+    }
+
+    func share(paths: [String]) async throws {
+        try sharingService.share(paths: paths)
     }
 
     func openDownloadedUpdate(path: String) async throws {

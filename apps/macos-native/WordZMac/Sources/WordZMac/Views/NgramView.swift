@@ -7,18 +7,23 @@ struct NgramView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WorkbenchHeaderCard(title: "N-Gram", subtitle: t("生成连续词串频率并支持停用词过滤", "Generate contiguous phrase frequencies with stopword filtering")) {
-                Button(t("开始统计", "Run N-Gram")) { onAction(.run) }
-                    .buttonStyle(.borderedProminent)
-            }
-
             WorkbenchToolbarSection {
-                HStack(spacing: 12) {
-                    TextField(t("搜索词（留空显示全部）", "Search term (leave blank for all)"), text: $viewModel.query)
-                        .textFieldStyle(.roundedBorder)
-                    TextField(t("N 值", "N size"), text: $viewModel.ngramSize)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        searchField
+                        ngramSizeField
+                        runButton
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            searchField
+                            runButton
+                        }
+                        HStack(spacing: 12) {
+                            ngramSizeField
+                            Spacer(minLength: 0)
+                        }
+                    }
                 }
 
                 SearchOptionTogglesView(options: $viewModel.searchOptions)
@@ -30,71 +35,71 @@ struct NgramView: View {
 
             if let scene = viewModel.scene {
                 WorkbenchToolbarSection {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(scene.n)-Gram")
-                                .font(.headline)
-                            Text(scene.query.isEmpty ? t("显示全部结果", "Showing all results") : t("过滤词：", "Filter: ") + scene.query)
+                    WorkbenchResultHeaderRow {
+                        Text("\(scene.n)-Gram")
+                            .font(.headline)
+                        Text(scene.query.isEmpty ? t("显示全部结果", "Showing all results") : t("过滤词：", "Filter: ") + scene.query)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if !scene.searchError.isEmpty {
+                            Text(scene.searchError)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if !scene.searchError.isEmpty {
-                                Text(scene.searchError)
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
+                                .foregroundStyle(.red)
                         }
-                        Spacer(minLength: 12)
+                    } trailing: {
                         Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows)（\(t("总计", "Total")) \(scene.totalRows)）")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
 
-                    HStack(spacing: 12) {
-                        Picker(
-                            t("排序", "Sort"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedSort },
-                                set: { onAction(.changeSort($0)) }
-                            )
-                        ) {
-                            ForEach(NgramSortMode.allCases) { mode in
-                                Text(mode.title(in: languageMode)).tag(mode)
+                    WorkbenchResultControlsRow {
+                        HStack(spacing: 12) {
+                            Picker(
+                                t("排序", "Sort"),
+                                selection: Binding(
+                                    get: { scene.sorting.selectedSort },
+                                    set: { onAction(.changeSort($0)) }
+                                )
+                            ) {
+                                ForEach(NgramSortMode.allCases) { mode in
+                                    Text(mode.title(in: languageMode)).tag(mode)
+                                }
                             }
-                        }
-                        .pickerStyle(.menu)
+                            .pickerStyle(.menu)
 
-                        Picker(
-                            t("页大小", "Page Size"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedPageSize },
-                                set: { onAction(.changePageSize($0)) }
-                            )
-                        ) {
-                            ForEach(NgramPageSize.allCases) { size in
-                                Text(size.title(in: languageMode)).tag(size)
+                            Picker(
+                                t("页大小", "Page Size"),
+                                selection: Binding(
+                                    get: { scene.sorting.selectedPageSize },
+                                    set: { onAction(.changePageSize($0)) }
+                                )
+                            ) {
+                                ForEach(NgramPageSize.allCases) { size in
+                                    Text(size.title(in: languageMode)).tag(size)
+                                }
                             }
+                            .pickerStyle(.segmented)
+                            .frame(maxWidth: 300)
                         }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 300)
+                    } trailing: {
+                        HStack(spacing: 12) {
+                            WorkbenchColumnMenu(
+                                title: t("列", "Columns"),
+                                keys: NgramColumnKey.allCases,
+                                label: { scene.columnTitle(for: $0, mode: languageMode) },
+                                isVisible: { scene.column(for: $0)?.isVisible ?? false },
+                                onToggle: { onAction(.toggleColumn($0)) }
+                            )
 
-                        WorkbenchColumnMenu(
-                            title: t("列", "Columns"),
-                            keys: NgramColumnKey.allCases,
-                            label: { scene.columnTitle(for: $0, mode: languageMode) },
-                            isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                            onToggle: { onAction(.toggleColumn($0)) }
-                        )
-
-                        Spacer()
-
-                        WorkbenchPaginationControls(
-                            canGoBackward: scene.pagination.canGoBackward,
-                            canGoForward: scene.pagination.canGoForward,
-                            rangeLabel: scene.pagination.rangeLabel,
-                            onPrevious: { onAction(.previousPage) },
-                            onNext: { onAction(.nextPage) }
-                        )
+                            WorkbenchPaginationControls(
+                                canGoBackward: scene.pagination.canGoBackward,
+                                canGoForward: scene.pagination.canGoForward,
+                                rangeLabel: scene.pagination.rangeLabel,
+                                onPrevious: { onAction(.previousPage) },
+                                onNext: { onAction(.nextPage) }
+                            )
+                        }
                     }
                 }
 
@@ -120,8 +125,7 @@ struct NgramView: View {
             } else {
                 ContentUnavailableView(
                     t("尚未生成 N-Gram 结果", "No N-Gram results yet"),
-                    systemImage: "textformat.abc.dottedunderline",
-                    description: Text(t("打开语料后设置 N 值并开始统计。搜索词留空时默认显示全部结果。", "Open a corpus, choose N, and run the analysis. Leave the search term blank to show all results."))
+                    systemImage: "textformat.abc.dottedunderline"
                 )
             }
         }
@@ -130,6 +134,22 @@ struct NgramView: View {
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)
         }
+    }
+
+    private var searchField: some View {
+        TextField(t("搜索词（留空显示全部）", "Search term (leave blank for all)"), text: $viewModel.query)
+            .textFieldStyle(.roundedBorder)
+    }
+
+    private var ngramSizeField: some View {
+        TextField(t("N 值", "N size"), text: $viewModel.ngramSize)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 90)
+    }
+
+    private var runButton: some View {
+        Button(t("开始统计", "Run N-Gram")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

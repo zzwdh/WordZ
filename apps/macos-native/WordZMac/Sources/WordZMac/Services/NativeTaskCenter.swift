@@ -5,8 +5,10 @@ final class NativeTaskCenter: ObservableObject {
     @Published private(set) var scene = NativeTaskCenterSceneModel.empty
 
     var onSceneChange: ((NativeTaskCenterSceneModel) -> Void)?
+    var onHistoryChange: (([PersistedNativeBackgroundTaskItem]) -> Void)?
 
     private var items: [NativeBackgroundTaskItem] = []
+    private var cancelHandlers: [UUID: () -> Void] = [:]
 
     @discardableResult
     func beginTask(title: String, detail: String, progress: Double? = nil) -> UUID {
@@ -42,16 +44,50 @@ final class NativeTaskCenter: ObservableObject {
     }
 
     func completeTask(id: UUID, detail: String, action: NativeBackgroundTaskAction? = nil) {
+        cancelHandlers[id] = nil
         mutateTask(id: id, state: .completed, detail: detail, progress: 1, action: action)
     }
 
     func failTask(id: UUID, detail: String) {
+        cancelHandlers[id] = nil
         mutateTask(id: id, state: .failed, detail: detail, progress: nil, action: nil)
     }
 
     func clearFinished() {
+        let runningIDs = Set(items.filter { $0.state == .running }.map(\.id))
+        cancelHandlers = cancelHandlers.filter { runningIDs.contains($0.key) }
         items.removeAll { $0.state != .running }
         syncScene()
+    }
+
+    func restoreHistory(_ persistedItems: [PersistedNativeBackgroundTaskItem]) {
+        cancelHandlers = [:]
+        let interruptedDetail = wordZText("上次会话已中断。", "Interrupted in the previous session.", mode: .system)
+        items = persistedItems.map { $0.restoredItem(interruptedDetail: interruptedDetail) }
+        syncScene()
+    }
+
+    func persistedHistory(limit: Int = 50) -> [PersistedNativeBackgroundTaskItem] {
+        let sortedItems = items.sorted { $0.updatedAt > $1.updatedAt }
+        return persistedHistory(from: sortedItems, limit: limit)
+    }
+
+    func registerCancelHandler(id: UUID, handler: @escaping () -> Void) {
+        cancelHandlers[id] = handler
+        mutateTask(
+            id: id,
+            state: .running,
+            detail: items.first(where: { $0.id == id })?.detail ?? "",
+            progress: items.first(where: { $0.id == id })?.progress,
+            action: .cancelTask(id: id)
+        )
+    }
+
+    func cancelTask(id: UUID) {
+        guard let handler = cancelHandlers[id] else { return }
+        cancelHandlers[id] = nil
+        handler()
+        failTask(id: id, detail: wordZText("任务已取消。", "Task cancelled.", mode: .system))
     }
 
     private func mutateTask(
@@ -77,22 +113,57 @@ final class NativeTaskCenter: ObservableObject {
     }
 
     private func syncScene() {
-        let runningCount = items.filter { $0.state == .running }.count
-        let completedCount = items.filter { $0.state == .completed }.count
-        let failedCount = items.filter { $0.state == .failed }.count
+        let sortedItems = items.sorted { $0.updatedAt > $1.updatedAt }
+        let runningItems = sortedItems.filter { $0.state == .running }
+        let runningCount = runningItems.count
+        let completedCount = sortedItems.filter { $0.state == .completed }.count
+        let failedCount = sortedItems.filter { $0.state == .failed }.count
+        let aggregateProgress: Double? = {
+            let values = runningItems.compactMap(\.normalizedProgress)
+            guard !values.isEmpty else { return nil }
+            return values.reduce(0, +) / Double(values.count)
+        }()
         let summary: String
-        if items.isEmpty {
-            summary = "当前没有后台任务。"
+        if sortedItems.isEmpty {
+            summary = wordZText("当前没有后台任务。", "No background tasks right now.", mode: .system)
+        } else if runningCount > 0, let aggregateProgress {
+            summary = String(
+                format: wordZText(
+                    "共 %d 个任务，进行中 %d 个，整体进度 %d%%。",
+                    "%d tasks total, %d running, %d%% overall progress.",
+                    mode: .system
+                ),
+                sortedItems.count,
+                runningCount,
+                Int((aggregateProgress * 100).rounded())
+            )
         } else {
-            summary = "共 \(items.count) 个任务，进行中 \(runningCount) 个，已完成 \(completedCount) 个，失败 \(failedCount) 个。"
+            summary = String(
+                format: wordZText(
+                    "共 %d 个任务，进行中 %d 个，已完成 %d 个，失败 %d 个。",
+                    "%d tasks total, %d running, %d completed, %d failed.",
+                    mode: .system
+                ),
+                sortedItems.count,
+                runningCount,
+                completedCount,
+                failedCount
+            )
         }
         scene = NativeTaskCenterSceneModel(
-            items: items.sorted { $0.updatedAt > $1.updatedAt },
+            items: sortedItems,
             runningCount: runningCount,
             completedCount: completedCount,
             failedCount: failedCount,
-            summary: summary
+            summary: summary,
+            aggregateProgress: aggregateProgress,
+            highlightedItems: Array(runningItems.prefix(2))
         )
         onSceneChange?(scene)
+        onHistoryChange?(persistedHistory(from: sortedItems, limit: 50))
+    }
+
+    private func persistedHistory(from items: [NativeBackgroundTaskItem], limit: Int) -> [PersistedNativeBackgroundTaskItem] {
+        Array(items.prefix(limit)).map(PersistedNativeBackgroundTaskItem.init(item:))
     }
 }

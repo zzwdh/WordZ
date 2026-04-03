@@ -8,17 +8,23 @@ struct SearchTextMatcher {
     private let regex: NSRegularExpression?
     private let wildcardRegex: NSRegularExpression?
 
+    var isPassthrough: Bool {
+        normalizedQuery.isEmpty
+    }
+
     init(query: String, options: SearchOptionsState) {
-        self.normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.normalizedQuery = AnalysisTextNormalizationSupport.normalizeSearchText(
+            query,
+            caseSensitive: options.caseSensitive
+        )
         self.options = options
 
         if options.regex, !normalizedQuery.isEmpty {
             let pattern = options.words ? "^(?:\(normalizedQuery))$" : normalizedQuery
             do {
-                let flags: NSRegularExpression.Options = []
                 self.regex = try NSRegularExpression(
                     pattern: pattern,
-                    options: flags
+                    options: []
                 )
                 self.wildcardRegex = nil
                 self.error = ""
@@ -40,34 +46,28 @@ struct SearchTextMatcher {
     }
 
     func matches(_ value: String) -> Bool {
-        if normalizedQuery.isEmpty {
+        if isPassthrough {
             return true
         }
 
-        if options.regex {
-            guard let regex else { return false }
-            let candidate = value as NSString
+        let candidateText = AnalysisTextNormalizationSupport.normalizeSearchText(
+            value,
+            caseSensitive: options.caseSensitive
+        )
+
+        if let regex {
+            let candidate = candidateText as NSString
             let fullRange = NSRange(location: 0, length: candidate.length)
-            if options.caseSensitive {
-                return regex.firstMatch(in: value, options: [], range: fullRange) != nil
-            }
-            let mutablePattern = regex.pattern
-            let regexOptions: NSRegularExpression.Options = [.caseInsensitive]
-            guard let caseInsensitiveRegex = try? NSRegularExpression(pattern: mutablePattern, options: regexOptions) else {
-                return false
-            }
-            return caseInsensitiveRegex.firstMatch(in: value, options: [], range: fullRange) != nil
+            return regex.firstMatch(in: candidateText, options: [], range: fullRange) != nil
         }
 
         if let wildcardRegex {
-            let candidate = value as NSString
+            let candidate = candidateText as NSString
             let fullRange = NSRange(location: 0, length: candidate.length)
-            return wildcardRegex.firstMatch(in: value, options: [], range: fullRange) != nil
+            return wildcardRegex.firstMatch(in: candidateText, options: [], range: fullRange) != nil
         }
 
-        let needle = options.caseSensitive ? normalizedQuery : normalizedQuery.lowercased()
-        let haystack = options.caseSensitive ? value : value.lowercased()
-        return options.words ? haystack == needle : haystack.contains(needle)
+        return options.words ? candidateText == normalizedQuery : candidateText.contains(normalizedQuery)
     }
 
     private static func buildWildcardRegex(
@@ -100,6 +100,9 @@ enum SearchFilterSupport {
         }
 
         let stopwordMatcher = StopwordMatcher(state: stopword)
+        if matcher.isPassthrough && stopwordMatcher.isPassthrough {
+            return (rows, "")
+        }
         let filtered = rows.filter { row in
             let value = text(row)
             return matcher.matches(value) && stopwordMatcher.matches(value)
@@ -112,13 +115,17 @@ private struct StopwordMatcher {
     let state: StopwordFilterState
     let stopwordSet: Set<String>
 
+    var isPassthrough: Bool {
+        !state.enabled || stopwordSet.isEmpty
+    }
+
     init(state: StopwordFilterState) {
         self.state = state
         self.stopwordSet = Set(state.parsedWords)
     }
 
     func matches(_ text: String) -> Bool {
-        guard state.enabled, !stopwordSet.isEmpty else { return true }
+        guard !isPassthrough else { return true }
         let contains = tokenize(text).contains { stopwordSet.contains($0) }
         switch state.mode {
         case .include:
@@ -129,12 +136,6 @@ private struct StopwordMatcher {
     }
 
     private func tokenize(_ value: String) -> [String] {
-        let lowercase = value.lowercased()
-        let pattern = "[^\\p{L}\\p{N}'-]+"
-        let normalized = lowercase.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
-        return normalized
-            .split(separator: " ")
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        AnalysisTextNormalizationSupport.tokenizeWordLikeSegments(in: value)
     }
 }

@@ -6,7 +6,12 @@ final class LibraryManagementViewModel: ObservableObject {
         didSet { syncScene() }
     }
     @Published var selectedCorpusID: String? {
-        didSet { syncScene() }
+        didSet {
+            if corpusInfoSheet?.id != selectedCorpusID {
+                corpusInfoSheet = nil
+            }
+            syncScene()
+        }
     }
     @Published var selectedRecycleEntryID: String? {
         didSet { syncScene() }
@@ -14,6 +19,7 @@ final class LibraryManagementViewModel: ObservableObject {
     @Published var preserveHierarchy = true {
         didSet { syncScene() }
     }
+    @Published var corpusInfoSheet: LibraryCorpusInfoSceneModel?
     @Published private(set) var librarySnapshot = LibrarySnapshot.empty
     @Published private(set) var recycleSnapshot = RecycleBinSnapshot.empty
     @Published private(set) var scene = LibraryManagementSceneModel.empty
@@ -107,13 +113,22 @@ final class LibraryManagementViewModel: ObservableObject {
         syncScene()
     }
 
+    func presentCorpusInfo(_ scene: LibraryCorpusInfoSceneModel) {
+        corpusInfoSheet = scene
+    }
+
+    func dismissCorpusInfo() {
+        corpusInfoSheet = nil
+    }
+
     private func syncScene() {
+        let corporaByFolderID = Dictionary(grouping: librarySnapshot.corpora, by: \.folderId)
         let visibleCorpora = librarySnapshot.corpora.filter { corpus in
             guard let selectedFolderID else { return true }
             return corpus.folderId == selectedFolderID
         }
         let folders = librarySnapshot.folders.map { folder in
-            let corpusCount = librarySnapshot.corpora.filter { $0.folderId == folder.id }.count
+            let corpusCount = corporaByFolderID[folder.id]?.count ?? 0
             return LibraryManagementFolderSceneItem(
                 id: folder.id,
                 title: folder.name,
@@ -156,11 +171,17 @@ final class LibraryManagementViewModel: ObservableObject {
             selectedFolderID: selectedFolderID,
             selectedCorpusID: selectedCorpusID,
             selectedRecycleEntryID: selectedRecycleEntryID,
-            inspector: buildInspector(visibleCorpora: visibleCorpora)
+            inspector: buildInspector(
+                visibleCorpora: visibleCorpora,
+                corporaByFolderID: corporaByFolderID
+            )
         )
     }
 
-    private func buildInspector(visibleCorpora: [LibraryCorpusItem]) -> LibraryManagementInspectorSceneModel {
+    private func buildInspector(
+        visibleCorpora: [LibraryCorpusItem],
+        corporaByFolderID: [String: [LibraryCorpusItem]]
+    ) -> LibraryManagementInspectorSceneModel {
         if let selectedCorpus {
             return LibraryManagementInspectorSceneModel(
                 title: selectedCorpus.name,
@@ -172,6 +193,8 @@ final class LibraryManagementViewModel: ObservableObject {
                 ],
                 actions: [
                     .init(id: "open", title: "打开语料", role: .primary, action: .openSelectedCorpus),
+                    .init(id: "preview", title: "快速预览", role: .normal, action: .quickLookSelectedCorpus),
+                    .init(id: "info", title: "语料信息", role: .normal, action: .showSelectedCorpusInfo),
                     .init(id: "rename-corpus", title: "重命名", role: .normal, action: .renameSelectedCorpus),
                     .init(id: "move-corpus", title: "移动到所选文件夹", role: .normal, action: .moveSelectedCorpusToSelectedFolder),
                     .init(id: "delete-corpus", title: "删除", role: .destructive, action: .deleteSelectedCorpus)
@@ -196,7 +219,7 @@ final class LibraryManagementViewModel: ObservableObject {
         }
 
         if let selectedFolder {
-            let folderCorpora = librarySnapshot.corpora.filter { $0.folderId == selectedFolder.id }
+            let folderCorpora = corporaByFolderID[selectedFolder.id] ?? []
             return LibraryManagementInspectorSceneModel(
                 title: selectedFolder.name,
                 subtitle: "文件夹",

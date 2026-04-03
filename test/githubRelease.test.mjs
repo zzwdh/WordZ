@@ -31,12 +31,12 @@ test('resolveGitHubReleaseConfig builds stable GitHub publish args and sanitized
     CSC_LINK: '',
     APPLE_API_KEY: '',
     WIN_CSC_LINK: ''
-  }, ['--mac'])
+  }, ['--win'])
 
   assert.equal(config.owner, 'zzwdh')
   assert.equal(config.repo, 'WordZ')
   assert.equal(config.githubToken, 'token-123')
-  assert.deepEqual(config.electronBuilderArgs.slice(0, 3), ['--publish', 'always', '--mac'])
+  assert.deepEqual(config.electronBuilderArgs.slice(0, 3), ['--publish', 'always', '--win'])
   assert.ok(config.electronBuilderArgs.includes('-c.extraMetadata.wordz.release.channel=stable'))
   assert.ok(config.electronBuilderArgs.includes('-c.extraMetadata.wordz.autoUpdate.github.owner=zzwdh'))
   assert.ok(config.electronBuilderArgs.includes('-c.extraMetadata.wordz.autoUpdate.github.repo=WordZ'))
@@ -44,4 +44,13 @@ test('resolveGitHubReleaseConfig builds stable GitHub publish args and sanitized
   assert.ok(!('CSC_LINK' in config.childEnv))
   assert.ok(!('APPLE_API_KEY' in config.childEnv))
   assert.ok(!('WIN_CSC_LINK' in config.childEnv))
+})
+
+test('resolveGitHubReleaseConfig rejects retired electron mac release target', () => {
+  assert.throws(() => {
+    resolveGitHubReleaseConfig({
+      GITHUB_REPOSITORY: 'zzwdh/WordZ',
+      GITHUB_TOKEN: 'token-123'
+    }, ['--mac'])
+  }, /Electron macOS 发布链已退役/)
 })

@@ -23,8 +23,8 @@
 - Windows NSIS 安装器现在默认优先“当前用户安装”，这样通常不会落到 `Program Files`，能减少管理员权限、路径编码和更新失败风险；如果用户需要，也仍可在安装过程中切换为“所有用户安装”。
 - Windows 许可页不再固定写死单一文件，而是由 `electron-builder` 根据系统语言自动匹配 `license_zh_CN.txt` / `license_en.txt`。
 - Windows 安装器现在额外自定义了欢迎页、完成页和卸载页文案，并把安装器语言收口到 `en_US` / `zh_CN`，避免默认多语言模板和实际产品信息不一致。
-- macOS DMG 现在使用品牌化背景图、固定窗口尺寸和更明确的拖拽布局，打开镜像后会直接看到更完整的安装指引画面。
-- 应用包现在默认启用 `asar`；发布链会额外校验 `app.asar` 是否真正进入 macOS / Windows 打包结果，避免开发态正常、安装态漏包。
+- macOS 现在改走原生 Swift 打包链，不再使用 Electron 的 DMG / asar 发布路径。
+- Windows 版应用包仍然默认启用 `asar`；发布链会额外校验 `app.asar` 是否真正进入 Windows 打包结果，避免开发态正常、安装态漏包。
 
 发布策略：
 - 当前只维护一个稳定版渠道
@@ -37,12 +37,14 @@
 2. 运行 `npm run verify:smoke`
 3. 提交代码并推送 tag，例如 `v1.0.3`
 4. 打开 `/Users/zouyuxuan/corpus-lite/.github/workflows/github-release.yml` 对应的 Actions 结果
-5. 等待 macOS / Windows 构建完成后，到 GitHub Releases 检查产物和正文
+5. 等待原生 macOS / Windows 构建完成后，到 GitHub Releases 检查产物和正文
 
 本地打包命令：
 - `npm run pack`
 - `npm run dist`
-- `npm run dist:mac`
+- `npm run native:mac:build`
+- `npm run native:mac:package`
+- `npm run native:mac:notarize`
 - `npm run dist:win`
 - `npm run dist:win:arm64`
 - `npm run test:packaged-smoke`
@@ -51,7 +53,7 @@
 - `npm run release:doctor`
 
 签名与 notarization：
-- macOS 如果需要正式分发，请在 GitHub Secrets 或本地环境中配置以下任一组：
+- 原生 macOS 如果需要正式分发，请在 GitHub Secrets 或本地环境中配置以下任一组：
   - `APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`
   - 或 `APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`
   - 或 `APPLE_KEYCHAIN`、`APPLE_KEYCHAIN_PROFILE`

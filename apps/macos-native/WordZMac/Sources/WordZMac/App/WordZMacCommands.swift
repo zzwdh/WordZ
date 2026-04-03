@@ -17,12 +17,12 @@ struct WordZMacCommands: Commands {
 
         CommandGroup(replacing: .appSettings) {
             Button(t("设置…", "Settings…")) {
-                NativeAppCommandCenter.post(.showSettings)
+                openWindow(id: NativeWindowRoute.settings.id)
             }
             .keyboardShortcut(",", modifiers: [.command])
         }
 
-        CommandMenu(t("文件", "File")) {
+        CommandGroup(replacing: .newItem) {
             Button(t("新建工作区", "New Workspace")) {
                 NativeAppCommandCenter.post(.newWorkspace)
             }
@@ -38,7 +38,9 @@ struct WordZMacCommands: Commands {
                 NativeAppCommandCenter.post(.showWelcome)
             }
             .keyboardShortcut("/", modifiers: [.command, .shift])
+        }
 
+        CommandGroup(after: .newItem) {
             Divider()
 
             Button(t("导入语料…", "Import Corpora…")) {
@@ -51,6 +53,17 @@ struct WordZMacCommands: Commands {
             }
             .keyboardShortcut(.downArrow, modifiers: [.command, .shift])
             .disabled(!isEnabled(.openSelected))
+
+            Button(t("快速预览当前内容", "Quick Look Current Content")) {
+                NativeAppCommandCenter.post(.quickLookCurrentCorpus)
+            }
+            .keyboardShortcut("y", modifiers: [.command, .shift])
+            .disabled(!isEnabled(.previewCurrentCorpus))
+
+            Button(t("分享当前内容", "Share Current Content")) {
+                NativeAppCommandCenter.post(.shareCurrentContent)
+            }
+            .disabled(!isEnabled(.shareCurrentContent))
 
             Menu(t("最近打开", "Recent Documents")) {
                 if recentDocuments.isEmpty {
@@ -69,43 +82,57 @@ struct WordZMacCommands: Commands {
                 }
             }
             .disabled(recentDocuments.isEmpty)
+        }
+
+        CommandMenu(t("工作区", "Workspace")) {
+            Button(t("刷新工作区", "Refresh Workspace")) {
+                NativeAppCommandCenter.post(.refreshWorkspace)
+            }
+            .keyboardShortcut("r", modifiers: [.command])
 
             Divider()
+
+            Button(t("快速预览当前内容", "Quick Look Current Content")) {
+                NativeAppCommandCenter.post(.quickLookCurrentCorpus)
+            }
+            .keyboardShortcut("y", modifiers: [.command, .shift])
+            .disabled(!isEnabled(.previewCurrentCorpus))
+
+            Button(t("分享当前内容", "Share Current Content")) {
+                NativeAppCommandCenter.post(.shareCurrentContent)
+            }
+            .disabled(!isEnabled(.shareCurrentContent))
 
             Button(t("导出当前结果…", "Export Current Result…")) {
                 NativeAppCommandCenter.post(.exportCurrent)
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
             .disabled(!isEnabled(.exportCurrent))
-
-            if workspace.settings.scene.canInstallDownloadedUpdate {
-                Divider()
-                Button(t("安装已下载更新", "Install Downloaded Update")) {
-                    NativeAppCommandCenter.post(.installDownloadedUpdate)
-                }
-                Button(t("在 Finder 中显示已下载更新", "Reveal Downloaded Update in Finder")) {
-                    Task { await workspace.revealDownloadedUpdate() }
-                }
-            }
         }
 
-        CommandMenu(t("视图", "View")) {
-            viewCommand(t("语料库", "Library"), shortcut: "1", action: .showLibrary)
-            viewCommand(t("统计", "Stats"), shortcut: "2", action: .runStats)
-            viewCommand(t("词表", "Word"), shortcut: "3", action: .runWord)
-            viewCommand("KWIC", shortcut: "4", action: .runKWIC)
-            viewCommand(t("搭配词", "Collocate"), shortcut: "5", action: .runCollocate)
-            viewCommand(t("设置", "Settings"), shortcut: ",", modifiers: [.command], action: .showSettings)
+        CommandGroup(after: .windowArrangement) {
             Divider()
-            Button(t("刷新工作区", "Refresh Workspace")) {
-                NativeAppCommandCenter.post(.refreshWorkspace)
-            }
-            .keyboardShortcut("r", modifiers: [.command])
+
+            windowButton(.library)
+                .keyboardShortcut("1", modifiers: [.command])
+
+            windowButton(.taskCenter)
+                .keyboardShortcut("2", modifiers: [.command])
+
+            windowButton(.settings)
+
+            Divider()
+
+            windowButton(.help)
+            windowButton(.releaseNotes)
+            windowButton(.about)
         }
 
         CommandMenu(t("分析", "Analysis")) {
             analysisCommand(t("统计", "Stats"), action: .runStats)
             analysisCommand(t("词表", "Word"), action: .runWord)
+            analysisCommand(t("分词", "Tokenize"), action: .runTokenize)
+            analysisCommand(t("主题", "Topics"), action: .runTopics)
             analysisCommand(t("对比", "Compare"), action: .runCompare)
             analysisCommand(t("卡方", "Chi-Square"), action: .runChiSquare)
             analysisCommand("N-Gram", action: .runNgram)
@@ -115,32 +142,7 @@ struct WordZMacCommands: Commands {
             analysisCommand(t("定位", "Locator"), action: .runLocator)
         }
 
-        CommandMenu(t("窗口", "Window")) {
-            Button(t("任务中心", "Task Center")) {
-                openWindow(id: NativeWindowRoute.taskCenter.id)
-            }
-            .keyboardShortcut("0", modifiers: [.command, .option])
-
-            Button(t("帮助中心", "Help Center")) {
-                openWindow(id: NativeWindowRoute.help.id)
-            }
-
-            Button(t("版本说明", "Release Notes")) {
-                openWindow(id: NativeWindowRoute.releaseNotes.id)
-            }
-
-            Button(t("关于 WordZ", "About WordZ")) {
-                openWindow(id: NativeWindowRoute.about.id)
-            }
-        }
-
-        CommandGroup(after: .windowArrangement) {
-            Button(t("任务中心", "Task Center")) {
-                openWindow(id: NativeWindowRoute.taskCenter.id)
-            }
-        }
-
-        CommandMenu(t("帮助", "Help")) {
+        CommandGroup(replacing: .help) {
             Button(t("检查更新…", "Check for Updates…")) {
                 NativeAppCommandCenter.post(.checkForUpdates)
             }
@@ -155,15 +157,9 @@ struct WordZMacCommands: Commands {
                 Button(t("安装已下载更新", "Install Downloaded Update")) {
                     NativeAppCommandCenter.post(.installDownloadedUpdate)
                 }
-            }
-
-            Divider()
-
-            Button(t("帮助中心", "Help Center")) {
-                openWindow(id: NativeWindowRoute.help.id)
-            }
-            Button(t("版本说明", "Release Notes")) {
-                openWindow(id: NativeWindowRoute.releaseNotes.id)
+                Button(t("在 Finder 中显示已下载更新", "Reveal Downloaded Update in Finder")) {
+                    Task { await workspace.revealDownloadedUpdate() }
+                }
             }
             Button(t("导出诊断…", "Export Diagnostics…")) {
                 NativeAppCommandCenter.post(.exportDiagnostics)
@@ -188,23 +184,17 @@ struct WordZMacCommands: Commands {
         workspace.rootScene.toolbar.items.first(where: { $0.action == action })?.isEnabled ?? true
     }
 
-    private func viewCommand(
-        _ title: String,
-        shortcut: KeyEquivalent,
-        modifiers: EventModifiers = [.command],
-        action: NativeAppCommand
-    ) -> some View {
-        Button(title) {
-            NativeAppCommandCenter.post(action)
-        }
-        .keyboardShortcut(shortcut, modifiers: modifiers)
-    }
-
     private func analysisCommand(_ title: String, action: WorkspaceToolbarAction) -> some View {
         Button(title) {
             NativeAppCommandCenter.post(nativeCommand(for: action))
         }
         .disabled(!isEnabled(action))
+    }
+
+    private func windowButton(_ route: NativeWindowRoute) -> some View {
+        Button(route.title(in: localization.effectiveMode)) {
+            openWindow(id: route.id)
+        }
     }
 
     private func nativeCommand(for action: WorkspaceToolbarAction) -> NativeAppCommand {
@@ -215,10 +205,18 @@ struct WordZMacCommands: Commands {
             return .showLibrary
         case .openSelected:
             return .openSelectedCorpus
+        case .previewCurrentCorpus:
+            return .quickLookCurrentCorpus
+        case .shareCurrentContent:
+            return .shareCurrentContent
         case .runStats:
             return .runStats
         case .runWord:
             return .runWord
+        case .runTokenize:
+            return .runTokenize
+        case .runTopics:
+            return .runTopics
         case .runCompare:
             return .runCompare
         case .runChiSquare:

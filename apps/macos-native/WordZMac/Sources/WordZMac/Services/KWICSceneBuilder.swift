@@ -75,9 +75,13 @@ struct KWICSceneBuilder {
                         id: key.rawValue,
                         title: key.title(in: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode)
+                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        presentation: presentation(for: key),
+                        widthPolicy: widthPolicy(for: key),
+                        isPinned: key == .keyword
                     )
-                }
+                },
+                defaultDensity: .standard
             ),
             totalRows: result.rows.count,
             filteredRows: sortedRows.count,
@@ -86,6 +90,30 @@ struct KWICSceneBuilder {
             tableRows: tableRows,
             searchError: ""
         )
+    }
+
+    private func presentation(for key: KWICColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .leftContext:
+            return .contextLeading
+        case .keyword:
+            return .keyword
+        case .rightContext:
+            return .contextTrailing
+        case .sentenceIndex:
+            return .numeric(precision: 0)
+        }
+    }
+
+    private func widthPolicy(for key: KWICColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .leftContext, .rightContext:
+            return .context
+        case .keyword:
+            return .keyword
+        case .sentenceIndex:
+            return .compact
+        }
     }
 
     private func sortIndicator(for key: KWICColumnKey, sortMode: KWICSortMode) -> String? {

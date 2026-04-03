@@ -1,7 +1,6 @@
 import Foundation
 
 struct NgramSceneBuilder {
-    @MainActor
     func build(
         from result: NgramResult,
         query: String,
@@ -10,9 +9,9 @@ struct NgramSceneBuilder {
         sortMode: NgramSortMode,
         pageSize: NgramPageSize,
         currentPage: Int,
-        visibleColumns: Set<NgramColumnKey>
+        visibleColumns: Set<NgramColumnKey>,
+        languageMode: AppLanguageMode = .system
     ) -> NgramSceneModel {
-        let languageMode = WordZLocalization.shared.effectiveMode
         let filtered = SearchFilterSupport.filterWordLikeRows(
             result.rows,
             query: query,
@@ -63,9 +62,13 @@ struct NgramSceneBuilder {
                         id: key.rawValue,
                         title: key.title(in: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode)
+                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        presentation: presentation(for: key),
+                        widthPolicy: widthPolicy(for: key),
+                        isPinned: key == .rank || key == .phrase
                     )
-                }
+                },
+                defaultDensity: .compact
             ),
             totalRows: result.rows.count,
             visibleRows: visibleSceneRows.count,
@@ -74,6 +77,24 @@ struct NgramSceneBuilder {
             tableRows: tableRows,
             searchError: filtered.error
         )
+    }
+
+    private func presentation(for key: NgramColumnKey) -> NativeTableColumnPresentation {
+        switch key {
+        case .rank, .count:
+            return .numeric(precision: 0)
+        case .phrase:
+            return .keyword
+        }
+    }
+
+    private func widthPolicy(for key: NgramColumnKey) -> NativeTableColumnWidthPolicy {
+        switch key {
+        case .rank, .count:
+            return .numeric
+        case .phrase:
+            return .keyword
+        }
     }
 
     private func sortRows(_ rows: [NgramRow], mode: NgramSortMode) -> [NgramRow] {

@@ -52,6 +52,7 @@ final class AppCoordinator {
             flowCoordinator.applyWorkspacePresentation(features: features)
             features.shell.updateSelectionAvailability(
                 hasSelection: features.sidebar.selectedCorpusID != nil,
+                hasPreviewableCorpus: !(features.library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty,
                 corpusCount: features.sidebar.librarySnapshot.corpora.count,
                 hasLocatorSource: features.kwic.primaryLocatorSource != nil,
                 hasExportableContent: false

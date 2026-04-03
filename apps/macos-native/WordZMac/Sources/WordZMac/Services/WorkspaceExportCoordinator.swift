@@ -37,10 +37,14 @@ final class WorkspaceExportCoordinator {
 
     func exportActiveScene(graph: WorkspaceSceneGraph) async throws -> String? {
         guard let snapshot = exportSnapshot(from: graph) else { return nil }
+        return try await export(snapshot: snapshot, title: "导出当前结果")
+    }
+
+    func export(snapshot: NativeTableExportSnapshot, title: String) async throws -> String? {
         guard let format = await dialogService.chooseExportFormat() else { return nil }
         let suggestedName = "\(snapshot.suggestedBaseName).\(format.allowedExtension)"
         guard let savePath = await dialogService.chooseSavePath(
-            title: "导出当前结果",
+            title: title,
             suggestedName: suggestedName,
             allowedExtension: format.allowedExtension
         ) else { return nil }
@@ -54,12 +58,28 @@ final class WorkspaceExportCoordinator {
         return savePath
     }
 
+    func export(textDocument: PlainTextExportDocument, title: String) async throws -> String? {
+        guard let savePath = await dialogService.chooseSavePath(
+            title: title,
+            suggestedName: textDocument.suggestedName,
+            allowedExtension: "txt"
+        ) else {
+            return nil
+        }
+        try textDocument.text.write(to: URL(fileURLWithPath: savePath), atomically: true, encoding: .utf8)
+        return savePath
+    }
+
     private func exportSnapshot(from graph: WorkspaceSceneGraph) -> NativeTableExportSnapshot? {
         switch graph.activeTab {
         case .stats:
             return graph.stats.exportSnapshot
         case .word:
             return graph.word.exportSnapshot
+        case .tokenize:
+            return graph.tokenize.exportSnapshot
+        case .topics:
+            return graph.topics.exportSnapshot
         case .compare:
             return graph.compare.exportSnapshot
         case .chiSquare:

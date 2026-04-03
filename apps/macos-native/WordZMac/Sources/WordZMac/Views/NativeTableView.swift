@@ -14,6 +14,51 @@ struct NativeTableView: NSViewRepresentable {
     var accessibilityLabel: String? = nil
     var activationHint: String? = nil
 
+    private enum LayoutMetrics {
+        static let storageVersion = "v3"
+        static let minimumWidth: CGFloat = 56
+        static let maximumCompactWidth: CGFloat = 280
+        static let maximumContextWidth: CGFloat = 640
+        static let maximumSummaryWidth: CGFloat = 420
+    }
+
+    private struct DensityMetrics {
+        let rowHeight: CGFloat
+        let intercellWidth: CGFloat
+        let intercellHeight: CGFloat
+        let fontSize: CGFloat
+        let headerFontSize: CGFloat
+    }
+
+    private static func metrics(for density: NativeTableDensityPreset) -> DensityMetrics {
+        switch density {
+        case .compact:
+            return DensityMetrics(
+                rowHeight: 22,
+                intercellWidth: 4,
+                intercellHeight: 2,
+                fontSize: 11,
+                headerFontSize: 11
+            )
+        case .standard:
+            return DensityMetrics(
+                rowHeight: 26,
+                intercellWidth: 5,
+                intercellHeight: 3,
+                fontSize: 12,
+                headerFontSize: 11
+            )
+        case .reading:
+            return DensityMetrics(
+                rowHeight: 30,
+                intercellWidth: 6,
+                intercellHeight: 4,
+                fontSize: 13,
+                headerFontSize: 12
+            )
+        }
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             descriptor: descriptor,
@@ -31,6 +76,7 @@ struct NativeTableView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> IntrinsicTableContainerView {
+        let metrics = Self.metrics(for: descriptor.defaultDensity)
         let tableView = ActionTableView(frame: .zero)
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.allowsColumnReordering = true
@@ -43,8 +89,10 @@ struct NativeTableView: NSViewRepresentable {
         tableView.target = context.coordinator
         tableView.actionCoordinator = context.coordinator
         tableView.doubleAction = #selector(Coordinator.handleDoubleClick(_:))
-        tableView.rowHeight = 28
-        tableView.intercellSpacing = NSSize(width: 8, height: 4)
+        tableView.rowSizeStyle = .small
+        tableView.rowHeight = metrics.rowHeight
+        tableView.intercellSpacing = NSSize(width: metrics.intercellWidth, height: metrics.intercellHeight)
+        tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
 
         let containerView = IntrinsicTableContainerView(frame: .zero)
         let scrollView = containerView.scrollView
@@ -119,7 +167,8 @@ struct NativeTableView: NSViewRepresentable {
             scrollView.hasVerticalScroller = true
             scrollView.hasHorizontalScroller = true
             scrollView.autohidesScrollers = true
-            scrollView.borderType = .bezelBorder
+            scrollView.borderType = .noBorder
+            scrollView.drawsBackground = false
             scrollView.translatesAutoresizingMaskIntoConstraints = false
             addSubview(scrollView)
 
@@ -236,7 +285,13 @@ struct NativeTableView: NSViewRepresentable {
             accessibilityLabel: String? = nil,
             activationHint: String? = nil
         ) {
-            let columnsChanged = self.descriptor != descriptor
+            let previousDescriptor = self.descriptor
+            let previousRows = self.rows
+            let previousSelectedRowID = self.selectedRowID
+            let previousSelectedRowIDs = self.selectedRowIDs
+            let previousDensity = resolvedDensity(for: previousDescriptor)
+            let columnsChanged = previousDescriptor != descriptor
+            let rowsChanged = previousRows != rows
             self.descriptor = descriptor
             self.rows = rows
             self.selectedRowID = selectedRowID
@@ -249,17 +304,29 @@ struct NativeTableView: NSViewRepresentable {
             self.accessibilityLabel = accessibilityLabel
             self.activationHint = activationHint
             tableView?.allowsMultipleSelection = allowsMultipleSelection
+            let nextDensity = resolvedDensity()
+            updateTableMetrics(nextDensity)
             let availableIDs = Set(rows.map(\.id))
-            selectedRowIDs = selectedRowIDs.intersection(availableIDs)
+            selectedRowIDs = previousSelectedRowIDs.intersection(availableIDs)
             if let selectedRowID, availableIDs.contains(selectedRowID) {
                 selectedRowIDs.insert(selectedRowID)
             }
-            if columnsChanged || !hasBuiltColumns {
+            let selectionChanged = previousSelectedRowID != selectedRowID || previousSelectedRowIDs != selectedRowIDs
+            let emptinessChanged = previousRows.isEmpty != rows.isEmpty
+            if columnsChanged || previousDensity != nextDensity || !hasBuiltColumns {
                 rebuildColumns()
             }
-            rebuildHeaderMenu()
-            rebuildRowMenu()
-            tableView?.reloadData()
+            if columnsChanged || previousDensity != nextDensity || tableView?.headerView?.menu == nil {
+                rebuildHeaderMenu()
+            }
+            if selectionChanged || emptinessChanged || tableView?.menu == nil {
+                rebuildRowMenu()
+            }
+            if columnsChanged {
+                tableView?.reloadData()
+            } else if rowsChanged {
+                reloadVisibleRows(previousRowCount: previousRows.count)
+            }
             tableView?.setAccessibilityLabel(accessibilityLabel ?? wordZText("结果表格", "Results table", mode: .system))
             tableView?.setAccessibilityHelp(activationHint)
             syncSelection()
@@ -269,6 +336,8 @@ struct NativeTableView: NSViewRepresentable {
         @MainActor
         private func rebuildColumns() {
             guard let tableView else { return }
+            let density = resolvedDensity()
+            let metrics = NativeTableView.metrics(for: density)
             while !tableView.tableColumns.isEmpty {
                 tableView.removeTableColumn(tableView.tableColumns[0])
             }
@@ -276,8 +345,15 @@ struct NativeTableView: NSViewRepresentable {
             for column in orderedVisibleColumns() {
                 let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.id))
                 tableColumn.title = column.sortIndicator.map { "\(column.title) \($0)" } ?? column.title
-                tableColumn.minWidth = 80
-                tableColumn.width = storedWidth(for: column.id) ?? preferredWidth(for: column.id)
+                tableColumn.minWidth = minimumWidth(for: column)
+                tableColumn.maxWidth = maximumWidth(for: column)
+                tableColumn.width = clampedWidth(storedWidth(for: column) ?? preferredWidth(for: column, density: density), for: column)
+                tableColumn.headerCell.font = .systemFont(
+                    ofSize: metrics.headerFontSize,
+                    weight: column.sortIndicator == nil ? .medium : .bold
+                )
+                tableColumn.headerCell.alignment = alignment(for: column)
+                tableColumn.headerToolTip = column.title
                 tableView.addTableColumn(tableColumn)
             }
             hasBuiltColumns = true
@@ -299,6 +375,28 @@ struct NativeTableView: NSViewRepresentable {
                 item.isEnabled = !column.isVisible || descriptor.visibleColumns.count > 1
                 menu.addItem(item)
             }
+            menu.addItem(.separator())
+            let densityItem = NSMenuItem(
+                title: wordZText("表格密度", "Table Density", mode: .system),
+                action: nil,
+                keyEquivalent: ""
+            )
+            let densityMenu = NSMenu(title: densityItem.title)
+            let selectedDensity = resolvedDensity()
+            for preset in NativeTableDensityPreset.allCases {
+                let item = NSMenuItem(
+                    title: preset.title(in: .system),
+                    action: #selector(handleDensityMenuSelection(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = preset.rawValue
+                item.state = preset == selectedDensity ? .on : .off
+                densityMenu.addItem(item)
+            }
+            densityItem.submenu = densityMenu
+            menu.addItem(densityItem)
+
             menu.addItem(.separator())
             let resetItem = NSMenuItem(
                 title: wordZText("恢复默认列布局", "Restore Default Layout", mode: .system),
@@ -336,17 +434,51 @@ struct NativeTableView: NSViewRepresentable {
             tableView.menu = menu
         }
 
-        private func preferredWidth(for columnID: String) -> CGFloat {
-            switch columnID {
-            case "leftContext", "rightContext", "distribution", "text":
-                return 260
-            case "word", "keyword", "nodeWord", "phrase":
-                return 180
-            case "dominantCorpus":
-                return 160
-            default:
-                return 110
+        private func preferredWidth(for column: NativeTableColumnDescriptor, density: NativeTableDensityPreset) -> CGFloat {
+            switch column.widthPolicy {
+            case .compact:
+                return density == .reading ? 92 : 82
+            case .numeric:
+                return density == .reading ? 94 : 82
+            case .standard:
+                return density == .reading ? 128 : 110
+            case .keyword:
+                return density == .reading ? 180 : 156
+            case .context:
+                return density == .compact ? 220 : (density == .standard ? 260 : 320)
+            case .summary:
+                return density == .compact ? 220 : (density == .standard ? 260 : 320)
             }
+        }
+
+        private func minimumWidth(for column: NativeTableColumnDescriptor) -> CGFloat {
+            switch column.widthPolicy {
+            case .compact, .numeric:
+                return 56
+            case .standard:
+                return 96
+            case .keyword:
+                return 120
+            case .context:
+                return 180
+            case .summary:
+                return 160
+            }
+        }
+
+        private func maximumWidth(for column: NativeTableColumnDescriptor) -> CGFloat {
+            switch column.widthPolicy {
+            case .context:
+                return LayoutMetrics.maximumContextWidth
+            case .summary:
+                return LayoutMetrics.maximumSummaryWidth
+            default:
+                return LayoutMetrics.maximumCompactWidth
+            }
+        }
+
+        private func clampedWidth(_ width: CGFloat, for column: NativeTableColumnDescriptor) -> CGFloat {
+            min(max(width, minimumWidth(for: column)), maximumWidth(for: column))
         }
 
         func numberOfRows(in tableView: NSTableView) -> Int {
@@ -357,16 +489,23 @@ struct NativeTableView: NSViewRepresentable {
             guard
                 let tableView,
                 let resizedColumn = notification.userInfo?["NSTableColumn"] as? NSTableColumn,
-                tableView.tableColumns.contains(where: { $0 === resizedColumn })
+                tableView.tableColumns.contains(where: { $0 === resizedColumn }),
+                let descriptorColumn = descriptor.column(id: resizedColumn.identifier.rawValue)
             else {
                 return
             }
-            persistWidth(resizedColumn.width, for: resizedColumn.identifier.rawValue)
+            persistWidth(resizedColumn.width, for: descriptorColumn)
         }
 
         func tableViewColumnDidMove(_ notification: Notification) {
             guard let tableView else { return }
             persistColumnOrder(from: tableView.tableColumns.map(\.identifier.rawValue))
+            let expectedOrder = orderedVisibleColumns().map(\.id)
+            let currentOrder = tableView.tableColumns.map(\.identifier.rawValue)
+            if currentOrder != expectedOrder {
+                rebuildColumns()
+                tableView.reloadData()
+            }
         }
 
         func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
@@ -400,9 +539,25 @@ struct NativeTableView: NSViewRepresentable {
         @MainActor @objc
         func handleResetTableLayout(_ sender: NSMenuItem) {
             clearStoredLayout()
+            updateTableMetrics(descriptor.defaultDensity)
             rebuildColumns()
             rebuildHeaderMenu()
             rebuildRowMenu()
+            tableView?.reloadData()
+        }
+
+        @MainActor @objc
+        func handleDensityMenuSelection(_ sender: NSMenuItem) {
+            guard
+                let rawValue = sender.representedObject as? String,
+                let density = NativeTableDensityPreset(rawValue: rawValue)
+            else {
+                return
+            }
+            persistDensity(density)
+            updateTableMetrics(density)
+            rebuildColumns()
+            rebuildHeaderMenu()
             tableView?.reloadData()
         }
 
@@ -433,22 +588,21 @@ struct NativeTableView: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard row >= 0, row < rows.count, let tableColumn else { return nil }
             let identifier = tableColumn.identifier
+            let columnID = identifier.rawValue
+            guard let column = descriptor.column(id: columnID) else { return nil }
             let textField: NSTextField
             if let reused = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTextField {
                 textField = reused
             } else {
                 textField = NSTextField(labelWithString: "")
                 textField.identifier = identifier
-                textField.lineBreakMode = .byTruncatingTail
-                textField.maximumNumberOfLines = 1
                 textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             }
+            configure(textField, for: column)
 
-            let value = rows[row].value(for: identifier.rawValue)
-            textField.stringValue = value
-            textField.alignment = isNumeric(value) ? .right : .left
-            textField.font = isNumeric(value) ? .monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 12)
-            textField.toolTip = value
+            let rawValue = rows[row].value(for: columnID)
+            textField.stringValue = displayValue(rawValue, for: column)
+            textField.toolTip = rawValue.count > 24 ? rawValue : nil
             return textField
         }
 
@@ -498,18 +652,54 @@ struct NativeTableView: NSViewRepresentable {
             containerView?.updateEmptyState(message: emptyMessage, isEmpty: rows.isEmpty)
         }
 
-        private func persistWidth(_ width: CGFloat, for columnID: String) {
-            UserDefaults.standard.set(Double(width), forKey: storageKey(for: columnID))
+        @MainActor
+        private func reloadVisibleRows(previousRowCount: Int) {
+            guard let tableView else { return }
+            if previousRowCount != rows.count {
+                tableView.noteNumberOfRowsChanged()
+            }
+
+            let columnCount = tableView.numberOfColumns
+            guard columnCount > 0 else {
+                tableView.reloadData()
+                return
+            }
+
+            let visibleRange = tableView.rows(in: tableView.visibleRect)
+            var rowIndexes = IndexSet()
+            if visibleRange.length > 0 {
+                let upperBound = min(visibleRange.location + visibleRange.length, rows.count)
+                if visibleRange.location < upperBound {
+                    rowIndexes.formUnion(IndexSet(integersIn: visibleRange.location..<upperBound))
+                }
+            }
+            resolvedSelectedRowIndexes().forEach { index in
+                guard index >= 0, index < rows.count else { return }
+                rowIndexes.insert(index)
+            }
+
+            guard !rowIndexes.isEmpty else {
+                tableView.reloadData()
+                return
+            }
+            tableView.reloadData(
+                forRowIndexes: rowIndexes,
+                columnIndexes: IndexSet(integersIn: 0..<columnCount)
+            )
         }
 
-        private func storedWidth(for columnID: String) -> CGFloat? {
-            let value = UserDefaults.standard.double(forKey: storageKey(for: columnID))
+        private func persistWidth(_ width: CGFloat, for column: NativeTableColumnDescriptor) {
+            UserDefaults.standard.set(Double(clampedWidth(width, for: column)), forKey: storageKey(for: column.id))
+        }
+
+        private func storedWidth(for column: NativeTableColumnDescriptor) -> CGFloat? {
+            let value = UserDefaults.standard.double(forKey: storageKey(for: column.id))
             guard value > 0 else { return nil }
-            return CGFloat(value)
+            return clampedWidth(CGFloat(value), for: column)
         }
 
         private func storageKey(for columnID: String) -> String {
-            "wordz.nativeTable.\(descriptor.storageKey).\(columnID).width"
+            "wordz.nativeTable.\(LayoutMetrics.storageVersion).\(descriptor.storageKey).\(columnID).width"
         }
 
         private func orderedVisibleColumns() -> [NativeTableColumnDescriptor] {
@@ -522,7 +712,8 @@ struct NativeTableView: NSViewRepresentable {
                 orderedAllColumns = storedOrder.compactMap { columnsByID[$0] }
                     + descriptor.columns.filter { !storedOrder.contains($0.id) }
             }
-            return orderedAllColumns.filter(\.isVisible)
+            let visibleColumns = orderedAllColumns.filter(\.isVisible)
+            return visibleColumns.filter(\.isPinned) + visibleColumns.filter { !$0.isPinned }
         }
 
         private func persistColumnOrder(from visibleColumnIDs: [String]) {
@@ -543,10 +734,11 @@ struct NativeTableView: NSViewRepresentable {
                 UserDefaults.standard.removeObject(forKey: storageKey(for: column.id))
             }
             UserDefaults.standard.removeObject(forKey: columnOrderKey())
+            UserDefaults.standard.removeObject(forKey: densityKey())
         }
 
         private func columnOrderKey() -> String {
-            "wordz.nativeTable.\(descriptor.storageKey).columnOrder"
+            "wordz.nativeTable.\(LayoutMetrics.storageVersion).\(descriptor.storageKey).columnOrder"
         }
 
         @MainActor
@@ -586,7 +778,7 @@ struct NativeTableView: NSViewRepresentable {
         func selectedRowsCopyPayload() -> String? {
             let indexes = resolvedSelectedRowIndexes()
             guard !indexes.isEmpty else { return nil }
-            let visibleColumns = descriptor.visibleColumns
+            let visibleColumns = orderedVisibleColumns()
             guard !visibleColumns.isEmpty else { return nil }
             let lines = [
                 visibleColumns.map(\.title).joined(separator: "\t")
@@ -621,10 +813,154 @@ struct NativeTableView: NSViewRepresentable {
             return []
         }
 
-        private func isNumeric(_ value: String) -> Bool {
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return false }
-            return Double(trimmed.replacingOccurrences(of: ",", with: "")) != nil
+        @MainActor
+        private func configure(_ textField: NSTextField, for columnID: String) {
+            guard let column = descriptor.column(id: columnID) else { return }
+            configure(textField, for: column)
+        }
+
+        @MainActor
+        private func configure(_ textField: NSTextField, for column: NativeTableColumnDescriptor) {
+            let metrics = NativeTableView.metrics(for: resolvedDensity())
+            textField.maximumNumberOfLines = 1
+            textField.alignment = alignment(for: column)
+            textField.font = font(for: column, metrics: metrics)
+            textField.textColor = textColor(for: column)
+            textField.lineBreakMode = lineBreakMode(for: column)
+            textField.backgroundColor = .clear
+            textField.drawsBackground = false
+        }
+
+        private func alignment(for column: NativeTableColumnDescriptor) -> NSTextAlignment {
+            switch column.presentation {
+            case .numeric:
+                return .right
+            case .keyword, .contextCenter:
+                return .center
+            case .contextLeading:
+                return .right
+            default:
+                return .left
+            }
+        }
+
+        private func font(for column: NativeTableColumnDescriptor, metrics: NativeTableView.DensityMetrics) -> NSFont {
+            switch column.presentation {
+            case .numeric:
+                return .monospacedSystemFont(ofSize: metrics.fontSize, weight: .regular)
+            case .keyword:
+                return .systemFont(ofSize: metrics.fontSize, weight: .semibold)
+            default:
+                return .systemFont(ofSize: metrics.fontSize)
+            }
+        }
+
+        private func textColor(for column: NativeTableColumnDescriptor) -> NSColor {
+            switch column.presentation {
+            case .keyword:
+                return .controlAccentColor
+            case .contextLeading, .contextTrailing, .summary:
+                return .secondaryLabelColor
+            default:
+                return .labelColor
+            }
+        }
+
+        private func lineBreakMode(for column: NativeTableColumnDescriptor) -> NSLineBreakMode {
+            switch column.presentation {
+            case .contextLeading:
+                return .byTruncatingHead
+            case .summary:
+                return .byTruncatingMiddle
+            default:
+                return .byTruncatingTail
+            }
+        }
+
+        private func displayValue(_ rawValue: String, for column: NativeTableColumnDescriptor) -> String {
+            switch column.presentation {
+            case .numeric(let precision, let usesGrouping):
+                return formattedNumericValue(rawValue, precision: precision, usesGrouping: usesGrouping)
+            default:
+                return rawValue
+            }
+        }
+
+        private func formattedNumericValue(_ rawValue: String, precision: Int?, usesGrouping: Bool) -> String {
+            let normalized = rawValue.replacingOccurrences(of: ",", with: "")
+            guard let number = Double(normalized) else { return rawValue }
+            if let precision, number != 0 {
+                let threshold = pow(10.0, Double(-precision))
+                if abs(number) < threshold {
+                    return number < 0
+                        ? "-<\(formattedThreshold(threshold, precision: precision))"
+                        : "<\(formattedThreshold(threshold, precision: precision))"
+                }
+            }
+
+            let resolvedPrecision: Int?
+            if let precision {
+                resolvedPrecision = precision
+            } else if number.rounded() == number {
+                resolvedPrecision = 0
+            } else {
+                resolvedPrecision = 2
+            }
+
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.usesGroupingSeparator = usesGrouping
+            if let resolvedPrecision {
+                formatter.minimumFractionDigits = resolvedPrecision == 0 ? 0 : resolvedPrecision
+                formatter.maximumFractionDigits = resolvedPrecision
+            } else {
+                formatter.minimumFractionDigits = 0
+                formatter.maximumFractionDigits = 6
+            }
+            return formatter.string(from: NSNumber(value: number)) ?? rawValue
+        }
+
+        private func formattedThreshold(_ value: Double, precision: Int) -> String {
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            formatter.usesGroupingSeparator = false
+            formatter.minimumFractionDigits = precision
+            formatter.maximumFractionDigits = precision
+            return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision)f", value)
+        }
+
+        private func resolvedDensity() -> NativeTableDensityPreset {
+            resolvedDensity(for: descriptor)
+        }
+
+        private func resolvedDensity(for descriptor: NativeTableDescriptor) -> NativeTableDensityPreset {
+            guard
+                let rawValue = UserDefaults.standard.string(forKey: densityKey(for: descriptor)),
+                let density = NativeTableDensityPreset(rawValue: rawValue)
+            else {
+                return descriptor.defaultDensity
+            }
+            return density
+        }
+
+        @MainActor
+        private func updateTableMetrics(_ density: NativeTableDensityPreset) {
+            guard let tableView else { return }
+            let metrics = NativeTableView.metrics(for: density)
+            tableView.rowHeight = metrics.rowHeight
+            tableView.intercellSpacing = NSSize(width: metrics.intercellWidth, height: metrics.intercellHeight)
+        }
+
+        private func persistDensity(_ density: NativeTableDensityPreset) {
+            UserDefaults.standard.set(density.rawValue, forKey: densityKey())
+        }
+
+        private func densityKey() -> String {
+            densityKey(for: descriptor)
+        }
+
+        private func densityKey(for descriptor: NativeTableDescriptor) -> String {
+            "wordz.nativeTable.\(LayoutMetrics.storageVersion).\(descriptor.storageKey).density"
         }
     }
 }

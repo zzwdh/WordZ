@@ -54,7 +54,7 @@ enum JSONFieldReader {
     }
 }
 
-struct AppInfoSummary: Equatable {
+struct AppInfoSummary: Equatable, Sendable {
     let name: String
     let version: String
     let help: [String]
@@ -70,7 +70,7 @@ struct AppInfoSummary: Equatable {
     }
 }
 
-struct LibraryFolderItem: Identifiable, Hashable {
+struct LibraryFolderItem: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
 
@@ -80,12 +80,13 @@ struct LibraryFolderItem: Identifiable, Hashable {
     }
 }
 
-struct LibraryCorpusItem: Identifiable, Hashable {
+struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
     let folderId: String
     let folderName: String
     let sourceType: String
+    let representedPath: String
 
     init(json: JSONObject) {
         self.id = JSONFieldReader.string(json, key: "id")
@@ -93,10 +94,11 @@ struct LibraryCorpusItem: Identifiable, Hashable {
         self.folderId = JSONFieldReader.string(json, key: "folderId")
         self.folderName = JSONFieldReader.string(json, key: "folderName", fallback: "未分类")
         self.sourceType = JSONFieldReader.string(json, key: "sourceType", fallback: "txt")
+        self.representedPath = JSONFieldReader.string(json, key: "representedPath")
     }
 }
 
-struct RecycleBinEntry: Identifiable, Equatable {
+struct RecycleBinEntry: Identifiable, Equatable, Sendable {
     let recycleEntryId: String
     let type: String
     let deletedAt: String
@@ -118,7 +120,7 @@ struct RecycleBinEntry: Identifiable, Equatable {
     }
 }
 
-struct RecycleBinSnapshot: Equatable {
+struct RecycleBinSnapshot: Equatable, Sendable {
     let entries: [RecycleBinEntry]
     let folderCount: Int
     let corpusCount: Int
@@ -143,7 +145,7 @@ struct RecycleBinSnapshot: Equatable {
     }
 }
 
-struct LibraryImportResult: Equatable {
+struct LibraryImportResult: Equatable, Sendable {
     let importedCount: Int
     let skippedCount: Int
     let importedItems: [LibraryCorpusItem]
@@ -157,7 +159,7 @@ struct LibraryImportResult: Equatable {
     }
 }
 
-struct LibraryBackupSummary: Equatable {
+struct LibraryBackupSummary: Equatable, Sendable {
     let backupDir: String
     let folderCount: Int
     let corpusCount: Int
@@ -169,7 +171,7 @@ struct LibraryBackupSummary: Equatable {
     }
 }
 
-struct LibraryRestoreSummary: Equatable {
+struct LibraryRestoreSummary: Equatable, Sendable {
     let restoredFromDir: String
     let previousLibraryBackupDir: String
     let folderCount: Int
@@ -183,7 +185,7 @@ struct LibraryRestoreSummary: Equatable {
     }
 }
 
-struct LibraryRepairSummary: Equatable {
+struct LibraryRepairSummary: Equatable, Sendable {
     let repairedManifest: Bool
     let repairedFolders: Int
     let repairedCorpora: Int
@@ -208,7 +210,7 @@ struct LibraryRepairSummary: Equatable {
     }
 }
 
-struct LibrarySnapshot: Equatable {
+struct LibrarySnapshot: Equatable, Sendable {
     let folders: [LibraryFolderItem]
     let corpora: [LibraryCorpusItem]
 
@@ -233,7 +235,7 @@ struct LibrarySnapshot: Equatable {
     }
 }
 
-struct OpenedCorpus: Equatable {
+struct OpenedCorpus: Equatable, Sendable {
     let mode: String
     let filePath: String
     let displayName: String
@@ -249,7 +251,7 @@ struct OpenedCorpus: Equatable {
     }
 }
 
-struct WorkspaceSnapshotSummary: Equatable {
+struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let currentTab: String
     let currentLibraryFolderId: String
     let corpusIds: [String]
@@ -264,6 +266,18 @@ struct WorkspaceSnapshotSummary: Equatable {
     let collocateLeftWindow: String
     let collocateRightWindow: String
     let collocateMinFreq: String
+    let topicsMinTopicSize: String
+    let topicsIncludeOutliers: Bool
+    let topicsPageSize: String
+    let topicsActiveTopicID: String
+    let wordCloudLimit: Int
+    let frequencyNormalizationUnit: FrequencyNormalizationUnit
+    let frequencyRangeMode: FrequencyRangeMode
+    let chiSquareA: String
+    let chiSquareB: String
+    let chiSquareC: String
+    let chiSquareD: String
+    let chiSquareUseYates: Bool
 
     static let empty = WorkspaceSnapshotSummary(draft: WorkspaceStateDraft.empty)
 
@@ -281,7 +295,19 @@ struct WorkspaceSnapshotSummary: Equatable {
         kwicRightWindow: String,
         collocateLeftWindow: String,
         collocateRightWindow: String,
-        collocateMinFreq: String
+        collocateMinFreq: String,
+        topicsMinTopicSize: String,
+        topicsIncludeOutliers: Bool,
+        topicsPageSize: String,
+        topicsActiveTopicID: String,
+        wordCloudLimit: Int,
+        frequencyNormalizationUnit: FrequencyNormalizationUnit,
+        frequencyRangeMode: FrequencyRangeMode,
+        chiSquareA: String,
+        chiSquareB: String,
+        chiSquareC: String,
+        chiSquareD: String,
+        chiSquareUseYates: Bool
     ) {
         self.currentTab = currentTab
         self.currentLibraryFolderId = currentLibraryFolderId
@@ -297,6 +323,18 @@ struct WorkspaceSnapshotSummary: Equatable {
         self.collocateLeftWindow = collocateLeftWindow
         self.collocateRightWindow = collocateRightWindow
         self.collocateMinFreq = collocateMinFreq
+        self.topicsMinTopicSize = topicsMinTopicSize
+        self.topicsIncludeOutliers = topicsIncludeOutliers
+        self.topicsPageSize = topicsPageSize
+        self.topicsActiveTopicID = topicsActiveTopicID
+        self.wordCloudLimit = wordCloudLimit
+        self.frequencyNormalizationUnit = frequencyNormalizationUnit
+        self.frequencyRangeMode = frequencyRangeMode
+        self.chiSquareA = chiSquareA
+        self.chiSquareB = chiSquareB
+        self.chiSquareC = chiSquareC
+        self.chiSquareD = chiSquareD
+        self.chiSquareUseYates = chiSquareUseYates
     }
 
     init(json: JSONObject) {
@@ -319,6 +357,26 @@ struct WorkspaceSnapshotSummary: Equatable {
         self.collocateLeftWindow = JSONFieldReader.string(collocate, key: "leftWindow", fallback: "5")
         self.collocateRightWindow = JSONFieldReader.string(collocate, key: "rightWindow", fallback: "5")
         self.collocateMinFreq = JSONFieldReader.string(collocate, key: "minFreq", fallback: "1")
+        let topics = JSONFieldReader.dictionary(json, key: "topics")
+        self.topicsMinTopicSize = JSONFieldReader.string(topics, key: "minTopicSize", fallback: "2")
+        self.topicsIncludeOutliers = JSONFieldReader.bool(topics, key: "includeOutliers", fallback: true)
+        self.topicsPageSize = JSONFieldReader.string(topics, key: "pageSize", fallback: "50")
+        self.topicsActiveTopicID = JSONFieldReader.string(topics, key: "activeTopicID")
+        let wordCloud = JSONFieldReader.dictionary(json, key: "wordCloud")
+        self.wordCloudLimit = JSONFieldReader.int(wordCloud, key: "limit", fallback: 80)
+        let frequencyMetrics = JSONFieldReader.dictionary(json, key: "frequencyMetrics")
+        self.frequencyNormalizationUnit = FrequencyNormalizationUnit(
+            rawValue: JSONFieldReader.string(frequencyMetrics, key: "normalizationUnit", fallback: FrequencyMetricDefinition.default.normalizationUnit.rawValue)
+        ) ?? FrequencyMetricDefinition.default.normalizationUnit
+        self.frequencyRangeMode = FrequencyRangeMode(
+            rawValue: JSONFieldReader.string(frequencyMetrics, key: "rangeMode", fallback: FrequencyMetricDefinition.default.rangeMode.rawValue)
+        ) ?? FrequencyMetricDefinition.default.rangeMode
+        let chiSquare = JSONFieldReader.dictionary(json, key: "chiSquare")
+        self.chiSquareA = JSONFieldReader.string(chiSquare, key: "a")
+        self.chiSquareB = JSONFieldReader.string(chiSquare, key: "b")
+        self.chiSquareC = JSONFieldReader.string(chiSquare, key: "c")
+        self.chiSquareD = JSONFieldReader.string(chiSquare, key: "d")
+        self.chiSquareUseYates = JSONFieldReader.bool(chiSquare, key: "useYates", fallback: false)
     }
 
     init(draft: WorkspaceStateDraft) {
@@ -336,48 +394,45 @@ struct WorkspaceSnapshotSummary: Equatable {
             kwicRightWindow: draft.kwicRightWindow,
             collocateLeftWindow: draft.collocateLeftWindow,
             collocateRightWindow: draft.collocateRightWindow,
-            collocateMinFreq: draft.collocateMinFreq
+            collocateMinFreq: draft.collocateMinFreq,
+            topicsMinTopicSize: draft.topicsMinTopicSize,
+            topicsIncludeOutliers: draft.topicsIncludeOutliers,
+            topicsPageSize: draft.topicsPageSize,
+            topicsActiveTopicID: draft.topicsActiveTopicID,
+            wordCloudLimit: draft.wordCloudLimit,
+            frequencyNormalizationUnit: draft.frequencyNormalizationUnit,
+            frequencyRangeMode: draft.frequencyRangeMode,
+            chiSquareA: draft.chiSquareA,
+            chiSquareB: draft.chiSquareB,
+            chiSquareC: draft.chiSquareC,
+            chiSquareD: draft.chiSquareD,
+            chiSquareUseYates: draft.chiSquareUseYates
         )
     }
 }
 
-struct UISettingsSnapshot: Equatable {
-    let zoom: Int
-    let fontScale: Int
-    let fontFamily: String
+struct UISettingsSnapshot: Equatable, Sendable {
     let showWelcomeScreen: Bool
     let restoreWorkspace: Bool
     let debugLogging: Bool
 
     static let `default` = UISettingsSnapshot(
-        zoom: 100,
-        fontScale: 100,
-        fontFamily: "system",
         showWelcomeScreen: true,
         restoreWorkspace: true,
         debugLogging: false
     )
 
     init(json: JSONObject) {
-        self.zoom = JSONFieldReader.int(json, key: "zoom", fallback: 100)
-        self.fontScale = JSONFieldReader.int(json, key: "fontScale", fallback: 100)
-        self.fontFamily = JSONFieldReader.string(json, key: "fontFamily", fallback: "system")
         self.showWelcomeScreen = JSONFieldReader.bool(json, key: "showWelcomeScreen", fallback: true)
         self.restoreWorkspace = JSONFieldReader.bool(json, key: "restoreWorkspace", fallback: true)
         self.debugLogging = JSONFieldReader.bool(json, key: "debugLogging", fallback: false)
     }
 
     init(
-        zoom: Int,
-        fontScale: Int,
-        fontFamily: String,
         showWelcomeScreen: Bool,
         restoreWorkspace: Bool,
         debugLogging: Bool
     ) {
-        self.zoom = zoom
-        self.fontScale = fontScale
-        self.fontFamily = fontFamily
         self.showWelcomeScreen = showWelcomeScreen
         self.restoreWorkspace = restoreWorkspace
         self.debugLogging = debugLogging
@@ -385,9 +440,6 @@ struct UISettingsSnapshot: Equatable {
 
     func asJSONObject() -> JSONObject {
         [
-            "zoom": zoom,
-            "fontScale": fontScale,
-            "fontFamily": fontFamily,
             "showWelcomeScreen": showWelcomeScreen,
             "restoreWorkspace": restoreWorkspace,
             "debugLogging": debugLogging
@@ -395,7 +447,7 @@ struct UISettingsSnapshot: Equatable {
     }
 }
 
-struct WorkspaceStateDraft: Equatable {
+struct WorkspaceStateDraft: Equatable, Sendable {
     let currentTab: String
     let currentLibraryFolderId: String
     let corpusIds: [String]
@@ -410,9 +462,21 @@ struct WorkspaceStateDraft: Equatable {
     let collocateLeftWindow: String
     let collocateRightWindow: String
     let collocateMinFreq: String
+    let topicsMinTopicSize: String
+    let topicsIncludeOutliers: Bool
+    let topicsPageSize: String
+    let topicsActiveTopicID: String
+    let wordCloudLimit: Int
+    let frequencyNormalizationUnit: FrequencyNormalizationUnit
+    let frequencyRangeMode: FrequencyRangeMode
+    let chiSquareA: String
+    let chiSquareB: String
+    let chiSquareC: String
+    let chiSquareD: String
+    let chiSquareUseYates: Bool
 
     static let empty = WorkspaceStateDraft(
-        currentTab: "library",
+        currentTab: "stats",
         currentLibraryFolderId: "all",
         corpusIds: [],
         corpusNames: [],
@@ -425,8 +489,76 @@ struct WorkspaceStateDraft: Equatable {
         kwicRightWindow: "5",
         collocateLeftWindow: "5",
         collocateRightWindow: "5",
-        collocateMinFreq: "1"
+        collocateMinFreq: "1",
+        topicsMinTopicSize: "2",
+        topicsIncludeOutliers: true,
+        topicsPageSize: "50",
+        topicsActiveTopicID: "",
+        wordCloudLimit: 80,
+        frequencyNormalizationUnit: FrequencyMetricDefinition.default.normalizationUnit,
+        frequencyRangeMode: FrequencyMetricDefinition.default.rangeMode,
+        chiSquareA: "",
+        chiSquareB: "",
+        chiSquareC: "",
+        chiSquareD: "",
+        chiSquareUseYates: false
     )
+
+    init(
+        currentTab: String,
+        currentLibraryFolderId: String,
+        corpusIds: [String],
+        corpusNames: [String],
+        searchQuery: String,
+        searchOptions: SearchOptionsState,
+        stopwordFilter: StopwordFilterState,
+        ngramSize: String,
+        ngramPageSize: String,
+        kwicLeftWindow: String,
+        kwicRightWindow: String,
+        collocateLeftWindow: String,
+        collocateRightWindow: String,
+        collocateMinFreq: String,
+        topicsMinTopicSize: String,
+        topicsIncludeOutliers: Bool,
+        topicsPageSize: String,
+        topicsActiveTopicID: String,
+        wordCloudLimit: Int,
+        frequencyNormalizationUnit: FrequencyNormalizationUnit = FrequencyMetricDefinition.default.normalizationUnit,
+        frequencyRangeMode: FrequencyRangeMode = FrequencyMetricDefinition.default.rangeMode,
+        chiSquareA: String,
+        chiSquareB: String,
+        chiSquareC: String,
+        chiSquareD: String,
+        chiSquareUseYates: Bool
+    ) {
+        self.currentTab = currentTab
+        self.currentLibraryFolderId = currentLibraryFolderId
+        self.corpusIds = corpusIds
+        self.corpusNames = corpusNames
+        self.searchQuery = searchQuery
+        self.searchOptions = searchOptions
+        self.stopwordFilter = stopwordFilter
+        self.ngramSize = ngramSize
+        self.ngramPageSize = ngramPageSize
+        self.kwicLeftWindow = kwicLeftWindow
+        self.kwicRightWindow = kwicRightWindow
+        self.collocateLeftWindow = collocateLeftWindow
+        self.collocateRightWindow = collocateRightWindow
+        self.collocateMinFreq = collocateMinFreq
+        self.topicsMinTopicSize = topicsMinTopicSize
+        self.topicsIncludeOutliers = topicsIncludeOutliers
+        self.topicsPageSize = topicsPageSize
+        self.topicsActiveTopicID = topicsActiveTopicID
+        self.wordCloudLimit = wordCloudLimit
+        self.frequencyNormalizationUnit = frequencyNormalizationUnit
+        self.frequencyRangeMode = frequencyRangeMode
+        self.chiSquareA = chiSquareA
+        self.chiSquareB = chiSquareB
+        self.chiSquareC = chiSquareC
+        self.chiSquareD = chiSquareD
+        self.chiSquareUseYates = chiSquareUseYates
+    }
 
     func asJSONObject() -> JSONObject {
         [
@@ -457,28 +589,71 @@ struct WorkspaceStateDraft: Equatable {
                 "rightWindow": collocateRightWindow,
                 "minFreq": collocateMinFreq,
                 "pageSize": "10"
+            ],
+            "topics": [
+                "minTopicSize": topicsMinTopicSize,
+                "includeOutliers": topicsIncludeOutliers,
+                "pageSize": topicsPageSize,
+                "activeTopicID": topicsActiveTopicID
+            ],
+            "wordCloud": [
+                "limit": wordCloudLimit
+            ],
+            "frequencyMetrics": [
+                "normalizationUnit": frequencyNormalizationUnit.rawValue,
+                "rangeMode": frequencyRangeMode.rawValue
+            ],
+            "chiSquare": [
+                "a": chiSquareA,
+                "b": chiSquareB,
+                "c": chiSquareC,
+                "d": chiSquareD,
+                "useYates": chiSquareUseYates
             ]
         ]
     }
 }
 
-struct FrequencyRow: Identifiable, Hashable {
+struct FrequencyRow: Identifiable, Hashable, Sendable {
     let id: String
     let word: String
     let count: Int
+    let rank: Int
+    let normFreq: Double
+    let range: Int
+    let normRange: Double
+    let sentenceRange: Int
+    let paragraphRange: Int
 
-    init(word: String, count: Int) {
+    init(
+        word: String,
+        count: Int,
+        rank: Int = 0,
+        normFreq: Double = 0,
+        range: Int = 0,
+        normRange: Double = 0,
+        sentenceRange: Int = 0,
+        paragraphRange: Int = 0
+    ) {
         self.id = word
         self.word = word
         self.count = count
+        self.rank = rank
+        self.normFreq = normFreq
+        self.range = range
+        self.normRange = normRange
+        self.sentenceRange = sentenceRange == 0 ? range : sentenceRange
+        self.paragraphRange = paragraphRange == 0 ? min(1, max(self.sentenceRange, 0)) : paragraphRange
     }
 }
 
-struct StatsResult: Equatable {
+struct StatsResult: Equatable, Sendable {
     let tokenCount: Int
     let typeCount: Int
     let ttr: Double
     let sttr: Double
+    let sentenceCount: Int
+    let paragraphCount: Int
     let frequencyRows: [FrequencyRow]
 
     init(json: JSONObject) {
@@ -486,8 +661,24 @@ struct StatsResult: Equatable {
         self.typeCount = JSONFieldReader.int(json, key: "typeCount")
         self.ttr = JSONFieldReader.double(json, key: "ttr")
         self.sttr = JSONFieldReader.double(json, key: "sttr")
+        self.sentenceCount = JSONFieldReader.int(json, key: "sentenceCount", fallback: 1)
+        self.paragraphCount = JSONFieldReader.int(json, key: "paragraphCount", fallback: 1)
         self.frequencyRows = JSONFieldReader.array(json, key: "freqRows")
             .compactMap { rowValue in
+                if let row = rowValue as? JSONObject {
+                    let sentenceRange = JSONFieldReader.int(row, key: "sentenceRange", fallback: JSONFieldReader.int(row, key: "range"))
+                    let paragraphRange = JSONFieldReader.int(row, key: "paragraphRange", fallback: min(1, max(sentenceRange, 0)))
+                    return FrequencyRow(
+                        word: JSONFieldReader.string(row, key: "word"),
+                        count: JSONFieldReader.int(row, key: "count"),
+                        rank: JSONFieldReader.int(row, key: "rank"),
+                        normFreq: JSONFieldReader.double(row, key: "normFreq"),
+                        range: JSONFieldReader.int(row, key: "range", fallback: sentenceRange),
+                        normRange: JSONFieldReader.double(row, key: "normRange"),
+                        sentenceRange: sentenceRange,
+                        paragraphRange: paragraphRange
+                    )
+                }
                 guard let row = rowValue as? [Any], row.count >= 2 else { return nil }
                 let word = String(describing: row[0])
                 let count: Int
@@ -498,12 +689,25 @@ struct StatsResult: Equatable {
                 } else {
                     count = 0
                 }
-                return FrequencyRow(word: word, count: count)
+                let rank = row.count > 2 ? JSONFieldReader.int(["value": row[2]], key: "value") : 0
+                let normFreq = row.count > 3 ? JSONFieldReader.double(["value": row[3]], key: "value") : 0
+                let range = row.count > 4 ? JSONFieldReader.int(["value": row[4]], key: "value") : 0
+                let normRange = row.count > 5 ? JSONFieldReader.double(["value": row[5]], key: "value") : 0
+                return FrequencyRow(
+                    word: word,
+                    count: count,
+                    rank: rank,
+                    normFreq: normFreq,
+                    range: range,
+                    normRange: normRange,
+                    sentenceRange: range,
+                    paragraphRange: min(1, max(range, 0))
+                )
             }
     }
 }
 
-struct NgramRow: Identifiable, Hashable {
+struct NgramRow: Identifiable, Hashable, Sendable {
     let id: String
     let phrase: String
     let count: Int
@@ -515,7 +719,7 @@ struct NgramRow: Identifiable, Hashable {
     }
 }
 
-struct NgramResult: Equatable {
+struct NgramResult: Equatable, Sendable {
     let n: Int
     let rows: [NgramRow]
 
@@ -538,7 +742,7 @@ struct NgramResult: Equatable {
     }
 }
 
-struct WordCloudResult: Equatable {
+struct WordCloudResult: Equatable, Sendable {
     let rows: [FrequencyRow]
 
     init(json: JSONObject) {
@@ -559,7 +763,7 @@ struct WordCloudResult: Equatable {
     }
 }
 
-struct KWICRow: Identifiable, Hashable {
+struct KWICRow: Identifiable, Hashable, Sendable {
     let id: String
     let left: String
     let node: String
@@ -579,7 +783,7 @@ struct KWICRow: Identifiable, Hashable {
     }
 }
 
-struct KWICResult: Equatable {
+struct KWICResult: Equatable, Sendable {
     let rows: [KWICRow]
 
     init(json: JSONObject) {
@@ -589,7 +793,7 @@ struct KWICResult: Equatable {
     }
 }
 
-struct CollocateRow: Identifiable, Hashable {
+struct CollocateRow: Identifiable, Hashable, Sendable {
     let id: String
     let word: String
     let total: Int
@@ -611,7 +815,7 @@ struct CollocateRow: Identifiable, Hashable {
     }
 }
 
-struct CollocateResult: Equatable {
+struct CollocateResult: Equatable, Sendable {
     let rows: [CollocateRow]
 
     init(items: [Any]) {
@@ -621,11 +825,12 @@ struct CollocateResult: Equatable {
     }
 }
 
-struct ComparePerCorpusValue: Equatable {
+struct ComparePerCorpusValue: Equatable, Sendable {
     let corpusId: String
     let corpusName: String
     let folderName: String
     let count: Int
+    let tokenCount: Int
     let normFreq: Double
 
     init(json: JSONObject) {
@@ -633,11 +838,12 @@ struct ComparePerCorpusValue: Equatable {
         self.corpusName = JSONFieldReader.string(json, key: "corpusName", fallback: "未命名语料")
         self.folderName = JSONFieldReader.string(json, key: "folderName")
         self.count = JSONFieldReader.int(json, key: "count")
+        self.tokenCount = JSONFieldReader.int(json, key: "tokenCount")
         self.normFreq = JSONFieldReader.double(json, key: "normFreq")
     }
 }
 
-struct CompareCorpusSummary: Identifiable, Equatable {
+struct CompareCorpusSummary: Identifiable, Equatable, Sendable {
     let corpusId: String
     let corpusName: String
     let folderName: String
@@ -663,12 +869,16 @@ struct CompareCorpusSummary: Identifiable, Equatable {
     }
 }
 
-struct CompareRow: Identifiable, Equatable {
+struct CompareRow: Identifiable, Equatable, Sendable {
     let word: String
     let total: Int
     let spread: Int
     let range: Double
     let dominantCorpusName: String
+    let keyness: Double
+    let effectSize: Double
+    let pValue: Double
+    let referenceNormFreq: Double
     let perCorpus: [ComparePerCorpusValue]
 
     var id: String { word }
@@ -679,13 +889,17 @@ struct CompareRow: Identifiable, Equatable {
         self.spread = JSONFieldReader.int(json, key: "spread")
         self.range = JSONFieldReader.double(json, key: "range")
         self.dominantCorpusName = JSONFieldReader.string(json, key: "dominantCorpusName")
+        self.keyness = JSONFieldReader.double(json, key: "keyness")
+        self.effectSize = JSONFieldReader.double(json, key: "effectSize")
+        self.pValue = JSONFieldReader.double(json, key: "pValue")
+        self.referenceNormFreq = JSONFieldReader.double(json, key: "referenceNormFreq")
         self.perCorpus = JSONFieldReader.array(json, key: "perCorpus")
             .compactMap { $0 as? JSONObject }
             .map(ComparePerCorpusValue.init)
     }
 }
 
-struct CompareResult: Equatable {
+struct CompareResult: Equatable, Sendable {
     let corpora: [CompareCorpusSummary]
     let rows: [CompareRow]
 
@@ -719,7 +933,7 @@ struct CompareRequestEntry: Sendable, Equatable {
     }
 }
 
-struct ChiSquareResult: Equatable {
+struct ChiSquareResult: Equatable, Sendable {
     let observed: [[Double]]
     let expected: [[Double]]
     let rowTotals: [Double]
@@ -776,7 +990,7 @@ struct ChiSquareResult: Equatable {
     }
 }
 
-struct LocatorRow: Identifiable, Equatable {
+struct LocatorRow: Identifiable, Equatable, Sendable {
     let sentenceId: Int
     let text: String
     let leftWords: String
@@ -796,7 +1010,7 @@ struct LocatorRow: Identifiable, Equatable {
     }
 }
 
-struct LocatorResult: Equatable {
+struct LocatorResult: Equatable, Sendable {
     let sentenceCount: Int
     let rows: [LocatorRow]
 

@@ -18,18 +18,11 @@ final class WorkspaceShellViewModel: ObservableObject {
     )
 
     var onTabChange: (() -> Void)?
-    private var hasSelection = false {
-        didSet { syncScene() }
-    }
-    private var corpusCount = 0 {
-        didSet { syncScene() }
-    }
-    private var hasLocatorSource = false {
-        didSet { syncScene() }
-    }
-    private var hasExportableContent = false {
-        didSet { syncScene() }
-    }
+    private var hasSelection = false
+    private var hasPreviewableCorpus = false
+    private var corpusCount = 0
+    private var hasLocatorSource = false
+    private var hasExportableContent = false
     private var context = WorkspaceSceneContext.empty
 
     private var languageMode: AppLanguageMode {
@@ -40,7 +33,7 @@ final class WorkspaceShellViewModel: ObservableObject {
         guard let snapshot,
               let restoredTab = WorkspaceDetailTab.fromSnapshotValue(snapshot.currentTab)
         else { return }
-        selectedTab = restoredTab
+        selectedTab = restoredTab.mainWorkspaceTab
     }
 
     func applyContext(_ context: WorkspaceSceneContext) {
@@ -50,14 +43,23 @@ final class WorkspaceShellViewModel: ObservableObject {
 
     func updateSelectionAvailability(
         hasSelection: Bool,
+        hasPreviewableCorpus: Bool,
         corpusCount: Int,
         hasLocatorSource: Bool,
         hasExportableContent: Bool
     ) {
+        let hasChanged = self.hasSelection != hasSelection ||
+            self.hasPreviewableCorpus != hasPreviewableCorpus ||
+            self.corpusCount != corpusCount ||
+            self.hasLocatorSource != hasLocatorSource ||
+            self.hasExportableContent != hasExportableContent
+        guard hasChanged else { return }
         self.hasSelection = hasSelection
+        self.hasPreviewableCorpus = hasPreviewableCorpus
         self.corpusCount = corpusCount
         self.hasLocatorSource = hasLocatorSource
         self.hasExportableContent = hasExportableContent
+        syncScene()
     }
 
     private func syncScene() {
@@ -70,8 +72,12 @@ final class WorkspaceShellViewModel: ObservableObject {
                     WorkspaceToolbarActionItem(action: .refresh, title: wordZText("刷新", "Refresh", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .showLibrary, title: wordZText("语料库", "Library", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .openSelected, title: wordZText("打开选中", "Open Selected", mode: languageMode), isEnabled: actionEnabled && hasSelection),
+                    WorkspaceToolbarActionItem(action: .previewCurrentCorpus, title: wordZText("快速预览", "Quick Look", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
+                    WorkspaceToolbarActionItem(action: .shareCurrentContent, title: wordZText("分享当前", "Share Current", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
                     WorkspaceToolbarActionItem(action: .runStats, title: wordZText("统计", "Stats", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runWord, title: wordZText("词表", "Word", mode: languageMode), isEnabled: actionEnabled && hasSelection),
+                    WorkspaceToolbarActionItem(action: .runTokenize, title: wordZText("分词", "Tokenize", mode: languageMode), isEnabled: actionEnabled && hasSelection),
+                    WorkspaceToolbarActionItem(action: .runTopics, title: wordZText("主题", "Topics", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runCompare, title: wordZText("对比", "Compare", mode: languageMode), isEnabled: actionEnabled && corpusCount >= 2),
                     WorkspaceToolbarActionItem(action: .runChiSquare, title: wordZText("卡方", "Chi-Square", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .runNgram, title: "N-Gram", isEnabled: actionEnabled && hasSelection),

@@ -9,10 +9,12 @@ final class SceneBuildersTests: XCTestCase {
             "typeCount": 3,
             "ttr": 0.25,
             "sttr": 0.5,
+            "sentenceCount": 2,
+            "paragraphCount": 1,
             "freqRows": [
-                ["gamma", 3],
-                ["alpha", 10],
-                ["beta", 7]
+                ["word": "gamma", "count": 3, "rank": 3, "normFreq": 2500.0, "range": 1, "normRange": 50.0],
+                ["word": "alpha", "count": 10, "rank": 1, "normFreq": 8333.33, "range": 2, "normRange": 100.0],
+                ["word": "beta", "count": 7, "rank": 2, "normFreq": 5833.33, "range": 2, "normRange": 100.0]
             ]
         ])
 
@@ -21,15 +23,59 @@ final class SceneBuildersTests: XCTestCase {
             sortMode: .alphabeticalAscending,
             pageSize: .fifty,
             currentPage: 1,
-            visibleColumns: [.word]
+            visibleColumns: [.rank, .word, .normFrequency, .range]
         )
 
         XCTAssertEqual(scene.rows.map(\.word), ["alpha", "beta", "gamma"])
+        XCTAssertEqual(scene.rows.first?.rankText, "1")
+        XCTAssertEqual(scene.rows.first?.normFrequencyText, "8333.33")
+        XCTAssertEqual(scene.rows.first?.rangeText, "2")
         XCTAssertEqual(scene.totalRows, 3)
         XCTAssertEqual(scene.visibleRows, 3)
         XCTAssertTrue(scene.isColumnVisible(.word))
+        XCTAssertTrue(scene.isColumnVisible(.normFrequency))
         XCTAssertFalse(scene.isColumnVisible(.count))
         XCTAssertEqual(scene.columnTitle(for: .word), "词 ↑")
+    }
+
+    func testWordSceneBuilderFiltersPureNumericTermsButKeepsAlphanumericTerms() {
+        let result = StatsResult(json: [
+            "tokenCount": 30,
+            "typeCount": 4,
+            "ttr": 0.2,
+            "sttr": 0.4,
+            "sentenceCount": 3,
+            "paragraphCount": 2,
+            "freqRows": [
+                ["word": "2024", "count": 9, "rank": 1, "normFreq": 3000.0, "range": 3, "normRange": 100.0],
+                ["word": "alpha", "count": 7, "rank": 2, "normFreq": 2333.33, "range": 2, "normRange": 66.67],
+                ["word": "beta2", "count": 5, "rank": 3, "normFreq": 1666.67, "range": 2, "normRange": 66.67],
+                ["word": "12345", "count": 4, "rank": 4, "normFreq": 1333.33, "range": 1, "normRange": 33.33]
+            ]
+        ])
+
+        let scene = WordSceneBuilder().build(
+            from: result,
+            query: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            sortMode: .frequencyDescending,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(WordColumnKey.allCases)
+        )
+
+        XCTAssertEqual(scene.rows.map(\.word), ["alpha", "beta2"])
+        XCTAssertEqual(scene.totalRows, 2)
+        XCTAssertEqual(scene.filteredRows, 2)
+        XCTAssertEqual(scene.visibleRows, 2)
+    }
+
+    func testFrequencyRowSupportTreatsChineseAndAlphanumericTermsAsLexical() {
+        XCTAssertTrue(FrequencyRowSupport.isLexicalWord("词频"))
+        XCTAssertTrue(FrequencyRowSupport.isLexicalWord("词2"))
+        XCTAssertTrue(FrequencyRowSupport.isLexicalWord("alpha2"))
+        XCTAssertFalse(FrequencyRowSupport.isLexicalWord("2024"))
     }
 
     func testKWICSceneBuilderRespectsSortingAndPaging() {
@@ -123,17 +169,24 @@ final class SceneBuildersTests: XCTestCase {
 
         XCTAssertEqual(scene.corpusSummaries.count, 2)
         XCTAssertEqual(scene.rows.first?.word, "alpha")
+        XCTAssertEqual(scene.rows.first?.keynessText, "4.21")
         XCTAssertEqual(scene.filteredRows, 2)
         XCTAssertEqual(scene.columnTitle(for: CompareColumnKey.word), "词 ↑")
+        XCTAssertTrue(scene.columnTitle(for: CompareColumnKey.keyness).contains("Keyness"))
         XCTAssertFalse(scene.isColumnVisible(CompareColumnKey.range))
     }
 
     func testChiSquareSceneBuilderBuildsMetricsAndWarnings() {
         let scene = ChiSquareSceneBuilder().build(from: makeChiSquareResult())
 
-        XCTAssertEqual(scene.metrics.count, 4)
+        XCTAssertEqual(scene.metrics.count, 6)
         XCTAssertEqual(scene.observedRows.count, 2)
         XCTAssertEqual(scene.summary, "差异不显著")
+        XCTAssertEqual(scene.methodLabel, "Pearson χ²")
+        XCTAssertEqual(scene.rowTotals.count, 2)
+        XCTAssertEqual(scene.columnTotals.count, 3)
+        XCTAssertFalse(scene.tableRows.isEmpty)
+        XCTAssertEqual(scene.table.csvHeaderRow(), ["section", "label", "value", "value2"])
     }
 
     func testLocatorSceneBuilderBuildsPaginationAndVisibleColumns() {

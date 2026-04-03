@@ -9,6 +9,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var loadBootstrapStateCallCount = 0
     var openSavedCorpusCallCount = 0
     var runStatsCallCount = 0
+    var runTokenizeCallCount = 0
+    var runTopicsCallCount = 0
     var runCompareCallCount = 0
     var runChiSquareCallCount = 0
     var runNgramCallCount = 0
@@ -42,6 +44,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var librarySnapshot: LibrarySnapshot
     var recycleSnapshot: RecycleBinSnapshot
     var statsResult: StatsResult
+    var tokenizeResult: TokenizeResult
+    var topicsResult: TopicAnalysisResult
     var compareResult: CompareResult
     var chiSquareResult: ChiSquareResult
     var ngramResult: NgramResult
@@ -71,6 +75,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var restoreError: Error?
     var repairError: Error?
     var statsError: Error?
+    var tokenizeError: Error?
+    var topicsError: Error?
     var compareError: Error?
     var chiSquareError: Error?
     var ngramError: Error?
@@ -80,12 +86,15 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var locatorError: Error?
     var saveWorkspaceError: Error?
     var saveUISettingsError: Error?
+    var topicsDelayNanoseconds: UInt64 = 0
 
     init(
         bootstrapState: WorkspaceBootstrapState = makeBootstrapState(),
         openedCorpus: OpenedCorpus = makeOpenedCorpus(),
         recycleSnapshot: RecycleBinSnapshot = makeRecycleSnapshot(),
         statsResult: StatsResult = makeStatsResult(),
+        tokenizeResult: TokenizeResult = makeTokenizeResult(),
+        topicsResult: TopicAnalysisResult = makeTopicAnalysisResult(),
         compareResult: CompareResult = makeCompareResult(),
         chiSquareResult: ChiSquareResult = makeChiSquareResult(),
         ngramResult: NgramResult = makeNgramResult(),
@@ -102,6 +111,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         self.librarySnapshot = bootstrapState.librarySnapshot
         self.recycleSnapshot = recycleSnapshot
         self.statsResult = statsResult
+        self.tokenizeResult = tokenizeResult
+        self.topicsResult = topicsResult
         self.compareResult = compareResult
         self.chiSquareResult = chiSquareResult
         self.ngramResult = ngramResult
@@ -144,7 +155,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
             "name": URL(fileURLWithPath: paths.first ?? "Imported Corpus").deletingPathExtension().lastPathComponent,
             "folderId": folderId,
             "folderName": librarySnapshot.folders.first(where: { $0.id == folderId })?.name ?? "Imported",
-            "sourceType": "txt"
+            "sourceType": "txt",
+            "representedPath": paths.first ?? ""
         ])
         librarySnapshot = LibrarySnapshot(
             folders: librarySnapshot.folders,
@@ -175,6 +187,21 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         return statsResult
     }
 
+    func runTokenize(text: String) async throws -> TokenizeResult {
+        runTokenizeCallCount += 1
+        if let tokenizeError { throw tokenizeError }
+        return tokenizeResult
+    }
+
+    func runTopics(text: String, options: TopicAnalysisOptions) async throws -> TopicAnalysisResult {
+        runTopicsCallCount += 1
+        if topicsDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: topicsDelayNanoseconds)
+        }
+        if let topicsError { throw topicsError }
+        return topicsResult
+    }
+
     func runCompare(comparisonEntries: [CompareRequestEntry]) async throws -> CompareResult {
         runCompareCallCount += 1
         if let compareError { throw compareError }
@@ -199,9 +226,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     func runWordCloud(text: String, limit: Int) async throws -> WordCloudResult {
         runWordCloudCallCount += 1
         if let wordCloudError { throw wordCloudError }
-        return WordCloudResult(json: [
-            "rows": wordCloudResult.rows.prefix(limit).map { [$0.word, $0.count] }
-        ])
+        return wordCloudResult
     }
 
     func runKWIC(
@@ -521,6 +546,10 @@ final class FakeHostActionService: NativeHostActionServicing {
     var openFeedbackCallCount = 0
     var openReleaseNotesCallCount = 0
     var openProjectHomeCallCount = 0
+    var quickLookCallCount = 0
+    var lastQuickLookPath: String?
+    var shareCallCount = 0
+    var lastSharedPaths: [String] = []
     var openDownloadedUpdateCallCount = 0
     var lastOpenedDownloadedUpdatePath: String?
     var revealDownloadedUpdateCallCount = 0
@@ -545,6 +574,16 @@ final class FakeHostActionService: NativeHostActionServicing {
 
     func openProjectHome() async throws {
         openProjectHomeCallCount += 1
+    }
+
+    func quickLook(path: String) async throws {
+        quickLookCallCount += 1
+        lastQuickLookPath = path
+    }
+
+    func share(paths: [String]) async throws {
+        shareCallCount += 1
+        lastSharedPaths = paths
     }
 
     func openDownloadedUpdate(path: String) async throws {
@@ -576,31 +615,36 @@ final class FakeHostActionService: NativeHostActionServicing {
 final class FakeUpdateService: NativeUpdateServicing {
     var checkCallCount = 0
     var downloadCallCount = 0
+    var checkDelayNanoseconds: UInt64 = 0
+    var downloadDelayNanoseconds: UInt64 = 0
     var result = NativeUpdateCheckResult(
-        currentVersion: "1.0.21",
-        latestVersion: "1.0.22",
-        releaseURL: "https://github.com/zzwdh/WordZ/releases/tag/v1.0.22",
-        statusMessage: "发现新版本 1.0.22，可前往发布页下载安装。",
+        currentVersion: "1.1.0",
+        latestVersion: "1.1.1",
+        releaseURL: "https://github.com/zzwdh/WordZ/releases/tag/v1.1.1",
+        statusMessage: "发现新版本 1.1.1，可前往发布页下载安装。",
         updateAvailable: true,
         asset: NativeUpdateAsset(
-            name: "WordZ-1.0.22-mac-arm64.dmg",
-            downloadURL: "https://example.com/WordZ-1.0.22-mac-arm64.dmg"
+            name: "WordZ-1.1.1-mac-arm64.dmg",
+            downloadURL: "https://example.com/WordZ-1.1.1-mac-arm64.dmg"
         ),
-        releaseTitle: "WordZ 1.0.22",
+        releaseTitle: "WordZ 1.1.1",
         publishedAt: "2026-03-26T00:00:00Z",
         releaseNotes: ["Native table layout persistence"]
     )
     var downloadResult = NativeDownloadedUpdate(
-        version: "1.0.22",
-        assetName: "WordZ-1.0.22-mac-arm64.dmg",
-        localPath: "/tmp/WordZ-1.0.22-mac-arm64.dmg",
-        releaseURL: "https://github.com/zzwdh/WordZ/releases/tag/v1.0.22"
+        version: "1.1.1",
+        assetName: "WordZ-1.1.1-mac-arm64.dmg",
+        localPath: "/tmp/WordZ-1.1.1-mac-arm64.dmg",
+        releaseURL: "https://github.com/zzwdh/WordZ/releases/tag/v1.1.1"
     )
     var error: Error?
     var downloadError: Error?
 
     func checkForUpdates(currentVersion: String) async throws -> NativeUpdateCheckResult {
         checkCallCount += 1
+        if checkDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: checkDelayNanoseconds)
+        }
         if let error { throw error }
         return NativeUpdateCheckResult(
             currentVersion: currentVersion,
@@ -620,6 +664,9 @@ final class FakeUpdateService: NativeUpdateServicing {
         onProgress: @escaping @MainActor (Double) -> Void
     ) async throws -> NativeDownloadedUpdate {
         downloadCallCount += 1
+        if downloadDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: downloadDelayNanoseconds)
+        }
         if let downloadError { throw downloadError }
         onProgress(0.5)
         onProgress(1)
@@ -643,7 +690,7 @@ func makeBootstrapState(
     WorkspaceBootstrapState(
         appInfo: AppInfoSummary(json: [
             "name": "WordZ",
-            "version": "1.0.21",
+            "version": "1.1.0",
             "help": ["Docs", "Feedback"],
             "releaseNotes": [],
             "userDataDir": "/tmp/wordz"
@@ -658,14 +705,16 @@ func makeBootstrapState(
                     "name": "Demo Corpus",
                     "folderId": "folder-1",
                     "folderName": "Default",
-                    "sourceType": "txt"
+                    "sourceType": "txt",
+                    "representedPath": "/tmp/demo.txt"
                 ]),
                 LibraryCorpusItem(json: [
                     "id": "corpus-2",
                     "name": "Compare Corpus",
                     "folderId": "folder-1",
                     "folderName": "Default",
-                    "sourceType": "txt"
+                    "sourceType": "txt",
+                    "representedPath": "/tmp/compare.txt"
                 ])
             ]
         ),
@@ -677,7 +726,20 @@ func makeBootstrapState(
 func makeWorkspaceSnapshot(
     currentTab: String = "kwic",
     corpusNames: [String] = ["Demo Corpus"],
-    searchQuery: String = "keyword"
+    searchQuery: String = "keyword",
+    frequencyNormalizationUnit: FrequencyNormalizationUnit = FrequencyMetricDefinition.default.normalizationUnit,
+    frequencyRangeMode: FrequencyRangeMode = FrequencyMetricDefinition.default.rangeMode,
+    ngramSize: String = "2",
+    topicsMinTopicSize: String = "2",
+    topicsIncludeOutliers: Bool = true,
+    topicsPageSize: String = "50",
+    topicsActiveTopicID: String = "",
+    wordCloudLimit: Int = 80,
+    chiSquareA: String = "",
+    chiSquareB: String = "",
+    chiSquareC: String = "",
+    chiSquareD: String = "",
+    chiSquareUseYates: Bool = false
 ) -> WorkspaceSnapshotSummary {
     WorkspaceSnapshotSummary(json: [
         "currentTab": currentTab,
@@ -696,9 +758,29 @@ func makeWorkspaceSnapshot(
                 "listText": StopwordFilterState.defaultListText
             ]
         ],
-        "ngram": ["pageSize": "10", "size": "2"],
+        "frequencyMetrics": [
+            "normalizationUnit": frequencyNormalizationUnit.rawValue,
+            "rangeMode": frequencyRangeMode.rawValue
+        ],
+        "ngram": ["pageSize": "10", "size": ngramSize],
         "kwic": ["leftWindow": "3", "rightWindow": "4"],
-        "collocate": ["leftWindow": "5", "rightWindow": "6", "minFreq": "2"]
+        "collocate": ["leftWindow": "5", "rightWindow": "6", "minFreq": "2"],
+        "topics": [
+            "minTopicSize": topicsMinTopicSize,
+            "includeOutliers": topicsIncludeOutliers,
+            "pageSize": topicsPageSize,
+            "activeTopicID": topicsActiveTopicID
+        ],
+        "wordCloud": [
+            "limit": wordCloudLimit
+        ],
+        "chiSquare": [
+            "a": chiSquareA,
+            "b": chiSquareB,
+            "c": chiSquareC,
+            "d": chiSquareD,
+            "useYates": chiSquareUseYates
+        ]
     ])
 }
 
@@ -713,16 +795,116 @@ func makeOpenedCorpus(displayName: String = "Demo Corpus") -> OpenedCorpus {
 }
 
 func makeStatsResult(rowCount: Int = 3) -> StatsResult {
-    let rows: [[Any]] = (0..<rowCount).map { index in
-        ["word-\(index)", rowCount - index]
+    let tokenCount = rowCount * 10
+    let segmentCount = max(rowCount, 1)
+    let rows: [[String: Any]] = (0..<rowCount).map { index in
+        let count = rowCount - index
+        let range = max(1, rowCount - index)
+        return [
+            "word": "word-\(index)",
+            "count": count,
+            "rank": index + 1,
+            "normFreq": (Double(count) / Double(max(tokenCount, 1))) * 10_000,
+            "range": range,
+            "normRange": (Double(range) / Double(segmentCount)) * 100,
+            "sentenceRange": range,
+            "paragraphRange": range
+        ]
     }
     return StatsResult(json: [
-        "tokenCount": rowCount * 10,
+        "tokenCount": tokenCount,
         "typeCount": rowCount,
         "ttr": 0.5,
         "sttr": 0.4,
+        "sentenceCount": segmentCount,
+        "paragraphCount": segmentCount,
         "freqRows": rows
     ])
+}
+
+func makeTokenizeResult() -> TokenizeResult {
+    TokenizeResult(
+        sentences: [
+            TokenizedSentence(
+                sentenceId: 0,
+                text: "Alpha beta gamma.",
+                tokens: [
+                    TokenizedToken(original: "Alpha", normalized: "alpha", sentenceId: 0, tokenIndex: 0),
+                    TokenizedToken(original: "beta", normalized: "beta", sentenceId: 0, tokenIndex: 1),
+                    TokenizedToken(original: "gamma", normalized: "gamma", sentenceId: 0, tokenIndex: 2)
+                ]
+            ),
+            TokenizedSentence(
+                sentenceId: 1,
+                text: "Delta alpha.",
+                tokens: [
+                    TokenizedToken(original: "Delta", normalized: "delta", sentenceId: 1, tokenIndex: 0),
+                    TokenizedToken(original: "alpha", normalized: "alpha", sentenceId: 1, tokenIndex: 1)
+                ]
+            )
+        ]
+    )
+}
+
+func makeTopicAnalysisResult() -> TopicAnalysisResult {
+    TopicAnalysisResult(
+        modelVersion: "wordz-topics-english-1",
+        modelProvider: "system-sentence-embedding",
+        usesFallbackProvider: false,
+        clusters: [
+            TopicClusterSummary(
+                id: "topic-1",
+                index: 1,
+                isOutlier: false,
+                size: 2,
+                keywordCandidates: [
+                    TopicKeywordCandidate(term: "security", score: 1.42),
+                    TopicKeywordCandidate(term: "hacker", score: 1.17)
+                ],
+                representativeSegmentIDs: ["paragraph-1"]
+            ),
+            TopicClusterSummary(
+                id: TopicAnalysisResult.outlierTopicID,
+                index: 0,
+                isOutlier: true,
+                size: 1,
+                keywordCandidates: [
+                    TopicKeywordCandidate(term: "misc", score: 0.75)
+                ],
+                representativeSegmentIDs: ["paragraph-3"]
+            )
+        ],
+        segments: [
+            TopicSegmentRow(
+                id: "paragraph-1",
+                topicID: "topic-1",
+                paragraphIndex: 1,
+                text: "Security researchers discussed hacker communities and disclosure norms.",
+                similarityScore: 0.91,
+                isOutlier: false
+            ),
+            TopicSegmentRow(
+                id: "paragraph-2",
+                topicID: "topic-1",
+                paragraphIndex: 2,
+                text: "Hackers shared exploit mitigation strategies and coordinated fixes.",
+                similarityScore: 0.88,
+                isOutlier: false
+            ),
+            TopicSegmentRow(
+                id: "paragraph-3",
+                topicID: TopicAnalysisResult.outlierTopicID,
+                paragraphIndex: 3,
+                text: "A short unrelated paragraph about coffee and weather.",
+                similarityScore: 0.0,
+                isOutlier: true
+            )
+        ],
+        totalSegments: 3,
+        clusteredSegments: 2,
+        outlierCount: 1,
+        warnings: []
+    )
 }
 
 func makeNgramResult(rowCount: Int = 3, n: Int = 2) -> NgramResult {
@@ -803,9 +985,13 @@ func makeCompareResult() -> CompareResult {
                 "spread": 2,
                 "range": 3.2,
                 "dominantCorpusName": "Demo Corpus",
+                "keyness": 4.21,
+                "effectSize": 0.58,
+                "pValue": 0.04,
+                "referenceNormFreq": 666.7,
                 "perCorpus": [
-                    ["corpusId": "corpus-1", "corpusName": "Demo Corpus", "folderName": "Default", "count": 10, "normFreq": 1000.0],
-                    ["corpusId": "corpus-2", "corpusName": "Compare Corpus", "folderName": "Default", "count": 8, "normFreq": 666.7]
+                    ["corpusId": "corpus-1", "corpusName": "Demo Corpus", "folderName": "Default", "count": 10, "tokenCount": 100, "normFreq": 1000.0],
+                    ["corpusId": "corpus-2", "corpusName": "Compare Corpus", "folderName": "Default", "count": 8, "tokenCount": 120, "normFreq": 666.7]
                 ]
             ],
             [
@@ -814,9 +1000,13 @@ func makeCompareResult() -> CompareResult {
                 "spread": 2,
                 "range": 2.1,
                 "dominantCorpusName": "Compare Corpus",
+                "keyness": 3.11,
+                "effectSize": 0.44,
+                "pValue": 0.08,
+                "referenceNormFreq": 500.0,
                 "perCorpus": [
-                    ["corpusId": "corpus-1", "corpusName": "Demo Corpus", "folderName": "Default", "count": 5, "normFreq": 500.0],
-                    ["corpusId": "corpus-2", "corpusName": "Compare Corpus", "folderName": "Default", "count": 9, "normFreq": 750.0]
+                    ["corpusId": "corpus-1", "corpusName": "Demo Corpus", "folderName": "Default", "count": 5, "tokenCount": 100, "normFreq": 500.0],
+                    ["corpusId": "corpus-2", "corpusName": "Compare Corpus", "folderName": "Default", "count": 9, "tokenCount": 120, "normFreq": 750.0]
                 ]
             ]
         ]

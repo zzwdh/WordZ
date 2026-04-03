@@ -11,15 +11,6 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             onLanguageModeChange?()
         }
     }
-    @Published var zoom: Double = 100 {
-        didSet { syncScene() }
-    }
-    @Published var fontScale: Double = 100 {
-        didSet { syncScene() }
-    }
-    @Published var fontFamily: String = "system" {
-        didSet { syncScene() }
-    }
     @Published var showWelcomeScreen: Bool = true {
         didSet { syncScene() }
     }
@@ -68,9 +59,6 @@ final class WorkspaceSettingsViewModel: ObservableObject {
     }
 
     func apply(_ snapshot: UISettingsSnapshot) {
-        zoom = Double(snapshot.zoom)
-        fontScale = Double(snapshot.fontScale)
-        fontFamily = snapshot.fontFamily
         showWelcomeScreen = snapshot.showWelcomeScreen
         restoreWorkspace = snapshot.restoreWorkspace
         debugLogging = snapshot.debugLogging
@@ -142,9 +130,6 @@ final class WorkspaceSettingsViewModel: ObservableObject {
 
     func exportSnapshot() -> UISettingsSnapshot {
         UISettingsSnapshot(
-            zoom: Int(zoom.rounded()),
-            fontScale: Int(fontScale.rounded()),
-            fontFamily: fontFamily,
             showWelcomeScreen: showWelcomeScreen,
             restoreWorkspace: restoreWorkspace,
             debugLogging: debugLogging
@@ -189,8 +174,6 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             userDataDirectory: userDataDirectory,
             updateSummary: makeUpdateSummary(),
             supportStatus: supportStatus,
-            zoomLabel: "\(Int(zoom.rounded()))%",
-            fontScaleLabel: "\(Int(fontScale.rounded()))%",
             latestVersionLabel: latestVersion.isEmpty ? currentVersion : latestVersion,
             latestReleaseTitle: latestReleaseTitle.isEmpty ? (latestVersion.isEmpty ? currentVersion : latestVersion) : latestReleaseTitle,
             latestReleasePublishedLabel: formattedPublishedAtLabel(),
