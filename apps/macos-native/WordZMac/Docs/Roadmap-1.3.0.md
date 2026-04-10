@@ -71,13 +71,13 @@
 
 涉及模块：
 
-- `Models/EngineModels.swift`
-- `Services/NativeCorpusStore.swift`
-- `Services/NativeWorkspaceRepository.swift`
-- `Services/WorkspaceFlowCoordinator.swift`
+- `Engine/Models/EngineAnalysisModels.swift`
+- `Storage/Library/NativeCorpusStore.swift`
+- `Workspace/Services/NativeWorkspaceRepository.swift`
+- `Workspace/Services/WorkspaceFlowCoordinator.swift`
 - `ViewModels/ComparePageViewModel.swift`
-- `Views/CompareView.swift`
-- `Views/LibraryManagementView.swift`
+- `Views/Workspace/Pages/CompareView.swift`
+- `Views/Windows/LibraryManagementView.swift`
 
 ### 2. 元数据驱动的语料筛选与批量管理
 
@@ -113,11 +113,11 @@
 
 涉及模块：
 
-- `Services/NativeCorpusDatabaseSupport.swift`
-- `Services/LibraryManagementCoordinator.swift`
+- `Storage/Support/NativeCorpusDatabaseSupport.swift`
+- `Workspace/Services/LibraryManagementCoordinator.swift`
 - `ViewModels/LibraryManagementViewModel.swift`
-- `Views/LibraryManagementView.swift`
-- `Models/LibraryManagementSceneModel.swift`
+- `Views/Windows/LibraryManagementView.swift`
+- `Models/Scene/LibraryManagementSceneModel.swift`
 
 ### 3. 百万词级导入、索引与分析性能
 
@@ -151,12 +151,12 @@
 
 涉及模块：
 
-- `Services/NativeCorpusStore.swift`
-- `Services/NativeCorpusDatabaseSupport.swift`
-- `Services/NativeAnalysisEngine.swift`
-- `Services/NativeAnalysisResultCache.swift`
-- `Services/TableExportService.swift`
-- `Views/NativeTableView.swift`
+- `Storage/Library/NativeCorpusStore.swift`
+- `Storage/Support/NativeCorpusDatabaseSupport.swift`
+- `Analysis/Services/NativeAnalysisEngine.swift`
+- `Analysis/Services/NativeAnalysisResultCache.swift`
+- `Export/Services/TableExportService.swift`
+- `Views/Workbench/Table/NativeTableView.swift`
 
 ### 4. 可复现分析预设与方法说明
 
@@ -190,10 +190,10 @@
 
 涉及模块：
 
-- `Services/WorkspacePersistenceService.swift`
-- `Services/AnalysisExportMetadataSupport.swift`
+- `Workspace/Services/WorkspacePersistenceService.swift`
+- `Analysis/Support/AnalysisExportMetadataSupport.swift`
 - `ViewModels/*PageViewModel.swift`
-- `Views/WorkbenchUI.swift`
+- `Views/Workbench/`
 
 ## P1
 

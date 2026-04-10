@@ -2,98 +2,77 @@ import Foundation
 
 @MainActor
 final class LibrarySidebarViewModel: ObservableObject {
-    @Published var librarySnapshot = LibrarySnapshot.empty
+    @Published var librarySnapshot = LibrarySnapshot.empty {
+        didSet {
+            if let selectedCorpusSetID, !librarySnapshot.corpusSets.contains(where: { $0.id == selectedCorpusSetID }) {
+                self.selectedCorpusSetID = nil
+            }
+            _ = normalizeSelectionForCurrentFilters()
+            syncScene()
+        }
+    }
+    @Published var selectedCorpusSetID: String? {
+        didSet { syncScene() }
+    }
     @Published var selectedCorpusID: String? {
         didSet {
             guard oldValue != selectedCorpusID else { return }
             syncScene()
-            onSelectionChange?()
+            if !isApplyingMetadataFilterSelection && suppressedSelectionChangeDepth == 0 {
+                onSelectionChange?()
+            }
         }
+    }
+    @Published var metadataSourceQuery = "" {
+        didSet { handleMetadataFilterEdit(oldValue: oldValue, newValue: metadataSourceQuery) }
+    }
+    @Published var metadataYearQuery = "" {
+        didSet { handleMetadataFilterEdit(oldValue: oldValue, newValue: metadataYearQuery) }
+    }
+    @Published var metadataGenreQuery = "" {
+        didSet { handleMetadataFilterEdit(oldValue: oldValue, newValue: metadataGenreQuery) }
+    }
+    @Published var metadataTagsQuery = "" {
+        didSet { handleMetadataFilterEdit(oldValue: oldValue, newValue: metadataTagsQuery) }
     }
     @Published var engineStatus = wordZText("正在连接本地引擎...", "Connecting to local engine…", mode: .system)
     @Published var lastErrorMessage = ""
-    @Published private(set) var scene = WorkspaceSidebarSceneModel.empty
+    @Published var scene = WorkspaceSidebarSceneModel.empty
 
     var onSelectionChange: (() -> Void)?
-    private var context = WorkspaceSceneContext.empty
-    private var isBusy = false
-    private var engineState: WorkspaceSidebarEngineState = .connecting
-    private var languageMode: AppLanguageMode {
-        WordZLocalization.shared.effectiveMode
-    }
+    var onMetadataFilterChange: ((Bool) -> Void)?
+
+    var context = WorkspaceSceneContext.empty
+    var isBusy = false
+    var isApplyingMetadataFilterSelection = false
+    var isApplyingMetadataFilterState = false
+    var engineState: WorkspaceSidebarEngineState = .connecting
+    var activeAnalysisTab: WorkspaceDetailTab = .stats
+    var workflowTargetCorpusID: String?
+    var workflowReferenceCorpusID: String?
+    var resultsSummary: WorkspaceSidebarResultsSceneModel?
+    private var suppressedSelectionChangeDepth = 0
 
     var selectedCorpus: LibraryCorpusItem? {
         guard let selectedCorpusID else { return nil }
         return librarySnapshot.corpora.first(where: { $0.id == selectedCorpusID })
     }
 
-    func applyBootstrap(_ state: WorkspaceBootstrapState) {
-        librarySnapshot = state.librarySnapshot
-        engineState = .connected
-        engineStatus = wordZText("本地引擎已连接", "Local engine connected", mode: languageMode)
-        lastErrorMessage = ""
-        syncScene()
+    var selectedCorpusSet: LibraryCorpusSetItem? {
+        guard let selectedCorpusSetID else { return nil }
+        return librarySnapshot.corpusSets.first(where: { $0.id == selectedCorpusSetID })
     }
 
-    func applyContext(_ context: WorkspaceSceneContext) {
-        self.context = context
-        syncScene()
-    }
-
-    func setBusy(_ isBusy: Bool) {
-        self.isBusy = isBusy
-        syncScene()
-    }
-
-    func setConnectionFailure(_ message: String) {
-        engineState = .failed
-        engineStatus = wordZText("本地引擎连接失败", "Local engine connection failed", mode: languageMode)
-        lastErrorMessage = message
-        syncScene()
-    }
-
-    func clearError() {
-        lastErrorMessage = ""
-        syncScene()
-    }
-
-    func setError(_ message: String) {
-        lastErrorMessage = message
-        syncScene()
-    }
-
-    private func syncScene() {
-        let currentCorpus = selectedCorpus.map {
-            WorkspaceCurrentCorpusSceneModel(
-                title: $0.name,
-                subtitle: $0.folderName
-            )
+    func setSelectedCorpusID(
+        _ corpusID: String?,
+        notifySelectionChange: Bool
+    ) {
+        guard !notifySelectionChange else {
+            selectedCorpusID = corpusID
+            return
         }
-        let actions = [
-            WorkspaceSidebarActionItem(action: .refresh, title: wordZText("刷新", "Refresh", mode: languageMode), isEnabled: !isBusy),
-            WorkspaceSidebarActionItem(
-                action: .openSelected,
-                title: wordZText("打开选中", "Open Selected", mode: languageMode),
-                isEnabled: !isBusy && selectedCorpusID != nil
-            )
-        ]
-        let corpora = librarySnapshot.corpora.map { corpus in
-            WorkspaceSidebarCorpusSceneItem(
-                id: corpus.id,
-                title: corpus.name,
-                subtitle: corpus.folderName,
-                isSelected: corpus.id == selectedCorpusID
-            )
-        }
-        scene = WorkspaceSidebarSceneModel(
-            appName: context.appName,
-            versionLabel: context.versionLabel,
-            engineStatus: engineStatus,
-            engineState: engineState,
-            actions: actions,
-            currentCorpus: currentCorpus,
-            corpora: corpora,
-            errorMessage: lastErrorMessage
-        )
+        suppressedSelectionChangeDepth += 1
+        defer { suppressedSelectionChangeDepth -= 1 }
+        selectedCorpusID = corpusID
     }
 }

@@ -8,6 +8,7 @@ enum NativeAppCommand: String {
     case showLibrary
     case showSettings
     case showTaskCenterWindow
+    case showUpdateWindow
     case showAboutWindow
     case showHelpWindow
     case showReleaseNotesWindow
@@ -20,9 +21,9 @@ enum NativeAppCommand: String {
     case runTokenize
     case runTopics
     case runCompare
+    case runKeyword
     case runChiSquare
     case runNgram
-    case runWordCloud
     case runKWIC
     case runCollocate
     case runLocator

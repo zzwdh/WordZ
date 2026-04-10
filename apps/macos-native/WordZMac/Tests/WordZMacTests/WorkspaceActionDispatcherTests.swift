@@ -5,7 +5,7 @@ import XCTest
 final class WorkspaceActionDispatcherTests: XCTestCase {
     func testDispatcherRefreshActionRunsWorkspaceRefreshFlow() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
 
         dispatcher.handleToolbarAction(.refresh)
@@ -17,7 +17,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherStatsLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.stats.apply(makeStatsResult(rowCount: 5))
         workspace.syncSceneGraph()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
@@ -31,7 +31,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherCompareLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.sidebar.applyBootstrap(repository.bootstrapState)
         workspace.compare.syncLibrarySnapshot(repository.bootstrapState.librarySnapshot)
         workspace.compare.apply(makeCompareResult())
@@ -47,7 +47,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherTopicsLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.topics.apply(makeTopicAnalysisResult())
         workspace.syncSceneGraph()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
@@ -61,7 +61,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherTokenizeLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.tokenize.apply(makeTokenizeResult())
         workspace.syncSceneGraph()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
@@ -75,7 +75,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherChiSquareResetResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.chiSquare.apply(makeChiSquareResult())
         workspace.syncSceneGraph()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
@@ -89,7 +89,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherKWICLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.kwic.keyword = "node"
         workspace.kwic.apply(makeKWICResult(rowCount: 5))
         workspace.syncSceneGraph()
@@ -104,7 +104,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherKwicActivationRunsLocatorFromSelectedRow() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         await workspace.initializeIfNeeded()
         workspace.kwic.keyword = "node"
         workspace.kwic.apply(makeKWICResult(rowCount: 3))
@@ -123,7 +123,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherNgramLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.ngram.apply(makeNgramResult(rowCount: 5))
         workspace.syncSceneGraph()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
@@ -137,7 +137,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherCollocateLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.collocate.keyword = "node"
         workspace.collocate.apply(makeCollocateResult(rowCount: 5))
         workspace.syncSceneGraph()
@@ -152,7 +152,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherLocatorLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         workspace.kwic.keyword = "node"
         workspace.kwic.apply(makeKWICResult(rowCount: 5))
         let source = workspace.kwic.primaryLocatorSource ?? LocatorSource(keyword: "node", sentenceId: 1, nodeIndex: 2)
@@ -169,7 +169,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherLibrarySelectionActionsSyncSidebarAndOpenFlow() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         await workspace.initializeIfNeeded()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
 
@@ -188,7 +188,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
     func testDispatcherLibraryQuickLookActionUsesSelectedCorpus() async {
         let repository = FakeWorkspaceRepository()
         let hostActions = FakeHostActionService()
-        let workspace = MainWorkspaceViewModel(
+        let workspace = makeMainWorkspaceViewModel(
             repository: repository,
             hostPreferencesStore: InMemoryHostPreferencesStore(),
             hostActionService: hostActions
@@ -208,7 +208,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         let hostActions = FakeHostActionService()
         let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("wordz-dispatch-share-\(UUID().uuidString)", isDirectory: true)
-        let workspace = MainWorkspaceViewModel(
+        let workspace = makeMainWorkspaceViewModel(
             repository: repository,
             hostPreferencesStore: InMemoryHostPreferencesStore(),
             hostActionService: hostActions,
@@ -227,7 +227,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherSettingsSavePersistsSnapshot() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
         workspace.settings.showWelcomeScreen = false
         workspace.settings.restoreWorkspace = false
@@ -240,9 +240,46 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertEqual(repository.savedUISettings.first?.restoreWorkspace, false)
     }
 
+    func testLibraryDispatcherForwardsPreferredRouteToDialogService() async {
+        let repository = FakeWorkspaceRepository()
+        let dialogService = FakeDialogService()
+        dialogService.promptTextResult = "新文件夹"
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            dialogService: dialogService
+        )
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace, preferredWindowRoute: .library)
+
+        dispatcher.handleLibraryAction(.createFolder)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(dialogService.promptTextPreferredRoute, .library)
+        XCTAssertEqual(repository.createFolderCallCount, 1)
+    }
+
+    func testSettingsDispatcherForwardsPreferredRouteToDiagnosticsExport() async {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let diagnosticsBundleService = FakeDiagnosticsBundleService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostActionService: hostActions,
+            diagnosticsBundleService: diagnosticsBundleService
+        )
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace, preferredWindowRoute: .settings)
+
+        dispatcher.handleSettingsAction(.exportDiagnostics)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(hostActions.exportedDiagnosticPreferredRoute, .settings)
+        XCTAssertNotNil(diagnosticsBundleService.lastPayload)
+    }
+
     func testDispatcherLibraryInfoActionBuildsCorpusInfoSheet() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         await workspace.initializeIfNeeded()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
 
@@ -257,7 +294,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherSidebarCorpusInfoActionSelectsCorpusAndShowsInfo() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         await workspace.initializeIfNeeded()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
 
@@ -272,7 +309,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
     func testDispatcherLibraryEditMetadataActionPresentsEditorSheet() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
         await workspace.initializeIfNeeded()
         let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
 

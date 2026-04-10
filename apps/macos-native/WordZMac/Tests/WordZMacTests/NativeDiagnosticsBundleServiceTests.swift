@@ -66,6 +66,7 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
                 autoUpdateEnabled: true,
                 checkForUpdatesOnLaunch: true,
                 autoDownloadUpdates: false,
+                autoInstallDownloadedUpdates: false,
                 recentDocuments: [
                     RecentDocumentItem(
                         corpusID: "corpus-1",
@@ -134,6 +135,7 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
         let includedFiles = try XCTUnwrap(manifestObject["includedFiles"] as? [[String: Any]])
         let includedPaths = includedFiles.compactMap { $0["path"] as? String }
         XCTAssertTrue(includedPaths.contains("diagnostics.txt"))
+        XCTAssertTrue(includedPaths.contains("persisted/native-host-preferences.json"))
         XCTAssertTrue(includedPaths.contains("persisted/workspace-state.json"))
         XCTAssertTrue(includedPaths.contains("logs/startup-crash.log"))
     }

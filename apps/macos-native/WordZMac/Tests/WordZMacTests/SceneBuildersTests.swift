@@ -78,6 +78,63 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertFalse(FrequencyRowSupport.isLexicalWord("2024"))
     }
 
+    func testTokenizeSceneBuilderAppliesLanguagePresetAndLemmaStrategy() {
+        let result = TokenizeResult(
+            sentences: [
+                TokenizedSentence(
+                    sentenceId: 0,
+                    text: "Running 跑步 2024",
+                    tokens: [
+                        TokenizedToken(
+                            original: "Running",
+                            normalized: "running",
+                            sentenceId: 0,
+                            tokenIndex: 0,
+                            annotations: TokenLinguisticAnnotations(script: .latin, lemma: "run", lexicalClass: .verb)
+                        ),
+                        TokenizedToken(
+                            original: "跑步",
+                            normalized: "跑步",
+                            sentenceId: 0,
+                            tokenIndex: 1,
+                            annotations: TokenLinguisticAnnotations(script: .cjk, lemma: nil, lexicalClass: .verb)
+                        ),
+                        TokenizedToken(
+                            original: "2024",
+                            normalized: "2024",
+                            sentenceId: 0,
+                            tokenIndex: 2,
+                            annotations: TokenLinguisticAnnotations(script: .numeric, lemma: nil, lexicalClass: .number)
+                        )
+                    ]
+                )
+            ]
+        )
+
+        let scene = TokenizeSceneBuilder().build(
+            from: result,
+            query: "run",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            languagePreset: .latinFocused,
+            lemmaStrategy: .lemmaPreferred,
+            sortMode: .lemmaAscending,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(TokenizeColumnKey.allCases)
+        )
+
+        XCTAssertEqual(scene.filteredTokens, 1)
+        XCTAssertEqual(scene.visibleTokens, 1)
+        XCTAssertEqual(scene.rows.first?.lemma, "run")
+        XCTAssertEqual(scene.rows.first?.lexicalClass, TokenLexicalClass.verb.title(in: .system))
+        XCTAssertEqual(scene.rows.first?.script, TokenScript.latin.title(in: .system))
+        XCTAssertEqual(scene.exportDocument?.text, "run\n")
+        XCTAssertEqual(scene.sorting.selectedLanguagePreset, .latinFocused)
+        XCTAssertEqual(scene.sorting.selectedLemmaStrategy, .lemmaPreferred)
+        XCTAssertTrue(scene.column(for: .lemma)?.isVisible ?? false)
+    }
+
     func testKWICSceneBuilderRespectsSortingAndPaging() {
         let result = KWICResult(json: [
             "rows": [
@@ -245,6 +302,31 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertTrue(scene.rows[1].citationText.contains("Full: sentence-1"))
     }
 
+    func testConcordancePresentationSupportNormalizesWhitespaceConsistently() {
+        XCTAssertEqual(
+            ConcordancePresentationSupport.normalizedContext("  alpha \n beta\tgamma  "),
+            "alpha beta gamma"
+        )
+        XCTAssertEqual(
+            ConcordancePresentationSupport.annotatedLine(
+                normalizedLeft: "left side",
+                normalizedKeyword: "node",
+                normalizedRight: "right side"
+            ),
+            "left side [node] right side"
+        )
+        XCTAssertEqual(
+            ConcordancePresentationSupport.citationText(
+                sentenceNumber: 2,
+                normalizedKeyword: "node",
+                normalizedLeft: "left side",
+                normalizedRight: "right side",
+                normalizedFullText: "full sentence"
+            ),
+            "Sentence 2\nleft side [node] right side\nFull: full sentence"
+        )
+    }
+
     func testNgramSceneBuilderRespectsFilterSortingAndPaging() {
         let result = NgramResult(json: [
             "n": 3,
@@ -276,19 +358,98 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("N-Gram 阶数") || $0.contains("N-Gram Size") }))
     }
 
-    func testWordCloudSceneBuilderIncludesExportMetadata() {
-        let result = makeWordCloudResult(rowCount: 8)
+    func testReadingExportSupportBuildsKWICAndLocatorDocuments() {
+        let kwicScene = KWICSceneBuilder().build(
+            from: makeKWICResult(rowCount: 3),
+            query: "node",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            leftWindow: 5,
+            rightWindow: 5,
+            sortMode: .original,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(KWICColumnKey.allCases)
+        )
+        let kwicDocument = ReadingExportSupport.document(
+            for: .citation,
+            currentKWICRow: kwicScene.rows[0],
+            scene: kwicScene
+        )
 
-        let scene = WordCloudSceneBuilder().build(
-            from: result,
+        XCTAssertEqual(kwicDocument.suggestedName, "kwic-citation.txt")
+        XCTAssertTrue(kwicDocument.text.contains(kwicScene.rows[0].citationText))
+        XCTAssertTrue(kwicDocument.text.contains("Keyword") || kwicDocument.text.contains("节点词"))
+
+        let locatorScene = LocatorSceneBuilder().build(
+            from: makeLocatorResult(rowCount: 4),
+            source: LocatorSource(keyword: "node", sentenceId: 1, nodeIndex: 1),
+            leftWindow: 4,
+            rightWindow: 6,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(LocatorColumnKey.allCases)
+        )
+        let locatorDocument = ReadingExportSupport.document(
+            for: .fullSentence,
+            visibleLocatorRows: Array(locatorScene.rows.prefix(2)),
+            scene: locatorScene
+        )
+
+        XCTAssertEqual(locatorDocument.suggestedName, "locator-visible-fullSentence.txt")
+        XCTAssertTrue(locatorDocument.text.contains("sentence-0"))
+        XCTAssertTrue(locatorDocument.text.contains("sentence-1"))
+        XCTAssertTrue(locatorDocument.text.contains("Window: L4 / R6"))
+    }
+
+    func testReadingExportSupportBuildsCompareAndCollocateSummaryDocuments() {
+        let compareScene = CompareSceneBuilder().build(
+            selection: [
+                CompareSelectableCorpusSceneItem(id: "corpus-1", title: "Demo Corpus", subtitle: "Default", isSelected: true),
+                CompareSelectableCorpusSceneItem(id: "corpus-2", title: "Compare Corpus", subtitle: "Default", isSelected: true)
+            ],
+            from: makeCompareResult(),
             query: "",
             searchOptions: .default,
             stopwordFilter: .default,
-            limit: 5,
-            visibleColumns: Set(WordCloudColumnKey.allCases)
+            sortMode: .keynessDescending,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(CompareColumnKey.allCases)
+        )
+        let compareDocument = ReadingExportSupport.document(
+            currentCompareRow: compareScene.rows[0],
+            scene: compareScene
         )
 
-        XCTAssertEqual(scene.visibleRows, 5)
-        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Top 5") }))
+        XCTAssertEqual(compareDocument.suggestedName, "compare-summary.txt")
+        XCTAssertTrue(compareDocument.text.contains(compareScene.rows[0].word))
+        XCTAssertTrue(compareDocument.text.contains("Keyness:"))
+        XCTAssertTrue(compareDocument.text.contains(compareScene.referenceSummary))
+        XCTAssertTrue(compareDocument.text.contains(compareScene.methodSummary))
+
+        let collocateScene = CollocateSceneBuilder().build(
+            from: makeCollocateResult(rowCount: 3),
+            query: "node",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            focusMetric: .logDice,
+            leftWindow: 4,
+            rightWindow: 6,
+            minFreq: 2,
+            sortMode: .logDiceDescending,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(CollocateColumnKey.allCases)
+        )
+        let collocateDocument = ReadingExportSupport.document(
+            visibleCollocateRows: Array(collocateScene.rows.prefix(2)),
+            scene: collocateScene
+        )
+
+        XCTAssertEqual(collocateDocument.suggestedName, "collocate-visible-summary.txt")
+        XCTAssertTrue(collocateDocument.text.contains(collocateScene.rows[0].word))
+        XCTAssertTrue(collocateDocument.text.contains("Focus Metric:"))
+        XCTAssertTrue(collocateDocument.text.contains(collocateScene.focusMetricSummary))
     }
 }

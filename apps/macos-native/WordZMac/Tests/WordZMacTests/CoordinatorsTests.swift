@@ -21,7 +21,7 @@ final class CoordinatorsTests: XCTestCase {
         let sceneStore = WorkspaceSceneStore()
         let sessionStore = WorkspaceSessionStore()
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -31,7 +31,7 @@ final class CoordinatorsTests: XCTestCase {
             sessionStore: sessionStore,
             libraryCoordinator: libraryCoordinator
         )
-        let appCoordinator = AppCoordinator(
+        let appCoordinator = makeAppCoordinator(
             repository: repository,
             sceneStore: sceneStore,
             sessionStore: sessionStore,
@@ -45,7 +45,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -70,7 +69,7 @@ final class CoordinatorsTests: XCTestCase {
         let sceneStore = WorkspaceSceneStore()
         let sessionStore = WorkspaceSessionStore()
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -80,7 +79,7 @@ final class CoordinatorsTests: XCTestCase {
             sessionStore: sessionStore,
             libraryCoordinator: libraryCoordinator
         )
-        let appCoordinator = AppCoordinator(
+        let appCoordinator = makeAppCoordinator(
             repository: repository,
             sceneStore: sceneStore,
             sessionStore: sessionStore,
@@ -94,7 +93,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -116,7 +114,7 @@ final class CoordinatorsTests: XCTestCase {
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
         let taskCenter = NativeTaskCenter()
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -138,7 +136,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -165,7 +162,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -187,7 +184,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -213,7 +209,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -235,7 +231,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -259,7 +254,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -281,7 +276,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -305,7 +299,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -327,7 +321,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: compare,
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -348,7 +341,7 @@ final class CoordinatorsTests: XCTestCase {
         sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
         let sessionStore = WorkspaceSessionStore()
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -371,7 +364,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: compare,
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -390,7 +382,7 @@ final class CoordinatorsTests: XCTestCase {
         sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
         let sessionStore = WorkspaceSessionStore()
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -413,7 +405,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: chiSquare,
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -435,7 +426,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -456,7 +447,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
@@ -473,48 +463,6 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertFalse(repository.savedWorkspaceDrafts.isEmpty)
     }
 
-    func testWorkspaceFlowCoordinatorRunWordCloudBuildsSceneAndSwitchesTab() async {
-        let repository = FakeWorkspaceRepository()
-        let sceneStore = WorkspaceSceneStore()
-        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
-        let sessionStore = WorkspaceSessionStore()
-        sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
-        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
-            repository: repository,
-            workspacePersistence: WorkspacePersistenceService(),
-            workspacePresentation: WorkspacePresentationService(),
-            sceneStore: sceneStore,
-            windowDocumentController: NativeWindowDocumentController(),
-            dialogService: FakeDialogService(),
-            sessionStore: sessionStore,
-            libraryCoordinator: libraryCoordinator
-        )
-        let sidebar = LibrarySidebarViewModel()
-        sidebar.applyBootstrap(repository.bootstrapState)
-        sidebar.selectedCorpusID = "corpus-1"
-        let features = WorkspaceFeatureSet(
-            sidebar: sidebar,
-            shell: WorkspaceShellViewModel(),
-            library: LibraryManagementViewModel(),
-            stats: StatsPageViewModel(),
-            compare: ComparePageViewModel(),
-            chiSquare: ChiSquarePageViewModel(),
-            ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
-            kwic: KWICPageViewModel(),
-            collocate: CollocatePageViewModel(),
-            locator: LocatorPageViewModel(),
-            settings: WorkspaceSettingsViewModel()
-        )
-
-        await flowCoordinator.runWordCloud(features: features)
-
-        XCTAssertEqual(repository.runWordCloudCallCount, 1)
-        XCTAssertEqual(features.shell.selectedTab, .wordCloud)
-        XCTAssertEqual(features.wordCloud.scene?.visibleRows, repository.wordCloudResult.rows.count)
-    }
-
     func testWorkspaceFlowCoordinatorRunLocatorUsesKwicSourceAndBuildsScene() async {
         let repository = FakeWorkspaceRepository()
         let sceneStore = WorkspaceSceneStore()
@@ -522,7 +470,7 @@ final class CoordinatorsTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -548,7 +496,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: kwic,
             collocate: CollocatePageViewModel(),
             locator: locator,
@@ -585,6 +532,82 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertTrue(library.scene.statusMessage.contains("已导入"))
     }
 
+    func testLibraryManagementCoordinatorSavesAndDeletesCorpusSet() async throws {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let dialog = FakeDialogService()
+        dialog.promptTextResult = "课堂语料集"
+        let coordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: dialog,
+            sessionStore: sessionStore
+        )
+        let library = LibraryManagementViewModel()
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        library.applyBootstrap(repository.bootstrapState.librarySnapshot)
+        library.selectCorpusIDs(["corpus-1"])
+
+        try await coordinator.saveCurrentCorpusSet(into: library, sidebar: sidebar)
+
+        XCTAssertEqual(repository.saveCorpusSetCallCount, 1)
+        XCTAssertEqual(library.selectedCorpusSet?.name, "课堂语料集")
+        XCTAssertEqual(sidebar.selectedCorpusSetID, library.selectedCorpusSetID)
+        XCTAssertTrue(library.scene.statusMessage.contains("已保存语料集"))
+        XCTAssertEqual(repository.librarySnapshot.corpusSets.count, 1)
+
+        try await coordinator.deleteSelectedCorpusSet(into: library, sidebar: sidebar)
+
+        XCTAssertEqual(repository.deleteCorpusSetCallCount, 1)
+        XCTAssertTrue(repository.librarySnapshot.corpusSets.isEmpty)
+        XCTAssertNil(library.selectedCorpusSetID)
+        XCTAssertNil(sidebar.selectedCorpusSetID)
+        XCTAssertTrue(library.scene.statusMessage.contains("已删除语料集"))
+    }
+
+    func testLibraryManagementCoordinatorAppliesBatchMetadataPatchAcrossSelection() async throws {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let coordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore
+        )
+        let library = LibraryManagementViewModel()
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        library.applyBootstrap(repository.bootstrapState.librarySnapshot)
+        library.selectCorpusIDs(["corpus-1", "corpus-2"])
+
+        try await coordinator.updateSelectedCorporaMetadata(
+            BatchCorpusMetadataPatch(
+                sourceLabel: "语料平台",
+                genreLabel: "新闻",
+                tagsToAdd: ["课堂, 重点"]
+            ),
+            into: library,
+            sidebar: sidebar
+        )
+
+        XCTAssertEqual(repository.updateCorpusMetadataCallCount, 2)
+
+        let updatedCorpora = repository.librarySnapshot.corpora
+        let corpusOne = try XCTUnwrap(updatedCorpora.first(where: { $0.id == "corpus-1" }))
+        let corpusTwo = try XCTUnwrap(updatedCorpora.first(where: { $0.id == "corpus-2" }))
+
+        XCTAssertEqual(corpusOne.metadata.sourceLabel, "语料平台")
+        XCTAssertEqual(corpusTwo.metadata.sourceLabel, "语料平台")
+        XCTAssertEqual(corpusOne.metadata.genreLabel, "新闻")
+        XCTAssertEqual(corpusTwo.metadata.genreLabel, "新闻")
+        XCTAssertEqual(corpusOne.metadata.yearLabel, "2024")
+        XCTAssertEqual(corpusTwo.metadata.yearLabel, "2023")
+        XCTAssertTrue(corpusOne.metadata.tags.contains("课堂"))
+        XCTAssertTrue(corpusOne.metadata.tags.contains("重点"))
+        XCTAssertTrue(corpusTwo.metadata.tags.contains("研究"))
+        XCTAssertTrue(corpusTwo.metadata.tags.contains("重点"))
+        XCTAssertTrue(library.scene.statusMessage.contains("已批量更新 2 条语料"))
+    }
+
     func testWorkspaceFlowCoordinatorExportCurrentWritesTokenizedTextAsUTF8() async throws {
         let repository = FakeWorkspaceRepository()
         let dialog = FakeDialogService()
@@ -597,7 +620,7 @@ final class CoordinatorsTests: XCTestCase {
         sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
         let sessionStore = WorkspaceSessionStore()
         let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
-        let flowCoordinator = WorkspaceFlowCoordinator(
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
             workspacePresentation: WorkspacePresentationService(),
@@ -620,7 +643,6 @@ final class CoordinatorsTests: XCTestCase {
             compare: ComparePageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             ngram: NgramPageViewModel(),
-            wordCloud: WordCloudPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),

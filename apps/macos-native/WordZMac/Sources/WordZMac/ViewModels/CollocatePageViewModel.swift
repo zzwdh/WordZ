@@ -1,6 +1,6 @@
 import Foundation
 
-private struct CollocateRunConfiguration: Equatable {
+struct CollocateRunConfiguration: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let leftWindow: Int
@@ -9,9 +9,10 @@ private struct CollocateRunConfiguration: Equatable {
 }
 
 @MainActor
-final class CollocatePageViewModel: ObservableObject {
-    private static let defaultVisibleColumns: Set<CollocateColumnKey> = [.word, .total, .logDice, .rate]
-    private var isApplyingState = false
+final class CollocatePageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisSceneBuildRevisionControlling {
+    static let defaultVisibleColumns: Set<CollocateColumnKey> = [.word, .total, .logDice, .rate]
+    var isApplyingState = false
+    var isApplyingInputState: Bool { isApplyingState }
 
     @Published var keyword = "" {
         didSet {
@@ -51,17 +52,22 @@ final class CollocatePageViewModel: ObservableObject {
     }
     @Published var isEditingStopwords = false
     @Published var scene: CollocateSceneModel?
-    @Published private(set) var selectedRowID: String?
+    @Published var selectedRowID: String?
 
     var onInputChange: (() -> Void)?
-    private let sceneBuilder: CollocateSceneBuilder
-    private var result: CollocateResult?
-    private var sortMode: CollocateSortMode = .logDiceDescending
-    private var pageSize: CollocatePageSize = .fifty
-    private var currentPage = 1
-    private var visibleColumns: Set<CollocateColumnKey> = CollocatePageViewModel.defaultVisibleColumns
-    private var focusMetric: CollocateAssociationMetric = .logDice
-    private var lastRunConfiguration: CollocateRunConfiguration?
+    let sceneBuilder: CollocateSceneBuilder
+    var result: CollocateResult?
+    var sortMode: CollocateSortMode = .logDiceDescending
+    var pageSize: CollocatePageSize = .fifty
+    var currentPage = 1
+    var visibleColumns: Set<CollocateColumnKey> = CollocatePageViewModel.defaultVisibleColumns
+    var focusMetric: CollocateAssociationMetric = .logDice
+    var lastRunConfiguration: CollocateRunConfiguration?
+    var sceneBuildRevision = 0
+    var cachedFilteredRows: [CollocateRow]?
+    var cachedStopwordFilter = StopwordFilterState.default
+    var cachedSortedRows: [CollocateRow]?
+    var cachedSortMode: CollocateSortMode?
 
     init(sceneBuilder: CollocateSceneBuilder = CollocateSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -103,210 +109,5 @@ final class CollocatePageViewModel: ObservableObject {
             return row
         }
         return scene.rows.first
-    }
-
-    func apply(_ snapshot: WorkspaceSnapshotSummary) {
-        isApplyingState = true
-        defer {
-            isApplyingState = false
-            rebuildScene()
-        }
-        keyword = snapshot.searchQuery
-        leftWindow = snapshot.collocateLeftWindow
-        rightWindow = snapshot.collocateRightWindow
-        minFreq = snapshot.collocateMinFreq
-        searchOptions = snapshot.searchOptions
-        stopwordFilter = snapshot.stopwordFilter
-    }
-
-    func apply(_ result: CollocateResult) {
-        self.result = result
-        currentPage = 1
-        rebuildScene()
-    }
-
-    func recordPendingRunConfiguration() {
-        lastRunConfiguration = currentRunConfiguration
-    }
-
-    func handle(_ action: CollocatePageAction) {
-        switch action {
-        case .run:
-            return
-        case .applyPreset(let preset):
-            applyPreset(preset)
-        case .changeFocusMetric(let nextMetric):
-            changeFocusMetric(nextMetric)
-        case .changeSort(let nextSort):
-            guard sortMode != nextSort else { return }
-            sortMode = nextSort
-            currentPage = 1
-            rebuildScene()
-        case .sortByColumn(let column):
-            sortByColumn(column)
-        case .changePageSize(let nextPageSize):
-            guard pageSize != nextPageSize else { return }
-            pageSize = nextPageSize
-            currentPage = 1
-            rebuildScene()
-        case .toggleColumn(let column):
-            toggleColumn(column)
-        case .selectRow(let rowID):
-            selectedRowID = rowID
-        case .previousPage:
-            guard let scene, scene.pagination.canGoBackward else { return }
-            currentPage = max(1, currentPage - 1)
-            rebuildScene()
-        case .nextPage:
-            guard let scene, scene.pagination.canGoForward else { return }
-            currentPage += 1
-            rebuildScene()
-        }
-    }
-
-    func reset() {
-        isApplyingState = true
-        defer { isApplyingState = false }
-        keyword = ""
-        leftWindow = "5"
-        rightWindow = "5"
-        minFreq = "1"
-        searchOptions = .default
-        stopwordFilter = .default
-        isEditingStopwords = false
-        result = nil
-        sortMode = .logDiceDescending
-        pageSize = .fifty
-        currentPage = 1
-        visibleColumns = Self.defaultVisibleColumns
-        focusMetric = .logDice
-        selectedRowID = nil
-        lastRunConfiguration = nil
-        scene = nil
-    }
-
-    private func handleInputChange(rebuildScene shouldRebuildScene: Bool) {
-        guard !isApplyingState else { return }
-        onInputChange?()
-        if shouldRebuildScene {
-            rebuildScene()
-        }
-    }
-
-    private func rebuildScene() {
-        guard let result else {
-            scene = nil
-            return
-        }
-        let configuration = lastRunConfiguration ?? currentRunConfiguration
-        scene = sceneBuilder.build(
-            from: result,
-            query: configuration.query,
-            searchOptions: configuration.searchOptions,
-            stopwordFilter: stopwordFilter,
-            focusMetric: focusMetric,
-            leftWindow: configuration.leftWindow,
-            rightWindow: configuration.rightWindow,
-            minFreq: configuration.minFreq,
-            sortMode: sortMode,
-            pageSize: pageSize,
-            currentPage: currentPage,
-            visibleColumns: visibleColumns
-        )
-        currentPage = scene?.pagination.currentPage ?? 1
-        syncSelectedRow()
-    }
-
-    private var currentRunConfiguration: CollocateRunConfiguration {
-        CollocateRunConfiguration(
-            query: normalizedKeyword,
-            searchOptions: searchOptions,
-            leftWindow: leftWindowValue,
-            rightWindow: rightWindowValue,
-            minFreq: minFreqValue
-        )
-    }
-
-    private func sortByColumn(_ column: CollocateColumnKey) {
-        let nextSort: CollocateSortMode?
-        switch column {
-        case .rank:
-            nextSort = .frequencyDescending
-        case .word:
-            nextSort = .alphabeticalAscending
-        case .total:
-            nextSort = sortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
-        case .logDice:
-            nextSort = .logDiceDescending
-        case .mutualInformation:
-            nextSort = .mutualInformationDescending
-        case .tScore:
-            nextSort = .tScoreDescending
-        case .rate:
-            nextSort = .rateDescending
-        case .left, .right, .wordFreq, .keywordFreq:
-            nextSort = nil
-        }
-        guard let nextSort, sortMode != nextSort else { return }
-        sortMode = nextSort
-        currentPage = 1
-        rebuildScene()
-    }
-
-    private func toggleColumn(_ column: CollocateColumnKey) {
-        if visibleColumns.contains(column) {
-            guard visibleColumns.count > 1 else { return }
-            visibleColumns.remove(column)
-        } else {
-            visibleColumns.insert(column)
-        }
-        rebuildScene()
-    }
-
-    private func changeFocusMetric(_ nextMetric: CollocateAssociationMetric) {
-        guard focusMetric != nextMetric else { return }
-        focusMetric = nextMetric
-        switch nextMetric {
-        case .logDice:
-            sortMode = .logDiceDescending
-            visibleColumns.insert(.logDice)
-        case .mutualInformation:
-            sortMode = .mutualInformationDescending
-            visibleColumns.insert(.mutualInformation)
-        case .tScore:
-            sortMode = .tScoreDescending
-            visibleColumns.insert(.tScore)
-        case .rate:
-            sortMode = .rateDescending
-            visibleColumns.insert(.rate)
-        case .frequency:
-            sortMode = .frequencyDescending
-            visibleColumns.insert(.total)
-        }
-        currentPage = 1
-        rebuildScene()
-    }
-
-    private func applyPreset(_ preset: CollocatePreset) {
-        let configuration = preset.configuration
-        isApplyingState = true
-        leftWindow = configuration.leftWindow
-        rightWindow = configuration.rightWindow
-        minFreq = configuration.minFreq
-        isApplyingState = false
-        onInputChange?()
-        changeFocusMetric(configuration.metric)
-    }
-
-    private func syncSelectedRow() {
-        guard let scene else {
-            selectedRowID = nil
-            return
-        }
-        if let selectedRowID,
-           scene.rows.contains(where: { $0.id == selectedRowID }) {
-            return
-        }
-        selectedRowID = scene.rows.first?.id
     }
 }

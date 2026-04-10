@@ -21,13 +21,50 @@ final class WorkspaceSettingsViewModel: ObservableObject {
         didSet { syncScene() }
     }
     @Published var autoUpdateEnabled: Bool = true {
-        didSet { syncScene() }
+        didSet {
+            if !autoUpdateEnabled {
+                if autoInstallDownloadedUpdates {
+                    autoInstallDownloadedUpdates = false
+                    return
+                }
+                if autoDownloadUpdates {
+                    autoDownloadUpdates = false
+                    return
+                }
+            }
+            syncScene()
+        }
     }
     @Published var checkForUpdatesOnLaunch: Bool = true {
         didSet { syncScene() }
     }
     @Published var autoDownloadUpdates: Bool = false {
-        didSet { syncScene() }
+        didSet {
+            if !autoDownloadUpdates, autoInstallDownloadedUpdates {
+                autoInstallDownloadedUpdates = false
+                return
+            }
+            if autoDownloadUpdates, !autoUpdateEnabled {
+                autoUpdateEnabled = true
+                return
+            }
+            syncScene()
+        }
+    }
+    @Published var autoInstallDownloadedUpdates: Bool = false {
+        didSet {
+            if autoInstallDownloadedUpdates {
+                if !autoDownloadUpdates {
+                    autoDownloadUpdates = true
+                    return
+                }
+                if !autoUpdateEnabled {
+                    autoUpdateEnabled = true
+                    return
+                }
+            }
+            syncScene()
+        }
     }
     @Published private(set) var scene = SettingsPaneSceneModel.empty
 
@@ -71,17 +108,40 @@ final class WorkspaceSettingsViewModel: ObservableObject {
         syncScene()
     }
 
-    func applyHostPreferences(_ snapshot: NativeHostPreferencesSnapshot) {
-        languageMode = snapshot.languageMode
-        autoUpdateEnabled = snapshot.autoUpdateEnabled
-        checkForUpdatesOnLaunch = snapshot.checkForUpdatesOnLaunch
-        autoDownloadUpdates = snapshot.autoDownloadUpdates
-        recentDocuments = snapshot.recentDocuments
-        lastUpdateCheckAt = snapshot.lastUpdateCheckAt
-        lastUpdateStatus = snapshot.lastUpdateStatus
-        downloadedUpdateVersion = snapshot.downloadedUpdateVersion
-        downloadedUpdateName = snapshot.downloadedUpdateName
-        downloadedUpdatePath = snapshot.downloadedUpdatePath
+    func applyHostPreferences(
+        _ snapshot: NativeHostPreferencesSnapshot,
+        preservingRuntimeUpdatePolicy: Bool = false
+    ) {
+        let resolvedSnapshot: NativeHostPreferencesSnapshot
+        if preservingRuntimeUpdatePolicy {
+            resolvedSnapshot = NativeHostPreferencesSnapshot(
+                languageMode: languageMode,
+                autoUpdateEnabled: autoUpdateEnabled,
+                checkForUpdatesOnLaunch: checkForUpdatesOnLaunch,
+                autoDownloadUpdates: autoDownloadUpdates,
+                autoInstallDownloadedUpdates: autoInstallDownloadedUpdates,
+                recentDocuments: snapshot.recentDocuments,
+                lastUpdateCheckAt: snapshot.lastUpdateCheckAt,
+                lastUpdateStatus: snapshot.lastUpdateStatus,
+                downloadedUpdateVersion: snapshot.downloadedUpdateVersion,
+                downloadedUpdateName: snapshot.downloadedUpdateName,
+                downloadedUpdatePath: snapshot.downloadedUpdatePath
+            )
+        } else {
+            resolvedSnapshot = snapshot
+        }
+
+        languageMode = resolvedSnapshot.languageMode
+        autoUpdateEnabled = resolvedSnapshot.autoUpdateEnabled
+        checkForUpdatesOnLaunch = resolvedSnapshot.checkForUpdatesOnLaunch
+        autoDownloadUpdates = resolvedSnapshot.autoDownloadUpdates
+        autoInstallDownloadedUpdates = resolvedSnapshot.autoInstallDownloadedUpdates
+        recentDocuments = resolvedSnapshot.recentDocuments
+        lastUpdateCheckAt = resolvedSnapshot.lastUpdateCheckAt
+        lastUpdateStatus = resolvedSnapshot.lastUpdateStatus
+        downloadedUpdateVersion = resolvedSnapshot.downloadedUpdateVersion
+        downloadedUpdateName = resolvedSnapshot.downloadedUpdateName
+        downloadedUpdatePath = resolvedSnapshot.downloadedUpdatePath
         syncScene()
     }
 
@@ -142,6 +202,7 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             autoUpdateEnabled: autoUpdateEnabled,
             checkForUpdatesOnLaunch: checkForUpdatesOnLaunch,
             autoDownloadUpdates: autoDownloadUpdates,
+            autoInstallDownloadedUpdates: autoInstallDownloadedUpdates,
             recentDocuments: recentDocuments,
             lastUpdateCheckAt: lastUpdateCheckAt,
             lastUpdateStatus: lastUpdateStatus,
@@ -195,9 +256,21 @@ final class WorkspaceSettingsViewModel: ObservableObject {
         let mode = languageMode
         let policy = autoUpdateEnabled
             ? (
-                autoDownloadUpdates
-                ? wordZText("自动更新已开启，后台下载已启用。", "Automatic updates are enabled, and background downloads are on.", mode: mode)
-                : wordZText("自动更新已开启，后台下载已关闭。", "Automatic updates are enabled, and background downloads are off.", mode: mode)
+                autoInstallDownloadedUpdates
+                ? wordZText(
+                    "自动更新已开启，后台下载和安装重启流程已启用。",
+                    "Automatic updates are enabled, and download/install restart handoff is on.",
+                    mode: mode
+                )
+                : (
+                    autoDownloadUpdates
+                    ? wordZText(
+                        "自动更新已开启，后台下载已启用，安装前会先询问。",
+                        "Automatic updates are enabled, background downloads are on, and install still asks first.",
+                        mode: mode
+                    )
+                    : wordZText("自动更新已开启，后台下载已关闭。", "Automatic updates are enabled, and background downloads are off.", mode: mode)
+                )
             )
             : wordZText("自动更新已关闭。", "Automatic updates are disabled.", mode: mode)
         let launchCheck = checkForUpdatesOnLaunch

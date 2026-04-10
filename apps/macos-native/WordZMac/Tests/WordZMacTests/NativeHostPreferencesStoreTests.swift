@@ -15,6 +15,7 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
                 autoUpdateEnabled: false,
                 checkForUpdatesOnLaunch: false,
                 autoDownloadUpdates: true,
+                autoInstallDownloadedUpdates: true,
                 recentDocuments: [],
                 lastUpdateCheckAt: "",
                 lastUpdateStatus: "尚未检查更新。",
@@ -48,6 +49,7 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
         XCTAssertEqual(recentSnapshot.recentDocuments.count, 1)
         XCTAssertEqual(store.load().recentDocuments.first?.corpusID, "corpus-1")
         XCTAssertFalse(store.load().autoUpdateEnabled)
+        XCTAssertTrue(store.load().autoInstallDownloadedUpdates)
         XCTAssertEqual(store.load().languageMode, .bilingual)
         XCTAssertEqual(store.load().taskHistory.first?.primaryAction?.action, .openFile(path: "/tmp/demo.csv"))
     }

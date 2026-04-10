@@ -12,7 +12,7 @@ struct WordZMacApp: App {
     }
 
     var body: some Scene {
-        WindowGroup(id: NativeWindowRoute.mainWorkspace.id) {
+        WindowGroup("WordZ", id: NativeWindowRoute.mainWorkspace.id) {
             RootContentView(
                 viewModel: workspace,
                 applicationDelegate: applicationDelegate
@@ -31,7 +31,7 @@ struct WordZMacApp: App {
                 .environment(\.wordZLanguageMode, localization.effectiveMode)
         }
 
-        Window("设置", id: NativeWindowRoute.settings.id) {
+        Settings {
             SettingsWindowView(workspace: workspace)
                 .environmentObject(localization)
                 .environment(\.wordZLanguageMode, localization.effectiveMode)
@@ -39,6 +39,13 @@ struct WordZMacApp: App {
 
         Window("任务中心", id: NativeWindowRoute.taskCenter.id) {
             TaskCenterWindowView(workspace: workspace)
+                .environmentObject(localization)
+                .environment(\.wordZLanguageMode, localization.effectiveMode)
+        }
+        .windowResizability(.contentSize)
+
+        Window("更新", id: NativeWindowRoute.updatePrompt.id) {
+            UpdateWindowView(workspace: workspace)
                 .environmentObject(localization)
                 .environment(\.wordZLanguageMode, localization.effectiveMode)
         }

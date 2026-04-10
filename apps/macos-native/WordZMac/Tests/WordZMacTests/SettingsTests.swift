@@ -36,6 +36,7 @@ final class SettingsTests: XCTestCase {
                 autoUpdateEnabled: true,
                 checkForUpdatesOnLaunch: true,
                 autoDownloadUpdates: false,
+                autoInstallDownloadedUpdates: false,
                 recentDocuments: [
                     RecentDocumentItem(
                         corpusID: "corpus-1",
@@ -89,6 +90,7 @@ final class SettingsTests: XCTestCase {
 
         let exportedHost = viewModel.exportHostPreferences()
         XCTAssertTrue(exportedHost.autoUpdateEnabled)
+        XCTAssertFalse(exportedHost.autoInstallDownloadedUpdates)
         XCTAssertEqual(exportedHost.languageMode, .english)
         XCTAssertEqual(exportedHost.recentDocuments.count, 1)
         XCTAssertEqual(exportedHost.lastUpdateStatus, "发现新版本 1.1.1，可下载更新包。")
@@ -98,5 +100,47 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(SettingsPaneSceneModel.empty.workspaceSummary, "等待载入本地语料库")
         XCTAssertEqual(SettingsPaneSceneModel.empty.buildSummary, "SwiftUI + Swift native engine")
         XCTAssertEqual(SettingsPaneSceneModel.empty.supportStatus, "准备就绪")
+    }
+
+    func testApplyHostPreferencesCanPreserveRuntimeUpdatePolicy() {
+        let viewModel = WorkspaceSettingsViewModel()
+        viewModel.languageMode = .english
+        viewModel.autoUpdateEnabled = true
+        viewModel.checkForUpdatesOnLaunch = false
+        viewModel.autoDownloadUpdates = true
+        viewModel.autoInstallDownloadedUpdates = true
+
+        viewModel.applyHostPreferences(
+            NativeHostPreferencesSnapshot(
+                languageMode: .system,
+                autoUpdateEnabled: true,
+                checkForUpdatesOnLaunch: true,
+                autoDownloadUpdates: false,
+                autoInstallDownloadedUpdates: false,
+                recentDocuments: [
+                    RecentDocumentItem(
+                        corpusID: "corpus-1",
+                        title: "Demo Corpus",
+                        subtitle: "Default",
+                        representedPath: "/tmp/demo.txt",
+                        lastOpenedAt: "2026-03-26T00:00:00Z"
+                    )
+                ],
+                lastUpdateCheckAt: "2026-03-26T00:00:00Z",
+                lastUpdateStatus: "已检查更新。",
+                downloadedUpdateVersion: "1.1.1",
+                downloadedUpdateName: "WordZ-1.1.1-mac-arm64.dmg",
+                downloadedUpdatePath: "/tmp/WordZ-1.1.1-mac-arm64.dmg"
+            ),
+            preservingRuntimeUpdatePolicy: true
+        )
+
+        XCTAssertEqual(viewModel.languageMode, .english)
+        XCTAssertTrue(viewModel.autoUpdateEnabled)
+        XCTAssertFalse(viewModel.checkForUpdatesOnLaunch)
+        XCTAssertTrue(viewModel.autoDownloadUpdates)
+        XCTAssertTrue(viewModel.autoInstallDownloadedUpdates)
+        XCTAssertEqual(viewModel.scene.recentDocuments.count, 1)
+        XCTAssertEqual(viewModel.scene.downloadedUpdateName, "WordZ-1.1.1-mac-arm64.dmg")
     }
 }

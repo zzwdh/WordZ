@@ -7,7 +7,6 @@ final class NativeAnalysisEngineTests: XCTestCase {
         let text = "Alpha beta gamma. Alpha hackers hacker."
 
         _ = engine.runStats(text: text)
-        _ = engine.runWordCloud(text: text, limit: 10)
         _ = engine.runNgram(text: text, n: 2)
         _ = try engine.runKWIC(
             text: text,
@@ -75,14 +74,6 @@ final class NativeAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(engine.cachedFrequencySummaryCountForTesting, 1)
     }
 
-    func testRunWordCloudReturnsFullFrequencyRowsAndLeavesLimitToUI() {
-        let engine = NativeAnalysisEngine()
-        let result = engine.runWordCloud(text: "alpha beta gamma alpha", limit: 1)
-
-        XCTAssertEqual(result.rows.map(\.word), ["alpha", "beta", "gamma"])
-        XCTAssertEqual(result.rows.map(\.count), [2, 1, 1])
-    }
-
     func testRunStatsComputesNormFrequencyRangeAndRankPerSentence() {
         let engine = NativeAnalysisEngine()
         let result = engine.runStats(text: "Alpha beta. Gamma alpha alpha!")
@@ -101,13 +92,23 @@ final class NativeAnalysisEngineTests: XCTestCase {
 
     func testRunTokenizeSplitsSentencesAndNormalizesTokens() {
         let engine = NativeAnalysisEngine()
-        let result = engine.runTokenize(text: "Alpha beta. GAMMA delta!")
+        let result = engine.runTokenize(text: "Running beta. GAMMA delta!")
 
         XCTAssertEqual(result.sentenceCount, 2)
         XCTAssertEqual(result.tokenCount, 4)
-        XCTAssertEqual(result.sentences.first?.tokens.map(\.original), ["Alpha", "beta"])
+        XCTAssertEqual(result.sentences.first?.tokens.map(\.original), ["Running", "beta"])
         XCTAssertEqual(result.sentences.last?.tokens.map(\.normalized), ["gamma", "delta"])
+        XCTAssertEqual(result.sentences.first?.tokens.first?.annotations.script, .latin)
         XCTAssertEqual(engine.cachedDocumentCountForTesting, 1)
+    }
+
+    func testRunStatsTreatsWhitespaceOnlyLineAsParagraphSeparator() {
+        let engine = NativeAnalysisEngine()
+        let result = engine.runStats(text: "Alpha beta\n   \nGamma delta")
+
+        XCTAssertEqual(result.paragraphCount, 2)
+        XCTAssertEqual(result.sentenceCount, 2)
+        XCTAssertEqual(result.tokenCount, 4)
     }
 
     func testRunStatsNormalizesFullWidthTokensIntoSameFrequencyBucket() {

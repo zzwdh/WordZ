@@ -27,6 +27,22 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertTrue(viewModel.scene?.isColumnVisible(.count) ?? false)
     }
 
+    func testStatsPageViewModelFallsBackFromAllPageSizeForLargeResults() {
+        let viewModel = StatsPageViewModel()
+        let expectation = expectation(description: "stats fallback scene updated")
+        viewModel.apply(makeStatsResult(rowCount: 1_200))
+
+        viewModel.handle(.changePageSize(.all))
+
+        XCTAssertEqual(viewModel.pageSize, .twoHundredFifty)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            XCTAssertEqual(viewModel.scene?.sorting.selectedPageSize, .twoHundredFifty)
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 1.0)
+    }
+
     func testComparePageViewModelTracksSelectionAndColumns() {
         let viewModel = ComparePageViewModel()
         viewModel.syncLibrarySnapshot(makeBootstrapState().librarySnapshot)
@@ -81,6 +97,122 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(Set(viewModel.selectedCorpusIDsSnapshot), Set(["corpus-1", "corpus-3"]))
         XCTAssertEqual(viewModel.selectedCorpusCount, 2)
         XCTAssertEqual(viewModel.selectedReferenceOptionID, "corpus-3")
+    }
+
+    func testKeywordPageViewModelKeepsReferenceOptionalUntilExplicitlyChosen() {
+        let viewModel = KeywordPageViewModel()
+        viewModel.syncLibrarySnapshot(makeBootstrapState().librarySnapshot)
+
+        XCTAssertEqual(viewModel.targetCorpusIDSnapshot, "corpus-1")
+        XCTAssertEqual(viewModel.referenceCorpusIDSnapshot, "")
+        XCTAssertFalse(viewModel.canRun)
+    }
+
+    func testLibrarySidebarViewModelBuildsWorkflowSidebarWithConditionalKeywordAndResults() {
+        let viewModel = LibrarySidebarViewModel()
+        viewModel.applyBootstrap(makeBootstrapState())
+        viewModel.selectedCorpusID = "corpus-1"
+
+        viewModel.applyWorkflowState(
+            activeAnalysisTab: .stats,
+            targetCorpusID: "corpus-1",
+            referenceCorpusID: nil,
+            resultsSummary: nil
+        )
+
+        XCTAssertEqual(viewModel.scene.targetCorpus.summary, "Demo Corpus")
+        XCTAssertEqual(
+            viewModel.scene.referenceCorpus.summary,
+            wordZText("可选", "Optional", mode: viewModel.languageMode)
+        )
+        XCTAssertFalse(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? true)
+        XCTAssertNil(viewModel.scene.results)
+
+        viewModel.applyWorkflowState(
+            activeAnalysisTab: .keyword,
+            targetCorpusID: "corpus-1",
+            referenceCorpusID: "corpus-2",
+            resultsSummary: WorkspaceSidebarResultsSceneModel(
+                title: "Keyword",
+                subtitle: "Showing 20 / 20",
+                exportTitle: "Export Current Result"
+            )
+        )
+
+        XCTAssertTrue(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? false)
+        XCTAssertEqual(viewModel.scene.results?.title, "Keyword")
+
+        viewModel.metadataSourceQuery = "教材"
+        viewModel.metadataYearQuery = "2024"
+        viewModel.metadataTagsQuery = "课堂"
+
+        XCTAssertTrue(viewModel.scene.metadataFilterSummary?.contains("3") ?? false)
+        XCTAssertFalse(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? true)
+    }
+
+    func testLibrarySidebarViewModelMetadataFiltersNarrowCorpusOptions() {
+        let viewModel = LibrarySidebarViewModel()
+        viewModel.applyBootstrap(makeBootstrapState())
+        viewModel.selectedCorpusID = "corpus-2"
+
+        viewModel.metadataSourceQuery = "教材"
+
+        XCTAssertEqual(viewModel.selectedCorpusID, "corpus-1")
+        XCTAssertEqual(viewModel.filteredCorpusCount, 1)
+        XCTAssertEqual(viewModel.scene.corpusOptions.map(\.id), ["corpus-1"])
+        XCTAssertTrue(viewModel.scene.metadataFilterSummary?.contains("1") ?? false)
+    }
+
+    func testLibrarySidebarViewModelApplyingCorpusSetNarrowsOptionsAndSyncsFilters() {
+        let savedSet = LibraryCorpusSetItem(json: [
+            "id": "set-1",
+            "name": "教材集",
+            "corpusIds": ["corpus-1"],
+            "corpusNames": ["Demo Corpus"],
+            "metadataFilter": [
+                "sourceQuery": "教材",
+                "yearQuery": "2024",
+                "genreQuery": "",
+                "tagsQuery": "课堂"
+            ],
+            "createdAt": "today",
+            "updatedAt": "today"
+        ])
+        let viewModel = LibrarySidebarViewModel()
+        var callbackCount = 0
+        viewModel.onMetadataFilterChange = { _ in
+            callbackCount += 1
+        }
+        viewModel.applyBootstrap(makeBootstrapState(corpusSets: [savedSet]))
+        viewModel.selectedCorpusID = "corpus-2"
+
+        viewModel.applyCorpusSet(savedSet)
+
+        XCTAssertEqual(viewModel.selectedCorpusSetID, "set-1")
+        XCTAssertEqual(viewModel.metadataFilterState, savedSet.metadataFilterState)
+        XCTAssertEqual(viewModel.filteredCorpusCount, 1)
+        XCTAssertEqual(viewModel.selectedCorpusID, "corpus-1")
+        XCTAssertTrue(viewModel.scene.selectedCorpusSetSummary?.contains("教材集") ?? false)
+        XCTAssertEqual(callbackCount, 1)
+    }
+
+    func testLibrarySidebarViewModelClearMetadataFiltersBatchesSingleCallback() {
+        let viewModel = LibrarySidebarViewModel()
+        var callbackCount = 0
+        viewModel.onMetadataFilterChange = { _ in
+            callbackCount += 1
+        }
+        viewModel.applyBootstrap(makeBootstrapState())
+
+        viewModel.metadataSourceQuery = "教材"
+        callbackCount = 0
+
+        viewModel.clearMetadataFilters()
+
+        XCTAssertEqual(callbackCount, 1)
+        XCTAssertTrue(viewModel.metadataFilterState.isEmpty)
+        XCTAssertEqual(viewModel.filteredCorpusCount, 2)
+        XCTAssertNil(viewModel.scene.metadataFilterSummary)
     }
 
     func testChiSquarePageViewModelValidatesAndResets() throws {
@@ -145,6 +277,23 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedRowID, "1-2")
         XCTAssertEqual(viewModel.primaryLocatorSource?.sentenceId, 1)
         XCTAssertEqual(viewModel.primaryLocatorSource?.nodeIndex, 2)
+    }
+
+    func testKWICPageViewModelFallsBackFromAllPageSizeForLargeResults() {
+        let viewModel = KWICPageViewModel()
+        let expectation = expectation(description: "kwic fallback scene updated")
+        viewModel.keyword = "alpha"
+        viewModel.apply(makeKWICResult(rowCount: 1_200))
+
+        viewModel.handle(.changePageSize(.all))
+
+        XCTAssertEqual(viewModel.pageSize, .oneHundred)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            XCTAssertEqual(viewModel.scene?.sorting.selectedPageSize, .oneHundred)
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 1.0)
     }
 
     func testNgramPageViewModelAppliesSnapshotFiltersAndPaging() {
@@ -227,6 +376,25 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.currentSource?.nodeIndex, 2)
     }
 
+    func testLocatorPageViewModelBuildsLargeScenesOffMainPath() {
+        let viewModel = LocatorPageViewModel()
+        let source = LocatorSource(keyword: "node", sentenceId: 1, nodeIndex: 2)
+        let expectation = expectation(description: "large locator scene built")
+
+        viewModel.updateSource(source)
+        viewModel.apply(
+            makeLocatorResult(rowCount: LargeResultSceneBuildSupport.asyncThreshold + 50),
+            source: source
+        )
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            XCTAssertEqual(viewModel.scene?.totalRows, LargeResultSceneBuildSupport.asyncThreshold + 50)
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 1.0)
+    }
+
     func testLibraryManagementViewModelBuildsInspectorAndFiltersCorpora() {
         let viewModel = LibraryManagementViewModel()
         let snapshot = makeBootstrapState().librarySnapshot
@@ -248,25 +416,80 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertTrue(viewModel.scene.inspector.details.contains(where: { $0.title == "体裁" && $0.value == "学术" }))
     }
 
-    func testWordCloudPageViewModelSupportsLimitAndColumns() {
-        let viewModel = WordCloudPageViewModel()
-        viewModel.apply(makeWordCloudResult(rowCount: 24))
+    func testLibraryManagementViewModelSupportsBatchSelectionAndIntegritySummary() {
+        let viewModel = LibraryManagementViewModel()
+        let snapshot = LibrarySnapshot(
+            folders: [LibraryFolderItem(json: ["id": "folder-1", "name": "Default"])],
+            corpora: [
+                LibraryCorpusItem(json: [
+                    "id": "corpus-1",
+                    "name": "Corpus A",
+                    "folderId": "folder-1",
+                    "folderName": "Default",
+                    "sourceType": "txt",
+                    "representedPath": "/tmp/a.txt",
+                    "metadata": [
+                        "sourceLabel": "教材",
+                        "yearLabel": "",
+                        "genreLabel": "教学",
+                        "tags": []
+                    ]
+                ]),
+                LibraryCorpusItem(json: [
+                    "id": "corpus-2",
+                    "name": "Corpus B",
+                    "folderId": "folder-1",
+                    "folderName": "Default",
+                    "sourceType": "txt",
+                    "representedPath": "/tmp/b.txt",
+                    "metadata": [
+                        "sourceLabel": "期刊",
+                        "yearLabel": "2023",
+                        "genreLabel": "",
+                        "tags": ["研究"]
+                    ]
+                ])
+            ]
+        )
 
-        XCTAssertEqual(viewModel.scene?.visibleRows, 24)
-        XCTAssertEqual(viewModel.scene?.filteredRows, 24)
+        viewModel.applyBootstrap(snapshot)
+        viewModel.selectCorpusIDs(["corpus-1", "corpus-2"])
 
-        viewModel.handle(.changeLimit(20))
-        XCTAssertEqual(viewModel.scene?.visibleRows, 20)
-        XCTAssertEqual(viewModel.scene?.filteredRows, 24)
+        XCTAssertEqual(viewModel.scene.selectedCorpusIDs, Set(["corpus-1", "corpus-2"]))
+        XCTAssertEqual(viewModel.scene.inspector.title, "已选择 2 条语料")
+        XCTAssertEqual(viewModel.scene.integritySummary.missingYearCount, 1)
+        XCTAssertEqual(viewModel.scene.integritySummary.missingGenreCount, 1)
+        XCTAssertEqual(viewModel.scene.integritySummary.missingTagsCount, 1)
+    }
 
-        viewModel.handle(.toggleColumn(.prominence))
-        XCTAssertFalse(viewModel.scene?.isColumnVisible(.prominence) ?? true)
+    func testLibraryManagementViewModelSelectingCorpusSetAppliesSavedMembersAndMetadataFilter() {
+        let savedSet = LibraryCorpusSetItem(json: [
+            "id": "set-1",
+            "name": "教学语料集",
+            "corpusIds": ["corpus-1"],
+            "corpusNames": ["Demo Corpus"],
+            "metadataFilter": [
+                "sourceQuery": "教材",
+                "yearQuery": "2024",
+                "genreQuery": "",
+                "tagsQuery": ""
+            ],
+            "createdAt": "today",
+            "updatedAt": "today"
+        ])
+        let viewModel = LibraryManagementViewModel()
+        viewModel.applyBootstrap(makeBootstrapState(corpusSets: [savedSet]).librarySnapshot)
+        viewModel.selectFolder("folder-1")
 
-        viewModel.apply(makeWorkspaceSnapshot(searchQuery: "cloud-1*", wordCloudLimit: 10))
-        XCTAssertEqual(viewModel.query, "cloud-1*")
-        XCTAssertEqual(viewModel.limit, 10)
-        XCTAssertEqual(viewModel.scene?.filteredRows, 11)
-        XCTAssertEqual(viewModel.scene?.visibleRows, 10)
+        viewModel.selectCorpusSet("set-1")
+
+        XCTAssertEqual(viewModel.selectedCorpusSetID, "set-1")
+        XCTAssertNil(viewModel.selectedFolderID)
+        XCTAssertEqual(viewModel.metadataFilterState, savedSet.metadataFilterState)
+        XCTAssertEqual(viewModel.selectedCorpusIDs, Set(["corpus-1"]))
+        XCTAssertEqual(viewModel.selectedCorpusID, "corpus-1")
+        XCTAssertEqual(viewModel.saveableCorpusSetMembers.map(\.id), ["corpus-1"])
+        XCTAssertEqual(viewModel.scene.selectedCorpusSetID, "set-1")
     }
 
     func testTopicsPageViewModelAppliesSnapshotWithoutTriggeringRepeatedInputCallbacks() {
@@ -287,14 +510,29 @@ final class ViewModelsTests: XCTestCase {
 
     func testTokenizePageViewModelBuildsFilteredExportDocument() {
         let viewModel = TokenizePageViewModel()
-        let snapshot = makeWorkspaceSnapshot(currentTab: "tokenize", searchQuery: "alpha")
+        let snapshot = makeWorkspaceSnapshot(
+            currentTab: "tokenize",
+            searchQuery: "alpha",
+            tokenizeLanguagePreset: .latinFocused,
+            tokenizeLemmaStrategy: .lemmaPreferred
+        )
         viewModel.apply(snapshot)
         viewModel.apply(makeTokenizeResult())
 
+        XCTAssertEqual(viewModel.languagePreset, .latinFocused)
+        XCTAssertEqual(viewModel.lemmaStrategy, .lemmaPreferred)
         XCTAssertEqual(viewModel.scene?.filteredTokens, 2)
         XCTAssertEqual(viewModel.scene?.visibleSentences, 2)
         XCTAssertEqual(viewModel.exportDocument?.text, "alpha\nalpha\n")
+        XCTAssertEqual(viewModel.scene?.sorting.selectedLanguagePreset, .latinFocused)
+        XCTAssertEqual(viewModel.scene?.sorting.selectedLemmaStrategy, .lemmaPreferred)
+        XCTAssertEqual(viewModel.scene?.rows.first?.lemma, "alpha")
+        XCTAssertTrue(
+            [TokenScript.latin.title(in: .system), TokenScript.latin.title(in: .english), TokenScript.latin.title(in: .chinese)]
+                .contains(viewModel.scene?.rows.first?.script ?? "")
+        )
         XCTAssertFalse(viewModel.scene?.column(for: .position)?.isVisible ?? true)
+        XCTAssertTrue(viewModel.scene?.column(for: .lemma)?.isVisible ?? false)
 
         viewModel.handle(.toggleColumn(.normalized))
         XCTAssertFalse(viewModel.scene?.column(for: .normalized)?.isVisible ?? true)

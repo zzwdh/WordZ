@@ -8,6 +8,7 @@ REPO_ROOT="$(cd "$APP_ROOT/../../.." && pwd)"
 DIST_DIR="${WORDZ_MAC_DIST_DIR:-$APP_ROOT/dist-native}"
 
 RUN_TESTS=1
+RUN_ARCHITECTURE=1
 RUN_PACKAGE=1
 RUN_VERIFY=1
 RUN_SMOKE=1
@@ -15,13 +16,14 @@ MANIFEST_PATH=""
 
 usage() {
   cat <<EOF
-usage: $0 [--skip-tests] [--skip-package] [--skip-verify] [--skip-smoke] [--manifest <path>]
+usage: $0 [--skip-tests] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--manifest <path>]
 
 This script runs the native macOS release checklist:
   1. swift tests
-  2. package-app.sh
-  3. verify-release.sh
-  4. release-smoke.sh
+  2. architecture-guard.sh
+  3. package-app.sh
+  4. verify-release.sh
+  5. release-smoke.sh
 EOF
   exit 1
 }
@@ -30,6 +32,9 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-tests)
       RUN_TESTS=0
+      ;;
+    --skip-architecture)
+      RUN_ARCHITECTURE=0
       ;;
     --skip-package)
       RUN_PACKAGE=0
@@ -68,6 +73,11 @@ resolve_latest_manifest() {
 if [[ "$RUN_TESTS" -eq 1 ]]; then
   step "swift tests"
   swift test --package-path "$APP_ROOT"
+fi
+
+if [[ "$RUN_ARCHITECTURE" -eq 1 ]]; then
+  step "architecture guard"
+  zsh "$SCRIPT_DIR/architecture-guard.sh"
 fi
 
 if [[ "$RUN_PACKAGE" -eq 1 ]]; then

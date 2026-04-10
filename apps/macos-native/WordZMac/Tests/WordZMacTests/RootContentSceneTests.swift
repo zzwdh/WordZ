@@ -1,20 +1,14 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import WordZMac
 
 @MainActor
 final class RootContentSceneTests: XCTestCase {
-    func testRootContentSceneBuilderBuildsWindowTitleTabsAndToolbar() {
-        let toolbar = WorkspaceToolbarSceneModel(
-            items: [
-                WorkspaceToolbarActionItem(action: .refresh, title: "刷新", isEnabled: true),
-                WorkspaceToolbarActionItem(action: .runKWIC, title: "KWIC", isEnabled: false)
-            ]
-        )
-
+    func testRootContentSceneBuilderBuildsWindowTitleAndTabs() {
         let scene = RootContentSceneBuilder().build(
             windowTitle: "Demo Corpus",
             activeTab: .kwic,
-            toolbar: toolbar,
             languageMode: .chinese
         )
 
@@ -22,12 +16,11 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertEqual(scene.selectedTab, .kwic)
         XCTAssertEqual(scene.tabs.map(\.tab), WorkspaceDetailTab.mainWorkspaceTabs)
         XCTAssertEqual(scene.tabs.first(where: { $0.tab == .stats })?.title, "统计")
-        XCTAssertEqual(scene.toolbar.items, toolbar.items)
     }
 
     func testMainWorkspaceViewModelInitializeSyncsRootScene() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
 
         await workspace.initializeIfNeeded()
 
@@ -36,16 +29,15 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertEqual(workspace.rootScene.tabs.count, WorkspaceDetailTab.mainWorkspaceTabs.count)
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .library }))
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .settings }))
-        XCTAssertEqual(workspace.rootScene.toolbar.items.count, 17)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.first?.action, .refresh)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .showLibrary })?.isEnabled, true)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .openSelected })?.isEnabled, true)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .runWordCloud })?.isEnabled, true)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 17)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first?.action, .refresh)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .showLibrary })?.isEnabled, true)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .openSelected })?.isEnabled, true)
     }
 
-    func testMainWorkspaceViewModelRootSceneTracksTabAndToolbarUpdates() async {
+    func testMainWorkspaceViewModelTracksTabAndToolbarUpdatesSeparately() async {
         let repository = FakeWorkspaceRepository()
-        let workspace = MainWorkspaceViewModel(repository: repository)
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
 
         await workspace.initializeIfNeeded()
         workspace.selectedTab = .collocate
@@ -53,7 +45,397 @@ final class RootContentSceneTests: XCTestCase {
         workspace.syncSceneGraph()
 
         XCTAssertEqual(workspace.rootScene.selectedTab, .collocate)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .runStats })?.isEnabled, false)
-        XCTAssertEqual(workspace.rootScene.toolbar.items.first(where: { $0.action == .runCollocate })?.isEnabled, false)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .runStats })?.isEnabled, false)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .runCollocate })?.isEnabled, false)
+    }
+
+    func testWorkspaceShellFallsBackFromLegacyWordCloudTabToWord() {
+        let shell = WorkspaceShellViewModel()
+
+        shell.apply(makeWorkspaceSnapshot(currentTab: "word cloud"))
+
+        XCTAssertEqual(shell.selectedTab, .word)
+    }
+
+    func testRootSceneTabsRemainAvailableAfterRunningAnalysis() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        await workspace.runTokenize()
+
+        XCTAssertFalse(workspace.rootScene.tabs.isEmpty)
+        XCTAssertEqual(workspace.rootScene.tabs.map(\.tab), WorkspaceDetailTab.mainWorkspaceTabs)
+        XCTAssertEqual(workspace.rootScene.selectedTab, .tokenize)
+    }
+
+    func testSettingsSyncSkipsRootSceneRebuildWhenInputsAreUnchanged() async {
+        let repository = FakeWorkspaceRepository()
+        let builder = CountingRootContentSceneBuilder()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            rootSceneBuilder: builder
+        )
+
+        await workspace.initializeIfNeeded()
+        let buildCountAfterInitialize = builder.buildCallCount
+
+        workspace.syncSceneGraph(source: .settings)
+        workspace.syncSceneGraph(source: .settings)
+
+        XCTAssertEqual(builder.buildCallCount, buildCountAfterInitialize)
+    }
+
+    func testNavigationAndResultSyncReuseExistingRootSceneBuildWhenRequestMatches() async {
+        let repository = FakeWorkspaceRepository()
+        let builder = CountingRootContentSceneBuilder()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            rootSceneBuilder: builder
+        )
+
+        await workspace.initializeIfNeeded()
+        let buildCountAfterInitialize = builder.buildCallCount
+
+        workspace.selectedTab = .collocate
+        XCTAssertEqual(builder.buildCallCount, buildCountAfterInitialize + 1)
+
+        workspace.syncSceneGraph(source: .navigation)
+        workspace.syncSceneGraph(source: .resultContent)
+
+        XCTAssertEqual(builder.buildCallCount, buildCountAfterInitialize + 1)
+    }
+
+    func testAnalysisRunRebuildsRootSceneOnlyOnceWhenSelectingResultTab() async {
+        let repository = FakeWorkspaceRepository()
+        let builder = CountingRootContentSceneBuilder()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            rootSceneBuilder: builder
+        )
+
+        await workspace.initializeIfNeeded()
+        let buildCountAfterInitialize = builder.buildCallCount
+
+        await workspace.runWord()
+
+        XCTAssertEqual(workspace.rootScene.selectedTab, .word)
+        XCTAssertEqual(builder.buildCallCount, buildCountAfterInitialize + 1)
+    }
+
+    func testRootContentCommandHandlerRoutesWindowCommandsToWindowPresenter() {
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        var openedRoutes: [String] = []
+        var didOpenSettings = false
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { route in
+                openedRoutes.append(route.id)
+            }
+        )
+        let handler = RootContentCommandHandler(
+            workspace: workspace,
+            shellActionHandler: shellHandler,
+            openSettings: {
+                didOpenSettings = true
+            }
+        )
+
+        handler.handle(.showLibrary)
+        handler.handle(.showSettings)
+        handler.handle(.showHelpWindow)
+
+        XCTAssertTrue(didOpenSettings)
+        XCTAssertEqual(openedRoutes, [
+            NativeWindowRoute.library.id,
+            NativeWindowRoute.help.id
+        ])
+    }
+
+    func testNativeWindowRoutingPrefersKeyWindowOverRouteFallback() {
+        let keyWindow = NSWindow()
+        let preferredWindow = NSWindow()
+        preferredWindow.identifier = NativeWindowRouting.identifier(for: .library)
+
+        let resolved = NativeWindowRouting.resolvePresentationWindow(
+            preferredRoute: .library,
+            keyWindow: keyWindow,
+            mainWindow: nil,
+            fallbackWindows: [preferredWindow]
+        )
+
+        XCTAssertTrue(resolved === keyWindow)
+    }
+
+    func testNativeWindowRoutingUsesPreferredRouteWhenNoActiveWindowExists() {
+        let preferredWindow = NSWindow()
+        preferredWindow.identifier = NativeWindowRouting.identifier(for: .library)
+        let mainWorkspaceWindow = NSWindow()
+        mainWorkspaceWindow.identifier = NativeWindowRouting.identifier(for: .mainWorkspace)
+
+        let resolved = NativeWindowRouting.resolvePresentationWindow(
+            preferredRoute: .library,
+            keyWindow: nil,
+            mainWindow: nil,
+            fallbackWindows: [mainWorkspaceWindow, preferredWindow]
+        )
+
+        XCTAssertTrue(resolved === preferredWindow)
+    }
+
+    func testNativeWindowRoutingFallsBackToMainWorkspaceWindow() {
+        let mainWorkspaceWindow = NSWindow()
+        mainWorkspaceWindow.identifier = NativeWindowRouting.identifier(for: .mainWorkspace)
+
+        let resolved = NativeWindowRouting.resolvePresentationWindow(
+            preferredRoute: .library,
+            keyWindow: nil,
+            mainWindow: nil,
+            fallbackWindows: [mainWorkspaceWindow]
+        )
+
+        XCTAssertTrue(resolved === mainWorkspaceWindow)
+    }
+
+    func testNativeWindowRoutingRegisterReturnsWindowForRoute() {
+        let window = NSWindow()
+        NativeWindowRouting.register(window, for: .library)
+
+        XCTAssertTrue(NativeWindowRouting.window(for: .library) === window)
+
+        NativeWindowRouting.register(nil, for: .library)
+    }
+
+    func testWorkspaceMainRouteMapsKeywordTab() {
+        let route = WorkspaceMainRoute(tab: .keyword)
+
+        XCTAssertEqual(route, .keyword)
+        XCTAssertEqual(route.tab, .keyword)
+    }
+
+    func testRootContentShellActionHandlerHandlesShellStateChanges() {
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        var isSidebarVisible = true
+        var openedRoutes: [String] = []
+        let handler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { isSidebarVisible },
+            setSidebarVisibility: { nextValue in
+                isSidebarVisible = nextValue
+            },
+            presentWindow: { route in
+                openedRoutes.append(route.id)
+            }
+        )
+
+        handler.handle(.selectTab(.compare))
+        handler.handle(.presentWelcome)
+        handler.handle(.toggleSidebar)
+        handler.handle(.openWindow(.help))
+
+        XCTAssertEqual(workspace.selectedTab, .compare)
+        XCTAssertTrue(workspace.isWelcomePresented)
+        XCTAssertFalse(isSidebarVisible)
+        XCTAssertEqual(openedRoutes, [NativeWindowRoute.help.id])
+
+        handler.handle(.toggleSidebar)
+
+        XCTAssertTrue(isSidebarVisible)
+    }
+
+    func testRootContentShellActionHandlerSelectRouteUpdatesWorkspaceRoute() {
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        let handler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { _ in }
+        )
+
+        handler.handle(.selectRoute(.compare))
+
+        XCTAssertEqual(workspace.selectedRoute, .compare)
+        XCTAssertEqual(workspace.selectedTab, .compare)
+    }
+
+    func testMainWorkspaceSplitControllerUpdateAppliesCollapsedStateFromLayout() {
+        let controller = MainWorkspaceSplitController(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView()
+        )
+
+        _ = controller.view
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: false,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertTrue(controller.splitViewItems[0].isCollapsed)
+        XCTAssertFalse(controller.splitViewItems[2].isCollapsed)
+
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: false
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertFalse(controller.splitViewItems[0].isCollapsed)
+        XCTAssertTrue(controller.splitViewItems[2].isCollapsed)
+    }
+
+    func testRootContentDefaultLaunchControllerPresentsLibraryWindowOnlyOnce() {
+        var hasPresentedWindow = false
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        var openedRoutes: [String] = []
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { route in
+                openedRoutes.append(route.id)
+            }
+        )
+        let controller = RootContentDefaultLaunchController(
+            hasPresentedWindow: Binding(
+                get: { hasPresentedWindow },
+                set: { hasPresentedWindow = $0 }
+            ),
+            shellActionHandler: shellHandler
+        )
+
+        controller.presentLibraryWindowIfNeeded()
+        controller.presentLibraryWindowIfNeeded()
+
+        XCTAssertTrue(hasPresentedWindow)
+        XCTAssertEqual(openedRoutes, [NativeWindowRoute.library.id])
+    }
+
+    func testRootContentEventBridgeRoutesCommandNotificationToCommandHandler() {
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        let delegate = NativeApplicationDelegate()
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { _ in }
+        )
+        let bridge = RootContentEventBridge(
+            workspace: workspace,
+            applicationDelegate: delegate,
+            commandHandler: RootContentCommandHandler(
+                workspace: workspace,
+                shellActionHandler: shellHandler
+            )
+        )
+
+        bridge.handleCommandNotification(
+            Notification(
+                name: .wordZMacCommandTriggered,
+                object: nil,
+                userInfo: ["command": NativeAppCommand.showWelcome.rawValue]
+            )
+        )
+
+        XCTAssertTrue(workspace.isWelcomePresented)
+    }
+
+    func testRootContentEventBridgeEnqueuesIncomingURLPath() {
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        let delegate = NativeApplicationDelegate()
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { _ in }
+        )
+        let bridge = RootContentEventBridge(
+            workspace: workspace,
+            applicationDelegate: delegate,
+            commandHandler: RootContentCommandHandler(
+                workspace: workspace,
+                shellActionHandler: shellHandler
+            )
+        )
+
+        bridge.enqueueIncomingURL(URL(fileURLWithPath: "/tmp/demo.txt"))
+
+        XCTAssertEqual(delegate.pendingOpenPaths, ["/tmp/demo.txt"])
+    }
+
+    func testRootContentEventBridgeConsumesPendingPaths() {
+        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        let delegate = NativeApplicationDelegate()
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { _ in }
+        )
+        let bridge = RootContentEventBridge(
+            workspace: workspace,
+            applicationDelegate: delegate,
+            commandHandler: RootContentCommandHandler(
+                workspace: workspace,
+                shellActionHandler: shellHandler
+            )
+        )
+
+        delegate.enqueue(paths: ["/tmp/demo.txt"])
+        bridge.handlePendingOpenPaths(delegate.pendingOpenPaths)
+
+        XCTAssertTrue(delegate.pendingOpenPaths.isEmpty)
+    }
+
+    func testNativeApplicationDelegateQueuesPendingWindowUntilPresenterRegisters() {
+        let delegate = NativeApplicationDelegate()
+        var openedRoutes: [String] = []
+
+        delegate.presentWindowRoute(.mainWorkspace)
+        delegate.registerWindowPresenter { route in
+            openedRoutes.append(route.id)
+        }
+
+        XCTAssertEqual(openedRoutes, [NativeWindowRoute.mainWorkspace.id])
+    }
+
+    func testNativeApplicationDelegateDoesNotAutoPresentMainWorkspaceOnLaunch() {
+        let delegate = NativeApplicationDelegate()
+        var openedRoutes: [String] = []
+
+        delegate.registerWindowPresenter { route in
+            openedRoutes.append(route.id)
+        }
+        delegate.applicationDidFinishLaunching(
+            Notification(name: NSApplication.didFinishLaunchingNotification)
+        )
+
+        XCTAssertTrue(openedRoutes.isEmpty)
+    }
+
+    func testNativeWindowRoutingRegistersWindowIdentifier() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 200),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+
+        NativeWindowRouting.register(window, for: .library)
+
+        XCTAssertEqual(window.identifier?.rawValue, NativeWindowRoute.library.id)
     }
 }

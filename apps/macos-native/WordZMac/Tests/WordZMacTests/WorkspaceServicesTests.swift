@@ -14,11 +14,14 @@ final class WorkspaceServicesTests: XCTestCase {
         let draft = WorkspacePersistenceService().buildDraft(
             selectedTab: .kwic,
             selectedFolderID: "folder-1",
+            selectedCorpusSetID: "set-1",
             selectedCorpus: selectedCorpus,
             openedCorpus: nil,
             searchQuery: "keyword",
             searchOptions: SearchOptionsState(words: false, caseSensitive: true, regex: true),
             stopwordFilter: StopwordFilterState(enabled: true, mode: .include, listText: "alpha\nbeta"),
+            tokenizeLanguagePreset: .cjkFocused,
+            tokenizeLemmaStrategy: .lemmaPreferred,
             ngramSize: "3",
             ngramPageSize: "100",
             kwicLeftWindow: "3",
@@ -30,7 +33,6 @@ final class WorkspaceServicesTests: XCTestCase {
             topicsIncludeOutliers: true,
             topicsPageSize: "50",
             topicsActiveTopicID: "topic-1",
-            wordCloudLimit: 120,
             chiSquareA: "4",
             chiSquareB: "8",
             chiSquareC: "6",
@@ -40,12 +42,15 @@ final class WorkspaceServicesTests: XCTestCase {
 
         XCTAssertEqual(draft.currentTab, WorkspaceDetailTab.kwic.snapshotValue)
         XCTAssertEqual(draft.currentLibraryFolderId, "folder-1")
+        XCTAssertEqual(draft.selectedCorpusSetID, "set-1")
         XCTAssertEqual(draft.corpusIds, ["corpus-1"])
         XCTAssertEqual(draft.corpusNames, ["Demo Corpus"])
         XCTAssertEqual(draft.searchQuery, "keyword")
         XCTAssertEqual(draft.searchOptions, SearchOptionsState(words: false, caseSensitive: true, regex: true))
         XCTAssertEqual(draft.stopwordFilter.mode, StopwordFilterMode.include)
         XCTAssertEqual(draft.stopwordFilter.parsedWords, ["alpha", "beta"])
+        XCTAssertEqual(draft.tokenizeLanguagePreset, .cjkFocused)
+        XCTAssertEqual(draft.tokenizeLemmaStrategy, .lemmaPreferred)
         XCTAssertEqual(draft.ngramSize, "3")
         XCTAssertEqual(draft.ngramPageSize, "100")
         XCTAssertEqual(draft.collocateMinFreq, "2")
@@ -53,7 +58,6 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertTrue(draft.topicsIncludeOutliers)
         XCTAssertEqual(draft.topicsPageSize, "50")
         XCTAssertEqual(draft.topicsActiveTopicID, "topic-1")
-        XCTAssertEqual(draft.wordCloudLimit, 120)
         XCTAssertEqual(draft.chiSquareA, "4")
         XCTAssertEqual(draft.chiSquareD, "10")
         XCTAssertTrue(draft.chiSquareUseYates)
@@ -142,7 +146,6 @@ final class WorkspaceServicesTests: XCTestCase {
             topicsIncludeOutliers: true,
             topicsPageSize: "50",
             topicsActiveTopicID: "topic-1",
-            wordCloudLimit: 90,
             chiSquareA: "10",
             chiSquareB: "20",
             chiSquareC: "5",
@@ -152,7 +155,6 @@ final class WorkspaceServicesTests: XCTestCase {
         store.applySavedDraft(draft)
         XCTAssertFalse(store.isDocumentEdited)
         XCTAssertEqual(store.workspaceSnapshot?.corpusIds, ["corpus-1"])
-        XCTAssertEqual(store.workspaceSnapshot?.wordCloudLimit, 90)
         XCTAssertEqual(store.workspaceSnapshot?.chiSquareA, "10")
         XCTAssertTrue(store.workspaceSnapshot?.chiSquareUseYates ?? false)
 
@@ -193,7 +195,6 @@ final class WorkspaceServicesTests: XCTestCase {
             library: .empty,
             settings: .empty,
             activeTab: .stats,
-            wordCloud: nil,
             stats: statsScene,
             topics: nil,
             compare: nil,
@@ -210,6 +211,108 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(store.graph.stats.status, "显示 2 / 2")
         XCTAssertFalse(store.graph.kwic.hasResult)
         XCTAssertFalse(store.graph.compare.hasResult)
+    }
+
+    @MainActor
+    func testWorkspaceSceneGraphStoreSyncResultUpdatesOnlySelectedNode() {
+        let store = WorkspaceSceneGraphStore()
+        let statsScene = StatsSceneBuilder().build(
+            from: makeStatsResult(rowCount: 2),
+            sortMode: .frequencyDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: Set(StatsColumnKey.allCases)
+        )
+        let kwicViewModel = KWICPageViewModel()
+        kwicViewModel.apply(makeKWICResult(rowCount: 3))
+
+        store.sync(
+            context: .empty,
+            sidebar: .empty,
+            shell: WorkspaceShellSceneModel(
+                workspaceSummary: "工作区：空",
+                buildSummary: "SwiftUI + Node.js sidecar",
+                toolbar: WorkspaceToolbarSceneModel(items: [])
+            ),
+            library: .empty,
+            settings: .empty,
+            activeTab: .stats,
+            stats: statsScene,
+            topics: nil,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+
+        store.syncResult(
+            activeTab: .kwic,
+            resultTab: .kwic,
+            stats: nil,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: kwicViewModel.scene,
+            collocate: nil,
+            locator: nil
+        )
+
+        XCTAssertTrue(store.graph.stats.hasResult)
+        XCTAssertEqual(store.graph.stats.totalRows, 2)
+        XCTAssertTrue(store.graph.kwic.hasResult)
+        XCTAssertEqual(store.graph.kwic.totalRows, 3)
+    }
+
+    @MainActor
+    func testWorkspaceSceneGraphStoreSkipsRevisionBumpForIdenticalResultSync() {
+        let store = WorkspaceSceneGraphStore()
+        let shell = WorkspaceShellSceneModel(
+            workspaceSummary: "工作区：空",
+            buildSummary: "SwiftUI + Node.js sidecar",
+            toolbar: WorkspaceToolbarSceneModel(items: [])
+        )
+        let statsScene = StatsSceneBuilder().build(
+            from: makeStatsResult(rowCount: 2),
+            sortMode: .frequencyDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: Set(StatsColumnKey.allCases)
+        )
+
+        store.sync(
+            context: .empty,
+            sidebar: .empty,
+            shell: shell,
+            library: .empty,
+            settings: .empty,
+            activeTab: .stats,
+            stats: statsScene,
+            topics: nil,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+        let revisionAfterInitialSync = store.graphRevision
+
+        store.syncResult(
+            shell: shell,
+            activeTab: .stats,
+            resultTab: .stats,
+            stats: statsScene,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+
+        XCTAssertEqual(store.graphRevision, revisionAfterInitialSync)
     }
 
     func testLibrarySnapshotFallsBackToItemsPayload() {
@@ -250,6 +353,40 @@ final class WorkspaceServicesTests: XCTestCase {
         try Data("[]".utf8).write(to: corporaURL, options: .atomic)
 
         XCTAssertEqual(try store.listLibrary().corpora.count, 1)
+    }
+
+    func testNativeCorpusStorePersistsCorpusSetRoundTrip() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-corpus-set-\(UUID().uuidString)", isDirectory: true)
+        let sourceURL = rootURL.appendingPathComponent("sample.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta gamma".write(to: sourceURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths([sourceURL.path], folderId: "", preserveHierarchy: false)
+        let importedCorpus = try XCTUnwrap(imported.importedItems.first)
+
+        let savedSet = try store.saveCorpusSet(
+            name: "课堂语料集",
+            corpusIDs: [importedCorpus.id],
+            metadataFilterState: CorpusMetadataFilterState(
+                sourceQuery: "教材",
+                yearQuery: "2024",
+                genreQuery: "",
+                tagsQuery: "课堂"
+            )
+        )
+
+        var snapshot = try store.listLibrary()
+        XCTAssertEqual(snapshot.corpusSets.map(\.name), ["课堂语料集"])
+        XCTAssertEqual(snapshot.corpusSets.first?.corpusIDs, [importedCorpus.id])
+        XCTAssertEqual(snapshot.corpusSets.first?.metadataFilterState.sourceQuery, "教材")
+
+        try store.deleteCorpusSet(corpusSetID: savedSet.id)
+
+        snapshot = try store.listLibrary()
+        XCTAssertTrue(snapshot.corpusSets.isEmpty)
     }
 
     func testNativeCorpusStoreImportsCorporaIntoDBStorageFiles() throws {
@@ -342,10 +479,10 @@ final class WorkspaceServicesTests: XCTestCase {
         let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("wordz-native-binary-skip-\(UUID().uuidString)", isDirectory: true)
         let textURL = rootURL.appendingPathComponent("sample.txt")
-        let binaryURL = rootURL.appendingPathComponent("sample.pdf")
+        let binaryURL = rootURL.appendingPathComponent("sample.png")
         try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
         try "alpha beta gamma".write(to: textURL, atomically: true, encoding: .utf8)
-        try Data([0x25, 0x50, 0x44, 0x46, 0x00, 0xFF, 0xAA, 0x10]).write(to: binaryURL, options: .atomic)
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x00, 0xFF, 0xAA, 0x10]).write(to: binaryURL, options: .atomic)
 
         let store = NativeCorpusStore(rootURL: rootURL)
         try store.ensureInitialized()
@@ -358,6 +495,77 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(imported.importedCount, 1)
         XCTAssertEqual(imported.skippedCount, 1)
         XCTAssertEqual(try store.listLibrary().corpora.count, 1)
+    }
+
+    func testNativeCorpusStoreImportsDOCXAndPDFWithOriginalMetadata() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-rich-import-\(UUID().uuidString)", isDirectory: true)
+        let docxURL = rootURL.appendingPathComponent("sample.docx")
+        let pdfURL = rootURL.appendingPathComponent("sample.pdf")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try ImportedDocumentTestFixtures.writeDOCX(text: "Hello DOCX", to: docxURL)
+        try ImportedDocumentTestFixtures.writePDF(text: "Hello PDF", to: pdfURL)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths(
+            [docxURL.path, pdfURL.path],
+            folderId: "",
+            preserveHierarchy: false
+        )
+
+        XCTAssertEqual(imported.importedCount, 2)
+        XCTAssertEqual(imported.skippedCount, 0)
+
+        let library = try store.listLibrary()
+        XCTAssertEqual(library.corpora.count, 2)
+
+        let docxCorpus = try XCTUnwrap(library.corpora.first(where: { $0.sourceType == "docx" }))
+        let pdfCorpus = try XCTUnwrap(library.corpora.first(where: { $0.sourceType == "pdf" }))
+
+        let openedDOCX = try store.openSavedCorpus(corpusId: docxCorpus.id)
+        let openedPDF = try store.openSavedCorpus(corpusId: pdfCorpus.id)
+        let docxInfo = try store.loadCorpusInfo(corpusId: docxCorpus.id)
+        let pdfInfo = try store.loadCorpusInfo(corpusId: pdfCorpus.id)
+
+        XCTAssertEqual(openedDOCX.filePath, docxURL.path)
+        XCTAssertEqual(openedPDF.filePath, pdfURL.path)
+        XCTAssertEqual(openedDOCX.content.trimmingCharacters(in: .whitespacesAndNewlines), "Hello DOCX")
+        XCTAssertEqual(openedPDF.content.trimmingCharacters(in: .whitespacesAndNewlines), "Hello PDF")
+        XCTAssertEqual(docxInfo.sourceType, "docx")
+        XCTAssertEqual(pdfInfo.sourceType, "pdf")
+        XCTAssertEqual(docxInfo.representedPath, docxURL.path)
+        XCTAssertEqual(pdfInfo.representedPath, pdfURL.path)
+        XCTAssertEqual(docxInfo.detectedEncoding, "")
+        XCTAssertEqual(pdfInfo.detectedEncoding, "")
+    }
+
+    func testNativeCorpusStoreSkipsUnsupportedFilesInsideImportedDirectory() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-directory-import-\(UUID().uuidString)", isDirectory: true)
+        let importDirectory = rootURL.appendingPathComponent("bundle", isDirectory: true)
+        let textURL = importDirectory.appendingPathComponent("sample.txt")
+        let docxURL = importDirectory.appendingPathComponent("sample.docx")
+        let pdfURL = importDirectory.appendingPathComponent("sample.pdf")
+        let imageURL = importDirectory.appendingPathComponent("sample.png")
+        try FileManager.default.createDirectory(at: importDirectory, withIntermediateDirectories: true)
+        try "alpha beta gamma".write(to: textURL, atomically: true, encoding: .utf8)
+        try ImportedDocumentTestFixtures.writeDOCX(text: "Hello DOCX", to: docxURL)
+        try ImportedDocumentTestFixtures.writePDF(text: "Hello PDF", to: pdfURL)
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x00]).write(to: imageURL, options: .atomic)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths(
+            [importDirectory.path],
+            folderId: "",
+            preserveHierarchy: true
+        )
+
+        XCTAssertEqual(imported.importedCount, 3)
+        XCTAssertEqual(imported.skippedCount, 1)
+        XCTAssertEqual(imported.failureItems.first?.fileName, "sample.png")
+        XCTAssertEqual(try store.listLibrary().corpora.count, 3)
     }
 
     func testNativeCorpusStoreMigratesLegacyTXTStorageToDB() throws {
@@ -414,13 +622,15 @@ final class WorkspaceServicesTests: XCTestCase {
         try store.ensureInitialized()
 
         try store.saveWorkspaceSnapshot(WorkspaceStateDraft(
-            currentTab: WorkspaceDetailTab.wordCloud.snapshotValue,
+            currentTab: WorkspaceDetailTab.word.snapshotValue,
             currentLibraryFolderId: "folder-1",
             corpusIds: ["corpus-1"],
             corpusNames: ["Demo Corpus"],
             searchQuery: "cloud-1*",
             searchOptions: .default,
             stopwordFilter: .default,
+            tokenizeLanguagePreset: .latinFocused,
+            tokenizeLemmaStrategy: .lemmaPreferred,
             compareReferenceCorpusID: "corpus-2",
             compareSelectedCorpusIDs: ["corpus-1", "corpus-2"],
             ngramSize: "3",
@@ -434,7 +644,6 @@ final class WorkspaceServicesTests: XCTestCase {
             topicsIncludeOutliers: false,
             topicsPageSize: "25",
             topicsActiveTopicID: "topic-2",
-            wordCloudLimit: 140,
             chiSquareA: "10",
             chiSquareB: "20",
             chiSquareC: "6",
@@ -443,14 +652,15 @@ final class WorkspaceServicesTests: XCTestCase {
         ))
 
         let snapshot = try store.loadWorkspaceSnapshot()
-        XCTAssertEqual(snapshot.currentTab, WorkspaceDetailTab.wordCloud.snapshotValue)
+        XCTAssertEqual(snapshot.currentTab, WorkspaceDetailTab.word.snapshotValue)
+        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .latinFocused)
+        XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .lemmaPreferred)
         XCTAssertEqual(snapshot.compareReferenceCorpusID, "corpus-2")
         XCTAssertEqual(snapshot.compareSelectedCorpusIDs, ["corpus-1", "corpus-2"])
         XCTAssertEqual(snapshot.topicsMinTopicSize, "4")
         XCTAssertFalse(snapshot.topicsIncludeOutliers)
         XCTAssertEqual(snapshot.topicsPageSize, "25")
         XCTAssertEqual(snapshot.topicsActiveTopicID, "topic-2")
-        XCTAssertEqual(snapshot.wordCloudLimit, 140)
         XCTAssertEqual(snapshot.chiSquareA, "10")
         XCTAssertEqual(snapshot.chiSquareD, "14")
         XCTAssertTrue(snapshot.chiSquareUseYates)
@@ -487,7 +697,8 @@ final class WorkspaceServicesTests: XCTestCase {
 
         XCTAssertEqual(snapshot.currentTab, "kwic")
         XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
-        XCTAssertEqual(snapshot.wordCloudLimit, 80)
+        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
+        XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertEqual(snapshot.topicsMinTopicSize, "2")
         XCTAssertTrue(snapshot.topicsIncludeOutliers)
         XCTAssertEqual(snapshot.chiSquareA, "")
@@ -515,8 +726,9 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.searchOptions, SearchOptionsState(words: false, caseSensitive: true, regex: true))
         XCTAssertEqual(snapshot.stopwordFilter.mode, .include)
         XCTAssertEqual(snapshot.stopwordFilter.parsedWords, ["foo", "bar"])
+        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
+        XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
-        XCTAssertEqual(snapshot.wordCloudLimit, 80)
         XCTAssertEqual(snapshot.topicsPageSize, "50")
         XCTAssertEqual(snapshot.chiSquareA, "")
         XCTAssertFalse(snapshot.chiSquareUseYates)
@@ -547,7 +759,6 @@ final class WorkspaceServicesTests: XCTestCase {
             library: .empty,
             settings: .empty,
             activeTab: .stats,
-            wordCloud: .empty(title: "Word Cloud", status: "尚未生成词云结果"),
             stats: WorkspaceResultSceneNode(
                 title: "Stats",
                 status: "显示 3 / 3",
@@ -598,7 +809,6 @@ final class WorkspaceServicesTests: XCTestCase {
             library: .empty,
             settings: .empty,
             activeTab: .stats,
-            wordCloud: .empty(title: "Word Cloud", status: "尚未生成词云结果"),
             stats: WorkspaceResultSceneNode(
                 title: "Stats",
                 status: "显示 3 / 3",
@@ -663,7 +873,6 @@ final class WorkspaceServicesTests: XCTestCase {
                 tableRows: wordScene.tableRows
             ),
             tokenize: .empty(title: "Tokenize", status: ""),
-            wordCloud: .empty(title: "Word Cloud", status: ""),
             stats: .empty(title: "Stats", status: ""),
             compare: .empty(title: "Compare", status: ""),
             chiSquare: .empty(title: "Chi-Square", status: ""),

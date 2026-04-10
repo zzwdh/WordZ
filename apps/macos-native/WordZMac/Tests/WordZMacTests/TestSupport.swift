@@ -3,7 +3,7 @@ import Foundation
 @testable import WordZMac
 
 @MainActor
-final class FakeWorkspaceRepository: WorkspaceRepository {
+final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository {
     var startedUserDataURL: URL?
     var stopCalled = false
     var loadBootstrapStateCallCount = 0
@@ -14,9 +14,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var runTokenizeCallCount = 0
     var runTopicsCallCount = 0
     var runCompareCallCount = 0
+    var runKeywordCallCount = 0
     var runChiSquareCallCount = 0
     var runNgramCallCount = 0
-    var runWordCloudCallCount = 0
     var runKWICCallCount = 0
     var runCollocateCallCount = 0
     var runLocatorCallCount = 0
@@ -38,8 +38,14 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var backupLibraryCallCount = 0
     var restoreLibraryCallCount = 0
     var repairLibraryCallCount = 0
+    var saveCorpusSetCallCount = 0
+    var deleteCorpusSetCallCount = 0
+    var listAnalysisPresetsCallCount = 0
+    var saveAnalysisPresetCallCount = 0
+    var deleteAnalysisPresetCallCount = 0
     var savedWorkspaceDrafts: [WorkspaceStateDraft] = []
     var savedUISettings: [UISettingsSnapshot] = []
+    var analysisPresetItems: [AnalysisPresetItem] = []
 
     var bootstrapState: WorkspaceBootstrapState
     var openedCorpus: OpenedCorpus
@@ -50,9 +56,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var tokenizeResult: TokenizeResult
     var topicsResult: TopicAnalysisResult
     var compareResult: CompareResult
+    var keywordResult: KeywordResult
     var chiSquareResult: ChiSquareResult
     var ngramResult: NgramResult
-    var wordCloudResult: WordCloudResult
     var kwicResult: KWICResult
     var collocateResult: CollocateResult
     var locatorResult: LocatorResult
@@ -78,13 +84,18 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
     var backupError: Error?
     var restoreError: Error?
     var repairError: Error?
+    var saveCorpusSetError: Error?
+    var deleteCorpusSetError: Error?
+    var listAnalysisPresetsError: Error?
+    var saveAnalysisPresetError: Error?
+    var deleteAnalysisPresetError: Error?
     var statsError: Error?
     var tokenizeError: Error?
     var topicsError: Error?
     var compareError: Error?
+    var keywordError: Error?
     var chiSquareError: Error?
     var ngramError: Error?
-    var wordCloudError: Error?
     var kwicError: Error?
     var collocateError: Error?
     var locatorError: Error?
@@ -101,9 +112,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         tokenizeResult: TokenizeResult = makeTokenizeResult(),
         topicsResult: TopicAnalysisResult = makeTopicAnalysisResult(),
         compareResult: CompareResult = makeCompareResult(),
+        keywordResult: KeywordResult = makeKeywordResult(),
         chiSquareResult: ChiSquareResult = makeChiSquareResult(),
         ngramResult: NgramResult = makeNgramResult(),
-        wordCloudResult: WordCloudResult = makeWordCloudResult(),
         kwicResult: KWICResult = makeKWICResult(),
         collocateResult: CollocateResult = makeCollocateResult(),
         locatorResult: LocatorResult = makeLocatorResult(),
@@ -120,9 +131,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         self.tokenizeResult = tokenizeResult
         self.topicsResult = topicsResult
         self.compareResult = compareResult
+        self.keywordResult = keywordResult
         self.chiSquareResult = chiSquareResult
         self.ngramResult = ngramResult
-        self.wordCloudResult = wordCloudResult
         self.kwicResult = kwicResult
         self.collocateResult = collocateResult
         self.locatorResult = locatorResult
@@ -153,6 +164,76 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         return librarySnapshot
     }
 
+    func saveCorpusSet(
+        name: String,
+        corpusIDs: [String],
+        metadataFilterState: CorpusMetadataFilterState
+    ) async throws -> LibraryCorpusSetItem {
+        saveCorpusSetCallCount += 1
+        if let saveCorpusSetError { throw saveCorpusSetError }
+
+        let corporaByID = Dictionary(uniqueKeysWithValues: librarySnapshot.corpora.map { ($0.id, $0) })
+        let resolvedCorpora = corpusIDs.compactMap { corporaByID[$0] }
+        let existingSet = librarySnapshot.corpusSets.first {
+            $0.name.caseInsensitiveCompare(name) == .orderedSame
+        }
+        let savedSet = LibraryCorpusSetItem(json: [
+            "id": existingSet?.id ?? "set-\(saveCorpusSetCallCount)",
+            "name": name,
+            "corpusIds": resolvedCorpora.map(\.id),
+            "corpusNames": resolvedCorpora.map(\.name),
+            "metadataFilter": metadataFilterState.jsonObject,
+            "createdAt": existingSet?.createdAt ?? "today",
+            "updatedAt": "today"
+        ])
+        let remainingSets = librarySnapshot.corpusSets.filter { $0.id != savedSet.id }
+        librarySnapshot = LibrarySnapshot(
+            folders: librarySnapshot.folders,
+            corpora: librarySnapshot.corpora,
+            corpusSets: remainingSets + [savedSet]
+        )
+        return savedSet
+    }
+
+    func deleteCorpusSet(corpusSetID: String) async throws {
+        deleteCorpusSetCallCount += 1
+        if let deleteCorpusSetError { throw deleteCorpusSetError }
+        librarySnapshot = LibrarySnapshot(
+            folders: librarySnapshot.folders,
+            corpora: librarySnapshot.corpora,
+            corpusSets: librarySnapshot.corpusSets.filter { $0.id != corpusSetID }
+        )
+    }
+
+    func listAnalysisPresets() async throws -> [AnalysisPresetItem] {
+        listAnalysisPresetsCallCount += 1
+        if let listAnalysisPresetsError { throw listAnalysisPresetsError }
+        return analysisPresetItems
+    }
+
+    func saveAnalysisPreset(name: String, draft: WorkspaceStateDraft) async throws -> AnalysisPresetItem {
+        saveAnalysisPresetCallCount += 1
+        if let saveAnalysisPresetError { throw saveAnalysisPresetError }
+
+        let existing = analysisPresetItems.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        let preset = AnalysisPresetItem(
+            id: existing?.id ?? "preset-\(saveAnalysisPresetCallCount)",
+            name: name,
+            createdAt: existing?.createdAt ?? "today",
+            updatedAt: "today",
+            snapshot: WorkspaceSnapshotSummary(draft: draft)
+        )
+        analysisPresetItems.removeAll { $0.id == preset.id }
+        analysisPresetItems.insert(preset, at: 0)
+        return preset
+    }
+
+    func deleteAnalysisPreset(presetID: String) async throws {
+        deleteAnalysisPresetCallCount += 1
+        if let deleteAnalysisPresetError { throw deleteAnalysisPresetError }
+        analysisPresetItems.removeAll { $0.id == presetID }
+    }
+
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) async throws -> LibraryImportResult {
         importCorpusPathsCallCount += 1
         if let importError { throw importError }
@@ -166,7 +247,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         ])
         librarySnapshot = LibrarySnapshot(
             folders: librarySnapshot.folders,
-            corpora: librarySnapshot.corpora + [nextCorpus]
+            corpora: librarySnapshot.corpora + [nextCorpus],
+            corpusSets: librarySnapshot.corpusSets
         )
         return LibraryImportResult(json: [
             "importedCount": 1,
@@ -225,7 +307,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
                     "representedPath": corpus.representedPath,
                     "metadata": metadata.jsonObject
                 ])
-            }
+            },
+            corpusSets: librarySnapshot.corpusSets
         )
         if corpusInfoResult.corpusId == corpusId {
             corpusInfoResult = CorpusInfoSummary(json: [
@@ -276,6 +359,16 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         return compareResult
     }
 
+    func runKeyword(
+        targetEntry: KeywordRequestEntry,
+        referenceEntry: KeywordRequestEntry,
+        options: KeywordPreprocessingOptions
+    ) async throws -> KeywordResult {
+        runKeywordCallCount += 1
+        if let keywordError { throw keywordError }
+        return keywordResult
+    }
+
     func runChiSquare(a: Int, b: Int, c: Int, d: Int, yates: Bool) async throws -> ChiSquareResult {
         runChiSquareCallCount += 1
         if let chiSquareError { throw chiSquareError }
@@ -289,12 +382,6 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
             "n": n,
             "rows": ngramResult.rows.map { [$0.phrase, $0.count] }
         ])
-    }
-
-    func runWordCloud(text: String, limit: Int) async throws -> WordCloudResult {
-        runWordCloudCallCount += 1
-        if let wordCloudError { throw wordCloudError }
-        return wordCloudResult
     }
 
     func runKWIC(
@@ -346,7 +433,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
                     "folderName": corpus.folderName,
                     "sourceType": corpus.sourceType
                 ])
-            }
+            },
+            corpusSets: librarySnapshot.corpusSets
         )
         return librarySnapshot.corpora.first(where: { $0.id == corpusId }) ?? LibraryCorpusItem(json: [:])
     }
@@ -366,7 +454,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
                     "folderName": targetName,
                     "sourceType": corpus.sourceType
                 ])
-            }
+            },
+            corpusSets: librarySnapshot.corpusSets
         )
         return librarySnapshot.corpora.first(where: { $0.id == corpusId }) ?? LibraryCorpusItem(json: [:])
     }
@@ -434,7 +523,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
         if let deleteFolderError { throw deleteFolderError }
         librarySnapshot = LibrarySnapshot(
             folders: librarySnapshot.folders.filter { $0.id != folderId },
-            corpora: librarySnapshot.corpora.filter { $0.folderId != folderId }
+            corpora: librarySnapshot.corpora.filter { $0.folderId != folderId },
+            corpusSets: librarySnapshot.corpusSets
         )
     }
 
@@ -500,41 +590,327 @@ final class FakeWorkspaceRepository: WorkspaceRepository {
 }
 
 @MainActor
+final class FakeLibraryCoordinator: LibraryCoordinating {
+    var openedCorpus: OpenedCorpus
+    var lastSelectedCorpusID: String?
+    var handleSelectionChangeResult = false
+    var openSelectionCallCount = 0
+    var ensureOpenedCorpusCallCount = 0
+
+    init(openedCorpus: OpenedCorpus = makeOpenedCorpus()) {
+        self.openedCorpus = openedCorpus
+    }
+
+    func openSelection(selectedCorpusID: String?) async throws -> OpenedCorpus {
+        openSelectionCallCount += 1
+        lastSelectedCorpusID = selectedCorpusID
+        return openedCorpus
+    }
+
+    func ensureOpenedCorpus(selectedCorpusID: String?) async throws -> OpenedCorpus {
+        ensureOpenedCorpusCallCount += 1
+        lastSelectedCorpusID = selectedCorpusID
+        return openedCorpus
+    }
+
+    func handleSelectionChange(to selectedCorpusID: String?) -> Bool {
+        lastSelectedCorpusID = selectedCorpusID
+        return handleSelectionChangeResult
+    }
+}
+
+struct FakeBootstrapApplier: WorkspaceBootstrapApplying {
+    func apply(_ bootstrapState: WorkspaceBootstrapState, to features: WorkspaceFeatureSet) {}
+    func finalizeRefresh(features: WorkspaceFeatureSet) async {}
+}
+
+@MainActor
+final class FakeWorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
+    let result: WorkspaceCoordinatorSet
+    var makeCallCount = 0
+
+    init(result: WorkspaceCoordinatorSet) {
+        self.result = result
+    }
+
+    func make(
+        repository: any WorkspaceRepository,
+        workspacePersistence: WorkspacePersistenceService,
+        workspacePresentation: WorkspacePresentationService,
+        sceneStore: WorkspaceSceneStore,
+        windowDocumentController: NativeWindowDocumentController,
+        dialogService: NativeDialogServicing,
+        hostActionService: any NativeHostActionServicing,
+        sessionStore: WorkspaceSessionStore,
+        hostPreferencesStore: any NativeHostPreferencesStoring,
+        buildMetadataProvider: any NativeBuildMetadataProviding,
+        taskCenter: NativeTaskCenter,
+        libraryCoordinator: (any LibraryCoordinating)?
+    ) -> WorkspaceCoordinatorSet {
+        makeCallCount += 1
+        return result
+    }
+}
+
+@MainActor
+final class FakeRuntimeDependencyFactory: MainWorkspaceRuntimeDependencyBuilding {
+    let result: MainWorkspaceRuntimeDependencies
+    var makeCallCount = 0
+
+    init(result: MainWorkspaceRuntimeDependencies) {
+        self.result = result
+    }
+
+    func make(
+        repository: any WorkspaceRepository,
+        workspacePersistence: WorkspacePersistenceService,
+        workspacePresentation: WorkspacePresentationService,
+        sceneStore: WorkspaceSceneStore,
+        windowDocumentController: NativeWindowDocumentController,
+        dialogService: NativeDialogServicing,
+        hostPreferencesStore: any NativeHostPreferencesStoring,
+        hostActionService: (any NativeHostActionServicing)?,
+        updateService: (any NativeUpdateServicing)?,
+        notificationService: (any NativeNotificationServicing)?,
+        buildMetadataProvider: any NativeBuildMetadataProviding,
+        taskCenter: NativeTaskCenter,
+        sessionStore: WorkspaceSessionStore,
+        libraryCoordinator: (any LibraryCoordinating)?,
+        coordinatorFactory: (any WorkspaceCoordinatorBuilding)?
+    ) -> MainWorkspaceRuntimeDependencies {
+        makeCallCount += 1
+        return result
+    }
+}
+
+@MainActor
+func makeWorkspaceFlowCoordinator(
+    repository: any WorkspaceRepository,
+    workspacePersistence: WorkspacePersistenceService = WorkspacePersistenceService(),
+    workspacePresentation: WorkspacePresentationService = WorkspacePresentationService(),
+    sceneStore: WorkspaceSceneStore = WorkspaceSceneStore(),
+    windowDocumentController: NativeWindowDocumentController = NativeWindowDocumentController(),
+    dialogService: NativeDialogServicing = NativeSheetDialogService(),
+    hostActionService: (any NativeHostActionServicing)? = nil,
+    sessionStore: WorkspaceSessionStore,
+    hostPreferencesStore: (any NativeHostPreferencesStoring)? = nil,
+    libraryCoordinator: any LibraryCoordinating,
+    libraryManagementCoordinator: (any LibraryManagementCoordinating)? = nil,
+    exportCoordinator: (any WorkspaceExportCoordinating)? = nil,
+    taskCenter: NativeTaskCenter? = nil
+) -> WorkspaceFlowCoordinator {
+    let resolvedHostActionService = hostActionService ?? NativeHostActionService(dialogService: dialogService)
+    let resolvedHostPreferencesStore = hostPreferencesStore ?? NativeHostPreferencesStore()
+    let resolvedLibraryManagementCoordinator = libraryManagementCoordinator ?? LibraryManagementCoordinator(
+        repository: repository,
+        dialogService: dialogService,
+        sessionStore: sessionStore
+    )
+    let resolvedExportCoordinator = exportCoordinator ?? WorkspaceExportCoordinator(dialogService: dialogService)
+    let resolvedTaskCenter = taskCenter ?? NativeTaskCenter()
+
+    return WorkspaceFlowCoordinator(
+        repository: repository,
+        workspacePersistence: workspacePersistence,
+        workspacePresentation: workspacePresentation,
+        sceneStore: sceneStore,
+        windowDocumentController: windowDocumentController,
+        dialogService: dialogService,
+        hostActionService: resolvedHostActionService,
+        sessionStore: sessionStore,
+        hostPreferencesStore: resolvedHostPreferencesStore,
+        libraryCoordinator: libraryCoordinator,
+        libraryManagementCoordinator: resolvedLibraryManagementCoordinator,
+        exportCoordinator: resolvedExportCoordinator,
+        taskCenter: resolvedTaskCenter
+    )
+}
+
+@MainActor
+func makeAppCoordinator(
+    repository: any WorkspaceRepository,
+    sceneStore: WorkspaceSceneStore,
+    sessionStore: WorkspaceSessionStore,
+    flowCoordinator: WorkspaceFlowCoordinator,
+    hostPreferencesStore: any NativeHostPreferencesStoring = NativeHostPreferencesStore(),
+    buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService()
+) -> AppCoordinator {
+    AppCoordinator(
+        repository: repository,
+        bootstrapApplier: WorkspaceBootstrapApplier(
+            sceneStore: sceneStore,
+            sessionStore: sessionStore,
+            flowCoordinator: flowCoordinator,
+            hostPreferencesStore: hostPreferencesStore,
+            buildMetadataProvider: buildMetadataProvider
+        )
+    )
+}
+
+@MainActor
+func makeMainWorkspaceViewModel(
+    repository: any WorkspaceRepository,
+    workspacePersistence: WorkspacePersistenceService = WorkspacePersistenceService(),
+    workspacePresentation: WorkspacePresentationService = WorkspacePresentationService(),
+    sceneStore: WorkspaceSceneStore = WorkspaceSceneStore(),
+    sceneGraphStore: WorkspaceSceneGraphStore = WorkspaceSceneGraphStore(),
+    rootSceneBuilder: any RootContentSceneBuilding = RootContentSceneBuilder(),
+    windowDocumentController: NativeWindowDocumentController = NativeWindowDocumentController(),
+    dialogService: NativeDialogServicing = NativeSheetDialogService(),
+    hostPreferencesStore: any NativeHostPreferencesStoring = NativeHostPreferencesStore(),
+    hostActionService: (any NativeHostActionServicing)? = nil,
+    quickLookPreviewFileService: any QuickLookPreviewFilePreparing = QuickLookPreviewFileService(),
+    reportBundleService: any AnalysisReportBundleServicing = AnalysisReportBundleService(),
+    updateService: (any NativeUpdateServicing)? = nil,
+    notificationService: (any NativeNotificationServicing)? = nil,
+    buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService(),
+    diagnosticsBundleService: any NativeDiagnosticsBundleServicing = NativeDiagnosticsBundleService(),
+    taskCenter: NativeTaskCenter = NativeTaskCenter(),
+    sessionStore: WorkspaceSessionStore = WorkspaceSessionStore(),
+    libraryCoordinator: (any LibraryCoordinating)? = nil,
+    coordinatorFactory: (any WorkspaceCoordinatorBuilding)? = nil,
+    runtimeDependencyFactory: (any MainWorkspaceRuntimeDependencyBuilding)? = nil,
+    sidebar: LibrarySidebarViewModel = LibrarySidebarViewModel(),
+    shell: WorkspaceShellViewModel = WorkspaceShellViewModel(),
+    library: LibraryManagementViewModel = LibraryManagementViewModel(),
+    stats: StatsPageViewModel = StatsPageViewModel(),
+    word: WordPageViewModel = WordPageViewModel(),
+    tokenize: TokenizePageViewModel = TokenizePageViewModel(),
+    topics: TopicsPageViewModel = TopicsPageViewModel(),
+    compare: ComparePageViewModel = ComparePageViewModel(),
+    keyword: KeywordPageViewModel = KeywordPageViewModel(),
+    chiSquare: ChiSquarePageViewModel = ChiSquarePageViewModel(),
+    ngram: NgramPageViewModel = NgramPageViewModel(),
+    kwic: KWICPageViewModel = KWICPageViewModel(),
+    collocate: CollocatePageViewModel = CollocatePageViewModel(),
+    locator: LocatorPageViewModel = LocatorPageViewModel(),
+    settings: WorkspaceSettingsViewModel = WorkspaceSettingsViewModel()
+) -> MainWorkspaceViewModel {
+    let resolvedRuntimeDependencyFactory = runtimeDependencyFactory ?? MainWorkspaceRuntimeDependencyFactory()
+    let runtimeDependencies = resolvedRuntimeDependencyFactory.make(
+        repository: repository,
+        workspacePersistence: workspacePersistence,
+        workspacePresentation: workspacePresentation,
+        sceneStore: sceneStore,
+        windowDocumentController: windowDocumentController,
+        dialogService: dialogService,
+        hostPreferencesStore: hostPreferencesStore,
+        hostActionService: hostActionService,
+        updateService: updateService,
+        notificationService: notificationService,
+        buildMetadataProvider: buildMetadataProvider,
+        taskCenter: taskCenter,
+        sessionStore: sessionStore,
+        libraryCoordinator: libraryCoordinator,
+        coordinatorFactory: coordinatorFactory
+    )
+
+    return MainWorkspaceViewModel(
+        repository: repository,
+        runtimeDependencies: runtimeDependencies,
+        sceneStore: sceneStore,
+        sceneGraphStore: sceneGraphStore,
+        rootSceneBuilder: rootSceneBuilder,
+        dialogService: dialogService,
+        hostPreferencesStore: hostPreferencesStore,
+        quickLookPreviewFileService: quickLookPreviewFileService,
+        reportBundleService: reportBundleService,
+        buildMetadataProvider: buildMetadataProvider,
+        diagnosticsBundleService: diagnosticsBundleService,
+        taskCenter: taskCenter,
+        sessionStore: sessionStore,
+        sidebar: sidebar,
+        shell: shell,
+        library: library,
+        stats: stats,
+        word: word,
+        tokenize: tokenize,
+        topics: topics,
+        compare: compare,
+        keyword: keyword,
+        chiSquare: chiSquare,
+        ngram: ngram,
+        kwic: kwic,
+        collocate: collocate,
+        locator: locator,
+        settings: settings
+    )
+}
+
+struct FakeBuildMetadataProvider: NativeBuildMetadataProviding {
+    var metadata = NativeBuildMetadata(
+        appName: "WordZ",
+        bundleIdentifier: "com.test.wordz",
+        version: "1.0",
+        buildNumber: "1",
+        architecture: "arm64",
+        builtAt: "2026-04-08",
+        gitCommit: "test-commit",
+        gitBranch: "test",
+        distributionChannel: "test",
+        executableSHA256: "sha256"
+        ,
+        bundlePath: "/Applications/WordZ.app",
+        executablePath: "/Applications/WordZ.app/Contents/MacOS/WordZ",
+        sourceLabel: "test"
+    )
+
+    func current() -> NativeBuildMetadata {
+        metadata
+    }
+}
+
+@MainActor
 final class FakeDialogService: NativeDialogServicing {
-    var attachedWindowObjectIdentifier: ObjectIdentifier?
     var importPathsResult: [String]?
     var directoryResult: String?
     var savePathResult: String?
     var exportFormatResult: TableExportFormat? = .csv
     var promptTextResult: String?
     var confirmResult = true
+    var promptTextPreferredRoute: NativeWindowRoute?
+    var confirmPreferredRoute: NativeWindowRoute?
 
-    func attach(window: NSWindow?) {
-        attachedWindowObjectIdentifier = window.map(ObjectIdentifier.init)
+    func chooseImportPaths(preferredRoute: NativeWindowRoute?) async -> [String]? {
+        return importPathsResult
     }
 
-    func chooseImportPaths() async -> [String]? {
-        importPathsResult
+    func chooseDirectory(title: String, message: String, preferredRoute: NativeWindowRoute?) async -> String? {
+        return directoryResult
     }
 
-    func chooseDirectory(title: String, message: String) async -> String? {
-        directoryResult
+    func chooseSavePath(
+        title: String,
+        suggestedName: String,
+        allowedExtension: String,
+        preferredRoute: NativeWindowRoute?
+    ) async -> String? {
+        return savePathResult
     }
 
-    func chooseSavePath(title: String, suggestedName: String, allowedExtension: String) async -> String? {
-        savePathResult
+    func chooseExportFormat(preferredRoute: NativeWindowRoute?) async -> TableExportFormat? {
+        return exportFormatResult
     }
 
-    func chooseExportFormat() async -> TableExportFormat? {
-        exportFormatResult
+    func promptText(
+        title: String,
+        message: String,
+        defaultValue: String,
+        confirmTitle: String,
+        preferredRoute: NativeWindowRoute?
+    ) async -> String? {
+        promptTextPreferredRoute = preferredRoute
+        return promptTextResult
     }
 
-    func promptText(title: String, message: String, defaultValue: String, confirmTitle: String) async -> String? {
-        promptTextResult
-    }
-
-    func confirm(title: String, message: String, confirmTitle: String) async -> Bool {
-        confirmResult
+    func confirm(
+        title: String,
+        message: String,
+        confirmTitle: String,
+        preferredRoute: NativeWindowRoute?
+    ) async -> Bool {
+        confirmPreferredRoute = preferredRoute
+        return confirmResult
     }
 }
 
@@ -610,38 +986,43 @@ final class InMemoryHostPreferencesStore: NativeHostPreferencesStoring {
 
 @MainActor
 final class FakeHostActionService: NativeHostActionServicing {
-    var openedUserDataDirectoryPath: String?
-    var openFeedbackCallCount = 0
-    var openReleaseNotesCallCount = 0
-    var openProjectHomeCallCount = 0
+    var openedFilePaths: [String] = []
+    var openedExternalURLs: [String] = []
     var quickLookCallCount = 0
     var lastQuickLookPath: String?
     var shareCallCount = 0
     var lastSharedPaths: [String] = []
-    var openDownloadedUpdateCallCount = 0
-    var lastOpenedDownloadedUpdatePath: String?
+    var openDownloadedUpdateAndTerminateCallCount = 0
+    var lastInstalledDownloadedUpdatePath: String?
     var revealDownloadedUpdateCallCount = 0
     var lastRevealedDownloadedUpdatePath: String?
     var clearRecentDocumentsCallCount = 0
-    var notedRecentDocumentPaths: [String] = []
+    var exportedArchivePath: String?
+    var exportedArchiveTitle: String?
+    var exportedArchivePathToReturn: String? = "/tmp/WordZMac-report.zip"
+    var exportedArchivePreferredRoute: NativeWindowRoute?
     var exportedDiagnosticArchivePath: String?
-    var exportedSuggestedName: String?
     var exportedPathToReturn: String? = "/tmp/WordZMac-diagnostics.zip"
+    var exportedDiagnosticPreferredRoute: NativeWindowRoute?
 
     func openUserDataDirectory(path: String) async throws {
-        openedUserDataDirectoryPath = path
+    }
+
+    func openFile(path: String) async throws {
+        openedFilePaths.append(path)
+    }
+
+    func openURL(_ value: String) async throws {
+        openedExternalURLs.append(value)
     }
 
     func openFeedback() async throws {
-        openFeedbackCallCount += 1
     }
 
     func openReleaseNotes() async throws {
-        openReleaseNotesCallCount += 1
     }
 
     func openProjectHome() async throws {
-        openProjectHomeCallCount += 1
     }
 
     func quickLook(path: String) async throws {
@@ -655,8 +1036,11 @@ final class FakeHostActionService: NativeHostActionServicing {
     }
 
     func openDownloadedUpdate(path: String) async throws {
-        openDownloadedUpdateCallCount += 1
-        lastOpenedDownloadedUpdatePath = path
+    }
+
+    func openDownloadedUpdateAndTerminate(path: String) async throws {
+        openDownloadedUpdateAndTerminateCallCount += 1
+        lastInstalledDownloadedUpdatePath = path
     }
 
     func revealDownloadedUpdate(path: String) async throws {
@@ -664,9 +1048,25 @@ final class FakeHostActionService: NativeHostActionServicing {
         lastRevealedDownloadedUpdatePath = path
     }
 
-    func exportDiagnosticBundle(archivePath: String, suggestedName: String) async throws -> String? {
+    func exportArchiveBundle(
+        archivePath: String,
+        suggestedName: String,
+        title: String,
+        preferredRoute: NativeWindowRoute?
+    ) async throws -> String? {
+        exportedArchivePath = archivePath
+        exportedArchiveTitle = title
+        exportedArchivePreferredRoute = preferredRoute
+        return exportedArchivePathToReturn
+    }
+
+    func exportDiagnosticBundle(
+        archivePath: String,
+        suggestedName: String,
+        preferredRoute: NativeWindowRoute?
+    ) async throws -> String? {
         exportedDiagnosticArchivePath = archivePath
-        exportedSuggestedName = suggestedName
+        exportedDiagnosticPreferredRoute = preferredRoute
         return exportedPathToReturn
     }
 
@@ -674,9 +1074,7 @@ final class FakeHostActionService: NativeHostActionServicing {
         clearRecentDocumentsCallCount += 1
     }
 
-    func noteRecentDocument(path: String) async {
-        notedRecentDocumentPaths.append(path)
-    }
+    func noteRecentDocument(path: String) async {}
 }
 
 final class FakeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
@@ -693,6 +1091,26 @@ final class FakeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
     }
 
     func cleanup(_ artifact: NativeDiagnosticsBundleArtifact) {
+        cleanedArtifacts.append(artifact)
+    }
+}
+
+@MainActor
+final class FakeAnalysisReportBundleService: AnalysisReportBundleServicing {
+    var artifactToReturn = AnalysisReportBundleArtifact(
+        workingDirectoryURL: URL(fileURLWithPath: "/tmp/WordZMac-report"),
+        bundleDirectoryURL: URL(fileURLWithPath: "/tmp/WordZMac-report/WordZMac-stats-report"),
+        archiveURL: URL(fileURLWithPath: "/tmp/WordZMac-report.zip")
+    )
+    private(set) var lastPayload: AnalysisReportBundlePayload?
+    private(set) var cleanedArtifacts: [AnalysisReportBundleArtifact] = []
+
+    func buildBundle(payload: AnalysisReportBundlePayload) throws -> AnalysisReportBundleArtifact {
+        lastPayload = payload
+        return artifactToReturn
+    }
+
+    func cleanup(_ artifact: AnalysisReportBundleArtifact) {
         cleanedArtifacts.append(artifact)
     }
 }
@@ -769,8 +1187,27 @@ final class FakeNotificationService: NativeNotificationServicing {
     }
 }
 
+@MainActor
+final class CountingRootContentSceneBuilder: RootContentSceneBuilding {
+    private(set) var buildCallCount = 0
+
+    func build(
+        windowTitle: String,
+        activeTab: WorkspaceDetailTab,
+        languageMode: AppLanguageMode
+    ) -> RootContentSceneModel {
+        buildCallCount += 1
+        return RootContentSceneBuilder().build(
+            windowTitle: windowTitle,
+            activeTab: activeTab,
+            languageMode: languageMode
+        )
+    }
+}
+
 func makeBootstrapState(
     workspaceSnapshot: WorkspaceSnapshotSummary = makeWorkspaceSnapshot(),
+    corpusSets: [LibraryCorpusSetItem] = [],
     uiSettings: UISettingsSnapshot = .default
 ) -> WorkspaceBootstrapState {
     WorkspaceBootstrapState(
@@ -814,7 +1251,8 @@ func makeBootstrapState(
                         "tags": ["研究", "对比"]
                     ]
                 ])
-            ]
+            ],
+            corpusSets: corpusSets
         ),
         workspaceSnapshot: workspaceSnapshot,
         uiSettings: uiSettings
@@ -823,10 +1261,20 @@ func makeBootstrapState(
 
 func makeWorkspaceSnapshot(
     currentTab: String = "kwic",
+    selectedCorpusSetID: String = "",
     corpusNames: [String] = ["Demo Corpus"],
     searchQuery: String = "keyword",
+    tokenizeLanguagePreset: TokenizeLanguagePreset = .mixedChineseEnglish,
+    tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
     compareReferenceCorpusID: String = "",
     compareSelectedCorpusIDs: [String] = [],
+    keywordTargetCorpusID: String = "",
+    keywordReferenceCorpusID: String = "",
+    keywordLowercased: Bool = true,
+    keywordRemovePunctuation: Bool = true,
+    keywordMinimumFrequency: String = "2",
+    keywordStatistic: KeywordStatisticMethod = .logLikelihood,
+    keywordStopwordFilter: StopwordFilterState = .default,
     frequencyNormalizationUnit: FrequencyNormalizationUnit = FrequencyMetricDefinition.default.normalizationUnit,
     frequencyRangeMode: FrequencyRangeMode = FrequencyMetricDefinition.default.rangeMode,
     ngramSize: String = "2",
@@ -834,7 +1282,6 @@ func makeWorkspaceSnapshot(
     topicsIncludeOutliers: Bool = true,
     topicsPageSize: String = "50",
     topicsActiveTopicID: String = "",
-    wordCloudLimit: Int = 80,
     chiSquareA: String = "",
     chiSquareB: String = "",
     chiSquareC: String = "",
@@ -844,7 +1291,10 @@ func makeWorkspaceSnapshot(
     WorkspaceSnapshotSummary(json: [
         "currentTab": currentTab,
         "currentLibraryFolderId": "folder-1",
-        "workspace": ["corpusNames": corpusNames],
+        "workspace": [
+            "selectedCorpusSetID": selectedCorpusSetID,
+            "corpusNames": corpusNames
+        ],
         "search": [
             "query": searchQuery,
             "options": [
@@ -858,9 +1308,22 @@ func makeWorkspaceSnapshot(
                 "listText": StopwordFilterState.defaultListText
             ]
         ],
+        "tokenize": [
+            "languagePreset": tokenizeLanguagePreset.rawValue,
+            "lemmaStrategy": tokenizeLemmaStrategy.rawValue
+        ],
         "compare": [
             "referenceCorpusID": compareReferenceCorpusID,
             "selectedCorpusIDs": compareSelectedCorpusIDs
+        ],
+        "keyword": [
+            "targetCorpusID": keywordTargetCorpusID,
+            "referenceCorpusID": keywordReferenceCorpusID,
+            "lowercased": keywordLowercased,
+            "removePunctuation": keywordRemovePunctuation,
+            "minimumFrequency": keywordMinimumFrequency,
+            "statistic": keywordStatistic.rawValue,
+            "stopwordFilter": keywordStopwordFilter.asJSONObject()
         ],
         "frequencyMetrics": [
             "normalizationUnit": frequencyNormalizationUnit.rawValue,
@@ -874,9 +1337,6 @@ func makeWorkspaceSnapshot(
             "includeOutliers": topicsIncludeOutliers,
             "pageSize": topicsPageSize,
             "activeTopicID": topicsActiveTopicID
-        ],
-        "wordCloud": [
-            "limit": wordCloudLimit
         ],
         "chiSquare": [
             "a": chiSquareA,
@@ -958,17 +1418,47 @@ func makeTokenizeResult() -> TokenizeResult {
                 sentenceId: 0,
                 text: "Alpha beta gamma.",
                 tokens: [
-                    TokenizedToken(original: "Alpha", normalized: "alpha", sentenceId: 0, tokenIndex: 0),
-                    TokenizedToken(original: "beta", normalized: "beta", sentenceId: 0, tokenIndex: 1),
-                    TokenizedToken(original: "gamma", normalized: "gamma", sentenceId: 0, tokenIndex: 2)
+                    TokenizedToken(
+                        original: "Alpha",
+                        normalized: "alpha",
+                        sentenceId: 0,
+                        tokenIndex: 0,
+                        annotations: TokenLinguisticAnnotations(script: .latin, lemma: "alpha", lexicalClass: .noun)
+                    ),
+                    TokenizedToken(
+                        original: "beta",
+                        normalized: "beta",
+                        sentenceId: 0,
+                        tokenIndex: 1,
+                        annotations: TokenLinguisticAnnotations(script: .latin, lemma: "beta", lexicalClass: .noun)
+                    ),
+                    TokenizedToken(
+                        original: "gamma",
+                        normalized: "gamma",
+                        sentenceId: 0,
+                        tokenIndex: 2,
+                        annotations: TokenLinguisticAnnotations(script: .latin, lemma: "gamma", lexicalClass: .noun)
+                    )
                 ]
             ),
             TokenizedSentence(
                 sentenceId: 1,
                 text: "Delta alpha.",
                 tokens: [
-                    TokenizedToken(original: "Delta", normalized: "delta", sentenceId: 1, tokenIndex: 0),
-                    TokenizedToken(original: "alpha", normalized: "alpha", sentenceId: 1, tokenIndex: 1)
+                    TokenizedToken(
+                        original: "Delta",
+                        normalized: "delta",
+                        sentenceId: 1,
+                        tokenIndex: 0,
+                        annotations: TokenLinguisticAnnotations(script: .latin, lemma: "delta", lexicalClass: .noun)
+                    ),
+                    TokenizedToken(
+                        original: "alpha",
+                        normalized: "alpha",
+                        sentenceId: 1,
+                        tokenIndex: 1,
+                        annotations: TokenLinguisticAnnotations(script: .latin, lemma: "alpha", lexicalClass: .noun)
+                    )
                 ]
             )
         ]
@@ -1044,13 +1534,6 @@ func makeNgramResult(rowCount: Int = 3, n: Int = 2) -> NgramResult {
         "n": n,
         "rows": rows
     ])
-}
-
-func makeWordCloudResult(rowCount: Int = 12) -> WordCloudResult {
-    let rows: [[Any]] = (0..<rowCount).map { index in
-        ["cloud-\(index)", rowCount - index]
-    }
-    return WordCloudResult(json: ["rows": rows])
 }
 
 func makeKWICResult(rowCount: Int = 3) -> KWICResult {
@@ -1141,6 +1624,50 @@ func makeCompareResult() -> CompareResult {
                     ["corpusId": "corpus-1", "corpusName": "Demo Corpus", "folderName": "Default", "count": 5, "tokenCount": 100, "normFreq": 500.0],
                     ["corpusId": "corpus-2", "corpusName": "Compare Corpus", "folderName": "Default", "count": 9, "tokenCount": 120, "normFreq": 750.0]
                 ]
+            ]
+        ]
+    ])
+}
+
+func makeKeywordResult() -> KeywordResult {
+    KeywordResult(json: [
+        "statistic": KeywordStatisticMethod.logLikelihood.rawValue,
+        "targetCorpus": [
+            "corpusId": "corpus-1",
+            "corpusName": "Target Corpus",
+            "folderName": "Default",
+            "tokenCount": 120,
+            "typeCount": 45
+        ],
+        "referenceCorpus": [
+            "corpusId": "corpus-2",
+            "corpusName": "Reference Corpus",
+            "folderName": "Default",
+            "tokenCount": 200,
+            "typeCount": 60
+        ],
+        "rows": [
+            [
+                "word": "alpha",
+                "rank": 1,
+                "targetFrequency": 12,
+                "referenceFrequency": 2,
+                "targetNormalizedFrequency": 100_000.0,
+                "referenceNormalizedFrequency": 10_000.0,
+                "keynessScore": 18.42,
+                "logRatio": 3.1,
+                "pValue": 0.0001
+            ],
+            [
+                "word": "beta",
+                "rank": 2,
+                "targetFrequency": 8,
+                "referenceFrequency": 1,
+                "targetNormalizedFrequency": 66_666.67,
+                "referenceNormalizedFrequency": 5_000.0,
+                "keynessScore": 11.08,
+                "logRatio": 2.7,
+                "pValue": 0.0009
             ]
         ]
     ])

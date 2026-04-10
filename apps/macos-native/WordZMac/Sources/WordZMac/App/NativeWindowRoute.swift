@@ -5,6 +5,7 @@ enum NativeWindowRoute: String {
     case library
     case settings
     case taskCenter
+    case updatePrompt
     case about
     case help
     case releaseNotes
@@ -21,6 +22,8 @@ enum NativeWindowRoute: String {
             return wordZText("设置", "Settings", mode: mode)
         case .taskCenter:
             return wordZText("任务中心", "Task Center", mode: mode)
+        case .updatePrompt:
+            return wordZText("更新", "Update", mode: mode)
         case .about:
             return wordZText("关于", "About", mode: mode)
         case .help:

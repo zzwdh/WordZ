@@ -25,8 +25,15 @@ final class NativeAnalysisResultCacheTests: XCTestCase {
         cache.store("stats", for: .stats(text: baseText))
         cache.store("tokenize", for: .tokenize(text: baseText))
         cache.store("ngram", for: .ngram(text: baseText, n: 2))
-        cache.store("wordCloud", for: .wordCloud(text: baseText))
         cache.store("locator", for: .locator(text: baseText, sentenceId: 0, nodeIndex: 0, leftWindow: 1, rightWindow: 1))
+        cache.store("compare", for: .compare(entries: [CompareRequestEntry(
+            corpusId: "c1",
+            corpusName: "Corpus 1",
+            folderId: "f1",
+            folderName: "Folder",
+            sourceType: "txt",
+            content: baseText
+        )]))
 
         let evicted: String? = cache.value(for: .stats(text: baseText))
         let retained: String? = cache.value(for: .locator(text: baseText, sentenceId: 0, nodeIndex: 0, leftWindow: 1, rightWindow: 1))
@@ -74,5 +81,29 @@ final class NativeAnalysisResultCacheTests: XCTestCase {
 
         XCTAssertEqual(stats, "stats")
         XCTAssertNil(compare)
+    }
+
+    func testCompareCacheKeyIgnoresEntryOrdering() {
+        let first = CompareRequestEntry(
+            corpusId: "c1",
+            corpusName: "Corpus 1",
+            folderId: "f1",
+            folderName: "Folder",
+            sourceType: "txt",
+            content: "alpha beta"
+        )
+        let second = CompareRequestEntry(
+            corpusId: "c2",
+            corpusName: "Corpus 2",
+            folderId: "f1",
+            folderName: "Folder",
+            sourceType: "txt",
+            content: "gamma delta"
+        )
+
+        let keyA = NativeAnalysisResultCacheKey.compare(entries: [first, second])
+        let keyB = NativeAnalysisResultCacheKey.compare(entries: [second, first])
+
+        XCTAssertEqual(keyA, keyB)
     }
 }

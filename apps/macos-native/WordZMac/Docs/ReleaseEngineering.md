@@ -29,14 +29,24 @@
 - `Scripts/notarize-app.sh`
   用 `notarytool` 提交公证并尝试 `staple`
 
+## 默认产物目录
+
+如果没有显式设置 `WORDZ_MAC_DIST_DIR`，脚本默认把发布产物写到：
+
+- `apps/macos-native/WordZMac/dist-native`
+
 ## 建议发布顺序
 
-1. 运行 `package-app.sh`
-2. 运行 `verify-release.sh`
-3. 运行 `release-smoke.sh`
-4. 如果需要一次性跑完整检查，执行 `release-checklist.sh`
-5. 如果需要对外分发，执行 `notarize-app.sh`
-6. 再上传 GitHub Release 资产
+1. 先核对当前版本的 `Release Notes`、README 和版本审计清单，确认对外承诺与当前代码一致
+2. 运行 `package-app.sh`
+3. 运行 `verify-release.sh`
+4. 运行 `release-smoke.sh`
+5. 如果需要一次性跑完整检查，执行 `release-checklist.sh`
+6. 如果需要对外分发，执行 `notarize-app.sh`
+7. 上传 GitHub Release 资产
+8. 在干净机器或干净账户上做一次冷启动抽检
+
+`release-checklist.sh` 负责自动化检查，但不替代公证、资产上传和 clean-machine spot check 这三步人工门槛。
 
 ## 版本策略
 

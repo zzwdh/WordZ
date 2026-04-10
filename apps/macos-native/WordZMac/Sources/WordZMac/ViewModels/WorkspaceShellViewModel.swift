@@ -5,6 +5,7 @@ final class WorkspaceShellViewModel: ObservableObject {
     @Published var selectedTab: WorkspaceDetailTab = .stats {
         didSet {
             guard oldValue != selectedTab else { return }
+            guard suppressedTabChangeDepth == 0 else { return }
             onTabChange?()
         }
     }
@@ -24,6 +25,7 @@ final class WorkspaceShellViewModel: ObservableObject {
     private var hasLocatorSource = false
     private var hasExportableContent = false
     private var context = WorkspaceSceneContext.empty
+    private var suppressedTabChangeDepth = 0
 
     private var languageMode: AppLanguageMode {
         WordZLocalization.shared.effectiveMode
@@ -34,6 +36,19 @@ final class WorkspaceShellViewModel: ObservableObject {
               let restoredTab = WorkspaceDetailTab.fromSnapshotValue(snapshot.currentTab)
         else { return }
         selectedTab = restoredTab.mainWorkspaceTab
+    }
+
+    func setSelectedTab(
+        _ tab: WorkspaceDetailTab,
+        notifyTabChange: Bool
+    ) {
+        guard !notifyTabChange else {
+            selectedTab = tab
+            return
+        }
+        suppressedTabChangeDepth += 1
+        defer { suppressedTabChangeDepth -= 1 }
+        selectedTab = tab
     }
 
     func applyContext(_ context: WorkspaceSceneContext) {
@@ -79,9 +94,9 @@ final class WorkspaceShellViewModel: ObservableObject {
                     WorkspaceToolbarActionItem(action: .runTokenize, title: wordZText("分词", "Tokenize", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runTopics, title: wordZText("主题", "Topics", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runCompare, title: wordZText("对比", "Compare", mode: languageMode), isEnabled: actionEnabled && corpusCount >= 2),
+                    WorkspaceToolbarActionItem(action: .runKeyword, title: wordZText("关键词", "Keyword", mode: languageMode), isEnabled: actionEnabled && corpusCount >= 2),
                     WorkspaceToolbarActionItem(action: .runChiSquare, title: wordZText("卡方", "Chi-Square", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .runNgram, title: "N-Gram", isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runWordCloud, title: wordZText("词云", "Word Cloud", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runKWIC, title: "KWIC", isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runCollocate, title: wordZText("搭配词", "Collocate", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .runLocator, title: wordZText("定位", "Locator", mode: languageMode), isEnabled: actionEnabled && hasSelection && hasLocatorSource),

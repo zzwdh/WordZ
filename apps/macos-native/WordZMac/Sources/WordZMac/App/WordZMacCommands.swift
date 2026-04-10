@@ -1,9 +1,16 @@
+import AppKit
 import SwiftUI
 
 struct WordZMacCommands: Commands {
     @ObservedObject var workspace: MainWorkspaceViewModel
+    @ObservedObject private var shell: WorkspaceShellViewModel
     @ObservedObject private var localization = WordZLocalization.shared
     @Environment(\.openWindow) private var openWindow
+
+    init(workspace: MainWorkspaceViewModel) {
+        self.workspace = workspace
+        _shell = ObservedObject(wrappedValue: workspace.shell)
+    }
 
     var body: some Commands {
         SidebarCommands()
@@ -17,7 +24,7 @@ struct WordZMacCommands: Commands {
 
         CommandGroup(replacing: .appSettings) {
             Button(t("设置…", "Settings…")) {
-                openWindow(id: NativeWindowRoute.settings.id)
+                NativeSettingsSupport.openSettingsWindow()
             }
             .keyboardShortcut(",", modifiers: [.command])
         }
@@ -108,6 +115,46 @@ struct WordZMacCommands: Commands {
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
             .disabled(!isEnabled(.exportCurrent))
+
+            Divider()
+
+            Button(t("保存当前分析预设…", "Save Current Analysis Preset…")) {
+                Task { await workspace.saveCurrentAnalysisPreset() }
+            }
+            .disabled(!workspace.canManageAnalysisPresets)
+
+            Menu(t("应用分析预设", "Apply Analysis Preset")) {
+                if workspace.analysisPresets.isEmpty {
+                    Button(t("还没有已保存预设", "No saved presets yet")) { }
+                        .disabled(true)
+                } else {
+                    ForEach(workspace.analysisPresets) { preset in
+                        Button("\(preset.name) · \(preset.summary(in: localization.effectiveMode))") {
+                            Task { await workspace.applyAnalysisPreset(preset.id) }
+                        }
+                    }
+                }
+            }
+            .disabled(!workspace.canManageAnalysisPresets || workspace.analysisPresets.isEmpty)
+
+            Menu(t("删除分析预设", "Delete Analysis Preset")) {
+                if workspace.analysisPresets.isEmpty {
+                    Button(t("还没有已保存预设", "No saved presets yet")) { }
+                        .disabled(true)
+                } else {
+                    ForEach(workspace.analysisPresets) { preset in
+                        Button(preset.name, role: .destructive) {
+                            Task { await workspace.deleteAnalysisPreset(preset.id) }
+                        }
+                    }
+                }
+            }
+            .disabled(!workspace.canManageAnalysisPresets || workspace.analysisPresets.isEmpty)
+
+            Button(t("导出研究报告包…", "Export Research Report Bundle…")) {
+                Task { await workspace.exportCurrentReportBundle() }
+            }
+            .disabled(!workspace.canExportCurrentReportBundle)
         }
 
         CommandGroup(after: .windowArrangement) {
@@ -118,8 +165,6 @@ struct WordZMacCommands: Commands {
 
             windowButton(.taskCenter)
                 .keyboardShortcut("2", modifiers: [.command])
-
-            windowButton(.settings)
 
             Divider()
 
@@ -134,9 +179,9 @@ struct WordZMacCommands: Commands {
             analysisCommand(t("分词", "Tokenize"), action: .runTokenize)
             analysisCommand(t("主题", "Topics"), action: .runTopics)
             analysisCommand(t("对比", "Compare"), action: .runCompare)
+            analysisCommand(t("关键词", "Keyword"), action: .runKeyword)
             analysisCommand(t("卡方", "Chi-Square"), action: .runChiSquare)
             analysisCommand("N-Gram", action: .runNgram)
-            analysisCommand(t("词云", "Word Cloud"), action: .runWordCloud)
             analysisCommand("KWIC", action: .runKWIC)
             analysisCommand(t("搭配词", "Collocate"), action: .runCollocate)
             analysisCommand(t("定位", "Locator"), action: .runLocator)
@@ -145,6 +190,12 @@ struct WordZMacCommands: Commands {
         CommandGroup(replacing: .help) {
             Button(t("检查更新…", "Check for Updates…")) {
                 NativeAppCommandCenter.post(.checkForUpdates)
+            }
+
+            if workspace.settings.scene.canDownloadUpdate || workspace.settings.scene.canInstallDownloadedUpdate || workspace.settings.scene.isDownloadingUpdate {
+                Button(t("打开更新窗口", "Open Update Window")) {
+                    NativeAppCommandCenter.post(.showUpdateWindow)
+                }
             }
 
             if workspace.settings.scene.canDownloadUpdate {
@@ -181,12 +232,12 @@ struct WordZMacCommands: Commands {
     }
 
     private func isEnabled(_ action: WorkspaceToolbarAction) -> Bool {
-        workspace.rootScene.toolbar.items.first(where: { $0.action == action })?.isEnabled ?? true
+        shell.scene.toolbar.items.first(where: { $0.action == action })?.isEnabled ?? true
     }
 
     private func analysisCommand(_ title: String, action: WorkspaceToolbarAction) -> some View {
         Button(title) {
-            NativeAppCommandCenter.post(nativeCommand(for: action))
+            NativeAppCommandCenter.post(action.nativeCommand)
         }
         .disabled(!isEnabled(action))
     }
@@ -194,45 +245,6 @@ struct WordZMacCommands: Commands {
     private func windowButton(_ route: NativeWindowRoute) -> some View {
         Button(route.title(in: localization.effectiveMode)) {
             openWindow(id: route.id)
-        }
-    }
-
-    private func nativeCommand(for action: WorkspaceToolbarAction) -> NativeAppCommand {
-        switch action {
-        case .refresh:
-            return .refreshWorkspace
-        case .showLibrary:
-            return .showLibrary
-        case .openSelected:
-            return .openSelectedCorpus
-        case .previewCurrentCorpus:
-            return .quickLookCurrentCorpus
-        case .shareCurrentContent:
-            return .shareCurrentContent
-        case .runStats:
-            return .runStats
-        case .runWord:
-            return .runWord
-        case .runTokenize:
-            return .runTokenize
-        case .runTopics:
-            return .runTopics
-        case .runCompare:
-            return .runCompare
-        case .runChiSquare:
-            return .runChiSquare
-        case .runNgram:
-            return .runNgram
-        case .runWordCloud:
-            return .runWordCloud
-        case .runKWIC:
-            return .runKWIC
-        case .runCollocate:
-            return .runCollocate
-        case .runLocator:
-            return .runLocator
-        case .exportCurrent:
-            return .exportCurrent
         }
     }
 

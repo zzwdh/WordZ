@@ -1,0 +1,61 @@
+import Foundation
+
+@MainActor
+struct WorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
+    func make(
+        repository: any WorkspaceRepository,
+        workspacePersistence: WorkspacePersistenceService,
+        workspacePresentation: WorkspacePresentationService,
+        sceneStore: WorkspaceSceneStore,
+        windowDocumentController: NativeWindowDocumentController,
+        dialogService: NativeDialogServicing,
+        hostActionService: any NativeHostActionServicing,
+        sessionStore: WorkspaceSessionStore,
+        hostPreferencesStore: any NativeHostPreferencesStoring,
+        buildMetadataProvider: any NativeBuildMetadataProviding,
+        taskCenter: NativeTaskCenter,
+        libraryCoordinator: (any LibraryCoordinating)?
+    ) -> WorkspaceCoordinatorSet {
+        let resolvedLibraryCoordinator = libraryCoordinator ?? LibraryCoordinator(
+            repository: repository,
+            sessionStore: sessionStore
+        )
+        let libraryManagementCoordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: dialogService,
+            sessionStore: sessionStore
+        )
+        let exportCoordinator = WorkspaceExportCoordinator(dialogService: dialogService)
+        let resolvedFlowCoordinator = WorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: workspacePersistence,
+            workspacePresentation: workspacePresentation,
+            sceneStore: sceneStore,
+            windowDocumentController: windowDocumentController,
+            dialogService: dialogService,
+            hostActionService: hostActionService,
+            sessionStore: sessionStore,
+            hostPreferencesStore: hostPreferencesStore,
+            libraryCoordinator: resolvedLibraryCoordinator,
+            libraryManagementCoordinator: libraryManagementCoordinator,
+            exportCoordinator: exportCoordinator,
+            taskCenter: taskCenter
+        )
+        let bootstrapApplier = WorkspaceBootstrapApplier(
+            sceneStore: sceneStore,
+            sessionStore: sessionStore,
+            flowCoordinator: resolvedFlowCoordinator,
+            hostPreferencesStore: hostPreferencesStore,
+            buildMetadataProvider: buildMetadataProvider
+        )
+        let resolvedAppCoordinator = AppCoordinator(
+            repository: repository,
+            bootstrapApplier: bootstrapApplier
+        )
+        return WorkspaceCoordinatorSet(
+            libraryCoordinator: resolvedLibraryCoordinator,
+            flowCoordinator: resolvedFlowCoordinator,
+            appCoordinator: resolvedAppCoordinator
+        )
+    }
+}

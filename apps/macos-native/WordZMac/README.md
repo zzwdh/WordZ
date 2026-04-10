@@ -29,7 +29,7 @@ npm run native:mac:package
 产物默认输出到：
 
 ```bash
-/Users/zouyuxuan/corpus-lite/dist-native
+/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/dist-native
 ```
 
 打包完成后会额外生成：
@@ -57,7 +57,7 @@ WORDZ_MAC_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" npm run n
 先准备好 `notarytool` keychain profile，然后执行：
 
 ```bash
-WORDZ_MAC_NOTARY_PROFILE="your-profile" npm run native:mac:notarize -- /absolute/path/to/WordZ-1.2.0-mac-arm64.dmg
+WORDZ_MAC_NOTARY_PROFILE="your-profile" npm run native:mac:notarize -- /absolute/path/to/WordZ-1.2.9-mac-arm64.dmg
 ```
 
 ### 校验发布资产
@@ -66,14 +66,14 @@ WORDZ_MAC_NOTARY_PROFILE="your-profile" npm run native:mac:notarize -- /absolute
 
 ```bash
 zsh apps/macos-native/WordZMac/Scripts/verify-release.sh \
-  /absolute/path/to/dist-native/WordZ-1.2.0-mac-arm64.manifest.json
+  /absolute/path/to/apps/macos-native/WordZMac/dist-native/WordZ-1.2.9-mac-arm64.manifest.json
 ```
 
 也可以直接把 `.checksums.txt` 传给脚本：
 
 ```bash
 zsh apps/macos-native/WordZMac/Scripts/verify-release.sh \
-  /absolute/path/to/dist-native/WordZ-1.2.0-mac-arm64.checksums.txt
+  /absolute/path/to/apps/macos-native/WordZMac/dist-native/WordZ-1.2.9-mac-arm64.checksums.txt
 ```
 
 ### 一键发布检查
@@ -90,8 +90,10 @@ zsh apps/macos-native/WordZMac/Scripts/release-checklist.sh
 zsh apps/macos-native/WordZMac/Scripts/release-checklist.sh \
   --skip-tests \
   --skip-package \
-  --manifest /absolute/path/to/dist-native/WordZ-1.2.0-mac-arm64.manifest.json
+  --manifest /absolute/path/to/apps/macos-native/WordZMac/dist-native/WordZ-1.2.9-mac-arm64.manifest.json
 ```
+
+脚本完成后，若要正式对外发布，仍需要继续完成公证、上传 release 资产，并在干净机器或干净账户上做一次冷启动抽检。
 
 ## 说明
 
@@ -100,4 +102,4 @@ zsh apps/macos-native/WordZMac/Scripts/release-checklist.sh \
 - 应用内“导出诊断包”会生成 `.zip`，内含文本诊断、构建元信息、任务状态、工作区快照和持久化状态副本
 - 当前更新链默认仍然使用 GitHub Releases
 - 若未提供 Developer ID 证书，构建脚本默认执行 ad-hoc 签名，便于本地运行
-- 版本号采用次版本发布主功能、补丁号发布修复的策略，例如 `1.2.0 -> 1.2.1 -> 1.3.0`
+- 版本号采用次版本发布主功能、补丁号发布修复的策略，例如 `1.2.8 -> 1.2.9 -> 1.3.0`
