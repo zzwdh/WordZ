@@ -23,12 +23,20 @@ extension NativeCorpusDatabaseSupport {
             paragraphCount: Int(sqlite3_column_int(statement, offset + 12)),
             characterCount: Int(sqlite3_column_int(statement, offset + 13)),
             ttr: doubleColumn(statement, index: offset + 14),
-            sttr: doubleColumn(statement, index: offset + 15)
+            sttr: doubleColumn(statement, index: offset + 15),
+            cleanedAt: stringColumn(statement, index: offset + 16),
+            cleaningProfileVersion: stringColumn(statement, index: offset + 17),
+            cleaningRuleHits: decodeCleaningRuleHits(from: stringColumn(statement, index: offset + 18)),
+            originalCharacterCount: Int(sqlite3_column_int(statement, offset + 19)),
+            cleanedCharacterCount: Int(sqlite3_column_int(statement, offset + 20)),
+            cleanedTextDigest: stringColumn(statement, index: offset + 21)
         )
     }
 
     static func insertDocument(
-        _ text: String,
+        rawText: String,
+        cleanedText: String,
+        tokenizedSentencesJSON: String,
         metadata: NativeStoredCorpusMetadata,
         into db: OpaquePointer?
     ) throws {
@@ -52,8 +60,17 @@ extension NativeCorpusDatabaseSupport {
                 character_count,
                 ttr,
                 sttr,
+                cleaned_at,
+                cleaning_profile_version,
+                cleaning_rule_hits_json,
+                original_character_count,
+                cleaned_character_count,
+                cleaned_text_digest,
+                tokenized_sentences_json,
+                raw_text,
+                cleaned_text,
                 text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             on: db
         )
@@ -76,11 +93,51 @@ extension NativeCorpusDatabaseSupport {
         sqlite3_bind_int(statement, 15, Int32(metadata.characterCount))
         sqlite3_bind_double(statement, 16, metadata.ttr)
         sqlite3_bind_double(statement, 17, metadata.sttr)
-        bindText(text, to: statement, index: 18)
+        bindText(metadata.cleanedAt, to: statement, index: 18)
+        bindText(metadata.cleaningProfileVersion, to: statement, index: 19)
+        bindText(encodeCleaningRuleHits(metadata.cleaningRuleHits), to: statement, index: 20)
+        sqlite3_bind_int(statement, 21, Int32(metadata.originalCharacterCount))
+        sqlite3_bind_int(statement, 22, Int32(metadata.cleanedCharacterCount))
+        bindText(metadata.cleanedTextDigest, to: statement, index: 23)
+        bindText(tokenizedSentencesJSON, to: statement, index: 24)
+        bindText(rawText, to: statement, index: 25)
+        bindText(cleanedText, to: statement, index: 26)
+        bindText(cleanedText, to: statement, index: 27)
 
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw databaseError(on: db, message: "无法写入语料正文")
         }
+    }
+
+    static func encodeCleaningRuleHits(_ ruleHits: [LibraryCorpusCleaningRuleHit]) -> String {
+        guard !ruleHits.isEmpty else { return "[]" }
+        let jsonObject = ruleHits.map(\.jsonObject)
+        guard JSONSerialization.isValidJSONObject(jsonObject),
+              let data = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
+              let text = String(data: data, encoding: .utf8) else {
+            return "[]"
+        }
+        return text
+    }
+
+    static func encodeTokenizedSentences(_ sentences: [TokenizedSentence]) -> String {
+        guard !sentences.isEmpty else { return "[]" }
+        let jsonObject = sentences.map(\.jsonObject)
+        guard JSONSerialization.isValidJSONObject(jsonObject),
+              let data = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
+              let text = String(data: data, encoding: .utf8) else {
+            return "[]"
+        }
+        return text
+    }
+
+    static func decodeCleaningRuleHits(from rawValue: String) -> [LibraryCorpusCleaningRuleHit] {
+        guard let data = rawValue.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+              let items = jsonObject as? [JSONObject] else {
+            return []
+        }
+        return items.map(LibraryCorpusCleaningRuleHit.init)
     }
 
     static func insertFrequencyRows(_ rows: [FrequencyRow], into db: OpaquePointer?) throws {
@@ -111,6 +168,36 @@ extension NativeCorpusDatabaseSupport {
 
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 throw databaseError(on: db, message: "无法写入词频索引")
+            }
+        }
+    }
+
+    static func insertTokenPositions(_ sentences: [TokenizedSentence], into db: OpaquePointer?) throws {
+        let statement = try prepare(
+            """
+            INSERT INTO token_position (
+                sentence_id,
+                token_index,
+                exact_term,
+                normalized_term
+            ) VALUES (?, ?, ?, ?);
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(statement) }
+
+        for sentence in sentences {
+            for token in sentence.tokens {
+                sqlite3_reset(statement)
+                sqlite3_clear_bindings(statement)
+                sqlite3_bind_int(statement, 1, Int32(token.sentenceId))
+                sqlite3_bind_int(statement, 2, Int32(token.tokenIndex))
+                bindText(AnalysisTextNormalizationSupport.normalizeSearchText(token.original, caseSensitive: true), to: statement, index: 3)
+                bindText(token.normalized, to: statement, index: 4)
+
+                guard sqlite3_step(statement) == SQLITE_DONE else {
+                    throw databaseError(on: db, message: "无法写入位置索引")
+                }
             }
         }
     }

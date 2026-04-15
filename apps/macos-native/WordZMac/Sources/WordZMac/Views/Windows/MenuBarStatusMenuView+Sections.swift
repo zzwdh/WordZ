@@ -15,7 +15,7 @@ extension MenuBarStatusMenuView {
         if hasTaskItems {
             Divider()
             Menu(taskMenuTitle) {
-                Text(taskCenter.scene.summary)
+                Text(menuLabel(taskCenter.scene.summary))
                 Button(t("打开任务中心", "Open Task Center")) {
                     openWindowRoute(.taskCenter)
                 }
@@ -28,6 +28,7 @@ extension MenuBarStatusMenuView {
                 if taskCenter.scene.completedCount > 0 || taskCenter.scene.failedCount > 0 {
                     Divider()
                     Button(t("清理已完成任务", "Clear Finished Tasks")) {
+                        logMenuBarAction("clearFinishedTasks")
                         workspace.clearFinishedTasks()
                     }
                 }
@@ -42,7 +43,7 @@ extension MenuBarStatusMenuView {
             }
 
             Button(t("导入语料…", "Import Corpora…")) {
-                Task {
+                performMenuBarAction("importCorpora", detail: NativeWindowRoute.library.id) {
                     await workspace.initializeIfNeeded()
                     await openWindowRouteAndAwaitActivation(.library)
                     await workspace.importCorpusFromDialog()
@@ -50,7 +51,7 @@ extension MenuBarStatusMenuView {
             }
 
             Button(t("快速预览当前内容", "Quick Look Current Content")) {
-                Task {
+                performMenuBarAction("quickLookContent", detail: NativeWindowRoute.mainWorkspace.id) {
                     await openWindowRouteAndAwaitActivation(.mainWorkspace)
                     await workspace.quickLookCurrentCorpus()
                 }
@@ -58,7 +59,7 @@ extension MenuBarStatusMenuView {
             .disabled(!workspace.canQuickLookCurrentCorpus)
 
             Button(t("分享当前内容", "Share Current Content")) {
-                Task {
+                performMenuBarAction("shareContent", detail: NativeWindowRoute.mainWorkspace.id) {
                     await openWindowRouteAndAwaitActivation(.mainWorkspace)
                     await workspace.shareCurrentContent()
                 }
@@ -68,8 +69,8 @@ extension MenuBarStatusMenuView {
             if !recentDocuments.isEmpty {
                 Divider()
                 ForEach(recentDocuments.prefix(6)) { item in
-                    Button(item.title) {
-                        Task {
+                    Button(menuLabel(item.title)) {
+                        performMenuBarAction("openRecentDocument", detail: item.corpusID) {
                             await workspace.initializeIfNeeded()
                             await openWindowRouteAndAwaitActivation(.mainWorkspace)
                             await workspace.openRecentDocument(item.corpusID)
@@ -83,6 +84,7 @@ extension MenuBarStatusMenuView {
     var windowMenuSection: some View {
         Menu(t("窗口", "Windows")) {
             windowMenuButton(.library)
+            windowMenuButton(.evidenceWorkbench)
             windowMenuButton(.taskCenter)
             Divider()
             Button(t("设置…", "Settings…")) {
@@ -101,19 +103,35 @@ extension MenuBarStatusMenuView {
 
             Divider()
 
+            Button(t("打开更新窗口", "Open Update Window")) {
+                openWindowRoute(.updatePrompt)
+            }
+
             Button(t("检查更新…", "Check for Updates…")) {
-                Task { await workspace.checkForUpdatesNow() }
+                performMenuBarAction("checkForUpdates", detail: NativeWindowRoute.updatePrompt.id) {
+                    await workspace.checkForUpdatesNow()
+                }
             }
 
             if settings.scene.canDownloadUpdate {
                 Button(t("下载更新", "Download Update")) {
-                    Task { await workspace.downloadLatestUpdate() }
+                    performMenuBarAction("downloadUpdate", detail: settings.scene.latestAssetName) {
+                        await workspace.downloadLatestUpdate()
+                    }
                 }
             }
 
             if settings.scene.canInstallDownloadedUpdate {
                 Button(t("安装已下载更新", "Install Downloaded Update")) {
-                    Task { await workspace.installDownloadedUpdate() }
+                    performMenuBarAction("installDownloadedUpdate", detail: settings.scene.downloadedUpdateName) {
+                        await workspace.installDownloadedUpdate()
+                    }
+                }
+
+                Button(t("在 Finder 中显示已下载更新", "Reveal Downloaded Update in Finder")) {
+                    performMenuBarAction("revealDownloadedUpdate", detail: settings.scene.downloadedUpdateName) {
+                        await workspace.revealDownloadedUpdate()
+                    }
                 }
             }
         }
@@ -131,7 +149,7 @@ extension MenuBarStatusMenuView {
         if summary.isEmpty {
             return t("WordZ 菜单栏", "WordZ Menu Bar")
         }
-        return t("当前工作区：", "Workspace: ") + summary
+        return prefixedMenuLabel("当前工作区：", "Workspace: ", value: summary)
     }
 
     var currentCorpusTitle: String {
@@ -139,7 +157,7 @@ extension MenuBarStatusMenuView {
         guard !corpusName.isEmpty else {
             return ""
         }
-        return t("当前语料：", "Current Corpus: ") + corpusName
+        return prefixedMenuLabel("当前语料：", "Current Corpus: ", value: corpusName)
     }
 
     var recentDocuments: [RecentDocumentItem] {
@@ -175,14 +193,14 @@ extension MenuBarStatusMenuView {
 
     var updateSummaryLine: String {
         if settings.scene.isDownloadingUpdate, !settings.scene.downloadProgressLabel.isEmpty {
-            return settings.scene.downloadProgressLabel
+            return menuLabel(settings.scene.downloadProgressLabel)
         }
         if !settings.scene.downloadedUpdateName.isEmpty {
-            return t("已下载：", "Downloaded: ") + settings.scene.downloadedUpdateName
+            return prefixedMenuLabel("已下载：", "Downloaded: ", value: settings.scene.downloadedUpdateName)
         }
         if !settings.scene.latestReleaseTitle.isEmpty, settings.scene.canDownloadUpdate {
-            return t("可用版本：", "Available: ") + settings.scene.latestReleaseTitle
+            return prefixedMenuLabel("可用版本：", "Available: ", value: settings.scene.latestReleaseTitle)
         }
-        return settings.scene.supportStatus
+        return menuLabel(settings.scene.supportStatus)
     }
 }

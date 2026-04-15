@@ -1,6 +1,6 @@
 # WordZMac Architecture Baseline (Phase 0)
 
-Date: 2026-04-08  
+Date: 2026-04-12  
 Scope: 1.3.0 structural consolidation baseline  
 Rule set: no algorithm changes, no persistence format changes, no destructive migration
 
@@ -10,23 +10,23 @@ This is the current logical module shape, based on the actual source tree rather
 
 | Logical module | Current directories | Swift file count | Current role |
 | --- | --- | ---: | --- |
-| App | `App/` | 11 | app entry, menus, composition root |
-| Workspace | `Workspace/` | 86 | coordinators, repository orchestration, scene graph, shell state |
-| Analysis | `Analysis/` | 59 | scene builders, analysis services, filters, state protocols |
+| App | `App/` | 24 | app entry, menus, windowing policy, composition root |
+| Workspace | `Workspace/` | 93 | coordinators, repository orchestration, scene graph, shell state |
+| Analysis | `Analysis/` | 60 | scene builders, analysis services, filters, state protocols |
 | Engine | `Engine/` | 18 | local engine RPC transport, contracts, engine-side support |
-| Storage | `Storage/` | 24 | corpus persistence, workspace snapshot persistence, db/file storage |
-| Host | `Host/` | 14 | dialogs, quick look, sharing, update host actions, window integration |
+| Storage | `Storage/` | 29 | corpus persistence, workspace snapshot persistence, db/file storage |
+| Host | `Host/` | 17 | dialogs, quick look, sharing, notifications, update host actions, window integration |
 | Export | `Export/` | 11 | CSV/XLSX/TXT/report export services |
 | Diagnostics | `Diagnostics/` | 5 | diagnostics bundle writing, redaction, archive assembly |
-| Shared | `Shared/` | 3 | small cross-domain support helpers |
-| Presentation residue | `Models/`, `ViewModels/`, `Views/{Workspace,Workbench,Windows}` | 198 | still acts as a cross-cutting holding zone, but `Views` now has explicit workspace/workbench/window buckets |
+| Shared | `Shared/` | 9 | small cross-domain support helpers and adaptive visual support |
+| Presentation residue | `Models/`, `ViewModels/{Workspace,Pages,Library,Settings}`, `Views/{Workspace,Workbench,Windows}` | 252 | still acts as a cross-cutting holding zone, but `ViewModels` and `Views` now have explicit first-level buckets and frozen first-level boundaries |
 
 ## 2. Structural reading of the current system
 
 Representative current entry points:
 
 - App composition root: [NativeAppContainer.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/App/Composition/NativeAppContainer.swift)
-- Runtime dependency assembly: [MainWorkspaceRuntimeDependencies.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/ViewModels/MainWorkspaceRuntimeDependencies.swift)
+- Runtime dependency assembly: [MainWorkspaceRuntimeDependencies.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/ViewModels/Workspace/MainWorkspaceRuntimeDependencies.swift)
 - Coordinator assembly: [WorkspaceCoordinatorFactory.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Workspace/Services/WorkspaceCoordinatorFactory.swift)
 - Main app repository contract: [WorkspaceRepository.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Workspace/Protocols/WorkspaceRepository.swift)
 
@@ -35,6 +35,10 @@ What is already good:
 - App composition has started to split cleanly into `App / Workspace / Storage / Engine`.
 - `WorkspaceActionDispatcher`, `WorkspaceFlowCoordinator`, `WorkspaceSceneGraphStore`, and `MainWorkspaceViewModel` have already begun extension-based separation.
 - `Storage/Workspace` and `Storage/Library` have started to separate persistence concerns from orchestration concerns.
+- Window presentation now has an explicit layered shape:
+  `nativeWindowScenePresentation` owns scene defaults,
+  `adaptiveWindowScaffold` owns SwiftUI window surfaces,
+  and `bindWindowRoute` owns `NSWindow` registration, role policy, and chrome.
 
 What is still structurally expensive:
 
@@ -115,30 +119,30 @@ The following files are the current size-based and churn-risk hotspots. They are
 
 | Lines | File |
 | ---: | --- |
-| 310 | [TopicsView+Results.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Views/Workspace/Pages/TopicsView+Results.swift) |
-| 304 | [LibraryManagementView+Panes.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Views/Windows/LibraryManagementView+Panes.swift) |
-| 299 | [CollocateSceneModel.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Models/Scene/CollocateSceneModel.swift) |
-| 298 | [KeywordSceneBuilder.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Builders/KeywordSceneBuilder.swift) |
-| 297 | [SidebarView+Sections.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Views/Workspace/SidebarView+Sections.swift) |
-| 291 | [NativeAnalysisEngine+DocumentSupport.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Services/NativeAnalysisEngine+DocumentSupport.swift) |
-| 290 | [NativePersistedWorkspaceSnapshot.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Storage/Workspace/NativePersistedWorkspaceSnapshot.swift) |
-| 289 | [CollocateSceneBuilder.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Builders/CollocateSceneBuilder.swift) |
-| 288 | [WordZMacCommands.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/App/WordZMacCommands.swift) |
-| 284 | [KeywordAnalysisSupport.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Support/KeywordAnalysisSupport.swift) |
-| 278 | [NativeWorkspaceRepository+StoreOperations.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Workspace/Services/NativeWorkspaceRepository+StoreOperations.swift) |
-| 273 | [TokenizeView.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Views/Workspace/Pages/TokenizeView.swift) |
+| 902 | [KeywordSceneBuilder.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Builders/KeywordSceneBuilder.swift) |
+| 636 | [TextFileDecodingSupport.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Shared/Support/TextFileDecodingSupport.swift) |
+| 597 | [KeywordSuiteAnalysisSupport.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Support/KeywordSuiteAnalysisSupport.swift) |
+| 597 | [TopicModelManager.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Services/TopicModelManager.swift) |
+| 555 | [LibraryManagementViewModel+Scene.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/ViewModels/Library/LibraryManagementViewModel+Scene.swift) |
+| 504 | [KeywordPageViewModel.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/ViewModels/Pages/KeywordPageViewModel.swift) |
+| 496 | [KeywordViewControlsInline.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Views/Workspace/Pages/KeywordViewControlsInline.swift) |
+| 462 | [KeywordView+Controls.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Views/Workspace/Pages/KeywordView+Controls.swift) |
+| 443 | [KeywordSuiteModels.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Models/Analysis/KeywordSuiteModels.swift) |
+| 443 | [EngineLibraryMaintenanceModels.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Engine/Models/EngineLibraryMaintenanceModels.swift) |
+| 433 | [NativeTopicEngine+EmbeddingSupport.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Services/NativeTopicEngine+EmbeddingSupport.swift) |
+| 405 | [NativeTopicEngine+Clustering.swift](/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/Sources/WordZMac/Analysis/Services/NativeTopicEngine+Clustering.swift) |
 
 Interpretation:
 
-- The biggest remaining hotspots are not the coordinators anymore; they are now page views, scene models, builders, and storage snapshot models.
-- This means phase 1 should prioritize boundary rules and directory discipline, not another round of mechanical method extraction.
+- The hotspot map has shifted again. It is now dominated by keyword-suite assembly, text decoding, library scene building, and topic-model support rather than the older flat shell files.
+- This means the next phase should prioritize targeted hotspot reduction and ownership tightening, not another repo-wide directory reshuffle.
 
 ## 6. Must-converge areas
 
 These areas must be actively constrained in phase 1:
 
 1. Keep the legacy `Sources/WordZMac/Services` placeholder removed; new production code must land in a real domain directory instead.
-2. Stop adding new root-level files to `Models` and `Views`, and keep `ViewModels` root-level families constrained to the existing presentation types.
+2. Stop adding new root-level files to `Models`, keep `ViewModels` inside its fixed presentation buckets, and keep `Views` constrained to its existing first-level directories.
 3. Keep `WorkspaceRepository` as the stable contract for callers.
 4. Keep `NativeAppContainer` and `WorkspaceCoordinatorFactory` as assembly-only, not business-decision holders.
 5. Keep `Dispatcher -> ViewModel mutation -> SceneGraph sync -> Root scene apply` as the only presentation update chain.
@@ -169,7 +173,7 @@ Phase 1 should do exactly these things first:
    - `Sources/WordZMac/Services` stays removed
    - no new root-level files in `Models`
    - no new root-level Swift files in `Views`, and only `Workspace`, `Workbench`, `Windows` remain as first-level view directories
-   - no new root-level type families in `ViewModels`
+   - no root-level Swift files in `ViewModels`, and only `Workspace`, `Pages`, `Library`, `Settings` remain as first-level view-model directories
    - `Analysis` must not reference workspace shell, scene graph, or host UI services
    - `Storage` must not reference workspace shell or host UI services
 
@@ -179,8 +183,8 @@ The architecture guard now enforces the following baseline rules:
 
 1. `Sources/WordZMac/Services` must stay removed.
 2. `Models` must remain organized under subfolders only.
-3. `ViewModels` root-level files may only belong to these existing families:
-   `ChiSquarePageViewModel`, `CollocatePageViewModel`, `ComparePageViewModel`, `KWICPageViewModel`, `KeywordPageViewModel`, `LibraryManagementViewModel`, `LibrarySidebarViewModel`, `LocatorPageViewModel`, `MainWorkspaceRuntimeDependencies`, `MainWorkspaceViewModel`, `NgramPageViewModel`, `SceneSyncSource`, `StatsPageViewModel`, `TokenizePageViewModel`, `TopicsPageViewModel`, `WordPageViewModel`, `WorkspaceSettingsViewModel`, `WorkspaceShellViewModel`.
+3. `ViewModels` must not contain root-level Swift files, and its first-level directories are frozen to:
+   `Workspace`, `Pages`, `Library`, `Settings`.
 4. `Views` must not contain root-level Swift files, and its first-level directories are frozen to:
    `Workspace`, `Workbench`, `Windows`.
 5. `Analysis` may not reference `MainWorkspaceViewModel`, `WorkspaceFlowCoordinator`, `WorkspaceActionDispatcher`, `RootContentView`, `NativeWorkspaceRepository`, `NativeHostActionService`, `NativeDialogServicing`, `QuickLookPreviewFileService`, `WorkspaceSceneStore`, `WorkspaceSceneGraphStore`, or `WorkspaceShellViewModel`.

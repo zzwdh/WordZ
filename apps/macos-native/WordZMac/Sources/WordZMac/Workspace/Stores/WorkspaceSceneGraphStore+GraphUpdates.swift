@@ -14,9 +14,12 @@ extension WorkspaceSceneGraphStore {
         stats: WorkspaceResultSceneNode? = nil,
         topics: WorkspaceResultSceneNode? = nil,
         compare: WorkspaceResultSceneNode? = nil,
+        sentiment: WorkspaceResultSceneNode? = nil,
         keyword: WorkspaceResultSceneNode? = nil,
         chiSquare: WorkspaceResultSceneNode? = nil,
+        plot: WorkspaceResultSceneNode? = nil,
         ngram: WorkspaceResultSceneNode? = nil,
+        cluster: WorkspaceResultSceneNode? = nil,
         kwic: WorkspaceResultSceneNode? = nil,
         collocate: WorkspaceResultSceneNode? = nil,
         locator: WorkspaceResultSceneNode? = nil
@@ -33,9 +36,12 @@ extension WorkspaceSceneGraphStore {
                 sceneFieldChanged(stats, from: current.stats) ||
                 sceneFieldChanged(topics, from: current.topics) ||
                 sceneFieldChanged(compare, from: current.compare) ||
+                sceneFieldChanged(sentiment, from: current.sentiment) ||
                 sceneFieldChanged(keyword, from: current.keyword) ||
                 sceneFieldChanged(chiSquare, from: current.chiSquare) ||
+                sceneFieldChanged(plot, from: current.plot) ||
                 sceneFieldChanged(ngram, from: current.ngram) ||
+                sceneFieldChanged(cluster, from: current.cluster) ||
                 sceneFieldChanged(kwic, from: current.kwic) ||
                 sceneFieldChanged(collocate, from: current.collocate) ||
                 sceneFieldChanged(locator, from: current.locator)
@@ -55,9 +61,12 @@ extension WorkspaceSceneGraphStore {
             stats: stats ?? graph.stats,
             topics: topics ?? graph.topics,
             compare: compare ?? graph.compare,
+            sentiment: sentiment ?? graph.sentiment,
             keyword: keyword ?? graph.keyword,
             chiSquare: chiSquare ?? graph.chiSquare,
+            plot: plot ?? graph.plot,
             ngram: ngram ?? graph.ngram,
+            cluster: cluster ?? graph.cluster,
             kwic: kwic ?? graph.kwic,
             collocate: collocate ?? graph.collocate,
             locator: locator ?? graph.locator

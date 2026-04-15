@@ -1,0 +1,65 @@
+[
+  { "id": "t-pos-001", "split": "train", "domain": "general", "label": "positive", "text": "The interface is intuitive and very helpful." },
+  { "id": "t-pos-002", "split": "train", "domain": "general", "label": "positive", "text": "This update works well and feels stable." },
+  { "id": "t-pos-003", "split": "train", "domain": "academic", "label": "positive", "text": "The method provides a robust and effective baseline." },
+  { "id": "t-pos-004", "split": "train", "domain": "academic", "label": "positive", "text": "The findings offer a useful contribution to corpus research." },
+  { "id": "t-pos-005", "split": "train", "domain": "news", "label": "positive", "text": "Officials praised the program as a successful response." },
+  { "id": "t-pos-006", "split": "train", "domain": "kwic", "label": "positive", "text": "widely praised by teachers" },
+
+  { "id": "t-neu-001", "split": "train", "domain": "general", "label": "neutral", "text": "The report contains three sections and two appendices." },
+  { "id": "t-neu-002", "split": "train", "domain": "general", "label": "neutral", "text": "Users can export data in CSV or JSON format." },
+  { "id": "t-neu-003", "split": "train", "domain": "academic", "label": "neutral", "text": "The study examines 120 essays collected in 2024." },
+  { "id": "t-neu-004", "split": "train", "domain": "academic", "label": "neutral", "text": "Section 3 outlines the annotation procedure." },
+  { "id": "t-neu-005", "split": "train", "domain": "news", "label": "neutral", "text": "The meeting began at 9 a.m. and lasted two hours." },
+  { "id": "t-neu-006", "split": "train", "domain": "kwic", "label": "neutral", "text": "as shown in Table 2" },
+
+  { "id": "t-neg-001", "split": "train", "domain": "general", "label": "negative", "text": "The app is slow and frequently crashes." },
+  { "id": "t-neg-002", "split": "train", "domain": "general", "label": "negative", "text": "The explanation was unclear and misleading." },
+  { "id": "t-neg-003", "split": "train", "domain": "academic", "label": "negative", "text": "The evidence remains limited and somewhat inconclusive." },
+  { "id": "t-neg-004", "split": "train", "domain": "academic", "label": "negative", "text": "The method has serious limitations for low-resource domains." },
+  { "id": "t-neg-005", "split": "train", "domain": "news", "label": "negative", "text": "Opposition leaders slammed the proposal as costly and risky." },
+  { "id": "t-neg-006", "split": "train", "domain": "kwic", "label": "negative", "text": "highly problematic for learners" },
+
+  { "id": "v-pos-001", "split": "validation", "domain": "general", "label": "positive", "text": "The tutorial is clear and extremely useful." },
+  { "id": "v-pos-002", "split": "validation", "domain": "general", "label": "positive", "text": "The system delivered accurate and reliable results." },
+  { "id": "v-pos-003", "split": "validation", "domain": "academic", "label": "positive", "text": "The paper presents an effective and well-designed approach." },
+  { "id": "v-pos-004", "split": "validation", "domain": "academic", "label": "positive", "text": "The reviewers described the dataset as valuable and promising." },
+  { "id": "v-pos-005", "split": "validation", "domain": "news", "label": "positive", "text": "Markets reacted positively after the encouraging report." },
+  { "id": "v-pos-006", "split": "validation", "domain": "kwic", "label": "positive", "text": "remarkably effective in practice" },
+
+  { "id": "v-neu-001", "split": "validation", "domain": "general", "label": "neutral", "text": "The package includes a menu bar scene and one settings window." },
+  { "id": "v-neu-002", "split": "validation", "domain": "general", "label": "neutral", "text": "The article lists the dates and locations of the hearings." },
+  { "id": "v-neu-003", "split": "validation", "domain": "academic", "label": "neutral", "text": "The corpus was tokenized before frequency counts were calculated." },
+  { "id": "v-neu-004", "split": "validation", "domain": "academic", "label": "neutral", "text": "The results are preliminary and require further study." },
+  { "id": "v-neu-005", "split": "validation", "domain": "news", "label": "neutral", "text": "The bill was introduced on Tuesday." },
+  { "id": "v-neu-006", "split": "validation", "domain": "kwic", "label": "neutral", "text": "in the current study" },
+
+  { "id": "v-neg-001", "split": "validation", "domain": "general", "label": "negative", "text": "The workflow is confusing and the output is poor." },
+  { "id": "v-neg-002", "split": "validation", "domain": "general", "label": "negative", "text": "The warning message raised concern among users." },
+  { "id": "v-neg-003", "split": "validation", "domain": "academic", "label": "negative", "text": "The conclusion remains tentative because the sample is limited." },
+  { "id": "v-neg-004", "split": "validation", "domain": "academic", "label": "negative", "text": "The analysis is flawed and occasionally inaccurate." },
+  { "id": "v-neg-005", "split": "validation", "domain": "news", "label": "negative", "text": "The report warned of a worsening crisis." },
+  { "id": "v-neg-006", "split": "validation", "domain": "kwic", "label": "negative", "text": "serious risk to stability" },
+
+  { "id": "s-pos-001", "split": "test", "domain": "general", "label": "positive", "text": "The results are not bad and actually quite helpful." },
+  { "id": "s-pos-002", "split": "test", "domain": "general", "label": "positive", "text": "The feature is excellent and very reliable." },
+  { "id": "s-pos-003", "split": "test", "domain": "academic", "label": "positive", "text": "The experiment yielded robust and encouraging findings." },
+  { "id": "s-pos-004", "split": "test", "domain": "academic", "label": "positive", "text": "The article called the reform a successful step forward." },
+  { "id": "s-pos-005", "split": "test", "domain": "news", "label": "positive", "text": "The response was well received by local schools." },
+  { "id": "s-pos-006", "split": "test", "domain": "kwic", "label": "positive", "text": "clear and useful for beginners" },
+
+  { "id": "s-neu-001", "split": "test", "domain": "general", "label": "neutral", "text": "The dashboard shows frequency, range, and token totals." },
+  { "id": "s-neu-002", "split": "test", "domain": "general", "label": "neutral", "text": "The authors compare two corpora from different years." },
+  { "id": "s-neu-003", "split": "test", "domain": "academic", "label": "neutral", "text": "The findings are preliminary and should be interpreted cautiously." },
+  { "id": "s-neu-004", "split": "test", "domain": "academic", "label": "neutral", "text": "The sample includes interviews, essays, and news reports." },
+  { "id": "s-neu-005", "split": "test", "domain": "news", "label": "neutral", "text": "The committee released the document after the vote." },
+  { "id": "s-neu-006", "split": "test", "domain": "kwic", "label": "neutral", "text": "for the target corpus" },
+
+  { "id": "s-neg-001", "split": "test", "domain": "general", "label": "negative", "text": "The movie was good but very expensive." },
+  { "id": "s-neg-002", "split": "test", "domain": "general", "label": "negative", "text": "The tool is unstable and often produces problematic output." },
+  { "id": "s-neg-003", "split": "test", "domain": "academic", "label": "negative", "text": "The evidence is weak and the interpretation remains uncertain." },
+  { "id": "s-neg-004", "split": "test", "domain": "academic", "label": "negative", "text": "Critics blasted the announcement as controversial and harmful." },
+  { "id": "s-neg-005", "split": "test", "domain": "news", "label": "negative", "text": "The statement raised alarm about a severe decline." },
+  { "id": "s-neg-006", "split": "test", "domain": "kwic", "label": "negative", "text": "costly and risky for schools" }
+]
+

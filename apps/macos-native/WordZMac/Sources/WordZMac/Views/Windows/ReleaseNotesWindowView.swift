@@ -8,7 +8,11 @@ struct ReleaseNotesWindowView: View {
         ScrollView {
             releaseNotesWindowContent
         }
-        .bindWindowRoute(.releaseNotes)
+        .adaptiveWindowScaffold(for: .releaseNotes)
+        .bindWindowRoute(.releaseNotes, titleProvider: { mode in
+            NativeWindowRoute.releaseNotes.title(in: mode)
+        })
+        .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .releaseNotes))
         .frame(minWidth: 560, minHeight: 420)
     }
 

@@ -15,6 +15,8 @@ extension WorkspaceToolbarAction {
             return .showLibrary
         case .openSelected:
             return .openSelectedCorpus
+        case .openSourceReader:
+            return .openSourceReader
         case .previewCurrentCorpus:
             return .quickLookCurrentCorpus
         case .shareCurrentContent:
@@ -29,12 +31,18 @@ extension WorkspaceToolbarAction {
             return .runTopics
         case .runCompare:
             return .runCompare
+        case .runSentiment:
+            return .runSentiment
         case .runKeyword:
             return .runKeyword
         case .runChiSquare:
             return .runChiSquare
+        case .runPlot:
+            return .runPlot
         case .runNgram:
             return .runNgram
+        case .runCluster:
+            return .runCluster
         case .runKWIC:
             return .runKWIC
         case .runCollocate:
@@ -43,6 +51,27 @@ extension WorkspaceToolbarAction {
             return .runLocator
         case .exportCurrent:
             return .exportCurrent
+        }
+    }
+
+    var toolbarSymbolName: String {
+        switch self {
+        case .refresh:
+            return "arrow.clockwise"
+        case .showLibrary:
+            return "books.vertical"
+        case .openSelected:
+            return "arrow.up.right.square"
+        case .openSourceReader:
+            return "doc.text.magnifyingglass"
+        case .previewCurrentCorpus:
+            return "space"
+        case .shareCurrentContent:
+            return "square.and.arrow.up"
+        case .runStats, .runWord, .runTokenize, .runTopics, .runCompare, .runSentiment, .runKeyword, .runChiSquare, .runPlot, .runNgram, .runCluster, .runKWIC, .runCollocate, .runLocator:
+            return "play.fill"
+        case .exportCurrent:
+            return "square.and.arrow.up"
         }
     }
 }

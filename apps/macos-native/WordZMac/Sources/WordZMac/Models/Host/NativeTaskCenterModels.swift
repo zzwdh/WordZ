@@ -1,10 +1,6 @@
 import Foundation
 
-enum NativeBackgroundTaskState: String, Codable, Equatable {
-    case running
-    case completed
-    case failed
-
+extension NativeBackgroundTaskState {
     func displayLabel(in mode: AppLanguageMode) -> String {
         switch self {
         case .running:
@@ -28,12 +24,7 @@ enum NativeBackgroundTaskState: String, Codable, Equatable {
     }
 }
 
-enum NativeBackgroundTaskAction: Equatable {
-    case cancelTask(id: UUID)
-    case openFile(path: String)
-    case openURL(String)
-    case installDownloadedUpdate(path: String)
-
+extension NativeBackgroundTaskAction {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .cancelTask:
@@ -48,128 +39,12 @@ enum NativeBackgroundTaskAction: Equatable {
     }
 }
 
-struct NativeBackgroundTaskItem: Identifiable, Equatable {
-    let id: UUID
-    let title: String
-    let detail: String
-    let state: NativeBackgroundTaskState
-    let progress: Double?
-    let startedAt: Date
-    let updatedAt: Date
-    let primaryAction: NativeBackgroundTaskAction?
-
-    var normalizedProgress: Double? {
-        guard let progress else { return nil }
-        return min(max(progress, 0), 1)
-    }
-
+extension NativeBackgroundTaskItem {
     func progressLabel(in mode: AppLanguageMode) -> String {
         guard let normalizedProgress else {
             return state.displayLabel(in: mode)
         }
         return "\(Int((normalizedProgress * 100).rounded()))%"
-    }
-}
-
-struct PersistedNativeBackgroundTaskAction: Codable, Equatable {
-    let kind: String
-    let value: String
-
-    init(kind: String, value: String) {
-        self.kind = kind
-        self.value = value
-    }
-
-    init?(action: NativeBackgroundTaskAction?) {
-        guard let action else { return nil }
-        switch action {
-        case .cancelTask:
-            return nil
-        case .openFile(let path):
-            self.kind = "openFile"
-            self.value = path
-        case .openURL(let url):
-            self.kind = "openURL"
-            self.value = url
-        case .installDownloadedUpdate(let path):
-            self.kind = "installDownloadedUpdate"
-            self.value = path
-        }
-    }
-
-    var action: NativeBackgroundTaskAction? {
-        switch kind {
-        case "openFile":
-            return .openFile(path: value)
-        case "openURL":
-            return .openURL(value)
-        case "installDownloadedUpdate":
-            return .installDownloadedUpdate(path: value)
-        default:
-            return nil
-        }
-    }
-}
-
-struct PersistedNativeBackgroundTaskItem: Codable, Equatable {
-    let id: UUID
-    let title: String
-    let detail: String
-    let state: NativeBackgroundTaskState
-    let progress: Double?
-    let startedAt: Date
-    let updatedAt: Date
-    let primaryAction: PersistedNativeBackgroundTaskAction?
-
-    init(
-        id: UUID,
-        title: String,
-        detail: String,
-        state: NativeBackgroundTaskState,
-        progress: Double?,
-        startedAt: Date,
-        updatedAt: Date,
-        primaryAction: PersistedNativeBackgroundTaskAction?
-    ) {
-        self.id = id
-        self.title = title
-        self.detail = detail
-        self.state = state
-        self.progress = progress
-        self.startedAt = startedAt
-        self.updatedAt = updatedAt
-        self.primaryAction = primaryAction
-    }
-
-    init(item: NativeBackgroundTaskItem) {
-        self.id = item.id
-        self.title = item.title
-        self.detail = item.detail
-        self.state = item.state
-        self.progress = item.progress
-        self.startedAt = item.startedAt
-        self.updatedAt = item.updatedAt
-        self.primaryAction = PersistedNativeBackgroundTaskAction(action: item.primaryAction)
-    }
-
-    func restoredItem(interruptedDetail: String) -> NativeBackgroundTaskItem {
-        let restoredState: NativeBackgroundTaskState = state == .running ? .failed : state
-        let restoredDetail: String
-        if state == .running {
-            restoredDetail = detail.isEmpty ? interruptedDetail : "\(detail) \(interruptedDetail)"
-        } else {
-            restoredDetail = detail
-        }
-        return NativeBackgroundTaskItem(
-            id: id,
-            title: title,
-            detail: restoredDetail,
-            state: restoredState,
-            progress: restoredState == .completed ? 1 : (restoredState == .running ? progress : nil),
-            startedAt: startedAt,
-            updatedAt: updatedAt,
-            primaryAction: restoredState == .running ? nil : primaryAction?.action
-        )
     }
 }
 

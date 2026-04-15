@@ -1,20 +1,6 @@
 import SwiftUI
 
 extension TokenizeView {
-    var tokenizeHeaderActions: some View {
-        WorkbenchPageHeaderActions(
-            summary: "\(viewModel.languagePreset.title(in: languageMode)) · \(viewModel.lemmaStrategy.title(in: languageMode))",
-            layout: .inline
-        ) {
-            Button(t("开始分词", "Run Tokenize")) { onAction(.run) }
-                .buttonStyle(.borderedProminent)
-                .disabled(isBusy)
-            Button(t("导出 TXT", "Export TXT")) { onAction(.exportText) }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.exportDocument == nil)
-        }
-    }
-
     var tokenizeInputSection: some View {
         WorkbenchSearchToolbarSection(
             searchOptions: $viewModel.searchOptions,
@@ -22,7 +8,14 @@ extension TokenizeView {
             isEditingStopwords: $viewModel.isEditingStopwords
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                tokenizeSearchField
+                WorkbenchInlineActionStrip {
+                    tokenizeSearchField
+                } actions: {
+                    HStack(spacing: 8) {
+                        tokenizeRunButton
+                        exportTextButton
+                    }
+                }
 
                 WorkbenchAdaptiveControls {
                     HStack(spacing: 12) {
@@ -36,6 +29,10 @@ extension TokenizeView {
                         lemmaStrategyPicker
                     }
                 }
+
+                Text(tokenizeControlSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -64,5 +61,21 @@ extension TokenizeView {
         ) {
             $0.title(in: languageMode)
         }
+    }
+
+    var tokenizeRunButton: some View {
+        Button(t("开始分词", "Run Tokenize")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
+            .disabled(isBusy)
+    }
+
+    var exportTextButton: some View {
+        Button(t("导出 TXT", "Export TXT")) { onAction(.exportText) }
+            .buttonStyle(.bordered)
+            .disabled(viewModel.exportDocument == nil)
+    }
+
+    var tokenizeControlSummary: String {
+        "\(viewModel.languagePreset.title(in: languageMode)) · \(viewModel.lemmaStrategy.title(in: languageMode))"
     }
 }

@@ -1,0 +1,154 @@
+{
+  "corpora": [
+    {
+      "id": "three-theme-exact",
+      "kind": "exact",
+      "minTopicSize": 2,
+      "expectedThemes": ["security", "climate", "finance"],
+      "baselinePurity": 0.82,
+      "requiredPurityLift": 0.08,
+      "baselineThemeRecall": 0.67,
+      "maxDurationMs": 4000,
+      "documents": [
+        {
+          "label": "security",
+          "text": "Security researchers mapped botnet infrastructure, sandbox telemetry, and vulnerability disclosure timelines across gateway vendors."
+        },
+        {
+          "label": "security",
+          "text": "Incident responders traced malware loaders through rotating command servers and preserved forensic evidence from compromised endpoints."
+        },
+        {
+          "label": "security",
+          "text": "Threat hunters compared phishing kits, credential theft templates, and remote access gateway lures across recent campaigns."
+        },
+        {
+          "label": "climate",
+          "text": "Climate scientists measured glacier melt rates, regional temperature anomalies, and atmospheric circulation during the summer survey."
+        },
+        {
+          "label": "climate",
+          "text": "Environmental agencies tracked renewable energy adoption, methane reductions, and decarbonization targets in coastal cities."
+        },
+        {
+          "label": "climate",
+          "text": "Researchers modeled drought risk, carbon emissions, and ocean warming to forecast long-term pressure on agriculture."
+        },
+        {
+          "label": "finance",
+          "text": "Equity analysts reviewed earnings guidance, margin expansion, and valuation multiples after quarterly results."
+        },
+        {
+          "label": "finance",
+          "text": "Investors rebalanced bond holdings, inflation expectations, and credit spreads after the central bank meeting."
+        },
+        {
+          "label": "finance",
+          "text": "Market strategists compared cash flow, dividend outlooks, and sector rotation signals across large-cap portfolios."
+        }
+      ]
+    },
+    {
+      "id": "security-overlap-exact",
+      "kind": "exact",
+      "minTopicSize": 2,
+      "expectedThemes": ["disclosure", "phishing", "malware"],
+      "baselinePurity": 0.74,
+      "requiredPurityLift": 0.08,
+      "baselineThemeRecall": 0.67,
+      "maxDurationMs": 5000,
+      "documents": [
+        {
+          "label": "disclosure",
+          "text": "Security analysts coordinated vulnerability disclosure timelines, browser patches, and vendor advisories after the incident review."
+        },
+        {
+          "label": "disclosure",
+          "text": "Researchers compared exploit chains, patch coverage, and disclosure notes to prioritize browser remediation work."
+        },
+        {
+          "label": "disclosure",
+          "text": "Incident teams summarized vulnerability telemetry, vendor patch windows, and disclosure checklists for security leadership."
+        },
+        {
+          "label": "phishing",
+          "text": "Security teams cataloged credential phishing templates, lure domains, and gateway login pages reused across campaigns."
+        },
+        {
+          "label": "phishing",
+          "text": "Researchers tracked phishing kits, credential theft messages, and fake single-sign-on prompts targeting remote workers."
+        },
+        {
+          "label": "phishing",
+          "text": "Operators rotated phishing infrastructure, cloned gateway branding, and refreshed credential harvesting pages overnight."
+        },
+        {
+          "label": "malware",
+          "text": "Security responders traced malware loaders, command servers, and forensic artifacts from the first compromised endpoint."
+        },
+        {
+          "label": "malware",
+          "text": "Reverse engineers connected malware samples, loader behavior, and command infrastructure to the same operator cluster."
+        },
+        {
+          "label": "malware",
+          "text": "Defenders compared malware telemetry, command beacons, and endpoint evidence to map the intrusion path."
+        }
+      ]
+    },
+    {
+      "id": "three-theme-exact-300",
+      "kind": "exact",
+      "minTopicSize": 4,
+      "expectedThemes": ["security", "climate", "finance"],
+      "baselinePurity": 0.76,
+      "requiredPurityLift": 0.08,
+      "baselineThemeRecall": 0.67,
+      "maxDurationMs": 8000,
+      "documents": [
+        {
+          "label": "security",
+          "repeatCount": 100,
+          "text": "Security analysts correlated vulnerability disclosures, malware infrastructure, and incident timelines for gateway cluster."
+        },
+        {
+          "label": "climate",
+          "repeatCount": 100,
+          "text": "Climate researchers measured carbon emissions, renewable adoption, and drought pressure across regional basin."
+        },
+        {
+          "label": "finance",
+          "repeatCount": 100,
+          "text": "Market analysts reviewed earnings guidance, cash flow, inflation expectations, and valuation shifts for portfolio."
+        }
+      ]
+    },
+    {
+      "id": "three-theme-approx-450",
+      "kind": "approximate",
+      "minTopicSize": 4,
+      "expectedThemes": ["security", "climate", "finance"],
+      "baselinePurity": 0.78,
+      "requiredPurityLift": 0.05,
+      "baselineThemeRecall": 0.67,
+      "maxDurationMs": 12000,
+      "documents": [
+        {
+          "label": "security",
+          "repeatCount": 150,
+          "text": "Security analysts correlated vulnerability disclosures, malware infrastructure, and incident timelines for gateway cluster."
+        },
+        {
+          "label": "climate",
+          "repeatCount": 150,
+          "text": "Climate researchers measured carbon emissions, renewable adoption, and drought pressure across regional basin."
+        },
+        {
+          "label": "finance",
+          "repeatCount": 150,
+          "text": "Market analysts reviewed earnings guidance, cash flow, inflation expectations, and valuation shifts for portfolio."
+        }
+      ]
+    }
+  ]
+}

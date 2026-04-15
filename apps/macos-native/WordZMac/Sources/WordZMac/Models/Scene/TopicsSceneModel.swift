@@ -46,6 +46,7 @@ struct TopicsSelectedClusterSceneModel: Equatable {
 
 struct TopicsControlsSceneModel: Equatable {
     let minTopicSize: Int
+    let keywordDisplayCount: Int
     let includeOutliers: Bool
     let selectedSort: TopicSegmentSortMode
     let selectedPageSize: TopicsPageSize
@@ -73,7 +74,10 @@ struct TopicsSceneModel: Equatable {
     let modelProvider: String
     let modelVersion: String
     let usesFallbackProvider: Bool
+    let warnings: [String]
     let searchError: String
+    let summaryExportMetadataLines: [String]
+    let segmentsExportMetadataLines: [String]
 
     func column(for key: TopicsColumnKey) -> NativeTableColumnDescriptor? {
         table.column(id: key.rawValue)
@@ -92,7 +96,8 @@ struct TopicsSceneModel: Equatable {
         return NativeTableExportSnapshot(
             suggestedBaseName: "topics-summary",
             table: summaryTable,
-            rows: summaryRows
+            rows: summaryRows,
+            metadataLines: summaryExportMetadataLines
         )
     }
 
@@ -101,7 +106,8 @@ struct TopicsSceneModel: Equatable {
         return NativeTableExportSnapshot(
             suggestedBaseName: "topics-segments",
             table: table,
-            rows: tableRows
+            rows: tableRows,
+            metadataLines: segmentsExportMetadataLines
         )
     }
 }

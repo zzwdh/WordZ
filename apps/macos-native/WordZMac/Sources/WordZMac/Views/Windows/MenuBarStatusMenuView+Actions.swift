@@ -1,13 +1,18 @@
 import AppKit
+import OSLog
 import SwiftUI
+
+private let menuBarLogger = WordZTelemetry.logger(category: "MenuBar")
 
 extension MenuBarStatusMenuView {
     @ViewBuilder
     func taskMenuItem(_ item: NativeBackgroundTaskItem) -> some View {
-        let title = "\(item.title) · \(item.progressLabel(in: languageMode))"
+        let title = menuLabel("\(item.title) · \(item.progressLabel(in: languageMode))")
         if let action = item.primaryAction {
             Button(title) {
-                Task { await workspace.performTaskAction(action) }
+                performMenuBarAction("taskAction", detail: item.title) {
+                    await workspace.performTaskAction(action)
+                }
             }
         } else {
             Text(title)
@@ -25,6 +30,7 @@ extension MenuBarStatusMenuView {
     }
 
     func openSettingsWindow() {
+        logMenuBarAction("openSettings", detail: NativeWindowRoute.settings.id)
         NativeSettingsSupport.openSettingsWindow()
     }
 
@@ -33,6 +39,7 @@ extension MenuBarStatusMenuView {
     }
 
     func openWindowRoute(_ route: NativeWindowRoute) {
+        logMenuBarAction("openWindow", detail: route.id)
         let application = NSApplication.shared
         application.setActivationPolicy(.regular)
         application.activate(ignoringOtherApps: true)
@@ -46,5 +53,22 @@ extension MenuBarStatusMenuView {
     func openWindowRouteAndAwaitActivation(_ route: NativeWindowRoute) async {
         openWindowRoute(route)
         _ = await NativeWindowRouting.waitUntilActive(route)
+    }
+
+    func performMenuBarAction(
+        _ action: String,
+        detail: String = "",
+        _ operation: @escaping @MainActor () async -> Void
+    ) {
+        logMenuBarAction(action, detail: detail)
+        Task { await operation() }
+    }
+
+    func logMenuBarAction(_ action: String, detail: String = "") {
+        if detail.isEmpty {
+            menuBarLogger.info("action=\(action, privacy: .public)")
+        } else {
+            menuBarLogger.info("action=\(action, privacy: .public) detail=\(detail, privacy: .public)")
+        }
     }
 }

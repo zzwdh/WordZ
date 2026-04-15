@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class TextFileDecodingSupportTests: XCTestCase {
     private var temporaryFiles: [URL] = []
@@ -29,8 +29,19 @@ final class TextFileDecodingSupportTests: XCTestCase {
     }
 
     func testReadTextDocumentDecodesLargeUTF8File() throws {
-        let content = Array(repeating: "Alpha beta gamma delta", count: 30_000).joined(separator: "\n")
+        let content = Array(repeating: "Alpha beta 词语🙂 delta", count: 30_000).joined(separator: "\n")
         let url = makeTemporaryFileURL(named: "large-utf8.txt")
+        try content.write(to: url, atomically: true, encoding: .utf8)
+
+        let document = try TextFileDecodingSupport.readTextDocument(at: url)
+
+        XCTAssertEqual(document.text, content)
+        XCTAssertEqual(document.encodingName, "utf-8")
+    }
+
+    func testReadTextDocumentDecodesLargeUTF8FileWithMultibyteCharactersAcrossChunks() throws {
+        let content = String(repeating: "a", count: 70_000) + Array(repeating: "边界🙂测试", count: 15_000).joined()
+        let url = makeTemporaryFileURL(named: "large-utf8-multibyte.txt")
         try content.write(to: url, atomically: true, encoding: .utf8)
 
         let document = try TextFileDecodingSupport.readTextDocument(at: url)

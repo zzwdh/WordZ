@@ -43,6 +43,18 @@ extension CompareView {
                 }
 
                 HStack(spacing: 12) {
+                    Button(t("在 KWIC 中打开", "Open in KWIC")) {
+                        onAction(.openKWIC)
+                    }
+                    Button(t("打开搭配分析", "Open Collocate")) {
+                        onAction(.openCollocate)
+                    }
+                    Button(t("保存语料集", "Save Corpus Set")) {
+                        onAction(.saveCorpusSet)
+                    }
+                    Button(t("转到 Keyword Suite", "Analyze in Keyword Suite")) {
+                        onAction(.analyzeInKeywordSuite)
+                    }
                     Menu(t("研究导出", "Research Export")) {
                         Button("Copy Current") {
                             onAction(.copyCurrent(.summary))

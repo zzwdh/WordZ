@@ -1,6 +1,14 @@
 import Foundation
 
 extension NativeAnalysisEngine {
+    func runKeywordSuite(_ request: KeywordSuiteRunRequest) -> KeywordSuiteResult {
+        KeywordSuiteAnalyzer.analyze(request)
+    }
+
+    func runPreparedKeywordSuite(_ request: PreparedKeywordSuiteRequest) -> KeywordSuiteResult {
+        KeywordSuiteAnalyzer.analyzePrepared(request)
+    }
+
     func runCompare(comparisonEntries: [CompareRequestEntry]) -> CompareResult {
         let prepared = comparisonEntries.map { entry -> PreparedCompareCorpus in
             let index = indexedDocument(for: entry.content)
@@ -16,9 +24,13 @@ extension NativeAnalysisEngine {
             )
         }
 
-        let allWords = Set(prepared.flatMap { $0.frequency.keys })
+        return runPreparedCompare(preparedCorpora: prepared)
+    }
+
+    func runPreparedCompare(preparedCorpora: [PreparedCompareCorpus]) -> CompareResult {
+        let allWords = Set(preparedCorpora.flatMap { $0.frequency.keys })
         let rows: [JSONObject] = allWords.map { word in
-            let perCorpus: [JSONObject] = prepared.map { corpus in
+            let perCorpus: [JSONObject] = preparedCorpora.map { corpus in
                 let count = corpus.frequency[word, default: 0]
                 let normFreq = corpus.tokenCount > 0
                     ? (Double(count) / Double(corpus.tokenCount)) * 10_000
@@ -33,7 +45,7 @@ extension NativeAnalysisEngine {
                 ]
             }
 
-            let total = perCorpus.reduce(0) { $0 + (JSONFieldReader.int($1, key: "count")) }
+            let total = perCorpus.reduce(0) { $0 + JSONFieldReader.int($1, key: "count") }
             let spread = perCorpus.filter { JSONFieldReader.int($0, key: "count") > 0 }.count
             let normFreqs = perCorpus.map { JSONFieldReader.double($0, key: "normFreq") }
             let range = (normFreqs.max() ?? 0) - (normFreqs.min() ?? 0)
@@ -48,7 +60,7 @@ extension NativeAnalysisEngine {
             let dominantCount = JSONFieldReader.int(dominant ?? [:], key: "count")
             let dominantTokenCount = JSONFieldReader.int(dominant ?? [:], key: "tokenCount")
             let referenceCount = max(0, total - dominantCount)
-            let referenceTokenCount = max(0, prepared.reduce(0) { $0 + $1.tokenCount } - dominantTokenCount)
+            let referenceTokenCount = max(0, preparedCorpora.reduce(0) { $0 + $1.tokenCount } - dominantTokenCount)
             let referenceNormFreq = referenceTokenCount > 0
                 ? (Double(referenceCount) / Double(referenceTokenCount)) * 10_000
                 : 0
@@ -80,7 +92,7 @@ extension NativeAnalysisEngine {
             ] as JSONObject
         }
 
-        let corpora: [JSONObject] = prepared.map { corpus in
+        let corpora: [JSONObject] = preparedCorpora.map { corpus in
             [
                 "corpusId": corpus.entry.corpusId,
                 "corpusName": corpus.entry.corpusName,
@@ -105,7 +117,7 @@ extension NativeAnalysisEngine {
         referenceEntry: KeywordRequestEntry,
         options: KeywordPreprocessingOptions
     ) -> KeywordResult {
-        KeywordAnalyzer.analyze(
+        KeywordSuiteAnalyzer.legacyAnalyze(
             target: targetEntry,
             reference: referenceEntry,
             options: options

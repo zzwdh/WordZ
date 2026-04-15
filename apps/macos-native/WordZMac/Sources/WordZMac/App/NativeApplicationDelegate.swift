@@ -4,30 +4,34 @@ import Foundation
 private let lifecycleLogger = WordZTelemetry.logger(category: "Lifecycle")
 
 @MainActor
-final class NativeApplicationDelegate: NSObject, NSApplicationDelegate, ObservableObject {
+package final class NativeApplicationDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published private(set) var pendingOpenPaths: [String] = []
     private var presentWindow: ((NativeWindowRoute) -> Void)?
     private var pendingWindowRoute: NativeWindowRoute?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    package override init() {
+        super.init()
+    }
+
+    package func applicationDidFinishLaunching(_ notification: Notification) {
         lifecycleLogger.info("applicationDidFinishLaunching")
         NSApplication.shared.setActivationPolicy(.regular)
         NSWindow.allowsAutomaticWindowTabbing = false
     }
 
-    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+    package func application(_ sender: NSApplication, openFiles filenames: [String]) {
         enqueue(paths: filenames)
         sender.reply(toOpenOrPrint: .success)
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    package func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
             presentWindowRoute(.mainWorkspace)
         }
         return true
     }
 
-    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+    package func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
     }
 

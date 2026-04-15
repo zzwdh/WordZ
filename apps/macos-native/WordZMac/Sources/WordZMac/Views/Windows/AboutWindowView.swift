@@ -8,7 +8,11 @@ struct AboutWindowView: View {
         ScrollView {
             aboutWindowContent
         }
-        .bindWindowRoute(.about)
+        .adaptiveWindowScaffold(for: .about)
+        .bindWindowRoute(.about, titleProvider: { mode in
+            NativeWindowRoute.about.title(in: mode)
+        })
+        .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .about))
         .frame(minWidth: 460, minHeight: 360)
     }
 

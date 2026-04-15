@@ -12,7 +12,10 @@ enum LibraryManagementAction: Equatable {
     case selectRecycleEntry(String?)
     case openSelectedCorpus
     case quickLookSelectedCorpus
+    case shareSelectedCorpus
     case showSelectedCorpusInfo
+    case cleanSelectedCorpus
+    case cleanSelectedCorpora
     case editSelectedCorpusMetadata
     case editSelectedCorporaMetadata
     case saveSelectedCorpusMetadata(CorpusMetadataProfile)

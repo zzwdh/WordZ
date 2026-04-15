@@ -11,7 +11,8 @@ enum TextFileDecodingSupport {
         if unsupportedBinaryExtensions.contains(pathExtension) {
             throw unsupportedFormatError(fileName: url.lastPathComponent)
         }
-        return try readTextDocument(at: url)
+        let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+        return try decodeImported(data: data, sourceName: url.lastPathComponent)
     }
 
     static func readTextDocument(at url: URL) throws -> DecodedTextDocument {
@@ -65,10 +66,59 @@ enum TextFileDecodingSupport {
         encoding: String.Encoding,
         encodingName: String
     ) throws -> DecodedTextDocument? {
+        if streamedDirectEncodings.contains(encoding) {
+            return try decodeDirectStreamedDocument(
+                at: url,
+                encoding: encoding,
+                encodingName: encodingName
+            )
+        }
+
         guard let string = try? String(contentsOf: url, encoding: encoding) else {
             return nil
         }
         let sanitized = sanitizeDecodedString(string)
+        let metrics = analyzeText(sanitized)
+        guard isAcceptableText(metrics) else {
+            return nil
+        }
+        return DecodedTextDocument(text: sanitized, encodingName: encodingName)
+    }
+
+    private static func decodeDirectStreamedDocument(
+        at url: URL,
+        encoding: String.Encoding,
+        encodingName: String
+    ) throws -> DecodedTextDocument? {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+
+        var pendingBytes = Data()
+        var decodedText = ""
+
+        while let chunk = try handle.read(upToCount: directReadChunkByteCount), !chunk.isEmpty {
+            pendingBytes.append(chunk)
+
+            guard let step = streamedDecodeStep(
+                for: pendingBytes,
+                encoding: encoding,
+                maxCarryByteCount: streamedEncodingMaxCarryByteCount
+            ) else {
+                return nil
+            }
+
+            decodedText.append(step.decodedText)
+            pendingBytes = step.pendingBytes
+        }
+
+        if !pendingBytes.isEmpty {
+            guard let tail = String(data: pendingBytes, encoding: encoding) else {
+                return nil
+            }
+            decodedText.append(tail)
+        }
+
+        let sanitized = sanitizeDecodedString(decodedText)
         let metrics = analyzeText(sanitized)
         guard isAcceptableText(metrics) else {
             return nil
@@ -129,6 +179,66 @@ enum TextFileDecodingSupport {
         throw unsupportedFormatError(fileName: sourceName)
     }
 
+    private static func decodeImported(data: Data, sourceName: String) throws -> DecodedTextDocument {
+        guard !data.isEmpty else {
+            return DecodedTextDocument(text: "", encodingName: "utf-8")
+        }
+
+        if let byteOrderMark = detectByteOrderMark(in: data),
+           let decoded = decodeImportedText(
+               data: data.dropFirst(byteOrderMark.byteCount),
+               encoding: byteOrderMark.encoding,
+               encodingName: byteOrderMark.name,
+               preserveLeadingBOM: true
+           ) {
+            return decoded
+        }
+
+        if let utf8 = decodeImportedText(
+            data: data[...],
+            encoding: .utf8,
+            encodingName: "utf-8",
+            preserveLeadingBOM: false
+        ) {
+            return utf8
+        }
+
+        if let preferredUnicode = preferredUnicodeEncoding(for: data),
+           let decoded = decodeImportedText(
+               data: data[...],
+               encoding: preferredUnicode.encoding,
+               encodingName: preferredUnicode.name,
+               preserveLeadingBOM: false
+           ) {
+            return decoded
+        }
+
+        var bestMatch: DecodedTextEvaluation?
+        for candidate in candidateEncodings(for: data) {
+            guard let decoded = decodeImportedText(
+                data: data[...],
+                encoding: candidate.encoding,
+                encodingName: candidate.name,
+                preserveLeadingBOM: false
+            ) else {
+                continue
+            }
+
+            let metrics = analyzeText(decoded.text)
+            let evaluation = DecodedTextEvaluation(document: decoded, score: scoreText(metrics))
+            if let bestMatch, bestMatch.score >= evaluation.score {
+                continue
+            }
+            bestMatch = evaluation
+        }
+
+        if let bestMatch {
+            return bestMatch.document
+        }
+
+        throw unsupportedFormatError(fileName: sourceName)
+    }
+
     private static func preferredUnicodeEncoding(for data: Data) -> (encoding: String.Encoding, name: String)? {
         let profile = BytePatternProfile(bytes: Array(data.prefix(decodingProbeByteCount)))
         if profile.looksLikeUTF32LittleEndian {
@@ -162,6 +272,24 @@ enum TextFileDecodingSupport {
             document: DecodedTextDocument(text: string, encodingName: encodingName),
             score: scoreText(metrics)
         )
+    }
+
+    private static func decodeImportedText(
+        data: Data.SubSequence,
+        encoding: String.Encoding,
+        encodingName: String,
+        preserveLeadingBOM: Bool
+    ) -> DecodedTextDocument? {
+        guard let decoded = String(data: data, encoding: encoding) else {
+            return nil
+        }
+
+        let text = preserveLeadingBOM ? "\u{FEFF}" + decoded : decoded
+        let metrics = analyzeText(text)
+        guard isAcceptableImportedText(metrics) else {
+            return nil
+        }
+        return DecodedTextDocument(text: text, encodingName: encodingName)
     }
 
     private static func candidateEncodings(for data: Data) -> [(encoding: String.Encoding, name: String)] {
@@ -211,6 +339,9 @@ enum TextFileDecodingSupport {
             }
             if CharacterSet.controlCharacters.contains(scalar) && !allowedControlScalars.contains(scalar.value) {
                 metrics.unexpectedControlCount += 1
+                if importSafeControlScalars.contains(scalar.value) {
+                    metrics.cleanableControlCount += 1
+                }
             }
             if CharacterSet.whitespacesAndNewlines.contains(scalar) {
                 metrics.whitespaceCount += 1
@@ -244,6 +375,19 @@ enum TextFileDecodingSupport {
             textualRatio >= 0.85
     }
 
+    private static func isAcceptableImportedText(_ metrics: TextScalarMetrics) -> Bool {
+        let total = Double(max(metrics.totalCount, 1))
+        let replacementRatio = Double(metrics.replacementCount) / total
+        let controlRatio = Double(max(0, metrics.unexpectedControlCount - metrics.cleanableControlCount)) / total
+        let nullRatio = Double(metrics.nullCount) / total
+        let textualRatio = Double(metrics.likelyTextCount) / total
+
+        return replacementRatio <= 0.01 &&
+            controlRatio <= 0.03 &&
+            nullRatio <= 0.06 &&
+            textualRatio >= 0.7
+    }
+
     private static func scoreText(_ metrics: TextScalarMetrics) -> Int {
         let total = max(metrics.totalCount, 1)
         return (metrics.letterOrDigitCount * 5) +
@@ -270,6 +414,38 @@ enum TextFileDecodingSupport {
         if data.starts(with: [0xFE, 0xFF]) {
             return (.utf16BigEndian, "utf-16be", 2)
         }
+        return nil
+    }
+
+    private static func streamedDecodeStep(
+        for data: Data,
+        encoding: String.Encoding,
+        maxCarryByteCount: Int
+    ) -> (decodedText: String, pendingBytes: Data)? {
+        guard !data.isEmpty else {
+            return ("", Data())
+        }
+
+        let resolvedMaxCarry = min(maxCarryByteCount, data.count)
+        for carryByteCount in 0...resolvedMaxCarry {
+            let prefixCount = data.count - carryByteCount
+            if prefixCount == 0 {
+                continue
+            }
+
+            let prefix = data.prefix(prefixCount)
+            guard let decodedText = String(data: prefix, encoding: encoding) else {
+                continue
+            }
+
+            let pendingBytes = carryByteCount == 0 ? Data() : Data(data.suffix(carryByteCount))
+            return (decodedText, pendingBytes)
+        }
+
+        if data.count <= resolvedMaxCarry {
+            return ("", data)
+        }
+
         return nil
     }
 
@@ -325,6 +501,15 @@ enum TextFileDecodingSupport {
 
     private static let decodingProbeByteCount = 4096
     private static let directDecodeFileSizeThreshold = 512 * 1024
+    private static let directReadChunkByteCount = 64 * 1024
+    private static let streamedEncodingMaxCarryByteCount = 8
+    private static let streamedDirectEncodings: Set<String.Encoding> = [
+        .utf8,
+        .utf16LittleEndian,
+        .utf16BigEndian,
+        .utf32LittleEndian,
+        .utf32BigEndian
+    ]
 
     private static let unsupportedBinaryExtensions: Set<String> = [
         "7z", "a", "app", "avi", "bin", "class", "dmg", "doc", "docx", "dylib", "epub",
@@ -334,6 +519,9 @@ enum TextFileDecodingSupport {
     ]
 
     private static let allowedControlScalars: Set<UInt32> = [0x09, 0x0A, 0x0D]
+    private static let importSafeControlScalars: Set<UInt32> = [
+        0x0000, 0x000C, 0xFEFF, 0x200B, 0x200C, 0x200D, 0x2060
+    ]
     private static let commonTextSymbols: Set<UInt32> = [
         0x0027, 0x002D, 0x2013, 0x2014, 0x2026,
         0x3001, 0x3002, 0xFF0C, 0xFF01, 0xFF1F,
@@ -353,6 +541,7 @@ private struct TextScalarMetrics {
     var replacementCount = 0
     var nullCount = 0
     var unexpectedControlCount = 0
+    var cleanableControlCount = 0
     var likelyTextCount = 0
     var letterOrDigitCount = 0
     var nonLatinLetterCount = 0

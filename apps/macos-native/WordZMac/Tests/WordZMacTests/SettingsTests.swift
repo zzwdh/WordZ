@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class SettingsTests: XCTestCase {
@@ -18,7 +18,9 @@ final class SettingsTests: XCTestCase {
             UISettingsSnapshot(
                 showWelcomeScreen: false,
                 restoreWorkspace: false,
-                debugLogging: true
+                debugLogging: true,
+                recentMetadataSourceLabels: ["教材", "期刊"],
+                recentCorpusSetIDs: ["set-2", "set-1"]
             )
         )
         viewModel.applyAppInfo(
@@ -37,6 +39,7 @@ final class SettingsTests: XCTestCase {
                 checkForUpdatesOnLaunch: true,
                 autoDownloadUpdates: false,
                 autoInstallDownloadedUpdates: false,
+                showMenuBarIcon: false,
                 recentDocuments: [
                     RecentDocumentItem(
                         corpusID: "corpus-1",
@@ -74,7 +77,7 @@ final class SettingsTests: XCTestCase {
         )
 
         XCTAssertEqual(viewModel.scene.workspaceSummary, "工作区：Demo")
-        XCTAssertEqual(viewModel.languageMode, .english)
+        XCTAssertEqual(viewModel.languageMode, .system)
         XCTAssertEqual(viewModel.scene.help, ["Docs", "Feedback"])
         XCTAssertEqual(viewModel.scene.releaseNotes, ["Added native Word page"])
         XCTAssertEqual(viewModel.scene.latestReleaseNotes, ["Native tables now persist layout."])
@@ -82,18 +85,22 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.latestAssetName, "WordZ-1.1.1-mac-arm64.dmg")
         XCTAssertEqual(viewModel.scene.recentDocuments.count, 1)
         XCTAssertEqual(viewModel.scene.userDataDirectory, "/tmp/wordzmac")
+        XCTAssertFalse(viewModel.showMenuBarIcon)
 
         let exported = viewModel.exportSnapshot()
         XCTAssertFalse(exported.showWelcomeScreen)
         XCTAssertFalse(exported.restoreWorkspace)
         XCTAssertTrue(exported.debugLogging)
+        XCTAssertEqual(exported.recentMetadataSourceLabels, ["教材", "期刊"])
+        XCTAssertEqual(exported.recentCorpusSetIDs, ["set-2", "set-1"])
 
         let exportedHost = viewModel.exportHostPreferences()
         XCTAssertTrue(exportedHost.autoUpdateEnabled)
         XCTAssertFalse(exportedHost.autoInstallDownloadedUpdates)
-        XCTAssertEqual(exportedHost.languageMode, .english)
+        XCTAssertEqual(exportedHost.languageMode, .system)
         XCTAssertEqual(exportedHost.recentDocuments.count, 1)
         XCTAssertEqual(exportedHost.lastUpdateStatus, "发现新版本 1.1.1，可下载更新包。")
+        XCTAssertFalse(exportedHost.showMenuBarIcon)
     }
 
     func testSettingsSceneDefaultsRemainStable() {
@@ -117,6 +124,7 @@ final class SettingsTests: XCTestCase {
                 checkForUpdatesOnLaunch: true,
                 autoDownloadUpdates: false,
                 autoInstallDownloadedUpdates: false,
+                showMenuBarIcon: false,
                 recentDocuments: [
                     RecentDocumentItem(
                         corpusID: "corpus-1",
@@ -135,12 +143,45 @@ final class SettingsTests: XCTestCase {
             preservingRuntimeUpdatePolicy: true
         )
 
-        XCTAssertEqual(viewModel.languageMode, .english)
+        XCTAssertEqual(viewModel.languageMode, .system)
         XCTAssertTrue(viewModel.autoUpdateEnabled)
         XCTAssertFalse(viewModel.checkForUpdatesOnLaunch)
         XCTAssertTrue(viewModel.autoDownloadUpdates)
         XCTAssertTrue(viewModel.autoInstallDownloadedUpdates)
+        XCTAssertFalse(viewModel.showMenuBarIcon)
         XCTAssertEqual(viewModel.scene.recentDocuments.count, 1)
         XCTAssertEqual(viewModel.scene.downloadedUpdateName, "WordZ-1.1.1-mac-arm64.dmg")
+    }
+
+    func testUISettingsSnapshotRoundTripsRecentMetadataSources() {
+        let snapshot = UISettingsSnapshot(
+            showWelcomeScreen: false,
+            restoreWorkspace: true,
+            debugLogging: true,
+            recentMetadataSourceLabels: ["教材", "新闻"],
+            recentCorpusSetIDs: ["set-1", "set-2"]
+        )
+
+        XCTAssertEqual(UISettingsSnapshot(json: snapshot.asJSONObject()), snapshot)
+    }
+
+    func testPersistedUISettingsDecodesMissingRecentMetadataSourcesAsEmpty() throws {
+        let data = #"{"showWelcomeScreen":true,"restoreWorkspace":false,"debugLogging":true}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(NativePersistedUISettings.self, from: data)
+
+        XCTAssertEqual(decoded.recentMetadataSourceLabels, [])
+        XCTAssertEqual(decoded.uiSettings.recentMetadataSourceLabels, [])
+        XCTAssertEqual(decoded.recentCorpusSetIDs, [])
+        XCTAssertEqual(decoded.uiSettings.recentCorpusSetIDs, [])
+    }
+
+    func testLanguageModeAssignmentsNormalizeToSystem() {
+        let viewModel = WorkspaceSettingsViewModel()
+
+        viewModel.languageMode = .english
+        XCTAssertEqual(viewModel.languageMode, .system)
+
+        viewModel.languageMode = .chinese
+        XCTAssertEqual(viewModel.languageMode, .system)
     }
 }

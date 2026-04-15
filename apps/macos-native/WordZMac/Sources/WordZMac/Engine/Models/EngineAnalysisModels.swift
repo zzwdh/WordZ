@@ -18,6 +18,24 @@ struct KWICRow: Identifiable, Hashable, Sendable {
         self.sentenceId = sentenceId
         self.sentenceTokenIndex = nodeIndex
     }
+
+    init(
+        id: String,
+        left: String,
+        node: String,
+        right: String,
+        sentenceId: Int,
+        sentenceTokenIndex: Int
+    ) {
+        self.id = id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "\(sentenceId)-\(sentenceTokenIndex)"
+            : id
+        self.left = left
+        self.node = node
+        self.right = right
+        self.sentenceId = sentenceId
+        self.sentenceTokenIndex = sentenceTokenIndex
+    }
 }
 
 struct KWICResult: Equatable, Sendable {
@@ -27,6 +45,10 @@ struct KWICResult: Equatable, Sendable {
         self.rows = JSONFieldReader.array(json, key: "rows")
             .compactMap { $0 as? JSONObject }
             .map(KWICRow.init)
+    }
+
+    init(rows: [KWICRow]) {
+        self.rows = rows
     }
 }
 
@@ -251,6 +273,22 @@ struct LocatorRow: Identifiable, Equatable, Sendable {
         self.rightWords = JSONFieldReader.string(json, key: "rightWords")
         self.status = JSONFieldReader.string(json, key: "status")
     }
+
+    init(
+        sentenceId: Int,
+        text: String,
+        leftWords: String,
+        nodeWord: String,
+        rightWords: String,
+        status: String
+    ) {
+        self.sentenceId = sentenceId
+        self.text = text
+        self.leftWords = leftWords
+        self.nodeWord = nodeWord
+        self.rightWords = rightWords
+        self.status = status
+    }
 }
 
 struct LocatorResult: Equatable, Sendable {
@@ -263,6 +301,11 @@ struct LocatorResult: Equatable, Sendable {
             .compactMap { $0 as? JSONObject }
             .map(LocatorRow.init)
         self.sentenceCount = sentenceArray.isEmpty ? rows.count : sentenceArray.count
+        self.rows = rows
+    }
+
+    init(sentenceCount: Int, rows: [LocatorRow]) {
+        self.sentenceCount = sentenceCount
         self.rows = rows
     }
 }

@@ -94,6 +94,19 @@ extension CollocateView {
                 }
             }
 
+            WorkbenchMethodNoteCard(
+                title: t("结果说明", "How to Read These Results"),
+                summary: scene.methodSummary,
+                notes: scene.methodNotes
+            )
+
+            HStack {
+                Button(t("复制方法摘要", "Copy Method Summary")) {
+                    onAction(.copyMethodSummary)
+                }
+                Spacer()
+            }
+
             WorkbenchTableCard {
                 NativeTableView(
                     descriptor: scene.table,

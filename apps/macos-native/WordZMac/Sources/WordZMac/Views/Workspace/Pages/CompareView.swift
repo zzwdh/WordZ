@@ -8,12 +8,14 @@ struct CompareView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: t("对比", "Compare")
+            title: t("对比", "Compare"),
+            scrollMode: .manual
         ) {
-            headerActions
-        } content: {
-            compareInputSection
-            compareResultsSection
+            WorkbenchFixedTopScrollContent {
+                compareInputSection
+            } scrolling: {
+                compareResultsSection
+            }
         }
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)

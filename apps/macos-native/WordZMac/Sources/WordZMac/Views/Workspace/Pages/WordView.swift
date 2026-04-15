@@ -8,12 +8,14 @@ struct WordView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: t("词表", "Word")
+            title: t("词表", "Word"),
+            scrollMode: .manual
         ) {
-            wordHeaderActions
-        } content: {
-            wordInputSection
-            wordResultsSection
+            WorkbenchFixedTopScrollContent {
+                wordInputSection
+            } scrolling: {
+                wordResultsSection
+            }
         }
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)

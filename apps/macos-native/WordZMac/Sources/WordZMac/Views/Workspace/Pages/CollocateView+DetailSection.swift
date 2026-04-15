@@ -35,6 +35,9 @@ extension CollocateView {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 12) {
+                    Button(t("在 KWIC 中打开", "Open in KWIC")) {
+                        onAction(.openKWIC)
+                    }
                     Menu(t("研究导出", "Research Export")) {
                         Button("Copy Current") {
                             onAction(.copyCurrent(.summary))

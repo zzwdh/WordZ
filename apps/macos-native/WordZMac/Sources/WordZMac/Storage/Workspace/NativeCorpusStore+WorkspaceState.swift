@@ -19,7 +19,9 @@ extension NativeCorpusStore {
         let persisted = NativePersistedUISettings(
             showWelcomeScreen: snapshot.showWelcomeScreen,
             restoreWorkspace: snapshot.restoreWorkspace,
-            debugLogging: snapshot.debugLogging
+            debugLogging: snapshot.debugLogging,
+            recentMetadataSourceLabels: snapshot.recentMetadataSourceLabels,
+            recentCorpusSetIDs: snapshot.recentCorpusSetIDs
         )
         cachedUISettings = persisted
         try snapshotStore.saveUISettings(persisted)

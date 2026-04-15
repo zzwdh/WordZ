@@ -10,26 +10,8 @@ struct RootContentLifecycleController {
     }
 
     func attachWindow(_ window: NSWindow?) {
-        configureWindow(window)
-        workspace.flowCoordinator.attachWindow(window, features: workspace.features)
-    }
-
-    private func configureWindow(_ window: NSWindow?) {
-        guard let window else { return }
-        applyConfiguration(to: window)
-        DispatchQueue.main.async {
-            applyConfiguration(to: window)
-        }
-    }
-
-    private func applyConfiguration(to window: NSWindow) {
-        if window.styleMask.contains(.fullSizeContentView) {
-            window.styleMask.remove(.fullSizeContentView)
-        }
-        window.tabbingMode = .disallowed
-        window.titlebarAppearsTransparent = false
-        window.toolbarStyle = .automatic
-        window.isMovableByWindowBackground = false
+        workspace.windowDocumentController.attach(window: window)
+        workspace.flowCoordinator.syncWindowDocumentState(features: workspace.features)
     }
 }
 
@@ -90,25 +72,15 @@ struct RootContentShellLifecycleModifier: ViewModifier {
     let eventBridge: RootContentEventBridge
     let commandHandler: RootContentCommandHandler
     let shellActionHandler: any RootContentShellActionHandling
-    let toolbarController: MainWorkspaceWindowToolbarController
-    let currentSidebarVisibility: () -> Bool
-    let currentInspectorVisibility: () -> Bool
     let applicationDelegate: NativeApplicationDelegate
     let defaultLaunchController: RootContentDefaultLaunchController
     let presentWindow: (NativeWindowRoute) -> Void
+    let windowTitleProvider: (AppLanguageMode) -> String
 
     func body(content: Content) -> some View {
         content
-            .bindWindowRoute(.mainWorkspace) { window in
+            .bindWindowRoute(.mainWorkspace, titleProvider: windowTitleProvider) { window in
                 lifecycle.attachWindow(window)
-                toolbarController.attach(
-                    window: window,
-                    workspace: lifecycle.workspace,
-                    performShellAction: shellActionHandler.handle,
-                    performCommand: commandHandler.handle,
-                    isSidebarVisible: currentSidebarVisibility,
-                    isInspectorVisible: currentInspectorVisibility
-                )
             }
             .sheet(isPresented: welcomeController.isPresented) {
                 welcomeController.sheet
@@ -152,16 +124,18 @@ extension RootContentView {
             eventBridge: eventBridge,
             commandHandler: commandHandler,
             shellActionHandler: shellActionHandler,
-            toolbarController: windowToolbarController,
-            currentSidebarVisibility: { layoutState.sidebarVisibility },
-            currentInspectorVisibility: { layoutState.inspectorVisibility },
             applicationDelegate: applicationDelegate,
             defaultLaunchController: RootContentDefaultLaunchController(
                 hasPresentedWindow: $hasPresentedDefaultLaunchWindow,
+                workspace: viewModel,
+                hostPreferencesStore: viewModel.hostPreferencesStore,
                 shellActionHandler: shellActionHandler
             ),
             presentWindow: { route in
                 openWindow(id: route.id)
+            },
+            windowTitleProvider: { _ in
+                viewModel.windowTitle
             }
         )
     }

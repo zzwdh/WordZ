@@ -103,6 +103,50 @@ struct NativeAnalysisResultCacheKey: Hashable {
         ngram(digest: hash(text), n: n)
     }
 
+    static func cluster(request: ClusterRunRequest) -> Self {
+        let targetSignature = request.targetEntries
+            .sorted { $0.corpusId < $1.corpusId }
+            .map { "\($0.corpusId)|\(hash($0.content))" }
+            .joined(separator: "||")
+        let referenceSignature = request.referenceEntries
+            .sorted { $0.corpusId < $1.corpusId }
+            .map { "\($0.corpusId)|\(hash($0.content))" }
+            .joined(separator: "||")
+        let signature = [
+            targetSignature,
+            referenceSignature,
+            String(request.caseSensitive),
+            request.stopwordFilter.mode.rawValue,
+            String(request.stopwordFilter.enabled),
+            request.stopwordFilter.parsedWords.joined(separator: ","),
+            request.punctuationMode.rawValue,
+            request.nValues.map(String.init).joined(separator: ",")
+        ].joined(separator: "|")
+        return Self(kind: "cluster", signature: signature)
+    }
+
+    static func plot(request: PlotRunRequest) -> Self {
+        let entrySignature = request.entries.enumerated().map { index, entry in
+            [
+                "\(index)",
+                entry.corpusId,
+                entry.displayName,
+                entry.filePath,
+                hash(entry.content)
+            ].joined(separator: "|")
+        }.joined(separator: "||")
+        let signature = [
+            request.scope.rawValue,
+            request.normalizedQuery,
+            String(request.searchOptions.words),
+            String(request.searchOptions.caseSensitive),
+            String(request.searchOptions.regex),
+            request.searchOptions.matchMode.rawValue,
+            entrySignature
+        ].joined(separator: "|")
+        return Self(kind: "plot", signature: signature)
+    }
+
     static func kwic(
         digest: String,
         keyword: String,
@@ -112,7 +156,7 @@ struct NativeAnalysisResultCacheKey: Hashable {
     ) -> Self {
         Self(
             kind: "kwic",
-            signature: "\(digest)|\(keyword)|\(leftWindow)|\(rightWindow)|\(searchOptions.words)|\(searchOptions.caseSensitive)|\(searchOptions.regex)"
+            signature: "\(digest)|\(keyword)|\(leftWindow)|\(rightWindow)|\(searchOptions.words)|\(searchOptions.caseSensitive)|\(searchOptions.regex)|\(searchOptions.matchMode.rawValue)"
         )
     }
 
@@ -142,7 +186,7 @@ struct NativeAnalysisResultCacheKey: Hashable {
     ) -> Self {
         Self(
             kind: "collocate",
-            signature: "\(digest)|\(keyword)|\(leftWindow)|\(rightWindow)|\(minFreq)|\(searchOptions.words)|\(searchOptions.caseSensitive)|\(searchOptions.regex)"
+            signature: "\(digest)|\(keyword)|\(leftWindow)|\(rightWindow)|\(minFreq)|\(searchOptions.words)|\(searchOptions.caseSensitive)|\(searchOptions.regex)|\(searchOptions.matchMode.rawValue)"
         )
     }
 
@@ -218,6 +262,32 @@ struct NativeAnalysisResultCacheKey: Hashable {
         return Self(kind: "compare", signature: signature)
     }
 
+    static func sentiment(request: SentimentRunRequest) -> Self {
+        let textsSignature = request.texts
+            .map {
+                [
+                    $0.id,
+                    $0.sourceID ?? "",
+                    $0.groupID ?? "",
+                    $0.groupTitle ?? "",
+                    hash($0.text),
+                    hash($0.documentText ?? "")
+                ].joined(separator: "|")
+            }
+            .joined(separator: "||")
+        let signature = [
+            request.source.rawValue,
+            request.unit.rawValue,
+            request.contextBasis.rawValue,
+            request.backend.rawValue,
+            String(request.thresholds.decisionThreshold),
+            String(request.thresholds.minimumEvidence),
+            String(request.thresholds.neutralBias),
+            textsSignature
+        ].joined(separator: "§")
+        return Self(kind: "sentiment", signature: signature)
+    }
+
     static func keyword(
         targetEntry: KeywordRequestEntry,
         referenceEntry: KeywordRequestEntry,
@@ -237,6 +307,33 @@ struct NativeAnalysisResultCacheKey: Hashable {
             options.stopwordFilter.parsedWords.joined(separator: ",")
         ]
         return Self(kind: "keyword", signature: signatureComponents.joined(separator: "|"))
+    }
+
+    static func keywordSuite(request: KeywordSuiteRunRequest) -> Self {
+        let focusSignature = request.focusEntries
+            .sorted { $0.corpusId < $1.corpusId }
+            .map { [$0.corpusId, hash($0.content)].joined(separator: "|") }
+            .joined(separator: "||")
+        let referenceSignature = request.referenceEntries
+            .sorted { $0.corpusId < $1.corpusId }
+            .map { [$0.corpusId, hash($0.content)].joined(separator: "|") }
+            .joined(separator: "||")
+        let importedSignature = request.importedReferenceItems
+            .sorted { $0.term < $1.term }
+            .map { [$0.term, String($0.frequency)].joined(separator: "|") }
+            .joined(separator: "||")
+        let data = (try? JSONEncoder().encode(request.configuration))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            ?? request.configuration.direction.rawValue
+        let signature = [
+            focusSignature,
+            referenceSignature,
+            importedSignature,
+            request.focusLabel,
+            request.referenceLabel,
+            data
+        ].joined(separator: "§")
+        return Self(kind: "keyword-suite", signature: signature)
     }
 
     private static func hash(_ value: String) -> String {

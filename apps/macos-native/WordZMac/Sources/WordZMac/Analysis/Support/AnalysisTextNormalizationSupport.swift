@@ -22,8 +22,8 @@ enum AnalysisTextNormalizationSupport {
         value.unicodeScalars.contains { searchableScalars.contains($0) }
     }
 
-    static func tokenizeWordLikeSegments(in text: String) -> [String] {
-        let normalized = normalizeSearchText(text, caseSensitive: false)
+    static func tokenizeWordLikeSegments(in text: String, caseSensitive: Bool = false) -> [String] {
+        let normalized = normalizeSearchText(text, caseSensitive: caseSensitive)
         guard !normalized.isEmpty else { return [] }
 
         var tokens: [String] = []

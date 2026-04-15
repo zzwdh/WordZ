@@ -2,6 +2,7 @@ import Foundation
 
 enum CollocatePageAction {
     case run
+    case openKWIC
     case applyPreset(CollocatePreset)
     case changeFocusMetric(CollocateAssociationMetric)
     case changeSort(CollocateSortMode)
@@ -11,6 +12,7 @@ enum CollocatePageAction {
     case selectRow(String?)
     case copyCurrent(ReadingExportFormat)
     case copyVisible(ReadingExportFormat)
+    case copyMethodSummary
     case exportCurrent(ReadingExportFormat)
     case exportVisible(ReadingExportFormat)
     case previousPage

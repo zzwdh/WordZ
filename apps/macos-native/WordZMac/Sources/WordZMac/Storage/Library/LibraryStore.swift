@@ -2,6 +2,8 @@ import Foundation
 
 typealias LibraryImportProgressHandler = @Sendable (LibraryImportProgressSnapshot) -> Void
 typealias LibraryImportCancellationHandler = @Sendable () -> Bool
+typealias LibraryCorpusCleaningProgressHandler = @Sendable (LibraryCorpusCleaningProgressSnapshot) -> Void
+typealias LibraryCorpusCleaningCancellationHandler = @Sendable () -> Bool
 
 protocol LibraryStore: AnyObject {
     func ensureInitialized() throws
@@ -9,6 +11,7 @@ protocol LibraryStore: AnyObject {
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) throws -> LibraryImportResult
     func openSavedCorpus(corpusId: String) throws -> OpenedCorpus
     func loadCorpusInfo(corpusId: String) throws -> CorpusInfoSummary
+    func cleanCorpora(corpusIds: [String]) throws -> LibraryCorpusCleaningBatchResult
     func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) throws -> LibraryCorpusItem
     func renameCorpus(corpusId: String, newName: String) throws -> LibraryCorpusItem
     func moveCorpus(corpusId: String, targetFolderId: String) throws -> LibraryCorpusItem
@@ -32,6 +35,26 @@ protocol ProgressReportingLibraryStore: LibraryStore {
         progress: LibraryImportProgressHandler?,
         isCancelled: LibraryImportCancellationHandler?
     ) throws -> LibraryImportResult
+}
+
+protocol CorpusCleaningProgressReportingLibraryStore: LibraryStore {
+    func cleanCorpora(
+        corpusIds: [String],
+        progress: LibraryCorpusCleaningProgressHandler?,
+        isCancelled: LibraryCorpusCleaningCancellationHandler?
+    ) throws -> LibraryCorpusCleaningBatchResult
+}
+
+protocol StoredFrequencyArtifactProvidingLibraryStore: LibraryStore {
+    func loadStoredFrequencyArtifact(corpusId: String) throws -> StoredFrequencyArtifact?
+}
+
+protocol StoredTokenizedArtifactProvidingLibraryStore: LibraryStore {
+    func loadStoredTokenizedArtifact(corpusId: String) throws -> StoredTokenizedArtifact?
+}
+
+protocol StoredTokenPositionIndexProvidingLibraryStore: LibraryStore {
+    func loadStoredTokenPositionIndex(corpusId: String) throws -> StoredTokenPositionIndexArtifact?
 }
 
 protocol CorpusSetManagingLibraryStore: LibraryStore {

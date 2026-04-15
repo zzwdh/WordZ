@@ -2,10 +2,6 @@ import Foundation
 
 @MainActor
 struct ExportDomainFactory {
-    func makeQuickLookPreviewFileService() -> any QuickLookPreviewFilePreparing {
-        QuickLookPreviewFileService()
-    }
-
     func makeReportBundleService() -> any AnalysisReportBundleServicing {
         AnalysisReportBundleService()
     }
@@ -14,4 +10,3 @@ struct ExportDomainFactory {
         WorkspaceExportCoordinator(dialogService: dialogService)
     }
 }
-

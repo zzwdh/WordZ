@@ -34,12 +34,20 @@ extension NativeCorpusDatabaseSupport {
     }
 
     static func bindText(_ value: String, to statement: OpaquePointer?, index: Int32) {
-        sqlite3_bind_text(statement, index, value, -1, sqliteTransient)
+        value.utf8CString.withUnsafeBufferPointer { buffer in
+            let byteCount = max(0, buffer.count - 1)
+            sqlite3_bind_text(statement, index, buffer.baseAddress, Int32(byteCount), sqliteTransient)
+        }
     }
 
     static func stringColumn(_ statement: OpaquePointer?, index: Int32) -> String {
-        guard let pointer = sqlite3_column_text(statement, index) else { return "" }
-        return String(cString: pointer)
+        let byteCount = Int(sqlite3_column_bytes(statement, index))
+        guard byteCount > 0,
+              let pointer = sqlite3_column_text(statement, index) else {
+            return ""
+        }
+        let data = Data(bytes: pointer, count: byteCount)
+        return String(decoding: data, as: UTF8.self)
     }
 
     static func doubleColumn(_ statement: OpaquePointer?, index: Int32) -> Double {

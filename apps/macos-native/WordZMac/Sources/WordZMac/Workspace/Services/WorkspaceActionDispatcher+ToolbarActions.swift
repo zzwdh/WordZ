@@ -10,6 +10,8 @@ extension WorkspaceActionDispatcher {
             NativeAppCommandCenter.post(.showLibrary)
         case .openSelected:
             launch { await self.workspace.openSelectedCorpus() }
+        case .openSourceReader:
+            NativeAppCommandCenter.post(.openSourceReader)
         case .previewCurrentCorpus:
             launch { await self.workspace.quickLookCurrentCorpus() }
         case .shareCurrentContent:
@@ -24,12 +26,18 @@ extension WorkspaceActionDispatcher {
             launch { await self.workspace.runTopics() }
         case .runCompare:
             launch { await self.workspace.runCompare() }
+        case .runSentiment:
+            launch { await self.workspace.runSentiment() }
         case .runKeyword:
             launch { await self.workspace.runKeyword() }
         case .runChiSquare:
             launch { await self.workspace.runChiSquare() }
+        case .runPlot:
+            launch { await self.workspace.runPlot() }
         case .runNgram:
             launch { await self.workspace.runNgram() }
+        case .runCluster:
+            launch { await self.workspace.runCluster() }
         case .runKWIC:
             launch { await self.workspace.runKWIC() }
         case .runCollocate:

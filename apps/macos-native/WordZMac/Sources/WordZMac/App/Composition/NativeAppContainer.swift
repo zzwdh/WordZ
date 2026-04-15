@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class NativeAppContainer {
+package final class NativeAppContainer {
     typealias RepositoryFactory = () -> any WorkspaceRepository
     typealias WindowDocumentControllerFactory = () -> NativeWindowDocumentController
     typealias WorkspacePersistenceFactory = () -> WorkspacePersistenceService
@@ -17,6 +17,7 @@ final class NativeAppContainer {
     typealias HostActionServiceFactory = (_ dialogService: NativeDialogServicing) -> any NativeHostActionServicing
     typealias UpdateServiceFactory = () -> any NativeUpdateServicing
     typealias NotificationServiceFactory = () -> any NativeNotificationServicing
+    typealias ApplicationActivityInspectorFactory = () -> any ApplicationActivityInspecting
     typealias BuildMetadataFactory = () -> any NativeBuildMetadataProviding
     typealias QuickLookPreviewFactory = () -> any QuickLookPreviewFilePreparing
     typealias ReportBundleFactory = () -> any AnalysisReportBundleServicing
@@ -38,6 +39,7 @@ final class NativeAppContainer {
     private let makeHostActionService: HostActionServiceFactory
     private let makeUpdateService: UpdateServiceFactory
     private let makeNotificationService: NotificationServiceFactory
+    private let makeApplicationActivityInspector: ApplicationActivityInspectorFactory
     private let makeBuildMetadataProvider: BuildMetadataFactory
     private let makeQuickLookPreviewFileService: QuickLookPreviewFactory
     private let makeReportBundleService: ReportBundleFactory
@@ -61,8 +63,9 @@ final class NativeAppContainer {
             makeHostActionService: composition.host.makeHostActionService,
             makeUpdateService: composition.host.makeUpdateService,
             makeNotificationService: composition.host.makeNotificationService,
+            makeApplicationActivityInspector: composition.host.makeApplicationActivityInspector,
             makeBuildMetadataProvider: composition.host.makeBuildMetadataProvider,
-            makeQuickLookPreviewFileService: composition.export.makeQuickLookPreviewFileService,
+            makeQuickLookPreviewFileService: composition.host.makeQuickLookPreviewFileService,
             makeReportBundleService: composition.export.makeReportBundleService,
             makeDiagnosticsBundleService: composition.diagnostics.makeDiagnosticsBundleService,
             makeRuntimeDependencyFactory: composition.workspace.makeRuntimeDependencyFactory
@@ -82,14 +85,26 @@ final class NativeAppContainer {
         makeCoordinatorFactory: @escaping CoordinatorFactoryFactory = { WorkspaceCoordinatorFactory() },
         makeDialogService: @escaping DialogServiceFactory = { NativeSheetDialogService() },
         makeHostPreferencesStore: @escaping HostPreferencesStoreFactory = { NativeHostPreferencesStore() },
-        makeHostActionService: @escaping HostActionServiceFactory = { NativeHostActionService(dialogService: $0) },
-        makeUpdateService: @escaping UpdateServiceFactory = { GitHubReleaseUpdateService() },
+        makeHostActionService: @escaping HostActionServiceFactory = {
+            NativeHostActionService(
+                dialogService: $0,
+                sharingService: NativeSharingService(anchorWindowProvider: {
+                    NativeWindowRouting.window(for: .mainWorkspace)
+                })
+            )
+        },
+        makeUpdateService: @escaping UpdateServiceFactory = {
+            GitHubReleaseUpdateService(downloadsDirectoryProvider: {
+                NativeAppContainer.defaultUpdateDownloadsDirectory()
+            })
+        },
         makeNotificationService: @escaping NotificationServiceFactory = {
             if !NativeNotificationEnvironment.supportsUserNotifications {
                 return NoOpNotificationService()
             }
             return NativeNotificationService()
         },
+        makeApplicationActivityInspector: @escaping ApplicationActivityInspectorFactory = { NativeApplicationActivityInspector() },
         makeBuildMetadataProvider: @escaping BuildMetadataFactory = { NativeBuildMetadataService() },
         makeQuickLookPreviewFileService: @escaping QuickLookPreviewFactory = { QuickLookPreviewFileService() },
         makeReportBundleService: @escaping ReportBundleFactory = { AnalysisReportBundleService() },
@@ -111,6 +126,7 @@ final class NativeAppContainer {
         self.makeHostActionService = makeHostActionService
         self.makeUpdateService = makeUpdateService
         self.makeNotificationService = makeNotificationService
+        self.makeApplicationActivityInspector = makeApplicationActivityInspector
         self.makeBuildMetadataProvider = makeBuildMetadataProvider
         self.makeQuickLookPreviewFileService = makeQuickLookPreviewFileService
         self.makeReportBundleService = makeReportBundleService
@@ -118,11 +134,17 @@ final class NativeAppContainer {
         self.makeRuntimeDependencyFactory = makeRuntimeDependencyFactory
     }
 
-    static func live() -> NativeAppContainer {
+    package static func live() -> NativeAppContainer {
         NativeAppContainer(composition: .live())
     }
 
-    func makeMainWorkspaceViewModel() -> MainWorkspaceViewModel {
+    nonisolated private static func defaultUpdateDownloadsDirectory() -> URL {
+        EnginePaths.defaultUserDataURL()
+            .appendingPathComponent("downloads", isDirectory: true)
+            .appendingPathComponent("updates", isDirectory: true)
+    }
+
+    package func makeMainWorkspaceViewModel() -> MainWorkspaceViewModel {
         let dialogService = makeDialogService()
         let sceneStore = makeSceneStore()
         let sessionStore = makeSessionStore()
@@ -135,6 +157,7 @@ final class NativeAppContainer {
         let hostActionService = makeHostActionService(dialogService)
         let updateService = makeUpdateService()
         let notificationService = makeNotificationService()
+        let applicationActivityInspector = makeApplicationActivityInspector()
         let buildMetadataProvider = makeBuildMetadataProvider()
         let runtimeDependencies = makeRuntimeDependencyFactory().make(
             repository: repository,
@@ -147,6 +170,7 @@ final class NativeAppContainer {
             hostActionService: hostActionService,
             updateService: updateService,
             notificationService: notificationService,
+            applicationActivityInspector: applicationActivityInspector,
             buildMetadataProvider: buildMetadataProvider,
             taskCenter: taskCenter,
             sessionStore: sessionStore,
@@ -175,9 +199,12 @@ final class NativeAppContainer {
             tokenize: TokenizePageViewModel(),
             topics: TopicsPageViewModel(),
             compare: ComparePageViewModel(),
+            sentiment: SentimentPageViewModel(),
             keyword: KeywordPageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
+            plot: PlotPageViewModel(),
             ngram: NgramPageViewModel(),
+            cluster: ClusterPageViewModel(),
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),

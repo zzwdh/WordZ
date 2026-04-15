@@ -1,29 +1,35 @@
 import SwiftUI
 
 extension LocatorView {
-    var locatorHeaderActions: some View {
+    var locatorInputSection: some View {
+        WorkbenchToolbarSection {
+            VStack(alignment: .leading, spacing: 12) {
+                WorkbenchInlineActionStrip {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) {
+                            leftWindowField
+                            rightWindowField
+                        }
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 12) {
+                                leftWindowField
+                                rightWindowField
+                            }
+                        }
+                    }
+                } actions: {
+                    locatorRunButton
+                }
+
+                sourceStatus
+            }
+        }
+    }
+
+    var locatorRunButton: some View {
         Button(t("定位当前 KWIC", "Locate Current KWIC")) { onAction(.run) }
             .buttonStyle(.borderedProminent)
             .disabled(isBusy || !viewModel.hasSource)
-    }
-
-    var locatorInputSection: some View {
-        WorkbenchToolbarSection {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    leftWindowField
-                    rightWindowField
-                    sourceStatus
-                }
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        leftWindowField
-                        rightWindowField
-                    }
-                    sourceStatus
-                }
-            }
-        }
     }
 
     var leftWindowField: some View {

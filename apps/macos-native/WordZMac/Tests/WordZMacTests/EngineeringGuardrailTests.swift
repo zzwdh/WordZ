@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class EngineeringGuardrailTests: XCTestCase {

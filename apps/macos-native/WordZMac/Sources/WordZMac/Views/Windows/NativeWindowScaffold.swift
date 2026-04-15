@@ -17,20 +17,22 @@ struct NativeWindowHeader<Accessory: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.title3.weight(.semibold))
+        AdaptiveHeaderSurface {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.title3.weight(.semibold))
 
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
 
-            Spacer(minLength: 12)
-            accessory
+                Spacer(minLength: 12)
+                accessory
+            }
         }
     }
 }
@@ -44,6 +46,8 @@ extension NativeWindowHeader where Accessory == EmptyView {
 }
 
 struct NativeWindowSection<Content: View>: View {
+    @Environment(\.wordZVisualStyle) private var visualStyle
+
     let title: String
     let subtitle: String?
     let content: Content
@@ -59,12 +63,7 @@ struct NativeWindowSection<Content: View>: View {
     }
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                content
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
+        VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.headline)
@@ -75,11 +74,29 @@ struct NativeWindowSection<Content: View>: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if visualStyle.usesAdaptiveSectionSurface {
+                VStack(alignment: .leading, spacing: 12) {
+                    content
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(AdaptiveInspectorSurfaceModifier())
+            } else {
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 12) {
+                        content
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
         }
     }
 }
 
 struct NativeMetricTile: View {
+    @Environment(\.wordZVisualStyle) private var visualStyle
+
     let title: String
     let value: String
     var detail: String?
@@ -104,7 +121,19 @@ struct NativeMetricTile: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill(WordZTheme.adaptiveCardBackground(for: visualStyle))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(WordZTheme.surfaceStroke(for: visualStyle), lineWidth: visualStyle.tier == .baseline ? 0 : 1)
+        )
+    }
+}
+
+private struct AdaptiveInspectorSurfaceModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        AdaptiveInspectorSurface {
+            content
+        }
     }
 }

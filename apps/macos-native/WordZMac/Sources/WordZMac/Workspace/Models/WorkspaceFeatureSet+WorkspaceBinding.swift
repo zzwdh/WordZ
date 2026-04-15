@@ -12,12 +12,16 @@ extension WorkspaceFeatureSet {
             tokenize: workspace.tokenize,
             topics: workspace.topics,
             compare: workspace.compare,
+            sentiment: workspace.sentiment,
             keyword: workspace.keyword,
             chiSquare: workspace.chiSquare,
+            plot: workspace.plot,
             ngram: workspace.ngram,
+            cluster: workspace.cluster,
             kwic: workspace.kwic,
             collocate: workspace.collocate,
             locator: workspace.locator,
+            evidenceWorkbench: workspace.evidenceWorkbench,
             settings: workspace.settings
         )
     }

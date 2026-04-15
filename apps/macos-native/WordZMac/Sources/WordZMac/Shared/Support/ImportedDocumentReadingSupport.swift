@@ -14,7 +14,7 @@ enum ImportedDocumentReadingSupport {
 
         switch pathExtension {
         case "txt":
-            return try TextFileDecodingSupport.readTextDocument(at: url)
+            return try TextFileDecodingSupport.readImportedTextDocument(at: url)
         case "docx":
             return try readDOCXDocument(at: url)
         case "pdf":
@@ -77,22 +77,10 @@ enum ImportedDocumentReadingSupport {
         encodingName: String,
         fileName: String
     ) throws -> DecodedTextDocument {
-        let normalizedText = normalizeImportedText(text)
-        guard !normalizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw emptyDocumentError(fileName: fileName)
         }
-        return DecodedTextDocument(text: normalizedText, encodingName: encodingName)
-    }
-
-    private static func normalizeImportedText(_ text: String) -> String {
-        text
-            .precomposedStringWithCompatibilityMapping
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-            .replacingOccurrences(of: "\u{000C}", with: "\n")
-            .replacingOccurrences(of: "\u{2028}", with: "\n")
-            .replacingOccurrences(of: "\u{2029}", with: "\n")
-            .replacingOccurrences(of: "\u{00A0}", with: " ")
+        return DecodedTextDocument(text: text, encodingName: encodingName)
     }
 
     private static func emptyDocumentError(fileName: String) -> NSError {

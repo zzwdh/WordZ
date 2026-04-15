@@ -40,6 +40,17 @@ extension NativeWorkspaceRepository {
         try await core.loadCorpusInfo(corpusId: corpusId)
     }
 
+    func cleanCorpora(corpusIds: [String]) async throws -> LibraryCorpusCleaningBatchResult {
+        try await core.cleanCorpora(corpusIds: corpusIds)
+    }
+
+    func cleanCorpora(
+        corpusIds: [String],
+        progress: (@Sendable (LibraryCorpusCleaningProgressSnapshot) -> Void)?
+    ) async throws -> LibraryCorpusCleaningBatchResult {
+        try await core.cleanCorpora(corpusIds: corpusIds, progress: progress)
+    }
+
     func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem {
         try await core.updateCorpusMetadata(corpusId: corpusId, metadata: metadata)
     }
@@ -121,11 +132,11 @@ extension NativeWorkspaceRepository {
     }
 
     func runStats(text: String) async throws -> StatsResult {
-        await core.runStats(text: text)
+        try await core.runStats(text: text)
     }
 
     func runTokenize(text: String) async throws -> TokenizeResult {
-        await core.runTokenize(text: text)
+        try await core.runTokenize(text: text)
     }
 
     func runTopics(text: String, options: TopicAnalysisOptions) async throws -> TopicAnalysisResult {
@@ -141,7 +152,15 @@ extension NativeWorkspaceRepository {
     }
 
     func runCompare(comparisonEntries: [CompareRequestEntry]) async throws -> CompareResult {
-        await core.runCompare(comparisonEntries: comparisonEntries)
+        try await core.runCompare(comparisonEntries: comparisonEntries)
+    }
+
+    func runSentiment(_ request: SentimentRunRequest) async throws -> SentimentRunResult {
+        try await core.runSentiment(request)
+    }
+
+    func runKeywordSuite(_ request: KeywordSuiteRunRequest) async throws -> KeywordSuiteResult {
+        try await core.runKeywordSuite(request)
     }
 
     func runKeyword(
@@ -149,7 +168,7 @@ extension NativeWorkspaceRepository {
         referenceEntry: KeywordRequestEntry,
         options: KeywordPreprocessingOptions
     ) async throws -> KeywordResult {
-        await core.runKeyword(
+        try await core.runKeyword(
             targetEntry: targetEntry,
             referenceEntry: referenceEntry,
             options: options
@@ -161,7 +180,15 @@ extension NativeWorkspaceRepository {
     }
 
     func runNgram(text: String, n: Int) async throws -> NgramResult {
-        await core.runNgram(text: text, n: n)
+        try await core.runNgram(text: text, n: n)
+    }
+
+    func runPlot(_ request: PlotRunRequest) async throws -> PlotResult {
+        try await core.runPlot(request)
+    }
+
+    func runCluster(_ request: ClusterRunRequest) async throws -> ClusterResult {
+        try await core.runCluster(request)
     }
 
     func runKWIC(
@@ -199,13 +226,53 @@ extension NativeWorkspaceRepository {
     }
 
     func runLocator(text: String, sentenceId: Int, nodeIndex: Int, leftWindow: Int, rightWindow: Int) async throws -> LocatorResult {
-        await core.runLocator(
+        try await core.runLocator(
             text: text,
             sentenceId: sentenceId,
             nodeIndex: nodeIndex,
             leftWindow: leftWindow,
             rightWindow: rightWindow
         )
+    }
+
+    func listKeywordSavedLists() async throws -> [KeywordSavedList] {
+        try await core.listKeywordSavedLists()
+    }
+
+    func saveKeywordSavedList(_ list: KeywordSavedList) async throws -> KeywordSavedList {
+        try await core.saveKeywordSavedList(list)
+    }
+
+    func deleteKeywordSavedList(listID: String) async throws {
+        try await core.deleteKeywordSavedList(listID: listID)
+    }
+
+    func listConcordanceSavedSets() async throws -> [ConcordanceSavedSet] {
+        try await core.listConcordanceSavedSets()
+    }
+
+    func saveConcordanceSavedSet(_ set: ConcordanceSavedSet) async throws -> ConcordanceSavedSet {
+        try await core.saveConcordanceSavedSet(set)
+    }
+
+    func deleteConcordanceSavedSet(setID: String) async throws {
+        try await core.deleteConcordanceSavedSet(setID: setID)
+    }
+
+    func listEvidenceItems() async throws -> [EvidenceItem] {
+        try await core.listEvidenceItems()
+    }
+
+    func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem {
+        try await core.saveEvidenceItem(item)
+    }
+
+    func deleteEvidenceItem(itemID: String) async throws {
+        try await core.deleteEvidenceItem(itemID: itemID)
+    }
+
+    func replaceEvidenceItems(_ items: [EvidenceItem]) async throws {
+        try await core.replaceEvidenceItems(items)
     }
 
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws {

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class ImportedDocumentReadingSupportTests: XCTestCase {
     private var temporaryFiles: [URL] = []
@@ -11,7 +11,7 @@ final class ImportedDocumentReadingSupportTests: XCTestCase {
         super.tearDown()
     }
 
-    func testReadImportedDocumentExtractsNormalizedDOCXText() throws {
+    func testReadImportedDocumentPreservesRawDOCXTextForLaterCleaning() throws {
         let url = makeTemporaryFileURL(named: "sample.docx")
         try ImportedDocumentTestFixtures.writeDOCX(text: "Hello\u{00A0}DOCX\r\nSecond line", to: url)
 
@@ -19,9 +19,36 @@ final class ImportedDocumentReadingSupportTests: XCTestCase {
 
         XCTAssertEqual(
             document.text.trimmingCharacters(in: .whitespacesAndNewlines),
-            "Hello DOCX\nSecond line"
+            "Hello\u{00A0}DOCX\nSecond line"
         )
         XCTAssertEqual(document.encodingName, "")
+    }
+
+    func testReadImportedDocumentPreservesRawTXTTextForLaterCleaning() throws {
+        let url = makeTemporaryFileURL(named: "sample.txt")
+        let rawText = "\u{FEFF}\nAlpha\u{00A0}Beta\t\u{200B}\r\nLine\u{0000} two  \n\n"
+        try rawText.write(to: url, atomically: true, encoding: .utf8)
+
+        let document = try ImportedDocumentReadingSupport.readImportedDocument(at: url)
+
+        XCTAssertEqual(document.text, rawText)
+        XCTAssertEqual(document.encodingName, "utf-8")
+    }
+
+    func testCorpusAutoCleaningNormalizesWhitespaceAndInvisibleCharacters() {
+        let result = CorpusAutoCleaningSupport.clean("\u{FEFF}\nAlpha\u{00A0}Beta\t\u{200B}\r\nLine\u{0000} two  \n\n")
+
+        XCTAssertEqual(result.cleanedText, "Alpha Beta\nLine two")
+        XCTAssertEqual(result.ruleHits.map(\.id), [
+            "compatibility-mapping",
+            "line-ending-normalization",
+            "space-normalization",
+            "bom-removal",
+            "zero-width-removal",
+            "null-removal",
+            "trailing-whitespace-trim",
+            "outer-blank-line-trim"
+        ])
     }
 
     func testReadImportedDocumentExtractsPDFText() throws {

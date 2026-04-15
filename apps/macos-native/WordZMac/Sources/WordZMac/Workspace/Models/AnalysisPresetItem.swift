@@ -48,6 +48,12 @@ struct AnalysisPresetItem: Equatable, Identifiable, Sendable {
                 "Automatic reference mode · \(snapshot.compareSelectedCorpusIDs.count) corpora",
                 mode: mode
             )
+        case .sentiment:
+            return wordZText(
+                "\(snapshot.sentimentSource.title(in: mode)) · \(snapshot.sentimentUnit.title(in: mode))",
+                "\(snapshot.sentimentSource.title(in: mode)) · \(snapshot.sentimentUnit.title(in: mode))",
+                mode: mode
+            )
         case .keyword:
             return wordZText(
                 "关键词参数已锁定",
@@ -62,6 +68,25 @@ struct AnalysisPresetItem: Equatable, Identifiable, Sendable {
                 return "\(ngramDetail) · \(wordZText("检索：\(snapshot.searchQuery)", "Query: \(snapshot.searchQuery)", mode: mode))"
             }
             return ngramDetail
+        case .plot:
+            if !snapshot.plotQuery.isEmpty {
+                return wordZText(
+                    "Plot：\(snapshot.plotQuery)",
+                    "Plot: \(snapshot.plotQuery)",
+                    mode: mode
+                )
+            }
+            return wordZText("Plot 检索", "Plot query", mode: mode)
+        case .cluster:
+            let clusterDetail = wordZText(
+                "N = \(snapshot.clusterSelectedN) · 最低频次 \(snapshot.clusterMinFrequency)",
+                "N = \(snapshot.clusterSelectedN) · Min freq \(snapshot.clusterMinFrequency)",
+                mode: mode
+            )
+            if !snapshot.clusterSelectedPhrase.isEmpty {
+                return "\(clusterDetail) · \(wordZText("已选：\(snapshot.clusterSelectedPhrase)", "Selected: \(snapshot.clusterSelectedPhrase)", mode: mode))"
+            }
+            return clusterDetail
         case .kwic:
             return wordZText(
                 "KWIC：\(snapshot.searchQuery) · L\(snapshot.kwicLeftWindow)/R\(snapshot.kwicRightWindow)",

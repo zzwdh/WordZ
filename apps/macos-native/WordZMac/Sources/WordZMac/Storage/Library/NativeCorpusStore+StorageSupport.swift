@@ -189,7 +189,9 @@ extension NativeCorpusStore {
             "characterCount": metadata.characterCount,
             "ttr": metadata.ttr > 0 ? metadata.ttr : fallbackTTR(typeCount: metadata.typeCount, tokenCount: metadata.tokenCount),
             "sttr": metadata.sttr,
-            "metadata": metadata.metadataProfile.merged(over: record.metadata).jsonObject
+            "metadata": metadata.metadataProfile.merged(over: record.metadata).jsonObject,
+            "cleaningStatus": (metadata.cleaningSummary ?? record.cleaningSummary ?? .pending).status.rawValue,
+            "cleaningSummary": (metadata.cleaningSummary ?? record.cleaningSummary ?? .pending).jsonObject
         ])
     }
 
@@ -206,5 +208,18 @@ extension NativeCorpusStore {
             return true
         }
         return (try? TextFileDecodingSupport.readTextDocument(at: url)) != nil
+    }
+
+    func aggregateCleaningRuleHits(
+        from summaries: [LibraryCorpusCleaningReportSummary]
+    ) -> [LibraryCorpusCleaningRuleHit] {
+        let merged = summaries
+            .flatMap(\.ruleHits)
+            .reduce(into: [String: Int]()) { partialResult, hit in
+                partialResult[hit.id, default: 0] += hit.count
+            }
+        return merged.keys.sorted().map { key in
+            LibraryCorpusCleaningRuleHit(id: key, count: merged[key] ?? 0)
+        }
     }
 }

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class NativeTaskCenterTests: XCTestCase {
@@ -52,5 +52,20 @@ final class NativeTaskCenterTests: XCTestCase {
         XCTAssertEqual(center.scene.completedCount, 1)
         XCTAssertTrue(center.scene.items.first?.detail.contains("上次会话已中断") == true)
         XCTAssertEqual(center.scene.items.last?.primaryAction, .openFile(path: "/tmp/report.csv"))
+    }
+
+    func testHistoryChangeIsNotEmittedForProgressOnlyUpdates() {
+        let center = NativeTaskCenter()
+        var emittedHistories: [[PersistedNativeBackgroundTaskItem]] = []
+        center.onHistoryChange = { emittedHistories.append($0) }
+
+        let taskID = center.beginTask(title: "Topics", detail: "Preparing", progress: 0)
+        XCTAssertEqual(emittedHistories.count, 1)
+
+        center.updateTask(id: taskID, detail: "Embedding", progress: 0.42)
+        XCTAssertEqual(emittedHistories.count, 1)
+
+        center.completeTask(id: taskID, detail: "Done")
+        XCTAssertEqual(emittedHistories.count, 2)
     }
 }

@@ -4,6 +4,7 @@ struct SearchTextMatcher {
     let normalizedQuery: String
     let options: SearchOptionsState
     let error: String
+    let phraseTokens: [String]
 
     private let regex: NSRegularExpression?
     private let wildcardRegex: NSRegularExpression?
@@ -15,6 +16,10 @@ struct SearchTextMatcher {
     init(query: String, options: SearchOptionsState) {
         self.normalizedQuery = AnalysisTextNormalizationSupport.normalizeSearchText(
             query,
+            caseSensitive: options.caseSensitive
+        )
+        self.phraseTokens = AnalysisTextNormalizationSupport.tokenizeWordLikeSegments(
+            in: query,
             caseSensitive: options.caseSensitive
         )
         self.options = options
@@ -50,6 +55,14 @@ struct SearchTextMatcher {
             return true
         }
 
+        if options.matchMode == .phraseExact {
+            let candidateTokens = AnalysisTextNormalizationSupport.tokenizeWordLikeSegments(
+                in: value,
+                caseSensitive: options.caseSensitive
+            )
+            return matchesPhraseTokens(candidateTokens)
+        }
+
         let candidateText = AnalysisTextNormalizationSupport.normalizeSearchText(
             value,
             caseSensitive: options.caseSensitive
@@ -70,6 +83,49 @@ struct SearchTextMatcher {
         return options.words ? candidateText == normalizedQuery : candidateText.contains(normalizedQuery)
     }
 
+    func matchingPhraseRanges<T>(
+        in tokens: [T],
+        comparableText: (T) -> String
+    ) -> [Range<Int>] {
+        guard options.matchMode == .phraseExact else { return [] }
+        guard !phraseTokens.isEmpty else { return [] }
+        guard tokens.count >= phraseTokens.count else { return [] }
+
+        var ranges: [Range<Int>] = []
+        for startIndex in 0...(tokens.count - phraseTokens.count) {
+            var matched = true
+            for offset in phraseTokens.indices {
+                let tokenText = AnalysisTextNormalizationSupport.normalizeSearchText(
+                    comparableText(tokens[startIndex + offset]),
+                    caseSensitive: options.caseSensitive
+                )
+                if tokenText != phraseTokens[offset] {
+                    matched = false
+                    break
+                }
+            }
+            if matched {
+                ranges.append(startIndex..<(startIndex + phraseTokens.count))
+            }
+        }
+        return ranges
+    }
+
+    var exactLookup: StoredTokenPositionIndexArtifact.Lookup? {
+        guard !normalizedQuery.isEmpty,
+              options.matchMode == .token,
+              options.words,
+              !options.regex,
+              wildcardRegex == nil else {
+            return nil
+        }
+
+        return StoredTokenPositionIndexArtifact.Lookup(
+            mode: options.caseSensitive ? .exact : .normalized,
+            key: normalizedQuery
+        )
+    }
+
     private static func buildWildcardRegex(
         for query: String,
         words: Bool,
@@ -83,6 +139,19 @@ struct SearchTextMatcher {
         let pattern = words ? "^(?:\(wildcardPattern))$" : wildcardPattern
         let options: NSRegularExpression.Options = caseSensitive ? [] : [.caseInsensitive]
         return try? NSRegularExpression(pattern: pattern, options: options)
+    }
+
+    private func matchesPhraseTokens(_ candidateTokens: [String]) -> Bool {
+        guard !phraseTokens.isEmpty else { return true }
+        guard candidateTokens.count >= phraseTokens.count else { return false }
+
+        for startIndex in 0...(candidateTokens.count - phraseTokens.count) {
+            let slice = Array(candidateTokens[startIndex..<(startIndex + phraseTokens.count)])
+            if slice == phraseTokens {
+                return true
+            }
+        }
+        return false
     }
 }
 

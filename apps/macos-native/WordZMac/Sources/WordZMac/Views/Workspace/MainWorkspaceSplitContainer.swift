@@ -15,10 +15,12 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
     let sidebar: Sidebar
     let detail: Detail
     let inspector: Inspector
+    let topAccessory: AnyView?
 
     init(
         isSidebarVisible: Binding<Bool>,
         isInspectorVisible: Binding<Bool>,
+        topAccessory: AnyView? = nil,
         @ViewBuilder sidebar: () -> Sidebar,
         @ViewBuilder detail: () -> Detail,
         @ViewBuilder inspector: () -> Inspector
@@ -28,13 +30,15 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
         self.sidebar = sidebar()
         self.detail = detail()
         self.inspector = inspector()
+        self.topAccessory = topAccessory
     }
 
     func makeNSViewController(context: Context) -> MainWorkspaceSplitController<Sidebar, Detail, Inspector> {
         MainWorkspaceSplitController(
             sidebar: sidebar,
             detail: detail,
-            inspector: inspector
+            inspector: inspector,
+            topAccessory: topAccessory
         )
     }
 
@@ -46,6 +50,7 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
             sidebar: sidebar,
             detail: detail,
             inspector: inspector,
+            topAccessory: topAccessory,
             layout: layout
         )
     }
@@ -66,6 +71,8 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
     private let sidebarItem: NSSplitViewItem
     private let detailItem: NSSplitViewItem
     private let inspectorItem: NSSplitViewItem
+    private var topAccessory: AnyView?
+    private var detailAccessoryController: NSViewController?
 
     private var currentLayout = WorkspaceSplitLayout(
         isSidebarVisible: true,
@@ -73,10 +80,11 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
     )
     private var hasAppliedInitialLayout = false
 
-    init(sidebar: Sidebar, detail: Detail, inspector: Inspector) {
+    init(sidebar: Sidebar, detail: Detail, inspector: Inspector, topAccessory: AnyView? = nil) {
         sidebarController = HostedPaneViewController(rootView: sidebar)
         detailController = HostedPaneViewController(rootView: detail)
         inspectorController = HostedPaneViewController(rootView: inspector)
+        self.topAccessory = topAccessory
 
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarController)
         detailItem = NSSplitViewItem(viewController: detailController)
@@ -115,6 +123,13 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
 
         sidebarItem.preferredThicknessFraction = 0.24
         inspectorItem.preferredThicknessFraction = 0.26
+
+        if #available(macOS 26.0, *) {
+            sidebarItem.automaticallyAdjustsSafeAreaInsets = true
+            detailItem.automaticallyAdjustsSafeAreaInsets = true
+            inspectorItem.automaticallyAdjustsSafeAreaInsets = true
+            updateTopAccessoryIfNeeded()
+        }
     }
 
     override func viewDidAppear() {
@@ -127,12 +142,17 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         sidebar: Sidebar,
         detail: Detail,
         inspector: Inspector,
+        topAccessory: AnyView? = nil,
         layout: WorkspaceSplitLayout,
         animateLayoutChanges: Bool? = nil
     ) {
         sidebarController.update(rootView: sidebar)
         detailController.update(rootView: detail)
         inspectorController.update(rootView: inspector)
+        self.topAccessory = topAccessory
+        if #available(macOS 26.0, *) {
+            updateTopAccessoryIfNeeded()
+        }
         guard currentLayout != layout else { return }
         currentLayout = layout
         applyLayout(animated: animateLayoutChanges ?? hasAppliedInitialLayout)
@@ -174,6 +194,22 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
             item.isCollapsed = shouldCollapse
         }
     }
+
+    @available(macOS 26.0, *)
+    private func updateTopAccessoryIfNeeded() {
+        if let topAccessory {
+            if let detailAccessoryController = detailAccessoryController as? HostedSplitAccessoryViewController {
+                detailAccessoryController.update(rootView: topAccessory)
+            } else {
+                let controller = HostedSplitAccessoryViewController(rootView: topAccessory)
+                detailAccessoryController = controller
+                detailItem.topAlignedAccessoryViewControllers = [controller]
+            }
+        } else {
+            detailAccessoryController = nil
+            detailItem.topAlignedAccessoryViewControllers = []
+        }
+    }
 }
 
 final class HostedPaneViewController<Content: View>: NSHostingController<Content> {
@@ -191,5 +227,44 @@ final class HostedPaneViewController<Content: View>: NSHostingController<Content
 
     func update(rootView: Content) {
         self.rootView = rootView
+    }
+}
+
+@available(macOS 26.0, *)
+final class HostedSplitAccessoryViewController: NSSplitViewItemAccessoryViewController {
+    private let hostingController: NSHostingController<AnyView>
+
+    init(rootView: AnyView) {
+        hostingController = NSHostingController(rootView: rootView)
+        super.init(nibName: nil, bundle: nil)
+        automaticallyAppliesContentInsets = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func loadView() {
+        view = NSView(frame: .zero)
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        addChild(hostingController)
+        let hostedView = hostingController.view
+        hostedView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(hostedView)
+
+        NSLayoutConstraint.activate([
+            hostedView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hostedView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            hostedView.topAnchor.constraint(equalTo: view.topAnchor),
+            hostedView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+    }
+
+    func update(rootView: AnyView) {
+        hostingController.rootView = rootView
     }
 }

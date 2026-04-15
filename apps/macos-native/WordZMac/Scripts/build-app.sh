@@ -23,6 +23,7 @@ RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
 CONTENTS_DIR="$APP_BUNDLE/Contents"
 BUILD_INFO_PATH="$RESOURCES_DIR/WordZMacBuildInfo.json"
+RESOURCE_BUNDLE_NAME="${WORDZ_MAC_RESOURCE_BUNDLE_NAME:-${SWIFT_PRODUCT}_${SWIFT_PRODUCT}.bundle}"
 
 mkdir -p "$DIST_DIR"
 mkdir -p "$LOCAL_HOME" "$LOCAL_CLANG_CACHE" "$LOCAL_SWIFTPM_CACHE"
@@ -36,6 +37,7 @@ BIN_PATH=$(
   swift build --package-path "$APP_ROOT" -c release --product "$SWIFT_PRODUCT" --show-bin-path
 )
 EXECUTABLE_PATH="$BIN_PATH/$SWIFT_PRODUCT"
+RESOURCE_BUNDLE_PATH="$BIN_PATH/$RESOURCE_BUNDLE_NAME"
 EXECUTABLE_SHA256="$(/usr/bin/shasum -a 256 "$EXECUTABLE_PATH" | /usr/bin/awk '{print $1}')"
 GIT_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
 GIT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
@@ -44,11 +46,21 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR/WordZMacScripts"
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/$SWIFT_PRODUCT"
 chmod +x "$MACOS_DIR/$SWIFT_PRODUCT"
 
+if [[ -d "$RESOURCE_BUNDLE_PATH" ]]; then
+  cp -R "$RESOURCE_BUNDLE_PATH" "$RESOURCES_DIR/$RESOURCE_BUNDLE_NAME"
+fi
+
 if [[ -f "$REPO_ROOT/build/icon.icns" ]]; then
   cp "$REPO_ROOT/build/icon.icns" "$RESOURCES_DIR/$APP_NAME.icns"
 fi
 
 cp "$APP_ROOT/Scripts/export-xlsx.mjs" "$RESOURCES_DIR/WordZMacScripts/export-xlsx.mjs"
+
+for locale_dir in "$APP_ROOT/Sources/WordZMac/Resources/"*.lproj; do
+  if [[ -d "$locale_dir" ]]; then
+    cp -R "$locale_dir" "$RESOURCES_DIR/$(basename "$locale_dir")"
+  fi
+done
 
 /bin/cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -56,7 +68,7 @@ cp "$APP_ROOT/Scripts/export-xlsx.mjs" "$RESOURCES_DIR/WordZMacScripts/export-xl
 <plist version="1.0">
 <dict>
   <key>CFBundleDevelopmentRegion</key>
-  <string>zh_CN</string>
+  <string>zh-Hans</string>
   <key>CFBundleDisplayName</key>
   <string>$APP_NAME</string>
   <key>CFBundleExecutable</key>
@@ -69,6 +81,11 @@ cp "$APP_ROOT/Scripts/export-xlsx.mjs" "$RESOURCES_DIR/WordZMacScripts/export-xl
   <string>6.0</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>zh-Hans</string>
+    <string>en</string>
+  </array>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

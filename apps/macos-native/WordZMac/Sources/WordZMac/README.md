@@ -14,6 +14,7 @@ WordZMac now organizes source code by domain first, then by UI layer.
 - `Shared`: cross-domain support that is truly reused across multiple domains.
 - `App`: app entry points and composition root. Live dependency assembly belongs in `App/Composition`.
 - `Models`, `ViewModels`, `Views`, `Resources`: presentation-layer types and assets.
+  `ViewModels` is now split into `Workspace`, `Pages`, `Library`, and `Settings`.
 
 ## Placement rules
 
@@ -24,6 +25,7 @@ WordZMac now organizes source code by domain first, then by UI layer.
 - Put workspace chrome, orchestration, repository, and result-node building in `Workspace/Services`.
 - Put file IO and persistence in `Storage`, not in `Workspace`.
 - Put macOS host APIs in `Host`, not in `Views` or `ViewModels`.
+- Keep `ViewModels` grouped under the fixed presentation folders above instead of reintroducing root-level files.
 
 ## Naming rules
 
@@ -43,7 +45,8 @@ WordZMac now organizes source code by domain first, then by UI layer.
 - Run `Scripts/architecture-guard.sh` before release and large refactors.
 - Run `Scripts/engineering-guard.sh` for the fast structural gate before landing shell, composition, or scene-sync changes.
 - `Models` must stay free of root-level Swift files.
-- `ViewModels` and `Views` may only use the existing root-level type families; do not introduce new root stems there without updating the architecture baseline.
+- `ViewModels` root-level Swift files are not allowed; only `Workspace`, `Pages`, `Library`, and `Settings` may exist as first-level directories.
+- `Views` may only use the existing first-level directories; do not introduce new root stems there without updating the architecture baseline.
 - Treat any new production file under `Services/` as a structural regression.
 - `Analysis` must not reach back into workspace shell, scene graph, or host UI services.
 - `Storage` must not reach into workspace shell or host UI services.

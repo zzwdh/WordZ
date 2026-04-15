@@ -14,10 +14,16 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
         sceneStore.setBuildSummary(buildMetadataProvider.current().buildSummary)
         features.sidebar.applyBootstrap(bootstrapState)
         features.library.applyBootstrap(bootstrapState.librarySnapshot)
+        features.library.applyRecentCorpusSetIDs(bootstrapState.uiSettings.recentCorpusSetIDs)
         features.settings.applyAppInfo(bootstrapState.appInfo)
         features.settings.apply(bootstrapState.uiSettings)
         features.settings.applyHostPreferences(hostPreferencesStore.load())
+        features.sentiment.syncLibrarySnapshot(bootstrapState.librarySnapshot)
+        features.sentiment.apply(bootstrapState.workspaceSnapshot)
+        features.cluster.syncLibrarySnapshot(bootstrapState.librarySnapshot)
+        features.plot.apply(bootstrapState.workspaceSnapshot)
         features.ngram.apply(bootstrapState.workspaceSnapshot)
+        features.cluster.apply(bootstrapState.workspaceSnapshot)
         features.kwic.apply(bootstrapState.workspaceSnapshot)
         features.collocate.apply(bootstrapState.workspaceSnapshot)
         features.shell.apply(bootstrapState.workspaceSnapshot)
@@ -31,6 +37,9 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
 
     func finalizeRefresh(features: WorkspaceFeatureSet) async {
         await flowCoordinator.refreshLibraryManagement(features: features)
+        await flowCoordinator.refreshKeywordSavedLists(features: features)
+        await flowCoordinator.refreshConcordanceSavedSets(features: features)
+        await flowCoordinator.refreshEvidenceItems(features: features)
         features.sidebar.clearError()
         flowCoordinator.syncWindowDocumentState(features: features)
     }
@@ -38,10 +47,15 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
     func updateShellAvailability(features: WorkspaceFeatureSet) {
         features.shell.updateSelectionAvailability(
             hasSelection: features.sidebar.selectedCorpusID != nil,
+            hasSourceReaderContext: false,
             hasPreviewableCorpus: !(features.library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty,
             corpusCount: features.sidebar.librarySnapshot.corpora.count,
             hasLocatorSource: features.kwic.primaryLocatorSource != nil,
-            hasExportableContent: false
+            hasExportableContent: false,
+            runSentimentEnabled: features.sentiment.canRun(
+                hasOpenedCorpus: features.sidebar.selectedCorpusID != nil,
+                hasKWICRows: features.kwic.scene?.rows.isEmpty == false
+            )
         )
     }
 }

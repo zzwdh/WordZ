@@ -10,6 +10,14 @@ struct LibraryManagementPresentationModifier: ViewModifier {
             .sheet(item: $viewModel.corpusInfoSheet) { scene in
                 LibraryCorpusInfoSheetView(scene: scene, onAction: onAction)
             }
+            .sheet(item: $viewModel.importSummarySheet) { scene in
+                LibraryImportSummarySheetView(
+                    scene: scene,
+                    onDismiss: {
+                        viewModel.dismissImportSummary()
+                    }
+                )
+            }
             .sheet(item: $viewModel.metadataEditorSheet) { scene in
                 LibraryCorpusMetadataEditorSheetView(
                     scene: scene,
@@ -19,6 +27,7 @@ struct LibraryManagementPresentationModifier: ViewModifier {
                                 .applySelectedCorporaMetadataPatch(
                                     BatchCorpusMetadataPatch(
                                         sourceLabel: profile.sourceLabel,
+                                        yearLabel: profile.yearLabel,
                                         genreLabel: profile.genreLabel,
                                         tagsToAdd: profile.tags
                                     )
@@ -35,8 +44,12 @@ struct LibraryManagementPresentationModifier: ViewModifier {
             }
             .task {
                 viewModel.applyMetadataFilterState(sidebar.metadataFilterState)
+                viewModel.applyRecentCorpusSetIDs(sidebar.recentCorpusSetIDs)
                 viewModel.selectCorpusSet(sidebar.selectedCorpusSetID)
                 viewModel.syncSidebarSelection(sidebar.selectedCorpusID)
+            }
+            .onChange(of: sidebar.recentCorpusSetIDs) { _, nextRecentCorpusSetIDs in
+                viewModel.applyRecentCorpusSetIDs(nextRecentCorpusSetIDs)
             }
             .onChange(of: sidebar.selectedCorpusSetID) { _, nextCorpusSetID in
                 viewModel.selectCorpusSet(nextCorpusSetID)
@@ -55,28 +68,24 @@ struct LibraryManagementPresentationModifier: ViewModifier {
 extension LibraryManagementView {
     var librarySplitContent: some View {
         HSplitView {
-            folderPane
+            navigationPane
                 .frame(minWidth: 220, idealWidth: 240)
 
-            corpusPane
-                .frame(minWidth: 360, idealWidth: 420)
+            libraryPrimaryContentPane
+                .frame(minWidth: 420, idealWidth: 540)
 
-            VSplitView {
-                recyclePane
-                    .frame(minHeight: 220)
-
+            if let inspector = viewModel.scene.inspector {
                 NativeWindowSection(
                     title: t("详情", "Inspector"),
-                    subtitle: viewModel.scene.inspector.subtitle
+                    subtitle: inspector.subtitle
                 ) {
                     LibraryInspectorView(
-                        scene: viewModel.scene.inspector,
+                        scene: inspector,
                         onAction: onAction
                     )
                 }
-                .frame(minHeight: 220)
+                .frame(minWidth: 280, idealWidth: 320)
             }
-            .frame(minWidth: 280, idealWidth: 320)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

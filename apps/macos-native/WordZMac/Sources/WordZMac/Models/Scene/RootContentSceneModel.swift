@@ -15,8 +15,11 @@ struct RootContentSceneModel: Equatable {
     static let empty = RootContentSceneModel(
         windowTitle: "WordZ",
         selectedTab: .stats,
-        tabs: WorkspaceDetailTab.mainWorkspaceTabs.map {
-            RootContentTabSceneItem(tab: $0, title: $0.displayTitle(in: .system))
+        tabs: WorkspaceFeatureRegistry.mainTabs.map { tab in
+            RootContentTabSceneItem(
+                tab: tab,
+                title: WorkspaceFeatureRegistry.descriptor(for: tab).title(in: .system)
+            )
         }
     )
 }

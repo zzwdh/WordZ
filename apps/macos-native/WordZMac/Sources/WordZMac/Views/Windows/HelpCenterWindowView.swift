@@ -8,7 +8,11 @@ struct HelpCenterWindowView: View {
         ScrollView {
             helpCenterWindowContent
         }
-        .bindWindowRoute(.help)
+        .adaptiveWindowScaffold(for: .help)
+        .bindWindowRoute(.help, titleProvider: { mode in
+            NativeWindowRoute.help.title(in: mode)
+        })
+        .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .help))
         .frame(minWidth: 520, minHeight: 420)
     }
 

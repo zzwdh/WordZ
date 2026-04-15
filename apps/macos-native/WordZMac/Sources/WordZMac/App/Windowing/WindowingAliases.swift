@@ -1,0 +1,17 @@
+import WordZWindowing
+
+package typealias NativeWindowRoute = WordZWindowing.NativeWindowRoute
+package typealias NativePlatformCapabilities = WordZWindowing.NativePlatformCapabilities
+package typealias NativeSettingsSupport = WordZWindowing.NativeSettingsSupport
+package typealias NativeWindowChromeConfigurator = WordZWindowing.NativeWindowChromeConfigurator
+package typealias NativeWindowEnhancementApplicator = WordZWindowing.NativeWindowEnhancementApplicator
+package typealias WindowEnhancementTier = WordZWindowing.WindowEnhancementTier
+package typealias NativeWindowToolbarMode = WordZWindowing.NativeWindowToolbarMode
+package typealias NativeWindowSearchMode = WordZWindowing.NativeWindowSearchMode
+package typealias NativeWindowSplitAccessoryMode = WordZWindowing.NativeWindowSplitAccessoryMode
+package typealias NativeWindowPresentationProfile = WordZWindowing.NativeWindowPresentationProfile
+package typealias NativeWindowRolePolicy = WordZWindowing.NativeWindowRolePolicy
+package typealias NativeWindowRouting = WordZWindowing.NativeWindowRouting
+package typealias NativeWindowSceneResizability = WordZWindowing.NativeWindowSceneResizability
+package typealias NativeWindowScenePolicy = WordZWindowing.NativeWindowScenePolicy
+package typealias NativeWindowScenePresentation = WordZWindowing.NativeWindowScenePresentation

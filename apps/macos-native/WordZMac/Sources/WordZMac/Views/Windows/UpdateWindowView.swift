@@ -99,10 +99,13 @@ struct UpdateWindowView: View {
             }
             .padding(20)
         }
-        .bindWindowRoute(.updatePrompt) { resolvedWindow in
+        .adaptiveWindowScaffold(for: .updatePrompt)
+        .bindWindowRoute(.updatePrompt, titleProvider: { _ in
+            windowTitle
+        }) { resolvedWindow in
             window = resolvedWindow
-            configureWindow(resolvedWindow)
         }
+        .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .updatePrompt))
         .frame(minWidth: 560, minHeight: 420)
     }
 
@@ -187,13 +190,6 @@ struct UpdateWindowView: View {
         workspace.settings.scene.isCheckingUpdates
             || workspace.settings.scene.isDownloadingUpdate
             || (!workspace.settings.scene.canInstallDownloadedUpdate && !workspace.settings.scene.canDownloadUpdate)
-    }
-
-    private func configureWindow(_ window: NSWindow?) {
-        guard let window else { return }
-        window.tabbingMode = .disallowed
-        window.styleMask.remove(.miniaturizable)
-        window.isRestorable = false
     }
 
     private func closeWindow() {

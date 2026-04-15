@@ -14,9 +14,12 @@ extension WorkspaceSceneGraphStore {
         stats: StatsSceneModel?,
         topics: TopicsSceneModel? = nil,
         compare: CompareSceneModel?,
+        sentiment: SentimentSceneModel? = nil,
         keyword: KeywordSceneModel? = nil,
         chiSquare: ChiSquareSceneModel?,
+        plot: PlotSceneModel? = nil,
         ngram: NgramSceneModel?,
+        cluster: ClusterSceneModel? = nil,
         kwic: KWICSceneModel?,
         collocate: CollocateSceneModel?,
         locator: LocatorSceneModel?
@@ -27,9 +30,12 @@ extension WorkspaceSceneGraphStore {
             stats: stats,
             topics: topics,
             compare: compare,
+            sentiment: sentiment,
             keyword: keyword,
             chiSquare: chiSquare,
+            plot: plot,
             ngram: ngram,
+            cluster: cluster,
             kwic: kwic,
             collocate: collocate,
             locator: locator
@@ -46,9 +52,12 @@ extension WorkspaceSceneGraphStore {
             stats: resultNodes.stats,
             topics: resultNodes.topics,
             compare: resultNodes.compare,
+            sentiment: resultNodes.sentiment,
             keyword: resultNodes.keyword,
             chiSquare: resultNodes.chiSquare,
+            plot: resultNodes.plot,
             ngram: resultNodes.ngram,
+            cluster: resultNodes.cluster,
             kwic: resultNodes.kwic,
             collocate: resultNodes.collocate,
             locator: resultNodes.locator
@@ -63,9 +72,12 @@ extension WorkspaceSceneGraphStore {
         stats: StatsSceneModel?,
         topics: TopicsSceneModel? = nil,
         compare: CompareSceneModel?,
+        sentiment: SentimentSceneModel? = nil,
         keyword: KeywordSceneModel? = nil,
         chiSquare: ChiSquareSceneModel?,
+        plot: PlotSceneModel? = nil,
         ngram: NgramSceneModel?,
+        cluster: ClusterSceneModel? = nil,
         kwic: KWICSceneModel?,
         collocate: CollocateSceneModel?,
         locator: LocatorSceneModel?
@@ -76,9 +88,12 @@ extension WorkspaceSceneGraphStore {
             stats: stats,
             topics: topics,
             compare: compare,
+            sentiment: sentiment,
             keyword: keyword,
             chiSquare: chiSquare,
+            plot: plot,
             ngram: ngram,
+            cluster: cluster,
             kwic: kwic,
             collocate: collocate,
             locator: locator
@@ -91,9 +106,12 @@ extension WorkspaceSceneGraphStore {
             stats: resultNodes.stats,
             topics: resultNodes.topics,
             compare: resultNodes.compare,
+            sentiment: resultNodes.sentiment,
             keyword: resultNodes.keyword,
             chiSquare: resultNodes.chiSquare,
+            plot: resultNodes.plot,
             ngram: resultNodes.ngram,
+            cluster: resultNodes.cluster,
             kwic: resultNodes.kwic,
             collocate: resultNodes.collocate,
             locator: resultNodes.locator
@@ -109,9 +127,12 @@ extension WorkspaceSceneGraphStore {
         stats: StatsSceneModel?,
         topics: TopicsSceneModel? = nil,
         compare: CompareSceneModel?,
+        sentiment: SentimentSceneModel? = nil,
         keyword: KeywordSceneModel? = nil,
         chiSquare: ChiSquareSceneModel?,
+        plot: PlotSceneModel? = nil,
         ngram: NgramSceneModel?,
+        cluster: ClusterSceneModel? = nil,
         kwic: KWICSceneModel?,
         collocate: CollocateSceneModel?,
         locator: LocatorSceneModel?
@@ -149,6 +170,12 @@ extension WorkspaceSceneGraphStore {
                 activeTab: activeTab,
                 compare: nodeBuilder.makeCompareNode(from: compare)
             )
+        case .sentiment:
+            updateGraph(
+                shell: shell,
+                activeTab: activeTab,
+                sentiment: nodeBuilder.makeSentimentNode(from: sentiment)
+            )
         case .keyword:
             updateGraph(
                 shell: shell,
@@ -161,11 +188,23 @@ extension WorkspaceSceneGraphStore {
                 activeTab: activeTab,
                 chiSquare: nodeBuilder.makeChiSquareNode(from: chiSquare)
             )
+        case .plot:
+            updateGraph(
+                shell: shell,
+                activeTab: activeTab,
+                plot: nodeBuilder.makePlotNode(from: plot)
+            )
         case .ngram:
             updateGraph(
                 shell: shell,
                 activeTab: activeTab,
                 ngram: nodeBuilder.makeNgramNode(from: ngram)
+            )
+        case .cluster:
+            updateGraph(
+                shell: shell,
+                activeTab: activeTab,
+                cluster: nodeBuilder.makeClusterNode(from: cluster)
             )
         case .kwic:
             updateGraph(
@@ -196,9 +235,12 @@ extension WorkspaceSceneGraphStore {
         stats: StatsSceneModel?,
         topics: TopicsSceneModel? = nil,
         compare: CompareSceneModel?,
+        sentiment: SentimentSceneModel? = nil,
         keyword: KeywordSceneModel? = nil,
         chiSquare: ChiSquareSceneModel?,
+        plot: PlotSceneModel? = nil,
         ngram: NgramSceneModel?,
+        cluster: ClusterSceneModel? = nil,
         kwic: KWICSceneModel?,
         collocate: CollocateSceneModel?,
         locator: LocatorSceneModel?
@@ -210,9 +252,12 @@ extension WorkspaceSceneGraphStore {
             stats: nodeBuilder.makeStatsNode(from: stats),
             topics: nodeBuilder.makeTopicsNode(from: topics),
             compare: nodeBuilder.makeCompareNode(from: compare),
+            sentiment: nodeBuilder.makeSentimentNode(from: sentiment),
             keyword: nodeBuilder.makeKeywordNode(from: keyword),
             chiSquare: nodeBuilder.makeChiSquareNode(from: chiSquare),
+            plot: nodeBuilder.makePlotNode(from: plot),
             ngram: nodeBuilder.makeNgramNode(from: ngram),
+            cluster: nodeBuilder.makeClusterNode(from: cluster),
             kwic: nodeBuilder.makeKWICNode(from: kwic),
             collocate: nodeBuilder.makeCollocateNode(from: collocate),
             locator: nodeBuilder.makeLocatorNode(from: locator)
@@ -226,9 +271,12 @@ private struct WorkspaceSceneGraphResultNodes {
     let stats: WorkspaceResultSceneNode?
     let topics: WorkspaceResultSceneNode?
     let compare: WorkspaceResultSceneNode?
+    let sentiment: WorkspaceResultSceneNode?
     let keyword: WorkspaceResultSceneNode?
     let chiSquare: WorkspaceResultSceneNode?
+    let plot: WorkspaceResultSceneNode?
     let ngram: WorkspaceResultSceneNode?
+    let cluster: WorkspaceResultSceneNode?
     let kwic: WorkspaceResultSceneNode?
     let collocate: WorkspaceResultSceneNode?
     let locator: WorkspaceResultSceneNode?

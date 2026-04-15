@@ -5,22 +5,39 @@ struct LibraryManagementView: View {
     @ObservedObject var viewModel: LibraryManagementViewModel
     @ObservedObject var sidebar: LibrarySidebarViewModel
     let onAction: (LibraryManagementAction) -> Void
+    @State var isShowingMetadataFilters = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             NativeWindowHeader(
                 title: t("语料库", "Library"),
                 subtitle: viewModel.scene.librarySummary
-            ) {
-                Toggle(t("保留目录结构", "Preserve Folder Structure"), isOn: $viewModel.preserveHierarchy)
-                    .toggleStyle(.switch)
-                    .frame(maxWidth: 220)
-            }
-            libraryMetadataToolbarSection
-            libraryActionToolbarSection
+            )
+            libraryUtilityBar
             librarySplitContent
         }
         .padding(20)
+        .toolbar {
+            if NativeWindowPresentationProfile.profile(for: .library)
+                .resolvedToolbarMode(capabilities: .current) == .swiftUIPrimary {
+                LibraryWindowToolbar(
+                    preserveHierarchy: $viewModel.preserveHierarchy,
+                    languageMode: languageMode,
+                    canTriggerCleaning: canTriggerCleaning,
+                    canSaveCurrentCorpusSet: !viewModel.saveableCorpusSetMembers.isEmpty,
+                    cleaningToolbarTitle: cleaningToolbarTitle,
+                    cleaningToolbarAction: cleaningToolbarAction,
+                    overflowActions: viewModel.scene.overflowActions,
+                    onAction: onAction
+                )
+            }
+        }
+        .searchable(
+            text: $viewModel.searchQuery,
+            placement: .toolbar,
+            prompt: t("搜索语料、文件夹或语料集", "Search corpora, folders, or corpus sets")
+        )
+        .nativeLibrarySearchPresentation()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .modifier(libraryManagementPresentationModifier)
     }

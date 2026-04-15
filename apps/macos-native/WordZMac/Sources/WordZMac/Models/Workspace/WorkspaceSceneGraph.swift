@@ -44,13 +44,17 @@ struct WorkspaceResultSceneNode: Equatable {
     }
 
     var exportSnapshot: NativeTableExportSnapshot? {
-        guard hasResult, !table.visibleColumns.isEmpty, !tableRows.isEmpty else { return nil }
+        guard isExportable else { return nil }
         return NativeTableExportSnapshot(
             suggestedBaseName: title.lowercased().replacingOccurrences(of: " ", with: "-"),
             table: table,
             rows: tableRows,
             metadataLines: exportMetadataLines
         )
+    }
+
+    var isExportable: Bool {
+        hasResult && !table.visibleColumns.isEmpty && !tableRows.isEmpty
     }
 
     static func == (lhs: WorkspaceResultSceneNode, rhs: WorkspaceResultSceneNode) -> Bool {
@@ -77,9 +81,12 @@ struct WorkspaceSceneGraph: Equatable {
     let stats: WorkspaceResultSceneNode
     let topics: WorkspaceResultSceneNode
     let compare: WorkspaceResultSceneNode
+    let sentiment: WorkspaceResultSceneNode
     let keyword: WorkspaceResultSceneNode
     let chiSquare: WorkspaceResultSceneNode
+    let plot: WorkspaceResultSceneNode
     let ngram: WorkspaceResultSceneNode
+    let cluster: WorkspaceResultSceneNode
     let kwic: WorkspaceResultSceneNode
     let collocate: WorkspaceResultSceneNode
     let locator: WorkspaceResultSceneNode
@@ -96,9 +103,12 @@ struct WorkspaceSceneGraph: Equatable {
         stats: WorkspaceResultSceneNode,
         topics: WorkspaceResultSceneNode = .empty(title: "Topics", status: "尚未生成 Topics 结果"),
         compare: WorkspaceResultSceneNode,
+        sentiment: WorkspaceResultSceneNode = .empty(title: "Sentiment", status: "尚未生成 Sentiment 结果"),
         keyword: WorkspaceResultSceneNode = .empty(title: "Keyword", status: "尚未生成关键词结果"),
         chiSquare: WorkspaceResultSceneNode,
+        plot: WorkspaceResultSceneNode = .empty(title: "Plot", status: "尚未生成 Plot 结果"),
         ngram: WorkspaceResultSceneNode,
+        cluster: WorkspaceResultSceneNode = .empty(title: "Cluster", status: "尚未生成 Cluster 结果"),
         kwic: WorkspaceResultSceneNode,
         collocate: WorkspaceResultSceneNode,
         locator: WorkspaceResultSceneNode
@@ -114,9 +124,12 @@ struct WorkspaceSceneGraph: Equatable {
         self.stats = stats
         self.topics = topics
         self.compare = compare
+        self.sentiment = sentiment
         self.keyword = keyword
         self.chiSquare = chiSquare
+        self.plot = plot
         self.ngram = ngram
+        self.cluster = cluster
         self.kwic = kwic
         self.collocate = collocate
         self.locator = locator
@@ -138,9 +151,12 @@ struct WorkspaceSceneGraph: Equatable {
         stats: .empty(title: "Stats", status: "尚未生成统计结果"),
         topics: .empty(title: "Topics", status: "尚未生成 Topics 结果"),
         compare: .empty(title: "Compare", status: "尚未生成 Compare 结果"),
+        sentiment: .empty(title: "Sentiment", status: "尚未生成 Sentiment 结果"),
         keyword: .empty(title: "Keyword", status: "尚未生成关键词结果"),
         chiSquare: .empty(title: "Chi-Square", status: "尚未生成 Chi-Square 结果"),
+        plot: .empty(title: "Plot", status: "尚未生成 Plot 结果"),
         ngram: .empty(title: "N-Gram", status: "尚未生成 N-Gram 结果"),
+        cluster: .empty(title: "Cluster", status: "尚未生成 Cluster 结果"),
         kwic: .empty(title: "KWIC", status: "尚未生成 KWIC 结果"),
         collocate: .empty(title: "Collocate", status: "尚未生成 Collocate 结果"),
         locator: .empty(title: "Locator", status: "尚未生成 Locator 结果")

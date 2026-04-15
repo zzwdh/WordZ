@@ -1,0 +1,12 @@
+{
+  "revision": "sentiment-model-pack-v2",
+  "providers": [
+    {
+      "id": "bundled-coreml-sentiment",
+      "type": "bundled-coreml",
+      "revision": "coreml-sentiment-v2",
+      "modelResource": "SentimentTriClassifier",
+      "fileExtension": "mlmodelc"
+    }
+  ]
+}

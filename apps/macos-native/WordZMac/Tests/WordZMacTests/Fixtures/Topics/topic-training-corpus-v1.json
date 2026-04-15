@@ -1,0 +1,124 @@
+{
+  "documents": [
+    {
+      "id": "security-1",
+      "label": "security",
+      "text": "Security researchers mapped botnet infrastructure, correlated sandbox telemetry, and coordinated vulnerability disclosure timelines across gateway vendors."
+    },
+    {
+      "id": "security-2",
+      "label": "security",
+      "text": "Incident responders traced malware loaders through rotating command servers, preserved forensic evidence, and isolated the first compromised endpoint."
+    },
+    {
+      "id": "security-3",
+      "label": "security",
+      "text": "Threat hunters compared phishing kits, credential theft templates, and remote access gateway lures to identify repeated operator tactics."
+    },
+    {
+      "id": "security-4",
+      "label": "security",
+      "text": "Vulnerability analysts compared browser exploit chains, patch coverage, and intrusion telemetry to explain recurring attack paths."
+    },
+    {
+      "id": "security-5",
+      "label": "security",
+      "text": "Malware reverse engineers connected loader behavior, command infrastructure, and disclosure notes to the same intrusion campaign."
+    },
+    {
+      "id": "security-6",
+      "label": "security",
+      "text": "Defenders reviewed network domains, phishing delivery patterns, and incident timelines before publishing mitigation guidance."
+    },
+    {
+      "id": "climate-1",
+      "label": "climate",
+      "text": "Climate scientists measured glacier melt rates, atmospheric circulation shifts, and regional temperature anomalies during the summer survey."
+    },
+    {
+      "id": "climate-2",
+      "label": "climate",
+      "text": "Environmental agencies tracked renewable energy adoption, methane reductions, and decarbonization policy targets across coastal cities."
+    },
+    {
+      "id": "climate-3",
+      "label": "climate",
+      "text": "Researchers modeled drought risk, ocean warming, and carbon emissions to forecast long-term climate pressure on agriculture."
+    },
+    {
+      "id": "climate-4",
+      "label": "climate",
+      "text": "Regional planners reviewed wildfire smoke exposure, seasonal rainfall deficits, and groundwater stress in mountain communities."
+    },
+    {
+      "id": "climate-5",
+      "label": "climate",
+      "text": "Meteorologists compared atmospheric rivers, flood danger, and coastal warming to explain unusual winter precipitation."
+    },
+    {
+      "id": "climate-6",
+      "label": "climate",
+      "text": "Policy teams studied carbon markets, renewable infrastructure, and decarbonization milestones in public utility reports."
+    },
+    {
+      "id": "finance-1",
+      "label": "finance",
+      "text": "Equity analysts reviewed earnings guidance, margin expansion, and valuation multiples after the company released quarterly results."
+    },
+    {
+      "id": "finance-2",
+      "label": "finance",
+      "text": "Investors rebalanced bond holdings, monitored inflation expectations, and reassessed credit spreads after the central bank meeting."
+    },
+    {
+      "id": "finance-3",
+      "label": "finance",
+      "text": "Market strategists compared dividend outlooks, cash flow, and sector rotation signals across large-cap portfolios."
+    },
+    {
+      "id": "finance-4",
+      "label": "finance",
+      "text": "Analysts modeled revenue growth, operating leverage, and valuation sensitivity for the software company under different rate scenarios."
+    },
+    {
+      "id": "finance-5",
+      "label": "finance",
+      "text": "Credit researchers tracked bank funding costs, default risk, and liquidity buffers as macro pressure intensified."
+    },
+    {
+      "id": "finance-6",
+      "label": "finance",
+      "text": "Portfolio managers reviewed earnings revisions, inflation data, and bond market volatility before rotating capital."
+    },
+    {
+      "id": "software-1",
+      "label": "software",
+      "text": "Swift developers organized package targets, workspace analysis modules, and macOS release tasks for the native application."
+    },
+    {
+      "id": "software-2",
+      "label": "software",
+      "text": "Engine maintainers documented corpus metadata flows, import pipelines, and export reports for the research workspace."
+    },
+    {
+      "id": "software-3",
+      "label": "software",
+      "text": "Build engineers reviewed package manifests, release notes, and packaging scripts before publishing the macOS binary."
+    },
+    {
+      "id": "software-4",
+      "label": "software",
+      "text": "Workspace authors tuned embedding models, topic analysis settings, and metadata export tables for the reading workflow."
+    },
+    {
+      "id": "software-5",
+      "label": "software",
+      "text": "Native app maintainers audited menu bar scenes, window routing, and task center telemetry for the desktop shell."
+    },
+    {
+      "id": "software-6",
+      "label": "software",
+      "text": "Researchers exported corpus reports, keyword tables, and topic summaries to compare document collections in the project workspace."
+    }
+  ]
+}

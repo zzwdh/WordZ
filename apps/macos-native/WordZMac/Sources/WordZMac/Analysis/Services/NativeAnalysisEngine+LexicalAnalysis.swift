@@ -61,4 +61,33 @@ extension NativeAnalysisEngine {
             }
         )
     }
+
+    func runTokenize(artifact: StoredTokenizedArtifact) -> TokenizeResult {
+        artifact.tokenizeResult
+    }
+
+    func runNgram(artifact: StoredTokenizedArtifact, n: Int) -> NgramResult {
+        let safeN = max(1, n)
+        var counts: [String: Int] = [:]
+
+        for sentence in artifact.sentences {
+            let tokens = sentence.tokens.map(\.normalized)
+            guard tokens.count >= safeN else { continue }
+            for start in 0...(tokens.count - safeN) {
+                let phrase = tokens[start..<(start + safeN)].joined(separator: " ")
+                counts[phrase, default: 0] += 1
+            }
+        }
+
+        let rows = counts
+            .map { NgramRow(phrase: $0.key, count: $0.value) }
+            .sorted {
+                if $0.count == $1.count {
+                    return $0.phrase.localizedCaseInsensitiveCompare($1.phrase) == .orderedAscending
+                }
+                return $0.count > $1.count
+            }
+
+        return NgramResult(n: safeN, rows: rows)
+    }
 }

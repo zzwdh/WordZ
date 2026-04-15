@@ -11,8 +11,8 @@ struct WelcomeSceneModel: Equatable {
 
     static let empty = WelcomeSceneModel(
         title: "WordZ",
-        subtitle: "准备连接本地语料工作台",
-        workspaceSummary: "等待初始化",
+        subtitle: l10n("准备连接本地语料工作台", table: "Windows", mode: .system, fallback: "Preparing the local corpus workspace"),
+        workspaceSummary: l10n("等待初始化", table: "Errors", mode: .system, fallback: "Waiting for initialization"),
         canOpenSelection: false,
         recentDocuments: [],
         releaseNotes: [],

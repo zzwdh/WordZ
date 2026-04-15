@@ -61,6 +61,7 @@ extension NativeCorpusStore {
                 "skippedCount": failureItems.count,
                 "importedItems": [],
                 "failureItems": failureItems.map(\.jsonObject),
+                "cleaningSummary": LibraryImportCleaningSummary.empty.jsonObject,
                 "cancelled": false
             ])
         }
@@ -142,6 +143,12 @@ extension NativeCorpusStore {
         )
 
         let importedRecords = stagedArtifacts.map(\.record)
+        let cleaningSummaries = importedRecords.compactMap(\.cleaningSummary)
+        let importCleaningSummary = LibraryImportCleaningSummary(
+            cleanedCount: cleaningSummaries.count,
+            changedCount: cleaningSummaries.filter(\.hasChanges).count,
+            ruleHits: aggregateCleaningRuleHits(from: cleaningSummaries)
+        )
         if !stagedArtifacts.isEmpty {
             try commitImportedArtifacts(
                 stagedArtifacts,
@@ -168,6 +175,7 @@ extension NativeCorpusStore {
             "skippedCount": failureItems.count,
             "importedItems": importedRecords.map(\.jsonObject),
             "failureItems": failureItems.map(\.jsonObject),
+            "cleaningSummary": importCleaningSummary.jsonObject,
             "cancelled": false
         ])
     }

@@ -56,6 +56,39 @@ struct WorkbenchAdaptiveControlCluster<Content: View>: View {
     }
 }
 
+struct WorkbenchInlineActionStrip<Primary: View, Actions: View>: View {
+    private let primary: Primary
+    private let actions: Actions
+
+    init(
+        @ViewBuilder primary: () -> Primary,
+        @ViewBuilder actions: () -> Actions
+    ) {
+        self.primary = primary()
+        self.actions = actions()
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 12) {
+                primary
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                actions
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                primary
+
+                HStack(spacing: 12) {
+                    actions
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+    }
+}
+
 struct WorkbenchSearchToolbarSection<Content: View>: View {
     @Binding var searchOptions: SearchOptionsState
     @Binding var stopwordFilter: StopwordFilterState

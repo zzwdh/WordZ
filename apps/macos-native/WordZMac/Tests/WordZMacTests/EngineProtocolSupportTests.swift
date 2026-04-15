@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class EngineProtocolSupportTests: XCTestCase {
     func testMakeRequestDataBuildsJsonRpcEnvelope() throws {

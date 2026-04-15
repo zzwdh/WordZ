@@ -4,23 +4,32 @@ extension SidebarView {
     func sidebarInformationRow(
         title: String,
         detail: String? = nil,
-        symbol: String
+        symbol: String,
+        isSelected: Bool = false
     ) -> some View {
         sidebarRowLabel(
             title: title,
             detail: detail,
-            symbol: symbol
+            symbol: symbol,
+            isSelected: isSelected
         )
     }
 
     func sidebarRowLabel(
         title: String,
         detail: String? = nil,
-        symbol: String
+        symbol: String,
+        isSelected: Bool = false
     ) -> some View {
-        Label {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                .frame(width: 16)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundStyle(isSelected ? .primary : .primary)
                     .lineLimit(1)
 
                 if let detail, !detail.isEmpty {
@@ -30,10 +39,14 @@ extension SidebarView {
                         .lineLimit(1)
                 }
             }
-        } icon: {
-            Image(systemName: symbol)
-                .foregroundStyle(.secondary)
-                .frame(width: 16)
+
+            Spacer(minLength: 0)
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.tint)
+                    .imageScale(.small)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -53,14 +66,11 @@ extension SidebarView {
     func sidebarAnalysisRow(_ item: WorkspaceSidebarAnalysisSceneItem) -> some View {
         sidebarRowLabel(
             title: item.title,
-            detail: item.subtitle,
-            symbol: item.tab.symbolName
+            detail: nil,
+            symbol: item.tab.symbolName,
+            isSelected: item.isSelected || selectedRoute == WorkspaceMainRoute(tab: item.tab)
         )
         .contentShape(Rectangle())
-        .onTapGesture {
-            guard item.isEnabled else { return }
-            selectedRoute = WorkspaceMainRoute(tab: item.tab)
-        }
     }
 
     func sidebarCorpusRow(

@@ -1,0 +1,21 @@
+{
+  "countsByDomain" : {
+    "academic" : 90,
+    "general" : 90,
+    "kwic" : 90,
+    "news" : 90
+  },
+  "countsByLabel" : {
+    "negative" : 120,
+    "neutral" : 120,
+    "positive" : 120
+  },
+  "countsBySplit" : {
+    "test" : 72,
+    "train" : 216,
+    "validation" : 72
+  },
+  "notes" : "Templated English-tuned starter gold pack for benchmark\/calibration. Replace or augment with manually adjudicated corpus examples for production evaluation.",
+  "totalExamples" : 360,
+  "version" : "v2"
+}

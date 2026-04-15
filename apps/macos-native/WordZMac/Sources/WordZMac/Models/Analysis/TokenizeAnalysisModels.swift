@@ -50,6 +50,16 @@ struct TokenizedToken: Identifiable, Hashable, Sendable {
             )
         }
     }
+
+    var jsonObject: JSONObject {
+        [
+            "original": original,
+            "normalized": normalized,
+            "sentenceId": sentenceId,
+            "tokenIndex": tokenIndex,
+            "annotations": annotations.jsonObject
+        ]
+    }
 }
 
 struct TokenizedSentence: Identifiable, Equatable, Sendable {
@@ -71,6 +81,14 @@ struct TokenizedSentence: Identifiable, Equatable, Sendable {
         self.tokens = JSONFieldReader.array(json, key: "tokens")
             .compactMap { $0 as? JSONObject }
             .map(TokenizedToken.init)
+    }
+
+    var jsonObject: JSONObject {
+        [
+            "sentenceId": sentenceId,
+            "text": text,
+            "tokens": tokens.map(\.jsonObject)
+        ]
     }
 }
 

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class NativeNotificationServiceTests: XCTestCase {
     func testSupportsUserNotificationsIsDisabledDuringTests() {

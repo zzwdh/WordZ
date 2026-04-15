@@ -15,15 +15,34 @@ struct NativeStoredCorpusMetadata: Equatable {
     let characterCount: Int
     let ttr: Double
     let sttr: Double
+    let cleanedAt: String
+    let cleaningProfileVersion: String
+    let cleaningRuleHits: [LibraryCorpusCleaningRuleHit]
+    let originalCharacterCount: Int
+    let cleanedCharacterCount: Int
+    let cleanedTextDigest: String
+
+    var cleaningSummary: LibraryCorpusCleaningReportSummary? {
+        guard !cleaningProfileVersion.isEmpty else { return nil }
+        return LibraryCorpusCleaningReportSummary(
+            status: cleaningRuleHits.isEmpty ? .cleaned : .cleanedWithChanges,
+            cleanedAt: cleanedAt,
+            profileVersion: cleaningProfileVersion,
+            originalCharacterCount: originalCharacterCount,
+            cleanedCharacterCount: cleanedCharacterCount,
+            ruleHits: cleaningRuleHits
+        )
+    }
 }
 
 struct NativeStoredCorpusDatabaseDocument: Equatable {
     let text: String
+    let rawText: String
     let metadata: NativeStoredCorpusMetadata
 }
 
 enum NativeCorpusDatabaseSupport {
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 7
     static let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     static func writeDocument(
@@ -32,9 +51,27 @@ enum NativeCorpusDatabaseSupport {
         sourceType: String,
         representedPath: String,
         importedAt: String,
-        metadataProfile: CorpusMetadataProfile = .empty
+        metadataProfile: CorpusMetadataProfile = .empty,
+        rawText: String? = nil,
+        cleaningSummary: LibraryCorpusCleaningReportSummary? = nil
     ) throws {
-        let analysis = NativeAnalysisEngine().runStats(text: document.text)
+        let resolvedRawText = rawText ?? document.text
+        let engine = NativeAnalysisEngine()
+        let documentKey = DocumentCacheKey(text: document.text)
+        let parsedIndex = engine.indexedDocument(for: document.text, documentKey: documentKey)
+        let analysis = StatsResult(
+            tokenCount: parsedIndex.tokenCount,
+            typeCount: parsedIndex.typeCount,
+            ttr: parsedIndex.ttr,
+            sttr: parsedIndex.sttr,
+            sentenceCount: parsedIndex.sentenceCount,
+            paragraphCount: parsedIndex.paragraphCount,
+            frequencyRows: parsedIndex.sortedFrequencyRows
+        )
+        let tokenizedArtifact = StoredTokenizedArtifact(
+            textDigest: documentKey.textDigest,
+            document: parsedIndex.document
+        )
         let metadata = NativeStoredCorpusMetadata(
             schemaVersion: currentSchemaVersion,
             importedAt: importedAt,
@@ -48,7 +85,13 @@ enum NativeCorpusDatabaseSupport {
             paragraphCount: analysis.paragraphCount,
             characterCount: document.text.count,
             ttr: analysis.ttr,
-            sttr: analysis.sttr
+            sttr: analysis.sttr,
+            cleanedAt: cleaningSummary?.cleanedAt ?? "",
+            cleaningProfileVersion: cleaningSummary?.profileVersion ?? "",
+            cleaningRuleHits: cleaningSummary?.ruleHits ?? [],
+            originalCharacterCount: cleaningSummary?.originalCharacterCount ?? resolvedRawText.count,
+            cleanedCharacterCount: cleaningSummary?.cleanedCharacterCount ?? document.text.count,
+            cleanedTextDigest: documentKey.textDigest
         )
 
         try? FileManager.default.removeItem(at: url)
@@ -62,8 +105,16 @@ enum NativeCorpusDatabaseSupport {
         do {
             try execute("DELETE FROM corpus_document;", on: db)
             try execute("DELETE FROM token_frequency;", on: db)
-            try insertDocument(document.text, metadata: metadata, into: db)
+            try execute("DELETE FROM token_position;", on: db)
+            try insertDocument(
+                rawText: resolvedRawText,
+                cleanedText: document.text,
+                tokenizedSentencesJSON: encodeTokenizedSentences(tokenizedArtifact.sentences),
+                metadata: metadata,
+                into: db
+            )
             try insertFrequencyRows(analysis.frequencyRows, into: db)
+            try insertTokenPositions(tokenizedArtifact.sentences, into: db)
             try execute("COMMIT;", on: db)
         } catch {
             try? execute("ROLLBACK;", on: db)
@@ -126,7 +177,13 @@ enum NativeCorpusDatabaseSupport {
                        paragraph_count,
                        character_count,
                        ttr,
-                       sttr
+                       sttr,
+                       cleaned_at,
+                       cleaning_profile_version,
+                       cleaning_rule_hits_json,
+                       original_character_count,
+                       cleaned_character_count,
+                       cleaned_text_digest
                 FROM corpus_document
                 WHERE id = 1;
                 """,
@@ -172,6 +229,15 @@ enum NativeCorpusDatabaseSupport {
                        character_count,
                        ttr,
                        sttr,
+                       cleaned_at,
+                       cleaning_profile_version,
+                       cleaning_rule_hits_json,
+                       original_character_count,
+                       cleaned_character_count,
+                       cleaned_text_digest,
+                       tokenized_sentences_json,
+                       raw_text,
+                       cleaned_text,
                        text
                 FROM corpus_document
                 WHERE id = 1;
@@ -187,11 +253,19 @@ enum NativeCorpusDatabaseSupport {
             }
 
             return NativeStoredCorpusDatabaseDocument(
-                text: stringColumn(statement, index: 16),
+                text: preferredStoredText(
+                    cleanedText: stringColumn(statement, index: 24),
+                    legacyText: stringColumn(statement, index: 25)
+                ),
+                rawText: stringColumn(statement, index: 23),
                 metadata: metadata(from: statement, offset: 0)
             )
         } catch {
             return nil
         }
+    }
+
+    static func preferredStoredText(cleanedText: String, legacyText: String) -> String {
+        cleanedText.isEmpty ? legacyText : cleanedText
     }
 }

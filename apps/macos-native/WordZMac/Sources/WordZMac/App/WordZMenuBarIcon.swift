@@ -1,11 +1,11 @@
 import AppKit
 
 enum WordZMenuBarIcon {
-    @MainActor private static var cachedImage: NSImage?
+    @MainActor private static var cachedImages: [WordZMenuBarIconState: NSImage] = [:]
 
     @MainActor
-    static func image() -> NSImage {
-        if let cachedImage {
+    static func image(state: WordZMenuBarIconState = .idle) -> NSImage {
+        if let cachedImage = cachedImages[state] {
             return cachedImage
         }
 
@@ -34,11 +34,19 @@ enum WordZMenuBarIcon {
                 yRadius: radius
             ).fill()
 
-            NSBezierPath(ovalIn: NSRect(x: bounds.maxX - 5.2, y: middleY - 1, width: 4.2, height: 4.2)).fill()
+            switch state {
+            case .idle:
+                NSBezierPath(ovalIn: NSRect(x: bounds.maxX - 5.2, y: middleY - 1, width: 4.2, height: 4.2)).fill()
+            case .tasksRunning:
+                NSBezierPath(ovalIn: NSRect(x: bounds.maxX - 5.8, y: bounds.maxY - 5.6, width: 4.8, height: 4.8)).fill()
+            case .updateReady:
+                let badgeRect = NSRect(x: bounds.maxX - 6.2, y: bounds.maxY - 6.4, width: 5.4, height: 5.4)
+                NSBezierPath(roundedRect: badgeRect, xRadius: 1.8, yRadius: 1.8).fill()
+            }
             return true
         }
         image.isTemplate = true
-        cachedImage = image
+        cachedImages[state] = image
         return image
     }
 }

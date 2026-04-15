@@ -6,15 +6,9 @@ extension RootContentView {
     var workspaceInspector: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                NativeWindowHeader(
-                    title: wordZText("检查器", "Inspector", mode: languageMode),
-                    subtitle: viewModel.selectedRoute.displayTitle(in: languageMode)
-                )
-
                 workspaceScopeInspectorSection
                 workspaceCurrentCorpusInspectorSection
                 workspaceResultsInspectorSection
-                workspaceStatusInspectorSection
             }
             .padding(16)
         }
@@ -134,36 +128,6 @@ extension RootContentView {
         }
     }
 
-    var workspaceStatusInspectorSection: some View {
-        NativeWindowSection(
-            title: wordZText("状态", "Status", mode: languageMode),
-            subtitle: viewModel.shell.scene.workspaceSummary
-        ) {
-            VStack(alignment: .leading, spacing: 12) {
-                Label(viewModel.sidebar.scene.engineStatus, systemImage: inspectorEngineSymbolName)
-                    .foregroundStyle(inspectorEngineTint)
-
-                if let metadataFilterSummary = viewModel.sidebar.scene.metadataFilterSummary {
-                    Label(metadataFilterSummary, systemImage: "line.3.horizontal.decrease.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if !viewModel.sidebar.scene.errorMessage.isEmpty {
-                    Text(viewModel.sidebar.scene.errorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Text(viewModel.shell.scene.buildSummary)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     func inspectorPicker<Content: View>(
         title: String,
         selection: Binding<String>,
@@ -221,27 +185,5 @@ extension RootContentView {
                 )
             }
         )
-    }
-
-    var inspectorEngineSymbolName: String {
-        switch viewModel.sidebar.scene.engineState {
-        case .connecting:
-            return "bolt.horizontal.circle"
-        case .connected:
-            return "checkmark.circle.fill"
-        case .failed:
-            return "exclamationmark.triangle.fill"
-        }
-    }
-
-    var inspectorEngineTint: Color {
-        switch viewModel.sidebar.scene.engineState {
-        case .connecting:
-            return .secondary
-        case .connected:
-            return .green
-        case .failed:
-            return .orange
-        }
     }
 }

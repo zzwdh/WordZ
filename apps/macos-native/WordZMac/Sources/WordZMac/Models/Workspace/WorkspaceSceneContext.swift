@@ -10,7 +10,7 @@ struct WorkspaceSceneContext: Equatable {
     static let empty = WorkspaceSceneContext(
         appName: "WordZ",
         versionLabel: "mac native preview",
-        workspaceSummary: "等待载入本地语料库",
+        workspaceSummary: l10n("等待载入本地语料库", table: "Errors", mode: .system, fallback: "Waiting for the local corpus library"),
         buildSummary: "SwiftUI + Node.js sidecar",
         help: []
     )

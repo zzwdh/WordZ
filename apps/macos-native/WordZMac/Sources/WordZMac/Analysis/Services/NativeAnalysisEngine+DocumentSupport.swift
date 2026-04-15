@@ -2,7 +2,10 @@ import CryptoKit
 import Foundation
 import NaturalLanguage
 
-struct DocumentCacheKey: Hashable {
+// NaturalLanguage tokenization/tagging becomes nondeterministic under aggressive parallel test load.
+private let parsedDocumentNaturalLanguageLock = NSLock()
+
+struct DocumentCacheKey: Hashable, Sendable {
     let textLength: Int
     let textDigest: String
 
@@ -15,8 +18,9 @@ struct DocumentCacheKey: Hashable {
     }
 }
 
-final class ParsedDocumentIndex {
+final class ParsedDocumentIndex: @unchecked Sendable {
     let document: ParsedDocument
+    private let frequencySummaryLock = NSLock()
     private var cachedFrequencySummary: FrequencySummary?
 
     init(text: String) {
@@ -56,10 +60,14 @@ final class ParsedDocumentIndex {
     }
 
     var hasComputedFrequencySummary: Bool {
-        cachedFrequencySummary != nil
+        frequencySummaryLock.lock()
+        defer { frequencySummaryLock.unlock() }
+        return cachedFrequencySummary != nil
     }
 
     private var frequencySummary: FrequencySummary {
+        frequencySummaryLock.lock()
+        defer { frequencySummaryLock.unlock() }
         if let cachedFrequencySummary {
             return cachedFrequencySummary
         }
@@ -70,7 +78,7 @@ final class ParsedDocumentIndex {
     }
 }
 
-struct FrequencySummary {
+struct FrequencySummary: Sendable {
     let frequencyMap: [String: Int]
     let sortedFrequencyRows: [FrequencyRow]
     let typeCount: Int
@@ -126,7 +134,7 @@ struct FrequencySummary {
     }
 }
 
-struct PreparedCompareCorpus {
+struct PreparedCompareCorpus: Sendable {
     let entry: CompareRequestEntry
     let tokenCount: Int
     let typeCount: Int
@@ -137,12 +145,22 @@ struct PreparedCompareCorpus {
     let frequency: [String: Int]
 }
 
-struct ParsedDocument {
+struct ParsedDocument: Sendable {
     let paragraphs: [ParsedParagraph]
     let sentences: [ParsedSentence]
     let tokens: [ParsedToken]
 
     init(text: String) {
+        let parsed = Self.parse(text: text)
+        self.paragraphs = parsed.paragraphs
+        self.sentences = parsed.sentences
+        self.tokens = parsed.sentences.flatMap(\.tokens)
+    }
+
+    private static func parse(text: String) -> (paragraphs: [ParsedParagraph], sentences: [ParsedSentence]) {
+        parsedDocumentNaturalLanguageLock.lock()
+        defer { parsedDocumentNaturalLanguageLock.unlock() }
+
         let normalizedText = text.replacingOccurrences(of: "\r\n", with: "\n")
         let rawParagraphs = ParsedDocument.splitParagraphs(in: normalizedText)
         var parsedParagraphs: [ParsedParagraph] = []
@@ -206,9 +224,7 @@ struct ParsedDocument {
             ]
         }
 
-        self.paragraphs = parsedParagraphs
-        self.sentences = parsedSentences
-        self.tokens = parsedSentences.flatMap(\.tokens)
+        return (parsedParagraphs, parsedSentences)
     }
 
     private static func splitParagraphs(in text: String) -> [String] {
@@ -269,21 +285,21 @@ struct ParsedDocument {
     }
 }
 
-struct ParsedSentence {
+struct ParsedSentence: Sendable {
     let sentenceId: Int
     let paragraphId: Int
     let text: String
     let tokens: [ParsedToken]
 }
 
-struct ParsedParagraph {
+struct ParsedParagraph: Sendable {
     let paragraphId: Int
     let text: String
     let sentenceIDs: [Int]
     let tokens: [ParsedToken]
 }
 
-struct ParsedToken: Hashable {
+struct ParsedToken: Hashable, Sendable {
     let original: String
     let normalized: String
     let sentenceId: Int

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class SceneBuildersTests: XCTestCase {
@@ -215,6 +215,7 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertEqual(scene.filteredRows, 2)
         XCTAssertEqual(scene.columnTitle(for: .logDice), "LogDice ↓")
         XCTAssertEqual(scene.focusMetric, .logDice)
+        XCTAssertTrue(scene.methodSummary.contains("L4 / R6"))
         XCTAssertTrue(scene.isColumnVisible(.rate))
         XCTAssertFalse(scene.isColumnVisible(.left))
         XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("最小频次") || $0.contains("Minimum Frequency") }))
@@ -267,6 +268,309 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertEqual(scene.rows.first?.referenceLabelText, "Demo Corpus")
         XCTAssertTrue(scene.referenceSummary.contains("Demo Corpus"))
         XCTAssertTrue(scene.methodSummary.contains("固定参考语料") || scene.methodSummary.contains("fixed reference corpus"))
+    }
+
+    func testKeywordSceneBuilderBuildsPairwiseDiffRowsForSavedLists() {
+        let configuration = makeKeywordSuiteResult().configuration
+        let left = KeywordSavedList(
+            id: "left",
+            name: "Left",
+            group: .words,
+            createdAt: "2026-04-11T00:00:00Z",
+            updatedAt: "2026-04-11T00:00:00Z",
+            focusLabel: "Focus A",
+            referenceLabel: "Reference A",
+            configuration: configuration,
+            rows: [
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "alpha",
+                    direction: .positive,
+                    focusFrequency: 10,
+                    referenceFrequency: 2,
+                    focusNormalizedFrequency: 10_000,
+                    referenceNormalizedFrequency: 2_000,
+                    keynessScore: 9.0,
+                    logRatio: 2.5,
+                    pValue: 0.001,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "alpha left",
+                    focusExampleCorpusID: "corpus-1",
+                    referenceExampleCorpusID: "corpus-2"
+                ),
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "gamma",
+                    direction: .positive,
+                    focusFrequency: 7,
+                    referenceFrequency: 1,
+                    focusNormalizedFrequency: 7_000,
+                    referenceNormalizedFrequency: 1_000,
+                    keynessScore: 7.0,
+                    logRatio: 1.8,
+                    pValue: 0.01,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "gamma left",
+                    focusExampleCorpusID: "corpus-1",
+                    referenceExampleCorpusID: "corpus-2"
+                )
+            ]
+        )
+        let right = KeywordSavedList(
+            id: "right",
+            name: "Right",
+            group: .words,
+            createdAt: "2026-04-11T00:00:00Z",
+            updatedAt: "2026-04-12T00:00:00Z",
+            focusLabel: "Focus B",
+            referenceLabel: "Reference B",
+            configuration: configuration,
+            rows: [
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "alpha",
+                    direction: .positive,
+                    focusFrequency: 8,
+                    referenceFrequency: 3,
+                    focusNormalizedFrequency: 8_000,
+                    referenceNormalizedFrequency: 3_000,
+                    keynessScore: 6.0,
+                    logRatio: 1.0,
+                    pValue: 0.02,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "alpha right",
+                    focusExampleCorpusID: "corpus-3",
+                    referenceExampleCorpusID: "corpus-4"
+                ),
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "beta",
+                    direction: .positive,
+                    focusFrequency: 5,
+                    referenceFrequency: 1,
+                    focusNormalizedFrequency: 5_000,
+                    referenceNormalizedFrequency: 1_000,
+                    keynessScore: 5.0,
+                    logRatio: 0.7,
+                    pValue: 0.04,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "beta right",
+                    focusExampleCorpusID: "corpus-3",
+                    referenceExampleCorpusID: "corpus-4"
+                )
+            ]
+        )
+
+        let scene = KeywordSceneBuilder().build(
+            result: nil,
+            activeTab: .lists,
+            listMode: .pairwiseDiff,
+            primarySavedList: left,
+            secondarySavedList: right,
+            savedLists: [left, right],
+            configuration: configuration,
+            focusSelectionSummary: "Focus",
+            referenceSelectionSummary: "Reference",
+            hasPendingRunChanges: false,
+            sortMode: .alphabeticalAscending,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(KeywordColumnKey.allCases)
+        )
+
+        XCTAssertEqual(scene.totalRows, 3)
+        XCTAssertEqual(scene.rows.map(\.item), ["alpha", "beta", "gamma"])
+        XCTAssertTrue(
+            scene.rows.first?.diffStatusText == "共有"
+                || scene.rows.first?.diffStatusText == "Shared"
+        )
+        XCTAssertEqual(scene.rows.first?.leftRankText, "1")
+        XCTAssertEqual(scene.rows.first?.rightRankText, "1")
+        XCTAssertEqual(scene.rows.first?.logRatioDeltaText, "1.50")
+        XCTAssertTrue(scene.methodSummary.contains("Left"))
+        XCTAssertTrue(scene.methodSummary.contains("Right"))
+    }
+
+    func testKeywordSceneBuilderBuildsKeywordDatabaseCoverageRows() {
+        let configuration = makeKeywordSuiteResult().configuration
+        let listA = KeywordSavedList(
+            id: "a",
+            name: "List A",
+            group: .words,
+            createdAt: "2026-04-11T00:00:00Z",
+            updatedAt: "2026-04-11T00:00:00Z",
+            focusLabel: "Focus A",
+            referenceLabel: "Reference A",
+            configuration: configuration,
+            rows: [
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "alpha",
+                    direction: .positive,
+                    focusFrequency: 12,
+                    referenceFrequency: 2,
+                    focusNormalizedFrequency: 12_000,
+                    referenceNormalizedFrequency: 2_000,
+                    keynessScore: 10,
+                    logRatio: 2.0,
+                    pValue: 0.001,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "alpha",
+                    focusExampleCorpusID: "corpus-1",
+                    referenceExampleCorpusID: "corpus-2"
+                ),
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "gamma",
+                    direction: .positive,
+                    focusFrequency: 9,
+                    referenceFrequency: 1,
+                    focusNormalizedFrequency: 9_000,
+                    referenceNormalizedFrequency: 1_000,
+                    keynessScore: 9,
+                    logRatio: 1.5,
+                    pValue: 0.01,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "gamma",
+                    focusExampleCorpusID: "corpus-1",
+                    referenceExampleCorpusID: "corpus-2"
+                )
+            ]
+        )
+        let listB = KeywordSavedList(
+            id: "b",
+            name: "List B",
+            group: .words,
+            createdAt: "2026-04-12T00:00:00Z",
+            updatedAt: "2026-04-12T00:00:00Z",
+            focusLabel: "Focus B",
+            referenceLabel: "Reference B",
+            configuration: configuration,
+            rows: [
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "alpha",
+                    direction: .negative,
+                    focusFrequency: 7,
+                    referenceFrequency: 14,
+                    focusNormalizedFrequency: 7_000,
+                    referenceNormalizedFrequency: 14_000,
+                    keynessScore: 8,
+                    logRatio: -1.2,
+                    pValue: 0.02,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "alpha",
+                    focusExampleCorpusID: "corpus-3",
+                    referenceExampleCorpusID: "corpus-4"
+                ),
+                KeywordSuiteRow(
+                    group: .words,
+                    item: "beta",
+                    direction: .positive,
+                    focusFrequency: 6,
+                    referenceFrequency: 1,
+                    focusNormalizedFrequency: 6_000,
+                    referenceNormalizedFrequency: 1_000,
+                    keynessScore: 6,
+                    logRatio: 0.9,
+                    pValue: 0.03,
+                    focusRange: 1,
+                    referenceRange: 1,
+                    example: "beta",
+                    focusExampleCorpusID: "corpus-3",
+                    referenceExampleCorpusID: "corpus-4"
+                )
+            ]
+        )
+
+        let scene = KeywordSceneBuilder().build(
+            result: nil,
+            activeTab: .lists,
+            listMode: .keywordDatabase,
+            primarySavedList: nil,
+            secondarySavedList: nil,
+            savedLists: [listA, listB],
+            configuration: configuration,
+            focusSelectionSummary: "Focus",
+            referenceSelectionSummary: "Reference",
+            hasPendingRunChanges: false,
+            sortMode: .coverageDescending,
+            pageSize: .all,
+            currentPage: 1,
+            visibleColumns: Set(KeywordColumnKey.allCases)
+        )
+
+        XCTAssertEqual(scene.totalRows, 3)
+        XCTAssertEqual(scene.rows.first?.item, "alpha")
+        XCTAssertEqual(scene.rows.first?.coverageCountText, "2")
+        XCTAssertEqual(scene.rows.first?.coverageRateText, "1.00")
+        XCTAssertEqual(scene.rows.first?.meanKeynessText, "9.00")
+        XCTAssertEqual(scene.rows.first?.meanAbsLogRatioText, "1.60")
+        XCTAssertEqual(scene.rows.first?.lastSeenAtText, "2026-04-12T00:00:00Z")
+    }
+
+    func testKeywordSceneBuilderBuildsListSpecificTableDescriptors() {
+        let builder = KeywordSceneBuilder()
+
+        let pairwiseTable = builder.buildTable(
+            activeTab: .lists,
+            listMode: .pairwiseDiff,
+            statistic: .logLikelihood,
+            visibleColumns: Set(KeywordColumnKey.allCases),
+            sortMode: .absLogRatioDescending,
+            languageMode: .system
+        )
+        XCTAssertEqual(pairwiseTable.storageKey, "keyword-lists-pairwiseDiff")
+        XCTAssertEqual(
+            pairwiseTable.columns.map(\.id),
+            [
+                KeywordColumnKey.rank.rawValue,
+                KeywordColumnKey.item.rawValue,
+                KeywordColumnKey.diffStatus.rawValue,
+                KeywordColumnKey.leftRank.rawValue,
+                KeywordColumnKey.rightRank.rawValue,
+                KeywordColumnKey.logRatioDelta.rawValue
+            ]
+        )
+        XCTAssertEqual(pairwiseTable.defaultDensity, .standard)
+        XCTAssertEqual(pairwiseTable.column(id: KeywordColumnKey.logRatioDelta.rawValue)?.sortIndicator, "↓")
+
+        let keywordTable = builder.buildTable(
+            activeTab: .words,
+            listMode: .pairwiseDiff,
+            statistic: .chiSquare,
+            visibleColumns: Set(KeywordColumnKey.allCases),
+            sortMode: .keynessDescending,
+            languageMode: .system
+        )
+        XCTAssertEqual(keywordTable.storageKey, "keyword-words-pairwiseDiff")
+        XCTAssertEqual(keywordTable.defaultDensity, .reading)
+        XCTAssertEqual(keywordTable.columns.first?.id, KeywordColumnKey.rank.rawValue)
+        XCTAssertEqual(keywordTable.columns.last?.id, KeywordColumnKey.example.rawValue)
+        XCTAssertEqual(keywordTable.column(id: KeywordColumnKey.keyness.rawValue)?.sortIndicator, "↓")
+    }
+
+    func testKeywordSceneBuilderPaginationClampsRequestedPage() {
+        let pagination = KeywordSceneBuilder().buildPagination(
+            totalRows: 51,
+            currentPage: 9,
+            pageSize: .twentyFive,
+            languageMode: .system
+        )
+
+        XCTAssertEqual(pagination.globalStartIndex, 50)
+        XCTAssertEqual(pagination.sceneModel.currentPage, 3)
+        XCTAssertEqual(pagination.sceneModel.totalPages, 3)
+        XCTAssertEqual(pagination.sceneModel.rangeLabel, "51-51 / 51")
+        XCTAssertTrue(pagination.sceneModel.canGoBackward)
+        XCTAssertFalse(pagination.sceneModel.canGoForward)
     }
 
     func testChiSquareSceneBuilderBuildsMetricsAndWarnings() {
@@ -451,5 +755,16 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertTrue(collocateDocument.text.contains(collocateScene.rows[0].word))
         XCTAssertTrue(collocateDocument.text.contains("Focus Metric:"))
         XCTAssertTrue(collocateDocument.text.contains(collocateScene.focusMetricSummary))
+        XCTAssertTrue(collocateDocument.text.contains(collocateScene.methodSummary))
+
+        let compareMethodDocument = ReadingExportSupport.compareMethodDocument(scene: compareScene)
+        XCTAssertEqual(compareMethodDocument.suggestedName, "compare-method-summary.txt")
+        XCTAssertTrue(compareMethodDocument.text.contains(compareScene.methodSummary))
+        XCTAssertTrue(compareMethodDocument.text.contains(compareScene.referenceSummary))
+
+        let collocateMethodDocument = ReadingExportSupport.collocateMethodDocument(scene: collocateScene)
+        XCTAssertEqual(collocateMethodDocument.suggestedName, "collocate-method-summary.txt")
+        XCTAssertTrue(collocateMethodDocument.text.contains(collocateScene.methodSummary))
+        XCTAssertTrue(collocateMethodDocument.text.contains(collocateScene.methodNotes[0]))
     }
 }

@@ -1,5 +1,6 @@
 import AppKit
 
+@MainActor
 extension NativeTableView.Coordinator {
     func alignment(for column: NativeTableColumnDescriptor) -> NSTextAlignment {
         switch column.presentation {
@@ -78,6 +79,7 @@ extension NativeTableView.Coordinator {
         }
 
         let formatter = NumberFormatter()
+        formatter.locale = WordZLocalization.shared.locale
         formatter.numberStyle = .decimal
         formatter.usesGroupingSeparator = usesGrouping
         if let resolvedPrecision {
@@ -92,6 +94,7 @@ extension NativeTableView.Coordinator {
 
     func formattedThreshold(_ value: Double, precision: Int) -> String {
         let formatter = NumberFormatter()
+        formatter.locale = WordZLocalization.shared.locale
         formatter.numberStyle = .decimal
         formatter.usesGroupingSeparator = false
         formatter.minimumFractionDigits = precision

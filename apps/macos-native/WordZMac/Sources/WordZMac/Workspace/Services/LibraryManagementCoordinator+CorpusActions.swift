@@ -8,60 +8,67 @@ extension LibraryManagementCoordinator {
     ) async throws {
         guard let selectedCorpus = library.selectedCorpus ?? sidebar.selectedCorpus else { return }
         guard let newName = await dialogService.promptText(
-            title: "重命名语料",
-            message: "输入“\(selectedCorpus.name)”的新名称。",
+            title: wordZText("重命名语料", "Rename Corpus", mode: .system),
+            message: l10nFormat(
+                "输入“%@”的新名称。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Enter a new name for \"%@\".",
+                selectedCorpus.name
+            ),
             defaultValue: selectedCorpus.name,
-            confirmTitle: "重命名",
+            confirmTitle: wordZText("重命名", "Rename", mode: .system),
             preferredRoute: preferredRoute
         ) else { return }
         let updated = try await repository.renameCorpus(corpusId: selectedCorpus.id, newName: newName)
         sidebar.selectedCorpusID = updated.id
-        library.setStatus("已重命名语料为“\(updated.name)”。")
+        library.setStatus(
+            l10nFormat(
+                "已重命名语料为“%@”。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Renamed corpus to \"%@\".",
+                updated.name
+            )
+        )
         try await refreshLibraryState(into: library, sidebar: sidebar)
     }
 
     func updateSelectedCorpusMetadata(
         _ metadata: CorpusMetadataProfile,
+        settings: WorkspaceSettingsViewModel,
         into library: LibraryManagementViewModel,
         sidebar: LibrarySidebarViewModel,
         preferredRoute: NativeWindowRoute? = nil
     ) async throws {
         guard let selectedCorpus = library.selectedCorpus ?? sidebar.selectedCorpus else { return }
         let updated = try await repository.updateCorpusMetadata(corpusId: selectedCorpus.id, metadata: metadata)
+        await persistRecentMetadataSourceLabelIfNeeded(
+            metadata.sourceLabel,
+            settings: settings,
+            sidebar: sidebar
+        )
         sidebar.selectedCorpusID = updated.id
         library.dismissMetadataEditor()
-        library.setStatus("已更新“\(updated.name)”的语料元数据。")
+        library.setStatus(
+            l10nFormat(
+                "已更新“%@”的语料元数据。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Updated corpus metadata for \"%@\".",
+                updated.name
+            )
+        )
         try await refreshLibraryState(into: library, sidebar: sidebar)
         if library.corpusInfoSheet?.id == updated.id {
             let summary = try await repository.loadCorpusInfo(corpusId: updated.id)
-            library.presentCorpusInfo(
-                LibraryCorpusInfoSceneModel(
-                    id: summary.corpusId,
-                    title: summary.title,
-                    subtitle: "语料信息",
-                    folderName: summary.folderName,
-                    sourceType: summary.sourceType,
-                    sourceLabelText: summary.metadata.sourceLabel.isEmpty ? "—" : summary.metadata.sourceLabel,
-                    yearText: summary.metadata.yearLabel.isEmpty ? "—" : summary.metadata.yearLabel,
-                    genreText: summary.metadata.genreLabel.isEmpty ? "—" : summary.metadata.genreLabel,
-                    tagsText: summary.metadata.tagsText.isEmpty ? "—" : summary.metadata.tagsText,
-                    importedAtText: summary.importedAt.isEmpty ? "—" : summary.importedAt,
-                    encodingText: summary.detectedEncoding.isEmpty ? "—" : summary.detectedEncoding,
-                    tokenCountText: "\(summary.tokenCount)",
-                    typeCountText: "\(summary.typeCount)",
-                    sentenceCountText: "\(summary.sentenceCount)",
-                    paragraphCountText: "\(summary.paragraphCount)",
-                    characterCountText: "\(summary.characterCount)",
-                    ttrText: String(format: "%.4f", summary.ttr),
-                    sttrText: summary.sttr > 0 ? String(format: "%.4f", summary.sttr) : "—",
-                    representedPath: summary.representedPath
-                )
-            )
+            library.presentCorpusInfo(library.makeCorpusInfoScene(summary: summary))
         }
     }
 
     func updateSelectedCorporaMetadata(
         _ patch: BatchCorpusMetadataPatch,
+        settings: WorkspaceSettingsViewModel,
         into library: LibraryManagementViewModel,
         sidebar: LibrarySidebarViewModel,
         preferredRoute: NativeWindowRoute? = nil
@@ -75,8 +82,21 @@ extension LibraryManagementCoordinator {
             _ = try await repository.updateCorpusMetadata(corpusId: corpus.id, metadata: updatedMetadata)
         }
 
+        await persistRecentMetadataSourceLabelIfNeeded(
+            patch.sourceLabel ?? "",
+            settings: settings,
+            sidebar: sidebar
+        )
         library.dismissMetadataEditor()
-        library.setStatus("已批量更新 \(targetCorpora.count) 条语料的元数据。")
+        library.setStatus(
+            l10nFormat(
+                "已批量更新 %d 条语料。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Updated metadata for %d corpora.",
+                targetCorpora.count
+            )
+        )
         try await refreshLibraryState(into: library, sidebar: sidebar)
     }
 
@@ -89,7 +109,15 @@ extension LibraryManagementCoordinator {
         let targetFolderID = library.selectedFolderID ?? ""
         guard targetFolderID != selectedCorpus.folderId else { return }
         _ = try await repository.moveCorpus(corpusId: selectedCorpus.id, targetFolderId: targetFolderID)
-        library.setStatus("已移动语料“\(selectedCorpus.name)”。")
+        library.setStatus(
+            l10nFormat(
+                "已移动语料“%@”。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Moved corpus \"%@\".",
+                selectedCorpus.name
+            )
+        )
         try await refreshLibraryState(into: library, sidebar: sidebar)
     }
 
@@ -100,9 +128,15 @@ extension LibraryManagementCoordinator {
     ) async throws {
         guard let selectedCorpus = library.selectedCorpus ?? sidebar.selectedCorpus else { return }
         let confirmed = await dialogService.confirm(
-            title: "删除语料",
-            message: "“\(selectedCorpus.name)”会被移到回收站。",
-            confirmTitle: "删除",
+            title: wordZText("删除语料", "Delete Corpus", mode: .system),
+            message: l10nFormat(
+                "“%@”会被移到回收站。",
+                table: "Errors",
+                mode: .system,
+                fallback: "\"%@\" will be moved to the recycle bin.",
+                selectedCorpus.name
+            ),
+            confirmTitle: wordZText("删除", "Delete", mode: .system),
             preferredRoute: preferredRoute
         )
         guard confirmed else { return }
@@ -111,7 +145,44 @@ extension LibraryManagementCoordinator {
             sessionStore.resetOpenedCorpus()
         }
         sidebar.selectedCorpusID = nil
-        library.setStatus("已删除语料“\(selectedCorpus.name)”。")
+        library.setStatus(
+            l10nFormat(
+                "已删除语料“%@”。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Deleted corpus \"%@\".",
+                selectedCorpus.name
+            )
+        )
         try await refreshLibraryState(into: library, sidebar: sidebar)
+    }
+
+    private func persistRecentMetadataSourceLabelIfNeeded(
+        _ sourceLabel: String,
+        settings: WorkspaceSettingsViewModel,
+        sidebar: LibrarySidebarViewModel
+    ) async {
+        let currentSnapshot = settings.exportSnapshot()
+        let nextRecentLabels = MetadataSourcePresetSupport.updatedRecentSourceLabels(
+            current: currentSnapshot.recentMetadataSourceLabels,
+            newLabel: sourceLabel
+        )
+
+        guard nextRecentLabels != currentSnapshot.recentMetadataSourceLabels else { return }
+
+        let nextSnapshot = UISettingsSnapshot(
+            showWelcomeScreen: currentSnapshot.showWelcomeScreen,
+            restoreWorkspace: currentSnapshot.restoreWorkspace,
+            debugLogging: currentSnapshot.debugLogging,
+            recentMetadataSourceLabels: nextRecentLabels
+        )
+
+        do {
+            try await repository.saveUISettings(nextSnapshot)
+            settings.applyRecentMetadataSourceLabels(nextRecentLabels)
+            sidebar.applyRecentMetadataSourceLabels(nextRecentLabels)
+        } catch {
+            return
+        }
     }
 }

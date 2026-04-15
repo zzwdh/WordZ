@@ -1,54 +1,82 @@
 import SwiftUI
 
 extension TaskCenterWindowView {
-    var taskCenterWindowContent: some View {
+    func taskCenterWindowContent(scene: TaskCenterWindowSceneModel) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             NativeWindowHeader(
                 title: t("任务中心", "Task Center"),
-                subtitle: workspace.taskCenter.scene.summary
+                subtitle: scene.subtitle
             ) {
-                Button(t("清理已完成", "Clear Completed")) {
+                Button(t("清理已结束", "Clear Finished")) {
                     workspace.clearFinishedTasks()
                 }
-                .disabled(workspace.taskCenter.scene.items.allSatisfy { $0.state == .running })
+                .disabled(!scene.hasFinishedItems)
             }
-            metricsRow
-            taskCenterListSection
+            if !NativePlatformCapabilities.current.supportsToolbarSearchEnhancements,
+               scene.showsAggregateProgress,
+               let aggregateProgress = scene.aggregateProgress {
+                TaskCenterAggregateProgressView(
+                    progress: aggregateProgress,
+                    summary: scene.aggregateProgressSummary,
+                    style: .content
+                )
+            }
+            metricsRow(scene: scene)
+            taskCenterListSection(scene: scene)
         }
         .padding(20)
     }
 
-    var metricsRow: some View {
+    func metricsRow(scene: TaskCenterWindowSceneModel) -> some View {
         HStack(spacing: 12) {
-            NativeMetricTile(title: t("进行中", "Running"), value: "\(workspace.taskCenter.scene.runningCount)")
-            NativeMetricTile(title: t("已完成", "Completed"), value: "\(workspace.taskCenter.scene.completedCount)")
-            NativeMetricTile(title: t("失败", "Failed"), value: "\(workspace.taskCenter.scene.failedCount)")
-            NativeMetricTile(
-                title: t("整体进度", "Overall Progress"),
-                value: workspace.taskCenter.scene.aggregateProgress.map { "\(Int(($0 * 100).rounded()))%" } ?? "—",
-                detail: workspace.taskCenter.scene.runningCount > 0
-                    ? t("按当前运行任务计算", "Based on currently running tasks")
-                    : t("当前没有运行中的任务", "No tasks are currently running")
-            )
+            NativeMetricTile(title: t("进行中", "Running"), value: "\(scene.runningCount)")
+            NativeMetricTile(title: t("已完成", "Completed"), value: "\(scene.completedCount)")
+            NativeMetricTile(title: t("失败", "Failed"), value: "\(scene.failedCount)")
         }
     }
 
     @ViewBuilder
-    var taskCenterListSection: some View {
-        if workspace.taskCenter.scene.items.isEmpty {
+    func taskCenterListSection(scene: TaskCenterWindowSceneModel) -> some View {
+        if scene.isEmpty {
             ContentUnavailableView(
                 t("当前没有后台任务", "No background tasks"),
                 systemImage: "checklist",
                 description: Text(t("更新检查、更新下载和诊断包导出会在这里显示进度与结果。", "Update checks, downloads, and diagnostics bundle exports will appear here."))
             )
+        } else if scene.showsSearchEmptyState {
+            ContentUnavailableView(
+                t("没有匹配的任务", "No matching tasks"),
+                systemImage: "magnifyingglass",
+                description: Text(t("试试搜索任务标题、状态文案或操作名称。", "Try searching by task title, state label, or action name."))
+            )
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(workspace.taskCenter.scene.items) { item in
-                        taskCenterItemCard(item)
+                    ForEach(scene.sections) { section in
+                        taskCenterSection(section)
                     }
                 }
                 .padding(.bottom, 12)
+            }
+        }
+    }
+
+    func taskCenterSection(_ section: TaskCenterWindowSection) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(section.title)
+                    .font(.headline)
+
+                Text(section.itemCountSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+
+                Spacer(minLength: 0)
+            }
+
+            ForEach(section.items) { item in
+                taskCenterItemCard(item)
             }
         }
     }
@@ -67,7 +95,7 @@ extension TaskCenterWindowView {
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     } else {
-                        Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                        Text(WordZLocalization.localizedDateTimeString(from: item.updatedAt, mode: languageMode))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

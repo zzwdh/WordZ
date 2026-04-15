@@ -8,12 +8,14 @@ struct KeywordView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: t("关键词", "Keyword")
+            title: t("Keyword Suite", "Keyword Suite"),
+            scrollMode: .manual
         ) {
-            keywordHeaderActions
-        } content: {
-            keywordInputSection
-            keywordResultsSection
+            WorkbenchFixedTopScrollContent {
+                keywordInputSection
+            } scrolling: {
+                keywordResultsSection
+            }
         }
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)

@@ -28,6 +28,15 @@ extension NativeCorpusDatabaseSupport {
                 character_count INTEGER NOT NULL,
                 ttr REAL NOT NULL DEFAULT 0,
                 sttr REAL NOT NULL DEFAULT 0,
+                cleaned_at TEXT NOT NULL DEFAULT '',
+                cleaning_profile_version TEXT NOT NULL DEFAULT '',
+                cleaning_rule_hits_json TEXT NOT NULL DEFAULT '[]',
+                original_character_count INTEGER NOT NULL DEFAULT 0,
+                cleaned_character_count INTEGER NOT NULL DEFAULT 0,
+                cleaned_text_digest TEXT NOT NULL DEFAULT '',
+                tokenized_sentences_json TEXT NOT NULL DEFAULT '',
+                raw_text TEXT NOT NULL DEFAULT '',
+                cleaned_text TEXT NOT NULL DEFAULT '',
                 text TEXT NOT NULL
             );
             """,
@@ -46,16 +55,46 @@ extension NativeCorpusDatabaseSupport {
             """,
             on: db
         )
+        try execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_position (
+                sentence_id INTEGER NOT NULL,
+                token_index INTEGER NOT NULL,
+                exact_term TEXT NOT NULL,
+                normalized_term TEXT NOT NULL,
+                PRIMARY KEY (sentence_id, token_index)
+            );
+            """,
+            on: db
+        )
         try ensureColumn("source_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
         try ensureColumn("year_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
         try ensureColumn("genre_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
         try ensureColumn("tags_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
         try ensureColumn("ttr", definition: "REAL NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
         try ensureColumn("sttr", definition: "REAL NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+        try ensureColumn("cleaned_at", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try ensureColumn("cleaning_profile_version", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try ensureColumn("cleaning_rule_hits_json", definition: "TEXT NOT NULL DEFAULT '[]'", onTable: "corpus_document", db: db)
+        try ensureColumn("original_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+        try ensureColumn("cleaned_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+        try ensureColumn("cleaned_text_digest", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try ensureColumn("tokenized_sentences_json", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try ensureColumn("raw_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try ensureColumn("cleaned_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_imported_at ON corpus_document(imported_at DESC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_represented_path ON corpus_document(represented_path ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_source_label ON corpus_document(source_label ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_year_label ON corpus_document(year_label ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_genre_label ON corpus_document(genre_label ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_tags_text ON corpus_document(tags_text ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_count ON token_frequency(count DESC, term ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_rank ON token_frequency(rank_index ASC, term ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_norm_frequency ON token_frequency(norm_frequency DESC, term ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_sentence_range ON token_frequency(sentence_range DESC, term ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_paragraph_range ON token_frequency(paragraph_range DESC, term ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_position_exact_term ON token_position(exact_term ASC, sentence_id ASC, token_index ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_position_normalized_term ON token_position(normalized_term ASC, sentence_id ASC, token_index ASC);", on: db)
     }
 
     static func ensureColumn(

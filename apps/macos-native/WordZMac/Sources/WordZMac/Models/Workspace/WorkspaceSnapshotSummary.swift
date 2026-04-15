@@ -13,6 +13,21 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let tokenizeLemmaStrategy: TokenLemmaStrategy
     let compareReferenceCorpusID: String
     let compareSelectedCorpusIDs: [String]
+    let sentimentSource: SentimentInputSource
+    let sentimentUnit: SentimentAnalysisUnit
+    let sentimentContextBasis: SentimentContextBasis
+    let sentimentBackend: SentimentBackendKind
+    let sentimentChartKind: SentimentChartKind
+    let sentimentThresholdPreset: SentimentThresholdPreset
+    let sentimentDecisionThreshold: Double
+    let sentimentMinimumEvidence: Double
+    let sentimentNeutralBias: Double
+    let sentimentRowFilterQuery: String
+    let sentimentLabelFilter: SentimentLabel?
+    let sentimentSelectedCorpusIDs: [String]
+    let sentimentReferenceCorpusID: String
+    let keywordActiveTab: KeywordSuiteTab
+    let keywordSuiteConfiguration: KeywordSuiteConfiguration
     let keywordTargetCorpusID: String
     let keywordReferenceCorpusID: String
     let keywordLowercased: Bool
@@ -20,14 +35,26 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let keywordMinimumFrequency: String
     let keywordStatistic: KeywordStatisticMethod
     let keywordStopwordFilter: StopwordFilterState
+    let plotQuery: String
+    let plotSearchOptions: SearchOptionsState
     let ngramSize: String
     let ngramPageSize: String
+    let clusterSelectedN: String
+    let clusterMinFrequency: String
+    let clusterSortMode: ClusterSortMode
+    let clusterCaseSensitive: Bool
+    let clusterStopwordFilter: StopwordFilterState
+    let clusterPunctuationMode: ClusterPunctuationMode
+    let clusterSelectedPhrase: String
+    let clusterPageSize: String
+    let clusterReferenceCorpusID: String
     let kwicLeftWindow: String
     let kwicRightWindow: String
     let collocateLeftWindow: String
     let collocateRightWindow: String
     let collocateMinFreq: String
     let topicsMinTopicSize: String
+    let topicsKeywordDisplayCount: String
     let topicsIncludeOutliers: Bool
     let topicsPageSize: String
     let topicsActiveTopicID: String
@@ -54,6 +81,21 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
         compareReferenceCorpusID: String = "",
         compareSelectedCorpusIDs: [String] = [],
+        sentimentSource: SentimentInputSource = .openedCorpus,
+        sentimentUnit: SentimentAnalysisUnit = .sentence,
+        sentimentContextBasis: SentimentContextBasis = .visibleContext,
+        sentimentBackend: SentimentBackendKind = .lexicon,
+        sentimentChartKind: SentimentChartKind = .distributionBar,
+        sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
+        sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
+        sentimentMinimumEvidence: Double = SentimentThresholds.default.minimumEvidence,
+        sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
+        sentimentRowFilterQuery: String = "",
+        sentimentLabelFilter: SentimentLabel? = nil,
+        sentimentSelectedCorpusIDs: [String] = [],
+        sentimentReferenceCorpusID: String = "",
+        keywordActiveTab: KeywordSuiteTab = .words,
+        keywordSuiteConfiguration: KeywordSuiteConfiguration = .default,
         keywordTargetCorpusID: String = "",
         keywordReferenceCorpusID: String = "",
         keywordLowercased: Bool = true,
@@ -61,14 +103,26 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         keywordMinimumFrequency: String = "2",
         keywordStatistic: KeywordStatisticMethod = .logLikelihood,
         keywordStopwordFilter: StopwordFilterState = .default,
+        plotQuery: String = "",
+        plotSearchOptions: SearchOptionsState = .default,
         ngramSize: String,
         ngramPageSize: String,
+        clusterSelectedN: String = "3",
+        clusterMinFrequency: String = "3",
+        clusterSortMode: ClusterSortMode = .frequencyDescending,
+        clusterCaseSensitive: Bool = false,
+        clusterStopwordFilter: StopwordFilterState = .default,
+        clusterPunctuationMode: ClusterPunctuationMode = .boundary,
+        clusterSelectedPhrase: String = "",
+        clusterPageSize: String = "100",
+        clusterReferenceCorpusID: String = "",
         kwicLeftWindow: String,
         kwicRightWindow: String,
         collocateLeftWindow: String,
         collocateRightWindow: String,
         collocateMinFreq: String,
         topicsMinTopicSize: String,
+        topicsKeywordDisplayCount: String = "5",
         topicsIncludeOutliers: Bool,
         topicsPageSize: String,
         topicsActiveTopicID: String,
@@ -92,6 +146,21 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
         self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
+        self.sentimentSource = sentimentSource
+        self.sentimentUnit = sentimentUnit
+        self.sentimentContextBasis = sentimentContextBasis
+        self.sentimentBackend = sentimentBackend
+        self.sentimentChartKind = sentimentChartKind
+        self.sentimentThresholdPreset = sentimentThresholdPreset
+        self.sentimentDecisionThreshold = sentimentDecisionThreshold
+        self.sentimentMinimumEvidence = sentimentMinimumEvidence
+        self.sentimentNeutralBias = sentimentNeutralBias
+        self.sentimentRowFilterQuery = sentimentRowFilterQuery
+        self.sentimentLabelFilter = sentimentLabelFilter
+        self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
+        self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
+        self.keywordActiveTab = keywordActiveTab
+        self.keywordSuiteConfiguration = keywordSuiteConfiguration
         self.keywordTargetCorpusID = keywordTargetCorpusID
         self.keywordReferenceCorpusID = keywordReferenceCorpusID
         self.keywordLowercased = keywordLowercased
@@ -99,14 +168,26 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.keywordMinimumFrequency = keywordMinimumFrequency
         self.keywordStatistic = keywordStatistic
         self.keywordStopwordFilter = keywordStopwordFilter
+        self.plotQuery = plotQuery
+        self.plotSearchOptions = plotSearchOptions
         self.ngramSize = ngramSize
         self.ngramPageSize = ngramPageSize
+        self.clusterSelectedN = clusterSelectedN
+        self.clusterMinFrequency = clusterMinFrequency
+        self.clusterSortMode = clusterSortMode
+        self.clusterCaseSensitive = clusterCaseSensitive
+        self.clusterStopwordFilter = clusterStopwordFilter
+        self.clusterPunctuationMode = clusterPunctuationMode
+        self.clusterSelectedPhrase = clusterSelectedPhrase
+        self.clusterPageSize = clusterPageSize
+        self.clusterReferenceCorpusID = clusterReferenceCorpusID
         self.kwicLeftWindow = kwicLeftWindow
         self.kwicRightWindow = kwicRightWindow
         self.collocateLeftWindow = collocateLeftWindow
         self.collocateRightWindow = collocateRightWindow
         self.collocateMinFreq = collocateMinFreq
         self.topicsMinTopicSize = topicsMinTopicSize
+        self.topicsKeywordDisplayCount = topicsKeywordDisplayCount
         self.topicsIncludeOutliers = topicsIncludeOutliers
         self.topicsPageSize = topicsPageSize
         self.topicsActiveTopicID = topicsActiveTopicID
@@ -140,7 +221,50 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         let compare = JSONFieldReader.dictionary(json, key: "compare")
         self.compareReferenceCorpusID = JSONFieldReader.string(compare, key: "referenceCorpusID")
         self.compareSelectedCorpusIDs = JSONFieldReader.array(compare, key: "selectedCorpusIDs").compactMap { $0 as? String }
+        let sentiment = JSONFieldReader.dictionary(json, key: "sentiment")
+        self.sentimentSource = SentimentInputSource(
+            rawValue: JSONFieldReader.string(sentiment, key: "source", fallback: SentimentInputSource.openedCorpus.rawValue)
+        ) ?? .openedCorpus
+        self.sentimentUnit = SentimentAnalysisUnit(
+            rawValue: JSONFieldReader.string(sentiment, key: "unit", fallback: SentimentAnalysisUnit.sentence.rawValue)
+        ) ?? .sentence
+        self.sentimentContextBasis = SentimentContextBasis(
+            rawValue: JSONFieldReader.string(sentiment, key: "contextBasis", fallback: SentimentContextBasis.visibleContext.rawValue)
+        ) ?? .visibleContext
+        self.sentimentBackend = SentimentBackendKind(
+            rawValue: JSONFieldReader.string(sentiment, key: "backend", fallback: SentimentBackendKind.lexicon.rawValue)
+        ) ?? .lexicon
+        self.sentimentChartKind = SentimentChartKind(
+            rawValue: JSONFieldReader.string(sentiment, key: "chartKind", fallback: SentimentChartKind.distributionBar.rawValue)
+        ) ?? .distributionBar
+        self.sentimentThresholdPreset = SentimentThresholdPreset(
+            rawValue: JSONFieldReader.string(sentiment, key: "thresholdPreset", fallback: SentimentThresholdPreset.conservative.rawValue)
+        ) ?? .conservative
+        self.sentimentDecisionThreshold = JSONFieldReader.double(
+            sentiment,
+            key: "decisionThreshold",
+            fallback: SentimentThresholds.default.decisionThreshold
+        )
+        self.sentimentMinimumEvidence = JSONFieldReader.double(
+            sentiment,
+            key: "minimumEvidence",
+            fallback: SentimentThresholds.default.minimumEvidence
+        )
+        self.sentimentNeutralBias = JSONFieldReader.double(
+            sentiment,
+            key: "neutralBias",
+            fallback: SentimentThresholds.default.neutralBias
+        )
+        self.sentimentRowFilterQuery = JSONFieldReader.string(sentiment, key: "rowFilterQuery")
+        self.sentimentLabelFilter = SentimentLabel(
+            rawValue: JSONFieldReader.string(sentiment, key: "labelFilter")
+        )
+        self.sentimentSelectedCorpusIDs = JSONFieldReader.array(sentiment, key: "selectedCorpusIDs").compactMap { $0 as? String }
+        self.sentimentReferenceCorpusID = JSONFieldReader.string(sentiment, key: "referenceCorpusID")
         let keyword = JSONFieldReader.dictionary(json, key: "keyword")
+        self.keywordActiveTab = KeywordSuiteTab(
+            rawValue: JSONFieldReader.string(keyword, key: "activeTab", fallback: KeywordSuiteTab.words.rawValue)
+        ) ?? .words
         self.keywordTargetCorpusID = JSONFieldReader.string(keyword, key: "targetCorpusID")
         self.keywordReferenceCorpusID = JSONFieldReader.string(keyword, key: "referenceCorpusID")
         self.keywordLowercased = JSONFieldReader.bool(keyword, key: "lowercased", fallback: true)
@@ -150,9 +274,42 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             rawValue: JSONFieldReader.string(keyword, key: "statistic", fallback: KeywordStatisticMethod.logLikelihood.rawValue)
         ) ?? .logLikelihood
         self.keywordStopwordFilter = StopwordFilterState(json: JSONFieldReader.dictionary(keyword, key: "stopwordFilter"))
+        let suiteConfigurationObject = JSONFieldReader.dictionary(keyword, key: "suiteConfiguration")
+        if suiteConfigurationObject.isEmpty {
+            self.keywordSuiteConfiguration = .legacy(
+                targetCorpusID: self.keywordTargetCorpusID,
+                referenceCorpusID: self.keywordReferenceCorpusID,
+                options: KeywordPreprocessingOptions(
+                    lowercased: self.keywordLowercased,
+                    removePunctuation: self.keywordRemovePunctuation,
+                    stopwordFilter: self.keywordStopwordFilter,
+                    minimumFrequency: Int(self.keywordMinimumFrequency) ?? 2,
+                    statistic: self.keywordStatistic
+                )
+            )
+        } else {
+            self.keywordSuiteConfiguration = KeywordSuiteConfiguration(json: suiteConfigurationObject)
+        }
+        let plot = JSONFieldReader.dictionary(json, key: "plot")
+        self.plotQuery = JSONFieldReader.string(plot, key: "query")
+        self.plotSearchOptions = SearchOptionsState(json: JSONFieldReader.dictionary(plot, key: "options"))
         let ngram = JSONFieldReader.dictionary(json, key: "ngram")
         self.ngramSize = JSONFieldReader.string(ngram, key: "size", fallback: "2")
         self.ngramPageSize = JSONFieldReader.string(ngram, key: "pageSize", fallback: "10")
+        let cluster = JSONFieldReader.dictionary(json, key: "cluster")
+        self.clusterSelectedN = JSONFieldReader.string(cluster, key: "selectedN", fallback: "3")
+        self.clusterMinFrequency = JSONFieldReader.string(cluster, key: "minFrequency", fallback: "3")
+        self.clusterSortMode = ClusterSortMode(
+            rawValue: JSONFieldReader.string(cluster, key: "sortMode", fallback: ClusterSortMode.frequencyDescending.rawValue)
+        ) ?? .frequencyDescending
+        self.clusterCaseSensitive = JSONFieldReader.bool(cluster, key: "caseSensitive", fallback: false)
+        self.clusterStopwordFilter = StopwordFilterState(json: JSONFieldReader.dictionary(cluster, key: "stopwordFilter"))
+        self.clusterPunctuationMode = ClusterPunctuationMode(
+            rawValue: JSONFieldReader.string(cluster, key: "punctuationMode", fallback: ClusterPunctuationMode.boundary.rawValue)
+        ) ?? .boundary
+        self.clusterSelectedPhrase = JSONFieldReader.string(cluster, key: "selectedPhrase")
+        self.clusterPageSize = JSONFieldReader.string(cluster, key: "pageSize", fallback: "100")
+        self.clusterReferenceCorpusID = JSONFieldReader.string(cluster, key: "referenceCorpusID")
         let kwic = JSONFieldReader.dictionary(json, key: "kwic")
         self.kwicLeftWindow = JSONFieldReader.string(kwic, key: "leftWindow", fallback: "5")
         self.kwicRightWindow = JSONFieldReader.string(kwic, key: "rightWindow", fallback: "5")
@@ -162,6 +319,7 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.collocateMinFreq = JSONFieldReader.string(collocate, key: "minFreq", fallback: "1")
         let topics = JSONFieldReader.dictionary(json, key: "topics")
         self.topicsMinTopicSize = JSONFieldReader.string(topics, key: "minTopicSize", fallback: "2")
+        self.topicsKeywordDisplayCount = JSONFieldReader.string(topics, key: "keywordDisplayCount", fallback: "5")
         self.topicsIncludeOutliers = JSONFieldReader.bool(topics, key: "includeOutliers", fallback: true)
         self.topicsPageSize = JSONFieldReader.string(topics, key: "pageSize", fallback: "50")
         self.topicsActiveTopicID = JSONFieldReader.string(topics, key: "activeTopicID")
@@ -194,6 +352,21 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             tokenizeLemmaStrategy: draft.tokenizeLemmaStrategy,
             compareReferenceCorpusID: draft.compareReferenceCorpusID,
             compareSelectedCorpusIDs: draft.compareSelectedCorpusIDs,
+            sentimentSource: draft.sentimentSource,
+            sentimentUnit: draft.sentimentUnit,
+            sentimentContextBasis: draft.sentimentContextBasis,
+            sentimentBackend: draft.sentimentBackend,
+            sentimentChartKind: draft.sentimentChartKind,
+            sentimentThresholdPreset: draft.sentimentThresholdPreset,
+            sentimentDecisionThreshold: draft.sentimentDecisionThreshold,
+            sentimentMinimumEvidence: draft.sentimentMinimumEvidence,
+            sentimentNeutralBias: draft.sentimentNeutralBias,
+            sentimentRowFilterQuery: draft.sentimentRowFilterQuery,
+            sentimentLabelFilter: draft.sentimentLabelFilter,
+            sentimentSelectedCorpusIDs: draft.sentimentSelectedCorpusIDs,
+            sentimentReferenceCorpusID: draft.sentimentReferenceCorpusID,
+            keywordActiveTab: draft.keywordActiveTab,
+            keywordSuiteConfiguration: draft.keywordSuiteConfiguration,
             keywordTargetCorpusID: draft.keywordTargetCorpusID,
             keywordReferenceCorpusID: draft.keywordReferenceCorpusID,
             keywordLowercased: draft.keywordLowercased,
@@ -201,14 +374,26 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             keywordMinimumFrequency: draft.keywordMinimumFrequency,
             keywordStatistic: draft.keywordStatistic,
             keywordStopwordFilter: draft.keywordStopwordFilter,
+            plotQuery: draft.plotQuery,
+            plotSearchOptions: draft.plotSearchOptions,
             ngramSize: draft.ngramSize,
             ngramPageSize: draft.ngramPageSize,
+            clusterSelectedN: draft.clusterSelectedN,
+            clusterMinFrequency: draft.clusterMinFrequency,
+            clusterSortMode: draft.clusterSortMode,
+            clusterCaseSensitive: draft.clusterCaseSensitive,
+            clusterStopwordFilter: draft.clusterStopwordFilter,
+            clusterPunctuationMode: draft.clusterPunctuationMode,
+            clusterSelectedPhrase: draft.clusterSelectedPhrase,
+            clusterPageSize: draft.clusterPageSize,
+            clusterReferenceCorpusID: draft.clusterReferenceCorpusID,
             kwicLeftWindow: draft.kwicLeftWindow,
             kwicRightWindow: draft.kwicRightWindow,
             collocateLeftWindow: draft.collocateLeftWindow,
             collocateRightWindow: draft.collocateRightWindow,
             collocateMinFreq: draft.collocateMinFreq,
             topicsMinTopicSize: draft.topicsMinTopicSize,
+            topicsKeywordDisplayCount: draft.topicsKeywordDisplayCount,
             topicsIncludeOutliers: draft.topicsIncludeOutliers,
             topicsPageSize: draft.topicsPageSize,
             topicsActiveTopicID: draft.topicsActiveTopicID,

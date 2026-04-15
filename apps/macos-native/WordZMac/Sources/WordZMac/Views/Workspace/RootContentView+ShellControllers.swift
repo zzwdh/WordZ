@@ -25,11 +25,27 @@ struct WorkspaceWindowLayoutState: DynamicProperty {
 @MainActor
 struct RootContentDefaultLaunchController {
     let hasPresentedWindow: Binding<Bool>
+    let workspace: MainWorkspaceViewModel
+    let hostPreferencesStore: any NativeHostPreferencesStoring
     let shellActionHandler: any RootContentShellActionHandling
 
     func presentLibraryWindowIfNeeded() {
         guard !hasPresentedWindow.wrappedValue else { return }
         hasPresentedWindow.wrappedValue = true
+
+        let snapshot = hostPreferencesStore.load()
+        let shouldPresentLibrary = !snapshot.hasCompletedInitialLaunch || workspace.sidebar.librarySnapshot.corpora.isEmpty
+        if !snapshot.hasCompletedInitialLaunch {
+            do {
+                var updatedSnapshot = snapshot
+                updatedSnapshot.hasCompletedInitialLaunch = true
+                try hostPreferencesStore.save(updatedSnapshot)
+            } catch {
+                workspace.settings.setSupportStatus(error.localizedDescription)
+            }
+        }
+
+        guard shouldPresentLibrary else { return }
         shellActionHandler.handle(.openWindow(.library))
     }
 }
@@ -101,6 +117,15 @@ struct RootContentShellActionHandler: RootContentShellActionHandling {
 }
 
 extension RootContentView {
+    var mainWorkspaceCommandContext: WorkspaceCommandContext {
+        viewModel
+            .commandContext(for: .mainWorkspace)
+            .applyingViewMenuState(
+                selectedMainRoute: viewModel.selectedRoute,
+                isInspectorPresented: isInspectorVisible
+            )
+    }
+
     var isSidebarVisible: Bool {
         layoutState.sidebarVisibility
     }

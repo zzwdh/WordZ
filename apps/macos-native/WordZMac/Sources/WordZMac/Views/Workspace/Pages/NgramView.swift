@@ -8,12 +8,14 @@ struct NgramView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: "N-Gram"
+            title: "N-Gram",
+            scrollMode: .manual
         ) {
-            ngramHeaderActions
-        } content: {
-            ngramInputSection
-            ngramResultsSection
+            WorkbenchFixedTopScrollContent {
+                ngramInputSection
+            } scrolling: {
+                ngramResultsSection
+            }
         }
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)

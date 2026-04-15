@@ -15,6 +15,7 @@ extension WorkspaceActionDispatcher {
                 workspace.library.selectCorpusSet(corpusSetID)
                 workspace.sidebar.selectedCorpusID = workspace.library.selectedCorpusID
             }
+            launch { await self.workspace.flowCoordinator.persistRecentCorpusSetSelection(corpusSetID, features: self.workspace.features) }
         case .selectTargetCorpus(let corpusID):
             sync(.full) {
                 workspace.sidebar.selectedCorpusID = corpusID

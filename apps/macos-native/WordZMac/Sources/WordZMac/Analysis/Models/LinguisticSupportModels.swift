@@ -83,6 +83,14 @@ struct TokenLinguisticAnnotations: Hashable, Codable, Sendable {
     let lexicalClass: TokenLexicalClass?
 
     static let empty = TokenLinguisticAnnotations(script: .other, lemma: nil, lexicalClass: nil)
+
+    var jsonObject: JSONObject {
+        [
+            "script": script.rawValue,
+            "lemma": lemma as Any,
+            "lexicalClass": lexicalClass?.rawValue as Any
+        ]
+    }
 }
 
 enum TokenLemmaStrategy: String, CaseIterable, Identifiable, Codable, Sendable {

@@ -9,6 +9,10 @@ struct LibraryCorpusInfoSheetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             NativeWindowHeader(title: scene.title, subtitle: scene.subtitle) {
+                Button(t("重新清洗", "Re-clean")) {
+                    dismiss()
+                    onAction(.cleanSelectedCorpus)
+                }
                 Button(t("编辑元数据", "Edit Metadata")) {
                     dismiss()
                     onAction(.editSelectedCorpusMetadata)
@@ -44,10 +48,75 @@ struct LibraryCorpusInfoSheetView: View {
                 detailRow(title: t("原始路径", "Original Path"), value: scene.representedPath.isEmpty ? "—" : scene.representedPath)
             }
 
+            NativeWindowSection(
+                title: t("自动清洗", "Auto-Cleaning"),
+                subtitle: t("导入期与手动重跑时记录的文本清洗摘要", "Text-cleaning summary recorded during import and manual reruns")
+            ) {
+                detailRow(title: t("状态", "Status"), value: scene.cleaningStatusTitle)
+                detailRow(title: t("最近清洗", "Last Cleaned"), value: scene.cleanedAtText)
+                detailRow(title: t("原文字符", "Original Characters"), value: scene.originalCharacterCountText)
+                detailRow(title: t("清洗后字符", "Cleaned Characters"), value: scene.cleanedCharacterCountText)
+                detailRow(title: t("规则命中", "Rule Hits"), value: scene.cleaningRuleHitsText)
+            }
+
             Spacer(minLength: 0)
         }
         .padding(20)
         .frame(minWidth: 560, minHeight: 360, alignment: .topLeading)
+    }
+
+    private func detailRow(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.callout)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
+    }
+}
+
+struct LibraryImportSummarySheetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.wordZLanguageMode) private var languageMode
+    let scene: LibraryImportSummarySceneModel
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            NativeWindowHeader(title: scene.title, subtitle: scene.subtitle) {
+                Button(t("关闭", "Close")) {
+                    onDismiss()
+                    dismiss()
+                }
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 12) {
+                NativeMetricTile(title: t("已导入", "Imported"), value: scene.importedCountText)
+                NativeMetricTile(title: t("已跳过", "Skipped"), value: scene.skippedCountText)
+                NativeMetricTile(title: t("已清洗", "Cleaned"), value: scene.cleanedCountText)
+                NativeMetricTile(title: t("有变更", "Changed"), value: scene.changedCountText)
+            }
+
+            NativeWindowSection(
+                title: t("清洗摘要", "Cleaning Summary"),
+                subtitle: t("本轮导入后自动清洗产生的聚合结果", "Aggregated auto-cleaning results for this import")
+            ) {
+                detailRow(title: t("规则命中", "Rule Hits"), value: scene.ruleHitsSummaryText)
+                detailRow(title: t("首个失败项", "First Failure"), value: scene.firstFailureText)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .frame(minWidth: 480, minHeight: 300, alignment: .topLeading)
     }
 
     private func detailRow(title: String, value: String) -> some View {
@@ -119,12 +188,12 @@ struct LibraryCorpusMetadataEditorSheetView: View {
             NativeWindowSection(
                 title: t("元数据字段", "Metadata Fields"),
                 subtitle: scene.isBatchEdit
-                    ? t("本轮批量编辑会替换“来源 / 体裁”，并把新标签追加到每条语料上。年份暂不支持批量改写。", "Batch editing replaces Source / Genre and appends new tags to each corpus. Year stays single-edit only in this version.")
+                    ? t("本轮批量编辑会替换“来源 / 年份 / 体裁”，并把新标签追加到每条语料上。年份留空表示不修改。", "Batch editing replaces Source / Year / Genre and appends new tags to each corpus. Leave Year empty to keep existing values.")
                     : t("这些字段会进入语料信息面板，也会为后续检索、筛选和导出打基础。", "These fields feed corpus info and prepare later filtering and exports.")
             ) {
-                editorField(title: t("来源", "Source"), text: $sourceLabel, prompt: t("教材、期刊、访谈等", "Textbook, journal, interview, etc."))
+                sourceEditorField
                 if scene.allowsYearEditing {
-                    editorField(title: t("年份", "Year"), text: $yearLabel, prompt: t("如 2024 或 2018-2020", "For example 2024 or 2018-2020"))
+                    yearEditorField
                 }
                 editorField(title: t("体裁", "Genre"), text: $genreLabel, prompt: t("新闻、学术、小说等", "News, academic, fiction, etc."))
                 editorField(
@@ -142,6 +211,56 @@ struct LibraryCorpusMetadataEditorSheetView: View {
         .frame(minWidth: 520, minHeight: 320, alignment: .topLeading)
     }
 
+    private var sourceEditorField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(t("来源", "Source"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                TextField(
+                    t("教材、期刊、访谈等", "Textbook, journal, interview, etc."),
+                    text: $sourceLabel
+                )
+                .textFieldStyle(.roundedBorder)
+
+                suggestionMenu(
+                    symbol: "list.bullet",
+                    primaryTitle: t("常用来源", "Common Sources"),
+                    primaryItems: scene.sourcePresetLabels,
+                    secondaryTitle: t("最近使用", "Recent Sources"),
+                    secondaryItems: scene.recentSourceLabels
+                ) { value in
+                    sourceLabel = value
+                }
+            }
+        }
+    }
+
+    private var yearEditorField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(t("年份", "Year"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                TextField(
+                    t("如 2024 或 2018-2020", "For example 2024 or 2018-2020"),
+                    text: $yearLabel
+                )
+                .textFieldStyle(.roundedBorder)
+
+                suggestionMenu(
+                    symbol: "calendar",
+                    primaryTitle: t("快捷年份", "Quick Years"),
+                    primaryItems: scene.quickYearLabels,
+                    secondaryTitle: t("库中常见年份", "Common Library Years"),
+                    secondaryItems: scene.commonYearLabels
+                ) { value in
+                    yearLabel = value
+                }
+            }
+        }
+    }
+
     private func editorField(title: String, text: Binding<String>, prompt: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
@@ -150,6 +269,42 @@ struct LibraryCorpusMetadataEditorSheetView: View {
             TextField(prompt, text: text)
                 .textFieldStyle(.roundedBorder)
         }
+    }
+
+    private func suggestionMenu(
+        symbol: String,
+        primaryTitle: String,
+        primaryItems: [String],
+        secondaryTitle: String,
+        secondaryItems: [String],
+        onSelect: @escaping (String) -> Void
+    ) -> some View {
+        Menu {
+            if !primaryItems.isEmpty {
+                Section(primaryTitle) {
+                    ForEach(primaryItems, id: \.self) { item in
+                        Button(item) {
+                            onSelect(item)
+                        }
+                    }
+                }
+            }
+
+            if !secondaryItems.isEmpty {
+                Section(secondaryTitle) {
+                    ForEach(secondaryItems, id: \.self) { item in
+                        Button(item) {
+                            onSelect(item)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: symbol)
+                .frame(width: 28, height: 28)
+        }
+        .menuStyle(.borderlessButton)
+        .disabled(primaryItems.isEmpty && secondaryItems.isEmpty)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

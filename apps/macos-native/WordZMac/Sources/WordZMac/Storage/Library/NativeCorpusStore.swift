@@ -1,6 +1,6 @@
 import Foundation
 
-final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, CorpusSetManagingLibraryStore {
+final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, CorpusCleaningProgressReportingLibraryStore, CorpusSetManagingLibraryStore {
     let rootURL: URL
     let fileManager: FileManager
     let encoder: JSONEncoder
@@ -10,6 +10,9 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     var cachedCorpora: [NativeCorpusRecord]?
     var cachedCorpusSets: [NativeCorpusSetRecord]?
     var cachedAnalysisPresets: [NativeAnalysisPresetRecord]?
+    var cachedKeywordSavedLists: [KeywordSavedList]?
+    var cachedConcordanceSavedSets: [ConcordanceSavedSet]?
+    var cachedEvidenceItems: [EvidenceItem]?
     var cachedRecycleEntries: [NativeRecycleRecord]?
     var cachedWorkspaceSnapshot: NativePersistedWorkspaceSnapshot?
     var cachedUISettings: NativePersistedUISettings?
@@ -21,6 +24,9 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     var corpusSetsURL: URL { rootURL.appendingPathComponent("corpus-sets.json") }
     var recycleURL: URL { rootURL.appendingPathComponent("recycle.json") }
     var analysisPresetsURL: URL { rootURL.appendingPathComponent("analysis-presets.json") }
+    var keywordSavedListsURL: URL { rootURL.appendingPathComponent("keyword-saved-lists.json") }
+    var concordanceSavedSetsURL: URL { rootURL.appendingPathComponent("concordance-saved-sets.json") }
+    var evidenceItemsURL: URL { rootURL.appendingPathComponent("evidence-items.json") }
     var workspaceURL: URL { rootURL.appendingPathComponent("workspace-state.json") }
     var uiSettingsURL: URL { rootURL.appendingPathComponent("ui-settings.json") }
     var manifestStore: CorpusManifestStore {
@@ -54,6 +60,30 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
             presetsURL: analysisPresetsURL
         )
     }
+    var keywordSavedListStore: NativeKeywordSavedListStore {
+        NativeKeywordSavedListStore(
+            fileManager: fileManager,
+            encoder: encoder,
+            decoder: decoder,
+            listsURL: keywordSavedListsURL
+        )
+    }
+    var concordanceSavedSetStore: NativeConcordanceSavedSetStore {
+        NativeConcordanceSavedSetStore(
+            fileManager: fileManager,
+            encoder: encoder,
+            decoder: decoder,
+            setsURL: concordanceSavedSetsURL
+        )
+    }
+    var evidenceItemStore: NativeEvidenceItemStore {
+        NativeEvidenceItemStore(
+            fileManager: fileManager,
+            encoder: encoder,
+            decoder: decoder,
+            itemsURL: evidenceItemsURL
+        )
+    }
 
     init(rootURL: URL, fileManager: FileManager = .default) {
         self.rootURL = rootURL
@@ -75,13 +105,32 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
         let storageFileName = "\(id).db"
         let destinationDirectory = storageDirectoryURL ?? corporaDirectoryURL
         let storageURL = destinationDirectory.appendingPathComponent(storageFileName)
+        let cleaned = CorpusAutoCleaningSupport.clean(document.text)
+        let trimmedCleanedText = cleaned.cleanedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedCleanedText.isEmpty else {
+            throw NSError(
+                domain: "WordZMac.NativeCorpusStore",
+                code: 422,
+                userInfo: [NSLocalizedDescriptionKey: "自动清洗后未保留可用文本：\(sourceURL.lastPathComponent)。"]
+            )
+        }
+        let cleanedAt = importedAt ?? timestamp()
+        let cleaningSummary = CorpusAutoCleaningSupport.makeReportSummary(
+            from: cleaned,
+            cleanedAt: cleanedAt
+        )
         try NativeCorpusDatabaseSupport.writeDocument(
             at: storageURL,
-            document: document,
+            document: DecodedTextDocument(
+                text: cleaned.cleanedText,
+                encodingName: document.encodingName
+            ),
             sourceType: sourceType,
             representedPath: sourceURL.path,
-            importedAt: importedAt ?? timestamp(),
-            metadataProfile: metadataProfile
+            importedAt: cleanedAt,
+            metadataProfile: metadataProfile,
+            rawText: cleaned.rawText,
+            cleaningSummary: cleaningSummary
         )
         return NativeCorpusRecord(
             id: id,
@@ -91,7 +140,8 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
             sourceType: sourceType,
             representedPath: sourceURL.path,
             storageFileName: storageFileName,
-            metadata: metadataProfile
+            metadata: metadataProfile,
+            cleaningSummary: cleaningSummary
         )
     }
 }

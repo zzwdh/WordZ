@@ -7,9 +7,12 @@ protocol WorkspaceResultSceneNodeBuilding {
     func makeStatsNode(from scene: StatsSceneModel?) -> WorkspaceResultSceneNode
     func makeTopicsNode(from scene: TopicsSceneModel?) -> WorkspaceResultSceneNode
     func makeCompareNode(from scene: CompareSceneModel?) -> WorkspaceResultSceneNode
+    func makeSentimentNode(from scene: SentimentSceneModel?) -> WorkspaceResultSceneNode
     func makeKeywordNode(from scene: KeywordSceneModel?) -> WorkspaceResultSceneNode
     func makeChiSquareNode(from scene: ChiSquareSceneModel?) -> WorkspaceResultSceneNode
+    func makePlotNode(from scene: PlotSceneModel?) -> WorkspaceResultSceneNode
     func makeNgramNode(from scene: NgramSceneModel?) -> WorkspaceResultSceneNode
+    func makeClusterNode(from scene: ClusterSceneModel?) -> WorkspaceResultSceneNode
     func makeKWICNode(from scene: KWICSceneModel?) -> WorkspaceResultSceneNode
     func makeCollocateNode(from scene: CollocateSceneModel?) -> WorkspaceResultSceneNode
     func makeLocatorNode(from scene: LocatorSceneModel?) -> WorkspaceResultSceneNode

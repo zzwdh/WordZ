@@ -10,7 +10,7 @@ extension LibraryManagementCoordinator {
             throw NSError(
                 domain: "WordZMac.LibraryManagementCoordinator",
                 code: 31,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持命名语料集。"]
+                userInfo: [NSLocalizedDescriptionKey: wordZText("当前仓储尚不支持命名语料集。", "The current repository does not support named corpus sets yet.", mode: .system)]
             )
         }
         let targetCorpora = library.saveableCorpusSetMembers
@@ -18,7 +18,7 @@ extension LibraryManagementCoordinator {
             throw NSError(
                 domain: "WordZMac.LibraryManagementCoordinator",
                 code: 32,
-                userInfo: [NSLocalizedDescriptionKey: "当前没有可保存到语料集的语料。"]
+                userInfo: [NSLocalizedDescriptionKey: wordZText("当前没有可保存到语料集的语料。", "There are no corpora available to save into a corpus set.", mode: .system)]
             )
         }
 
@@ -26,18 +26,18 @@ extension LibraryManagementCoordinator {
         if let existingSet = library.selectedCorpusSet {
             defaultName = existingSet.name
         } else if library.metadataFilterState.activeFilterCount > 0 {
-            defaultName = "筛选语料集"
+            defaultName = wordZText("筛选语料集", "Filtered Corpus Set", mode: .system)
         } else if targetCorpora.count == 1 {
             defaultName = targetCorpora[0].name
         } else {
-            defaultName = "命名语料集"
+            defaultName = wordZText("命名语料集", "Named Corpus Set", mode: .system)
         }
 
         guard let name = await dialogService.promptText(
-            title: "保存语料集",
-            message: "为当前语料子集输入一个名称。",
+            title: wordZText("保存语料集", "Save Corpus Set", mode: .system),
+            message: wordZText("为当前语料子集输入一个名称。", "Enter a name for the current corpus subset.", mode: .system),
             defaultValue: defaultName,
-            confirmTitle: "保存",
+            confirmTitle: wordZText("保存", "Save", mode: .system),
             preferredRoute: preferredRoute
         ) else { return }
 
@@ -49,7 +49,15 @@ extension LibraryManagementCoordinator {
         try await refreshLibraryState(into: library, sidebar: sidebar)
         library.selectCorpusSet(savedSet.id)
         sidebar.applyCorpusSet(savedSet)
-        library.setStatus("已保存语料集“\(savedSet.name)”。")
+        library.setStatus(
+            l10nFormat(
+                "已保存语料集“%@”。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Saved corpus set \"%@\".",
+                savedSet.name
+            )
+        )
     }
 
     func deleteSelectedCorpusSet(
@@ -61,14 +69,20 @@ extension LibraryManagementCoordinator {
             throw NSError(
                 domain: "WordZMac.LibraryManagementCoordinator",
                 code: 33,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持命名语料集。"]
+                userInfo: [NSLocalizedDescriptionKey: wordZText("当前仓储尚不支持命名语料集。", "The current repository does not support named corpus sets yet.", mode: .system)]
             )
         }
         guard let selectedSet = library.selectedCorpusSet else { return }
         let confirmed = await dialogService.confirm(
-            title: "删除语料集",
-            message: "“\(selectedSet.name)”将从已保存语料集中移除。",
-            confirmTitle: "删除",
+            title: wordZText("删除语料集", "Delete Corpus Set", mode: .system),
+            message: l10nFormat(
+                "“%@”将从已保存语料集中移除。",
+                table: "Errors",
+                mode: .system,
+                fallback: "\"%@\" will be removed from saved corpus sets.",
+                selectedSet.name
+            ),
+            confirmTitle: wordZText("删除", "Delete", mode: .system),
             preferredRoute: preferredRoute
         )
         guard confirmed else { return }
@@ -78,6 +92,14 @@ extension LibraryManagementCoordinator {
         if sidebar.selectedCorpusSetID == selectedSet.id {
             sidebar.applyCorpusSet(nil)
         }
-        library.setStatus("已删除语料集“\(selectedSet.name)”。")
+        library.setStatus(
+            l10nFormat(
+                "已删除语料集“%@”。",
+                table: "Errors",
+                mode: .system,
+                fallback: "Deleted corpus set \"%@\".",
+                selectedSet.name
+            )
+        )
     }
 }

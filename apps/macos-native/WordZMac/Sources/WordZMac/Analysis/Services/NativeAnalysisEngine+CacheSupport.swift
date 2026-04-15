@@ -3,27 +3,37 @@ import Foundation
 extension NativeAnalysisEngine {
     func indexedDocument(for text: String, documentKey: DocumentCacheKey? = nil) -> ParsedDocumentIndex {
         let key = documentKey ?? DocumentCacheKey(text: text)
-        if let entry = documentCache[key] {
-            touchCacheKey(key)
+        if let entry = withCacheState({ state -> ParsedDocumentIndex? in
+            guard let cached = state.documents[key] else { return nil }
+            touchCacheKey(key, state: &state)
+            return cached
+        }) {
             return entry
         }
 
         let index = ParsedDocumentIndex(text: text)
-        documentCache[key] = index
-        touchCacheKey(key)
-        trimCacheIfNeeded()
-        return index
+        return withCacheState { state in
+            if let cached = state.documents[key] {
+                touchCacheKey(key, state: &state)
+                return cached
+            }
+
+            state.documents[key] = index
+            touchCacheKey(key, state: &state)
+            trimCacheIfNeeded(state: &state)
+            return index
+        }
     }
 
-    func touchCacheKey(_ key: DocumentCacheKey) {
-        cacheOrder.removeAll { $0 == key }
-        cacheOrder.append(key)
+    func touchCacheKey(_ key: DocumentCacheKey, state: inout DocumentCacheState) {
+        state.order.removeAll { $0 == key }
+        state.order.append(key)
     }
 
-    func trimCacheIfNeeded() {
-        while cacheOrder.count > maxCachedDocuments {
-            let evicted = cacheOrder.removeFirst()
-            documentCache.removeValue(forKey: evicted)
+    func trimCacheIfNeeded(state: inout DocumentCacheState) {
+        while state.order.count > maxCachedDocuments {
+            let evicted = state.order.removeFirst()
+            state.documents.removeValue(forKey: evicted)
         }
     }
 

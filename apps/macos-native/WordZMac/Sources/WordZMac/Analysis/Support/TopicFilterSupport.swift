@@ -11,7 +11,9 @@ enum TopicFilterSupport {
         query: String,
         options: SearchOptionsState,
         stopword: StopwordFilterState,
-        keywords: [String] = []
+        keywords: [String] = [],
+        pretokenizedText: [String]? = nil,
+        pretokenizedHaystack: [String]? = nil
     ) -> (matches: Bool, error: String) {
         let matcher = SearchTextMatcher(query: query, options: options)
         guard matcher.error.isEmpty else {
@@ -19,13 +21,17 @@ enum TopicFilterSupport {
         }
 
         let stopwordMatcher = TopicStopwordMatcher(state: stopword)
-        guard stopwordMatcher.matchesText(text) else {
+        if let pretokenizedText {
+            guard stopwordMatcher.matchesTextTokens(pretokenizedText) else {
+                return (false, "")
+            }
+        } else if !stopwordMatcher.matchesText(text) {
             return (false, "")
         }
 
         let haystack = keywords.isEmpty ? text : "\(keywords.joined(separator: " ")) \(text)"
         if options.words {
-            let tokens = tokenize(haystack)
+            let tokens = pretokenizedHaystack ?? tokenize(haystack)
             return (tokens.contains(where: matcher.matches), "")
         }
         return (matcher.matches(haystack), "")
@@ -62,7 +68,12 @@ struct TopicStopwordMatcher {
 
     func matchesText(_ text: String) -> Bool {
         guard state.enabled, !stopwordSet.isEmpty else { return true }
-        let contains = TopicFilterSupport.tokenize(text).contains { stopwordSet.contains($0) }
+        return matchesTextTokens(TopicFilterSupport.tokenize(text))
+    }
+
+    func matchesTextTokens(_ tokens: [String]) -> Bool {
+        guard state.enabled, !stopwordSet.isEmpty else { return true }
+        let contains = tokens.contains { stopwordSet.contains($0) }
         switch state.mode {
         case .include:
             return contains

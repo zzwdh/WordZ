@@ -68,7 +68,7 @@ enum ReadingExportSupport {
     static func document(currentCollocateRow row: CollocateSceneRow, scene: CollocateSceneModel) -> PlainTextExportDocument {
         makeDocument(
             suggestedName: "collocate-summary.txt",
-            metadataLines: scene.exportMetadataLines + [scene.focusMetricSummary],
+            metadataLines: scene.exportMetadataLines + [scene.methodSummary, scene.focusMetricSummary],
             body: render(collocateRows: [row], scene: scene)
         )
     }
@@ -76,8 +76,66 @@ enum ReadingExportSupport {
     static func document(visibleCollocateRows rows: [CollocateSceneRow], scene: CollocateSceneModel) -> PlainTextExportDocument {
         makeDocument(
             suggestedName: "collocate-visible-summary.txt",
-            metadataLines: scene.exportMetadataLines + [scene.focusMetricSummary],
+            metadataLines: scene.exportMetadataLines + [scene.methodSummary, scene.focusMetricSummary],
             body: render(collocateRows: rows, scene: scene)
+        )
+    }
+
+    static func compareMethodDocument(scene: CompareSceneModel) -> PlainTextExportDocument {
+        makeDocument(
+            suggestedName: "compare-method-summary.txt",
+            metadataLines: scene.exportMetadataLines,
+            body: renderMethodSummary(
+                summary: scene.methodSummary,
+                notes: [scene.referenceSummary] + scene.methodNotes
+            )
+        )
+    }
+
+    static func collocateMethodDocument(scene: CollocateSceneModel) -> PlainTextExportDocument {
+        makeDocument(
+            suggestedName: "collocate-method-summary.txt",
+            metadataLines: scene.exportMetadataLines,
+            body: renderMethodSummary(
+                summary: scene.methodSummary,
+                notes: scene.methodNotes
+            )
+        )
+    }
+
+    static func keywordRowContextDocument(
+        row: KeywordSuiteRow,
+        scene: KeywordSceneModel
+    ) -> PlainTextExportDocument {
+        let slug = row.item
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "/", with: "-")
+        let lines = [
+            row.item,
+            "Direction: \(row.direction.title(in: .system))",
+            "Keyness: \(String(format: "%.2f", row.keynessScore))",
+            "Log Ratio: \(String(format: "%.2f", row.logRatio))",
+            "p: \(row.pValue < 0.001 && row.pValue > 0 ? "<0.001" : String(format: "%.3f", row.pValue))",
+            "Focus Frequency: \(row.focusFrequency)",
+            "Reference Frequency: \(row.referenceFrequency)",
+            "Focus Normalized Frequency: \(String(format: "%.1f", row.focusNormalizedFrequency))",
+            "Reference Normalized Frequency: \(String(format: "%.1f", row.referenceNormalizedFrequency))",
+            "Focus Range: \(row.focusRange)",
+            "Reference Range: \(row.referenceRange)",
+            scene.focusSummary.isEmpty ? "" : "Focus: \(scene.focusSummary)",
+            scene.referenceSummary.isEmpty ? "" : "Reference: \(scene.referenceSummary)",
+            row.example.isEmpty ? "" : "Example: \(row.example)"
+        ]
+
+        return makeDocument(
+            suggestedName: "\(slug.isEmpty ? "keyword-row" : slug)-context.txt",
+            metadataLines: scene.exportMetadataLines,
+            body: lines
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
         )
     }
 
@@ -150,6 +208,20 @@ enum ReadingExportSupport {
             """
         }
         .joined(separator: "\n\n")
+    }
+
+    private static func renderMethodSummary(
+        summary: String,
+        notes: [String]
+    ) -> String {
+        let trimmedSummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNotes = notes
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return ([trimmedSummary] + trimmedNotes.map { "- \($0)" })
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
     }
 
     private static func locatorMetadataLines(_ scene: LocatorSceneModel) -> [String] {

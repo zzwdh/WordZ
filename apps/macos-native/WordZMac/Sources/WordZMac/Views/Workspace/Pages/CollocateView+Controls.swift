@@ -1,39 +1,38 @@
 import SwiftUI
 
 extension CollocateView {
-    var collocateHeader: some View {
-        WorkbenchPageHeaderActions(
-            summary: "\(viewModel.keyword.isEmpty ? t("未设置节点词", "No node word") : viewModel.keyword) · L\(viewModel.leftWindow) / R\(viewModel.rightWindow) · \(viewModel.minFreq)",
-            layout: .inline
-        ) {
-            Button(t("开始统计", "Run Collocate")) { onAction(.run) }
-                .buttonStyle(.borderedProminent)
-                .disabled(isBusy)
-        }
-    }
-
     var collocateInputSection: some View {
         WorkbenchSearchToolbarSection(
             searchOptions: $viewModel.searchOptions,
             stopwordFilter: $viewModel.stopwordFilter,
             isEditingStopwords: $viewModel.isEditingStopwords
         ) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    keywordField
-                    leftWindowField
-                    rightWindowField
-                    minFrequencyField
-                }
-                VStack(alignment: .leading, spacing: 12) {
-                    keywordField
-                    HStack(spacing: 12) {
-                        leftWindowField
-                        rightWindowField
-                        minFrequencyField
-                        Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 12) {
+                WorkbenchInlineActionStrip {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) {
+                            keywordField
+                            leftWindowField
+                            rightWindowField
+                            minFrequencyField
+                        }
+                        VStack(alignment: .leading, spacing: 12) {
+                            keywordField
+                            HStack(spacing: 12) {
+                                leftWindowField
+                                rightWindowField
+                                minFrequencyField
+                                Spacer(minLength: 0)
+                            }
+                        }
                     }
+                } actions: {
+                    runButton
                 }
+
+                Text(collocateControlSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         } middle: {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -77,5 +76,9 @@ extension CollocateView {
         Button(t("开始统计", "Run Collocate")) { onAction(.run) }
             .buttonStyle(.borderedProminent)
             .disabled(isBusy)
+    }
+
+    var collocateControlSummary: String {
+        "\(viewModel.keyword.isEmpty ? t("未设置节点词", "No node word") : viewModel.keyword) · L\(viewModel.leftWindow) / R\(viewModel.rightWindow) · \(viewModel.minFreq)"
     }
 }

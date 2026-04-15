@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 final class EngineWorkspaceRepository: WorkspaceRepository {
     private let engineClient: EngineClient
+    private let nativeAnalysisRuntime = NativeAnalysisRuntime()
 
     init(engineClient: EngineClient = EngineClient()) {
         self.engineClient = engineClient
@@ -58,6 +59,14 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
             "sttr": stats.sttr,
             "metadata": CorpusMetadataProfile.empty.jsonObject
         ])
+    }
+
+    func cleanCorpora(corpusIds: [String]) async throws -> LibraryCorpusCleaningBatchResult {
+        throw NSError(
+            domain: "WordZMac.EngineWorkspaceRepository",
+            code: 12,
+            userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持语料自动清洗。"]
+        )
     }
 
     func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem {
@@ -136,12 +145,20 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
         try await engineClient.runCompare(comparisonEntries: comparisonEntries)
     }
 
+    func runSentiment(_ request: SentimentRunRequest) async throws -> SentimentRunResult {
+        return await nativeAnalysisRuntime.runSentiment(request)
+    }
+
+    func runKeywordSuite(_ request: KeywordSuiteRunRequest) async throws -> KeywordSuiteResult {
+        KeywordSuiteAnalyzer.analyze(request)
+    }
+
     func runKeyword(
         targetEntry: KeywordRequestEntry,
         referenceEntry: KeywordRequestEntry,
         options: KeywordPreprocessingOptions
     ) async throws -> KeywordResult {
-        KeywordAnalyzer.analyze(
+        KeywordSuiteAnalyzer.legacyAnalyze(
             target: targetEntry,
             reference: referenceEntry,
             options: options
@@ -154,6 +171,61 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
 
     func runNgram(text: String, n: Int) async throws -> NgramResult {
         try await engineClient.runNgram(text: text, n: n)
+    }
+
+    func runPlot(_ request: PlotRunRequest) async throws -> PlotResult {
+        let normalizedQuery = request.normalizedQuery
+        guard !normalizedQuery.isEmpty else {
+            throw NSError(
+                domain: "WordZMac.EngineWorkspaceRepository",
+                code: 13,
+                userInfo: [NSLocalizedDescriptionKey: "请输入 Plot 检索词。"]
+            )
+        }
+
+        var rows: [PlotRow] = []
+        rows.reserveCapacity(request.entries.count)
+
+        for (index, entry) in request.entries.enumerated() {
+            let distribution = try await nativeAnalysisRuntime.runPlot(
+                text: entry.content,
+                keyword: normalizedQuery,
+                searchOptions: request.searchOptions
+            )
+            rows.append(
+                PlotRow(
+                    id: entry.corpusId,
+                    corpusId: entry.corpusId,
+                    fileID: index,
+                    filePath: entry.filePath,
+                    displayName: entry.displayName,
+                    fileTokens: distribution.tokenCount,
+                    frequency: distribution.hitMarkers.count,
+                    normalizedFrequency: plotEngineNormalizedFrequency(
+                        count: distribution.hitMarkers.count,
+                        tokenCount: distribution.tokenCount
+                    ),
+                    hitMarkers: distribution.hitMarkers
+                )
+            )
+        }
+
+        let totalHits = rows.reduce(0) { $0 + $1.frequency }
+        let totalFilesWithHits = rows.reduce(0) { partialResult, row in
+            partialResult + (row.frequency > 0 ? 1 : 0)
+        }
+
+        return PlotResult(
+            request: request,
+            totalHits: totalHits,
+            totalFilesWithHits: totalFilesWithHits,
+            totalFiles: request.entries.count,
+            rows: rows
+        )
+    }
+
+    func runCluster(_ request: ClusterRunRequest) async throws -> ClusterResult {
+        return await nativeAnalysisRuntime.runCluster(request)
     }
 
     func runKWIC(
@@ -200,6 +272,42 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
         )
     }
 
+    func listKeywordSavedLists() async throws -> [KeywordSavedList] {
+        []
+    }
+
+    func saveKeywordSavedList(_ list: KeywordSavedList) async throws -> KeywordSavedList {
+        list
+    }
+
+    func deleteKeywordSavedList(listID: String) async throws {
+    }
+
+    func listConcordanceSavedSets() async throws -> [ConcordanceSavedSet] {
+        []
+    }
+
+    func saveConcordanceSavedSet(_ set: ConcordanceSavedSet) async throws -> ConcordanceSavedSet {
+        set
+    }
+
+    func deleteConcordanceSavedSet(setID: String) async throws {
+    }
+
+    func listEvidenceItems() async throws -> [EvidenceItem] {
+        []
+    }
+
+    func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem {
+        item
+    }
+
+    func deleteEvidenceItem(itemID: String) async throws {
+    }
+
+    func replaceEvidenceItems(_ items: [EvidenceItem]) async throws {
+    }
+
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws {
         try await engineClient.saveWorkspaceState(draft)
     }
@@ -211,4 +319,9 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
     func stop() async {
         await engineClient.stop()
     }
+}
+
+private func plotEngineNormalizedFrequency(count: Int, tokenCount: Int) -> Double {
+    guard tokenCount > 0 else { return 0 }
+    return (Double(count) / Double(tokenCount)) * 10_000
 }

@@ -7,21 +7,33 @@ extension TopicsView {
             stopwordFilter: $viewModel.stopwordFilter,
             isEditingStopwords: $viewModel.isEditingStopwords
         ) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    queryField
-                    minTopicSizeField
-                    outlierToggle
+            VStack(alignment: .leading, spacing: 12) {
+                WorkbenchInlineActionStrip {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) {
+                            queryField
+                            minTopicSizeField
+                            keywordDisplayCountField
+                            outlierToggle
+                        }
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            queryField
+                            HStack(spacing: 12) {
+                                minTopicSizeField
+                                keywordDisplayCountField
+                                outlierToggle
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                } actions: {
+                    topicsRunButton
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    queryField
-                    HStack(spacing: 12) {
-                        minTopicSizeField
-                        outlierToggle
-                        Spacer(minLength: 0)
-                    }
-                }
+                Text(topicsControlSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -40,9 +52,27 @@ extension TopicsView {
             .frame(width: 120)
     }
 
+    var keywordDisplayCountField: some View {
+        TextField(t("关键词数", "Keywords"), text: $viewModel.keywordDisplayCount)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 100)
+    }
+
     var outlierToggle: some View {
         Toggle(t("显示离群点", "Show Outliers"), isOn: $viewModel.includeOutliers)
             .toggleStyle(.checkbox)
+    }
+
+    var topicsRunButton: some View {
+        Button(t("开始建模", "Run Topics")) {
+            onAction(.run)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(isBusy)
+    }
+
+    var topicsControlSummary: String {
+        "\(t("最小主题", "Min Topic")) \(viewModel.minTopicSizeValue) · \(t("关键词", "Keywords")) \(viewModel.keywordDisplayCountValue) · \(viewModel.includeOutliers ? t("显示离群点", "Show outliers") : t("隐藏离群点", "Hide outliers"))"
     }
 
     func providerLabel(for scene: TopicsSceneModel) -> String {
@@ -50,6 +80,10 @@ extension TopicsView {
             return t("稳定兜底", "Stable Fallback")
         }
         switch scene.modelProvider {
+        case "bundled-local-embedding":
+            return t("内置主题向量", "Bundled Topic Embedding")
+        case "bundled-lexical-embedding":
+            return t("内置主题向量", "Bundled Topic Embedding")
         case "system-sentence-embedding":
             return t("系统句向量", "System Embedding")
         case "hashed-fallback":

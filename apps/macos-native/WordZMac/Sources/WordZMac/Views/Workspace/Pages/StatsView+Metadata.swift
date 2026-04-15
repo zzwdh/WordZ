@@ -4,30 +4,34 @@ extension StatsView {
     var metadataFiltersSection: some View {
         WorkbenchToolbarSection {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline) {
+                WorkbenchInlineActionStrip {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(t("Metadata Filters", "Metadata Filters"))
                             .font(.headline)
-                        Text(t("按来源、年份、体裁或标签缩小可选语料范围。侧边栏会同步显示摘要，Target / Reference 选择也会跟着更新。", "Use source, year, genre, or tags to narrow the available corpora. The sidebar summary and Target / Reference choices update at the same time."))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        Text(
+                            t(
+                                "当前分析会复用语料库窗口里的 metadata 筛选范围。这里保留摘要和样本预览，具体条件统一回到 Library 调整。",
+                                "Analysis reuses the metadata filter scope from the Library window. This page keeps the summary and sample preview only; edit the full filters back in Library."
+                            )
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
-                    Spacer(minLength: 0)
-                    Button(t("清除筛选", "Clear Filters")) {
-                        sidebar.clearMetadataFilters()
-                    }
-                    .disabled(sidebar.metadataFilterState.isEmpty)
-                }
+                } actions: {
+                    HStack(spacing: 8) {
+                        Button(t("调整筛选", "Adjust Filters")) {
+                            openWindow(id: NativeWindowRoute.library.id)
+                        }
 
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
-                    GridRow {
-                        metadataField(title: t("来源", "Source"), text: $sidebar.metadataSourceQuery, prompt: t("如：教材 / 期刊", "e.g. textbook / journal"))
-                        metadataField(title: t("年份", "Year"), text: $sidebar.metadataYearQuery, prompt: t("如：2024", "e.g. 2024"))
-                    }
-                    GridRow {
-                        metadataField(title: t("体裁", "Genre"), text: $sidebar.metadataGenreQuery, prompt: t("如：学术 / 教学", "e.g. academic / teaching"))
-                        metadataField(title: t("标签", "Tags"), text: $sidebar.metadataTagsQuery, prompt: t("多个标签用逗号分隔", "Separate tags with commas"))
+                        Button(t("清除筛选", "Clear Filters")) {
+                            sidebar.clearMetadataFilters()
+                        }
+                        .disabled(!sidebar.hasAnyMetadataFilterInput)
+
+                        Button(t("开始统计", "Run Stats")) { onAction(.run) }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isBusy)
                     }
                 }
 
@@ -45,13 +49,18 @@ extension StatsView {
                 }
 
                 if sidebar.metadataFilterState.isEmpty {
-                    Text(t("未设置条件时，会显示当前库中的全部语料。需要缩小范围时，再按来源、年份、体裁或标签输入关键词即可。", "When no filters are set, every corpus in the current library stays available. Add source, year, genre, or tag terms only when you want to narrow the analysis set."))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        t(
+                            "未设置条件时，会显示当前库中的全部语料。需要缩小范围时，点击“调整筛选”到 Library 打开完整筛选面板。",
+                            "When no filters are set, every corpus in the current library stays available. Use Adjust Filters to open the full editor in Library only when you need a narrower scope."
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
                 } else if sidebar.filteredCorpora.isEmpty {
                     Label(
-                        t("当前筛选没有匹配到语料，请调整条件。", "The current filters do not match any corpus. Adjust the filter terms to continue."),
+                        t("当前筛选没有匹配到语料，请回到 Library 调整条件。", "The current filters do not match any corpus. Return to Library and adjust the criteria."),
                         systemImage: "exclamationmark.triangle"
                     )
                     .font(.caption)
@@ -87,7 +96,7 @@ extension StatsView {
             Text(corpus.name)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
-            Text(corpus.metadata.compactSummary(in: languageMode))
+            Text("\(corpus.folderName) · \(corpus.metadata.compactSummary(in: languageMode))")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -95,20 +104,5 @@ extension StatsView {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    func metadataField(
-        title: String,
-        text: Binding<String>,
-        prompt: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            TextField(prompt, text: text)
-                .textFieldStyle(.roundedBorder)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

@@ -1,32 +1,12 @@
-import AppKit
 import Foundation
-
-@MainActor
-protocol NativeHostActionServicing: AnyObject {
-    func openUserDataDirectory(path: String) async throws
-    func openFile(path: String) async throws
-    func openURL(_ value: String) async throws
-    func openFeedback() async throws
-    func openReleaseNotes() async throws
-    func openProjectHome() async throws
-    func quickLook(path: String) async throws
-    func share(paths: [String]) async throws
-    func openDownloadedUpdate(path: String) async throws
-    func openDownloadedUpdateAndTerminate(path: String) async throws
-    func revealDownloadedUpdate(path: String) async throws
-    func exportArchiveBundle(archivePath: String, suggestedName: String, title: String, preferredRoute: NativeWindowRoute?) async throws -> String?
-    func exportDiagnosticBundle(archivePath: String, suggestedName: String, preferredRoute: NativeWindowRoute?) async throws -> String?
-    func clearRecentDocuments() async throws
-    func noteRecentDocument(path: String) async
-}
 
 @MainActor
 final class NativeHostActionService: NativeHostActionServicing {
     private let dialogService: NativeDialogServicing
     private let quickLookService: any NativeQuickLookServicing
     private let sharingService: any NativeSharingServicing
-    private let fileManager: FileManager
-    private let workspace = NSWorkspace.shared
+    private let workspaceInteraction: any NativeWorkspaceInteractionPerforming
+    private let archiveBundleExporter: any NativeArchiveBundleExporting
     private let homepageURL = URL(string: "https://github.com/zzwdh/WordZ")!
     private let feedbackURL = URL(string: "https://github.com/zzwdh/WordZ/issues/new/choose")!
     private let releasesURL = URL(string: "https://github.com/zzwdh/WordZ/releases")!
@@ -35,12 +15,14 @@ final class NativeHostActionService: NativeHostActionServicing {
         dialogService: NativeDialogServicing,
         quickLookService: any NativeQuickLookServicing = NativeQuickLookService(),
         sharingService: any NativeSharingServicing = NativeSharingService(),
-        fileManager: FileManager = .default
+        workspaceInteraction: any NativeWorkspaceInteractionPerforming = NativeWorkspaceInteractionPerformer(),
+        archiveBundleExporter: any NativeArchiveBundleExporting = NativeArchiveBundleExporter()
     ) {
         self.dialogService = dialogService
         self.quickLookService = quickLookService
         self.sharingService = sharingService
-        self.fileManager = fileManager
+        self.workspaceInteraction = workspaceInteraction
+        self.archiveBundleExporter = archiveBundleExporter
     }
 
     private var languageMode: AppLanguageMode {
@@ -103,7 +85,7 @@ final class NativeHostActionService: NativeHostActionServicing {
     func openDownloadedUpdateAndTerminate(path: String) async throws {
         try await openDownloadedUpdate(path: path)
         try? await Task.sleep(nanoseconds: 500_000_000)
-        NSApplication.shared.terminate(nil)
+        workspaceInteraction.terminateApplication()
     }
 
     func revealDownloadedUpdate(path: String) async throws {
@@ -113,36 +95,34 @@ final class NativeHostActionService: NativeHostActionServicing {
                 NSLocalizedDescriptionKey: t("已下载更新包不存在。", "The downloaded update package could not be found.")
             ])
         }
-        workspace.activateFileViewerSelecting([url])
+        workspaceInteraction.revealInFileViewer([url])
     }
 
     func exportArchiveBundle(
         archivePath: String,
         suggestedName: String,
         title: String,
-        preferredRoute: NativeWindowRoute? = nil
+        preferredRoute: NativePresentationRouteHint? = nil
     ) async throws -> String? {
+        let dialogRoute = preferredRoute?.nativeWindowRoute
         guard let destinationPath = await dialogService.chooseSavePath(
             title: title,
             suggestedName: suggestedName,
             allowedExtension: "zip",
-            preferredRoute: preferredRoute
+            preferredRoute: dialogRoute
         ) else {
             return nil
         }
         let sourceURL = URL(fileURLWithPath: archivePath)
         let destinationURL = URL(fileURLWithPath: destinationPath)
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        try archiveBundleExporter.exportArchive(at: sourceURL, to: destinationURL)
         return destinationPath
     }
 
     func exportDiagnosticBundle(
         archivePath: String,
         suggestedName: String,
-        preferredRoute: NativeWindowRoute? = nil
+        preferredRoute: NativePresentationRouteHint? = nil
     ) async throws -> String? {
         try await exportArchiveBundle(
             archivePath: archivePath,
@@ -153,16 +133,20 @@ final class NativeHostActionService: NativeHostActionServicing {
     }
 
     func clearRecentDocuments() async throws {
-        NSDocumentController.shared.clearRecentDocuments(self)
+        workspaceInteraction.clearRecentDocuments()
     }
 
     func noteRecentDocument(path: String) async {
         guard !path.isEmpty else { return }
-        NSDocumentController.shared.noteNewRecentDocumentURL(URL(fileURLWithPath: path))
+        workspaceInteraction.noteRecentDocument(URL(fileURLWithPath: path))
+    }
+
+    func copyTextToClipboard(_ text: String) {
+        workspaceInteraction.copyTextToClipboard(text)
     }
 
     private func openFileURL(_ url: URL, errorDescription: String, errorCode: Int) throws {
-        guard workspace.open(url) else {
+        guard workspaceInteraction.open(url) else {
             throw NSError(domain: "WordZMac.NativeHostActionService", code: errorCode, userInfo: [
                 NSLocalizedDescriptionKey: errorDescription
             ])
@@ -170,7 +154,7 @@ final class NativeHostActionService: NativeHostActionServicing {
     }
 
     private func open(url: URL, errorDescription: String, errorCode: Int = 2) throws {
-        guard workspace.open(url) else {
+        guard workspaceInteraction.open(url) else {
             throw NSError(domain: "WordZMac.NativeHostActionService", code: errorCode, userInfo: [
                 NSLocalizedDescriptionKey: errorDescription
             ])

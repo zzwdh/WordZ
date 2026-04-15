@@ -75,10 +75,17 @@ struct RootContentCommandHandler {
             shellActionHandler.handle(.openWindow(.help))
         case .showReleaseNotesWindow:
             shellActionHandler.handle(.openWindow(.releaseNotes))
+        case .toggleInspector:
+            shellActionHandler.handle(.toggleInspector)
         case .refreshWorkspace:
             Task { await workspace.refreshAll() }
         case .openSelectedCorpus:
             Task { await workspace.openSelectedCorpus() }
+        case .openSourceReader:
+            Task {
+                guard await workspace.openCurrentSourceReader() else { return }
+                shellActionHandler.handle(.openWindow(.sourceReader))
+            }
         case .quickLookCurrentCorpus:
             Task { await workspace.quickLookCurrentCorpus() }
         case .shareCurrentContent:
@@ -93,12 +100,18 @@ struct RootContentCommandHandler {
             Task { await workspace.runTopics() }
         case .runCompare:
             Task { await workspace.runCompare() }
+        case .runSentiment:
+            Task { await workspace.runSentiment() }
         case .runKeyword:
             Task { await workspace.runKeyword() }
         case .runChiSquare:
             Task { await workspace.runChiSquare() }
+        case .runPlot:
+            Task { await workspace.runPlot() }
         case .runNgram:
             Task { await workspace.runNgram() }
+        case .runCluster:
+            Task { await workspace.runCluster() }
         case .runKWIC:
             Task { await workspace.runKWIC() }
         case .runCollocate:

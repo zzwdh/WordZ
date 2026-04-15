@@ -2,6 +2,10 @@ import Foundation
 
 enum ComparePageAction: Equatable {
     case run
+    case openKWIC
+    case openCollocate
+    case saveCorpusSet
+    case analyzeInKeywordSuite
     case toggleCorpusSelection(String)
     case changeReferenceCorpus(String?)
     case changeSort(CompareSortMode)
@@ -11,6 +15,7 @@ enum ComparePageAction: Equatable {
     case selectRow(String?)
     case copyCurrent(ReadingExportFormat)
     case copyVisible(ReadingExportFormat)
+    case copyMethodSummary
     case exportCurrent(ReadingExportFormat)
     case exportVisible(ReadingExportFormat)
     case previousPage

@@ -1,17 +1,6 @@
 import SwiftUI
 
 extension CompareView {
-    var headerActions: some View {
-        WorkbenchPageHeaderActions(
-            summary: "\(t("已选", "Selected")) \(viewModel.selectedCorpusCount) · \(selectedReferenceLabel)",
-            layout: .trailingStack
-        ) {
-            Button(t("开始对比", "Run Compare")) { onAction(.run) }
-                .buttonStyle(.borderedProminent)
-                .disabled(isBusy || viewModel.selectedCorpusCount < 2)
-        }
-    }
-
     var compareInputSection: some View {
         WorkbenchSearchToolbarSection(
             searchOptions: $viewModel.searchOptions,
@@ -47,21 +36,29 @@ extension CompareView {
                 }
             }
 
-            WorkbenchAdaptiveControls {
-                HStack(spacing: 12) {
-                    searchField
-                    referencePicker
-                    selectedCountLabel
-                }
-            } compact: {
-                VStack(alignment: .leading, spacing: 12) {
-                    searchField
+            WorkbenchInlineActionStrip {
+                WorkbenchAdaptiveControls {
                     HStack(spacing: 12) {
+                        searchField
                         referencePicker
                         selectedCountLabel
                     }
+                } compact: {
+                    VStack(alignment: .leading, spacing: 12) {
+                        searchField
+                        HStack(spacing: 12) {
+                            referencePicker
+                            selectedCountLabel
+                        }
+                    }
                 }
+            } actions: {
+                compareRunButton
             }
+
+            Text(compareControlSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -96,5 +93,15 @@ extension CompareView {
 
     var selectedReferenceLabel: String {
         viewModel.referenceOptions.first(where: { $0.id == viewModel.selectedReferenceOptionID })?.title ?? t("自动", "Automatic")
+    }
+
+    var compareRunButton: some View {
+        Button(t("开始对比", "Run Compare")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
+            .disabled(isBusy || viewModel.selectedCorpusCount < 2)
+    }
+
+    var compareControlSummary: String {
+        "\(t("已选", "Selected")) \(viewModel.selectedCorpusCount) · \(selectedReferenceLabel)"
     }
 }

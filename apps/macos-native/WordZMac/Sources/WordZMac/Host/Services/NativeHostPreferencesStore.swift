@@ -18,26 +18,22 @@ protocol NativeHostPreferencesStoring: AnyObject {
 
 @MainActor
 final class NativeHostPreferencesStore: NativeHostPreferencesStoring {
-    private let fileURL: URL
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
+    private let recordStore: any NativeHostPreferencesRecordStoring
 
-    init(fileURL: URL? = nil) {
-        self.fileURL = fileURL ?? NativeHostPreferencesStore.defaultFileURL()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    init(
+        fileURL: URL? = nil,
+        recordStore: (any NativeHostPreferencesRecordStoring)? = nil
+    ) {
+        let resolvedFileURL = fileURL ?? NativeHostPreferencesStore.defaultFileURL()
+        self.recordStore = recordStore ?? NativeHostPreferencesRecordStore(fileURL: resolvedFileURL)
     }
 
     func load() -> NativeHostPreferencesSnapshot {
-        guard let data = try? Data(contentsOf: fileURL) else {
-            return .default
-        }
-        return (try? decoder.decode(NativeHostPreferencesSnapshot.self, from: data)) ?? .default
+        NativeHostPreferencesSnapshot(record: recordStore.load())
     }
 
     func save(_ snapshot: NativeHostPreferencesSnapshot) throws {
-        try ensureParentDirectory()
-        let data = try encoder.encode(snapshot)
-        try data.write(to: fileURL, options: .atomic)
+        try recordStore.save(snapshot.hostRecord)
     }
 
     @discardableResult
@@ -108,10 +104,5 @@ final class NativeHostPreferencesStore: NativeHostPreferencesStoring {
         }
         let baseURL = EnginePaths.defaultUserDataURL()
         return baseURL.appendingPathComponent("native-host-preferences.json")
-    }
-
-    private func ensureParentDirectory() throws {
-        let directoryURL = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
     }
 }

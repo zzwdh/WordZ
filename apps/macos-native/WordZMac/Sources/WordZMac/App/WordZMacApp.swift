@@ -1,90 +1,83 @@
 import SwiftUI
+import WordZWindowing
 
-@main
-struct WordZMacApp: App {
-    @NSApplicationDelegateAdaptor(NativeApplicationDelegate.self) private var applicationDelegate
-    @StateObject private var workspace: MainWorkspaceViewModel
-    @StateObject private var localization = WordZLocalization.shared
-
-    init() {
-        let container = NativeAppContainer.live()
-        _workspace = StateObject(wrappedValue: container.makeMainWorkspaceViewModel())
-    }
-
-    var body: some Scene {
+package enum WordZCoreAppScenes {
+    @MainActor
+    @SceneBuilder
+    package static func make(
+        workspace: MainWorkspaceViewModel,
+        applicationDelegate: NativeApplicationDelegate,
+        menuBarController: WordZMenuBarController,
+        localization: WordZLocalization
+    ) -> some Scene {
         WindowGroup("WordZ", id: NativeWindowRoute.mainWorkspace.id) {
             RootContentView(
                 viewModel: workspace,
                 applicationDelegate: applicationDelegate
             )
-            .environmentObject(localization)
-            .environment(\.wordZLanguageMode, localization.effectiveMode)
+            .wordZLocalizedEnvironment(localization)
             .frame(minWidth: 1180, minHeight: 760)
+            .task {
+                menuBarController.start(applicationDelegate: applicationDelegate)
+            }
         }
+        .nativeWindowScenePresentation(.mainWorkspace)
         .commands {
             WordZMacCommands(workspace: workspace)
         }
 
-        Window("语料库", id: NativeWindowRoute.library.id) {
+        Window("Library", id: NativeWindowRoute.library.id) {
             LibraryWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
+        .nativeWindowScenePresentation(.library)
+
+        Window("Evidence Workbench", id: NativeWindowRoute.evidenceWorkbench.id) {
+            EvidenceWorkbenchWindowView(workspace: workspace)
+                .wordZLocalizedEnvironment(localization)
+        }
+        .nativeWindowScenePresentation(.evidenceWorkbench)
+
+        Window("Source Reader", id: NativeWindowRoute.sourceReader.id) {
+            SourceReaderWindowView(workspace: workspace)
+                .wordZLocalizedEnvironment(localization)
+        }
+        .nativeWindowScenePresentation(.sourceReader)
 
         Settings {
             SettingsWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
+        .nativeWindowScenePresentation(.settings)
 
-        Window("任务中心", id: NativeWindowRoute.taskCenter.id) {
+        Window("Task Center", id: NativeWindowRoute.taskCenter.id) {
             TaskCenterWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
-        .windowResizability(.contentSize)
+        .nativeWindowScenePresentation(.taskCenter)
 
-        Window("更新", id: NativeWindowRoute.updatePrompt.id) {
+        Window("Update", id: NativeWindowRoute.updatePrompt.id) {
             UpdateWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
-        .windowResizability(.contentSize)
+        .nativeWindowScenePresentation(.updatePrompt)
 
-        Window("关于 WordZ", id: NativeWindowRoute.about.id) {
+        Window("About WordZ", id: NativeWindowRoute.about.id) {
             AboutWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
-        .windowResizability(.contentSize)
+        .nativeWindowScenePresentation(.about)
 
-        Window("使用说明", id: NativeWindowRoute.help.id) {
+        Window("Usage Guide", id: NativeWindowRoute.help.id) {
             HelpCenterWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
-        .windowResizability(.contentSize)
+        .nativeWindowScenePresentation(.help)
 
-        Window("版本说明", id: NativeWindowRoute.releaseNotes.id) {
+        Window("Release Notes", id: NativeWindowRoute.releaseNotes.id) {
             ReleaseNotesWindowView(workspace: workspace)
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
+                .wordZLocalizedEnvironment(localization)
         }
-        .windowResizability(.contentSize)
-
-        MenuBarExtra {
-            MenuBarStatusMenuView(
-                workspace: workspace,
-                sidebar: workspace.sidebar,
-                settings: workspace.settings,
-                taskCenter: workspace.taskCenter
-            )
-                .environmentObject(localization)
-                .environment(\.wordZLanguageMode, localization.effectiveMode)
-        } label: {
-            Image(nsImage: WordZMenuBarIcon.image())
-                .accessibilityLabel("WordZ")
-        }
-        .menuBarExtraStyle(.menu)
+        .nativeWindowScenePresentation(.releaseNotes)
     }
 }

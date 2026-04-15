@@ -28,4 +28,12 @@ struct MenuBarStatusMenuView: View {
     func t(_ zh: String, _ en: String) -> String {
         wordZText(zh, en, mode: languageMode)
     }
+
+    func menuLabel(_ text: String) -> String {
+        WordZMenuBarTextSupport.menuLabel(text)
+    }
+
+    func prefixedMenuLabel(_ zhPrefix: String, _ enPrefix: String, value: String) -> String {
+        menuLabel(t(zhPrefix, enPrefix) + value)
+    }
 }

@@ -13,6 +13,21 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let tokenizeLemmaStrategy: TokenLemmaStrategy
     let compareReferenceCorpusID: String
     let compareSelectedCorpusIDs: [String]
+    let sentimentSource: SentimentInputSource
+    let sentimentUnit: SentimentAnalysisUnit
+    let sentimentContextBasis: SentimentContextBasis
+    let sentimentBackend: SentimentBackendKind
+    let sentimentChartKind: SentimentChartKind
+    let sentimentThresholdPreset: SentimentThresholdPreset
+    let sentimentDecisionThreshold: Double
+    let sentimentMinimumEvidence: Double
+    let sentimentNeutralBias: Double
+    let sentimentRowFilterQuery: String
+    let sentimentLabelFilter: SentimentLabel?
+    let sentimentSelectedCorpusIDs: [String]
+    let sentimentReferenceCorpusID: String
+    let keywordActiveTab: KeywordSuiteTab
+    let keywordSuiteConfiguration: KeywordSuiteConfiguration
     let keywordTargetCorpusID: String
     let keywordReferenceCorpusID: String
     let keywordLowercased: Bool
@@ -20,14 +35,26 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let keywordMinimumFrequency: String
     let keywordStatistic: KeywordStatisticMethod
     let keywordStopwordFilter: StopwordFilterState
+    let plotQuery: String
+    let plotSearchOptions: SearchOptionsState
     let ngramSize: String
     let ngramPageSize: String
+    let clusterSelectedN: String
+    let clusterMinFrequency: String
+    let clusterSortMode: ClusterSortMode
+    let clusterCaseSensitive: Bool
+    let clusterStopwordFilter: StopwordFilterState
+    let clusterPunctuationMode: ClusterPunctuationMode
+    let clusterSelectedPhrase: String
+    let clusterPageSize: String
+    let clusterReferenceCorpusID: String
     let kwicLeftWindow: String
     let kwicRightWindow: String
     let collocateLeftWindow: String
     let collocateRightWindow: String
     let collocateMinFreq: String
     let topicsMinTopicSize: String
+    let topicsKeywordDisplayCount: String
     let topicsIncludeOutliers: Bool
     let topicsPageSize: String
     let topicsActiveTopicID: String
@@ -52,6 +79,21 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         tokenizeLemmaStrategy: .normalizedSurface,
         compareReferenceCorpusID: "",
         compareSelectedCorpusIDs: [],
+        sentimentSource: .openedCorpus,
+        sentimentUnit: .sentence,
+        sentimentContextBasis: .visibleContext,
+        sentimentBackend: .lexicon,
+        sentimentChartKind: .distributionBar,
+        sentimentThresholdPreset: .conservative,
+        sentimentDecisionThreshold: SentimentThresholds.default.decisionThreshold,
+        sentimentMinimumEvidence: SentimentThresholds.default.minimumEvidence,
+        sentimentNeutralBias: SentimentThresholds.default.neutralBias,
+        sentimentRowFilterQuery: "",
+        sentimentLabelFilter: nil,
+        sentimentSelectedCorpusIDs: [],
+        sentimentReferenceCorpusID: "",
+        keywordActiveTab: .words,
+        keywordSuiteConfiguration: .default,
         keywordTargetCorpusID: "",
         keywordReferenceCorpusID: "",
         keywordLowercased: true,
@@ -59,14 +101,26 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         keywordMinimumFrequency: "2",
         keywordStatistic: .logLikelihood,
         keywordStopwordFilter: .default,
+        plotQuery: "",
+        plotSearchOptions: .default,
         ngramSize: "2",
         ngramPageSize: "10",
+        clusterSelectedN: "3",
+        clusterMinFrequency: "3",
+        clusterSortMode: .frequencyDescending,
+        clusterCaseSensitive: false,
+        clusterStopwordFilter: .default,
+        clusterPunctuationMode: .boundary,
+        clusterSelectedPhrase: "",
+        clusterPageSize: "100",
+        clusterReferenceCorpusID: "",
         kwicLeftWindow: "5",
         kwicRightWindow: "5",
         collocateLeftWindow: "5",
         collocateRightWindow: "5",
         collocateMinFreq: "1",
         topicsMinTopicSize: "2",
+        topicsKeywordDisplayCount: "5",
         topicsIncludeOutliers: true,
         topicsPageSize: "50",
         topicsActiveTopicID: "",
@@ -92,6 +146,21 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
         compareReferenceCorpusID: String = "",
         compareSelectedCorpusIDs: [String] = [],
+        sentimentSource: SentimentInputSource = .openedCorpus,
+        sentimentUnit: SentimentAnalysisUnit = .sentence,
+        sentimentContextBasis: SentimentContextBasis = .visibleContext,
+        sentimentBackend: SentimentBackendKind = .lexicon,
+        sentimentChartKind: SentimentChartKind = .distributionBar,
+        sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
+        sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
+        sentimentMinimumEvidence: Double = SentimentThresholds.default.minimumEvidence,
+        sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
+        sentimentRowFilterQuery: String = "",
+        sentimentLabelFilter: SentimentLabel? = nil,
+        sentimentSelectedCorpusIDs: [String] = [],
+        sentimentReferenceCorpusID: String = "",
+        keywordActiveTab: KeywordSuiteTab = .words,
+        keywordSuiteConfiguration: KeywordSuiteConfiguration = .default,
         keywordTargetCorpusID: String = "",
         keywordReferenceCorpusID: String = "",
         keywordLowercased: Bool = true,
@@ -99,14 +168,26 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         keywordMinimumFrequency: String = "2",
         keywordStatistic: KeywordStatisticMethod = .logLikelihood,
         keywordStopwordFilter: StopwordFilterState = .default,
+        plotQuery: String = "",
+        plotSearchOptions: SearchOptionsState = .default,
         ngramSize: String,
         ngramPageSize: String,
+        clusterSelectedN: String = "3",
+        clusterMinFrequency: String = "3",
+        clusterSortMode: ClusterSortMode = .frequencyDescending,
+        clusterCaseSensitive: Bool = false,
+        clusterStopwordFilter: StopwordFilterState = .default,
+        clusterPunctuationMode: ClusterPunctuationMode = .boundary,
+        clusterSelectedPhrase: String = "",
+        clusterPageSize: String = "100",
+        clusterReferenceCorpusID: String = "",
         kwicLeftWindow: String,
         kwicRightWindow: String,
         collocateLeftWindow: String,
         collocateRightWindow: String,
         collocateMinFreq: String,
         topicsMinTopicSize: String,
+        topicsKeywordDisplayCount: String = "5",
         topicsIncludeOutliers: Bool,
         topicsPageSize: String,
         topicsActiveTopicID: String,
@@ -130,6 +211,21 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
         self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
+        self.sentimentSource = sentimentSource
+        self.sentimentUnit = sentimentUnit
+        self.sentimentContextBasis = sentimentContextBasis
+        self.sentimentBackend = sentimentBackend
+        self.sentimentChartKind = sentimentChartKind
+        self.sentimentThresholdPreset = sentimentThresholdPreset
+        self.sentimentDecisionThreshold = sentimentDecisionThreshold
+        self.sentimentMinimumEvidence = sentimentMinimumEvidence
+        self.sentimentNeutralBias = sentimentNeutralBias
+        self.sentimentRowFilterQuery = sentimentRowFilterQuery
+        self.sentimentLabelFilter = sentimentLabelFilter
+        self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
+        self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
+        self.keywordActiveTab = keywordActiveTab
+        self.keywordSuiteConfiguration = keywordSuiteConfiguration
         self.keywordTargetCorpusID = keywordTargetCorpusID
         self.keywordReferenceCorpusID = keywordReferenceCorpusID
         self.keywordLowercased = keywordLowercased
@@ -137,14 +233,26 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.keywordMinimumFrequency = keywordMinimumFrequency
         self.keywordStatistic = keywordStatistic
         self.keywordStopwordFilter = keywordStopwordFilter
+        self.plotQuery = plotQuery
+        self.plotSearchOptions = plotSearchOptions
         self.ngramSize = ngramSize
         self.ngramPageSize = ngramPageSize
+        self.clusterSelectedN = clusterSelectedN
+        self.clusterMinFrequency = clusterMinFrequency
+        self.clusterSortMode = clusterSortMode
+        self.clusterCaseSensitive = clusterCaseSensitive
+        self.clusterStopwordFilter = clusterStopwordFilter
+        self.clusterPunctuationMode = clusterPunctuationMode
+        self.clusterSelectedPhrase = clusterSelectedPhrase
+        self.clusterPageSize = clusterPageSize
+        self.clusterReferenceCorpusID = clusterReferenceCorpusID
         self.kwicLeftWindow = kwicLeftWindow
         self.kwicRightWindow = kwicRightWindow
         self.collocateLeftWindow = collocateLeftWindow
         self.collocateRightWindow = collocateRightWindow
         self.collocateMinFreq = collocateMinFreq
         self.topicsMinTopicSize = topicsMinTopicSize
+        self.topicsKeywordDisplayCount = topicsKeywordDisplayCount
         self.topicsIncludeOutliers = topicsIncludeOutliers
         self.topicsPageSize = topicsPageSize
         self.topicsActiveTopicID = topicsActiveTopicID
@@ -179,7 +287,24 @@ struct WorkspaceStateDraft: Equatable, Sendable {
                 "referenceCorpusID": compareReferenceCorpusID,
                 "selectedCorpusIDs": compareSelectedCorpusIDs
             ],
+            "sentiment": [
+                "source": sentimentSource.rawValue,
+                "unit": sentimentUnit.rawValue,
+                "contextBasis": sentimentContextBasis.rawValue,
+                "backend": sentimentBackend.rawValue,
+                "chartKind": sentimentChartKind.rawValue,
+                "thresholdPreset": sentimentThresholdPreset.rawValue,
+                "decisionThreshold": sentimentDecisionThreshold,
+                "minimumEvidence": sentimentMinimumEvidence,
+                "neutralBias": sentimentNeutralBias,
+                "rowFilterQuery": sentimentRowFilterQuery,
+                "labelFilter": sentimentLabelFilter?.rawValue as Any,
+                "selectedCorpusIDs": sentimentSelectedCorpusIDs,
+                "referenceCorpusID": sentimentReferenceCorpusID
+            ],
             "keyword": [
+                "activeTab": keywordActiveTab.rawValue,
+                "suiteConfiguration": keywordSuiteConfiguration.jsonObject,
                 "targetCorpusID": keywordTargetCorpusID,
                 "referenceCorpusID": keywordReferenceCorpusID,
                 "lowercased": keywordLowercased,
@@ -188,9 +313,24 @@ struct WorkspaceStateDraft: Equatable, Sendable {
                 "statistic": keywordStatistic.rawValue,
                 "stopwordFilter": keywordStopwordFilter.asJSONObject()
             ],
+            "plot": [
+                "query": plotQuery,
+                "options": plotSearchOptions.asJSONObject()
+            ],
             "ngram": [
                 "pageSize": ngramPageSize,
                 "size": ngramSize
+            ],
+            "cluster": [
+                "selectedN": clusterSelectedN,
+                "minFrequency": clusterMinFrequency,
+                "sortMode": clusterSortMode.rawValue,
+                "caseSensitive": clusterCaseSensitive,
+                "stopwordFilter": clusterStopwordFilter.asJSONObject(),
+                "punctuationMode": clusterPunctuationMode.rawValue,
+                "selectedPhrase": clusterSelectedPhrase,
+                "pageSize": clusterPageSize,
+                "referenceCorpusID": clusterReferenceCorpusID
             ],
             "kwic": [
                 "leftWindow": kwicLeftWindow,
@@ -207,6 +347,7 @@ struct WorkspaceStateDraft: Equatable, Sendable {
             ],
             "topics": [
                 "minTopicSize": topicsMinTopicSize,
+                "keywordDisplayCount": topicsKeywordDisplayCount,
                 "includeOutliers": topicsIncludeOutliers,
                 "pageSize": topicsPageSize,
                 "activeTopicID": topicsActiveTopicID

@@ -75,7 +75,7 @@
 - `Storage/Library/NativeCorpusStore.swift`
 - `Workspace/Services/NativeWorkspaceRepository.swift`
 - `Workspace/Services/WorkspaceFlowCoordinator.swift`
-- `ViewModels/ComparePageViewModel.swift`
+- `ViewModels/Pages/ComparePageViewModel.swift`
 - `Views/Workspace/Pages/CompareView.swift`
 - `Views/Windows/LibraryManagementView.swift`
 
@@ -115,7 +115,7 @@
 
 - `Storage/Support/NativeCorpusDatabaseSupport.swift`
 - `Workspace/Services/LibraryManagementCoordinator.swift`
-- `ViewModels/LibraryManagementViewModel.swift`
+- `ViewModels/Library/LibraryManagementViewModel.swift`
 - `Views/Windows/LibraryManagementView.swift`
 - `Models/Scene/LibraryManagementSceneModel.swift`
 
@@ -192,7 +192,7 @@
 
 - `Workspace/Services/WorkspacePersistenceService.swift`
 - `Analysis/Support/AnalysisExportMetadataSupport.swift`
-- `ViewModels/*PageViewModel.swift`
+- `ViewModels/Pages/*PageViewModel.swift`
 - `Views/Workbench/`
 
 ## P1

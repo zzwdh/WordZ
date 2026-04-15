@@ -95,6 +95,12 @@ struct CollocateSceneBuilder {
             )
         }
 
+        let methodSummary = wordZText(
+            "当前结果展示节点词“\(query)”在 L\(leftWindow) / R\(rightWindow) 窗口、最小频次 \(minFreq) 条件下的共现词，并用 \(focusMetric.title(in: languageMode)) 作为重点解释指标。",
+            "These results show collocates for “\(query)” within an L\(leftWindow) / R\(rightWindow) window, with a minimum frequency of \(minFreq), and use \(focusMetric.title(in: languageMode)) as the primary interpretation metric.",
+            mode: languageMode
+        )
+
         let methodNotes = [
             focusMetric.summary(in: languageMode),
             wordZText(
@@ -132,6 +138,7 @@ struct CollocateSceneBuilder {
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
             focusMetric: focusMetric,
+            methodSummary: methodSummary,
             focusMetricSummary: focusMetric.summary(in: languageMode),
             methodNotes: methodNotes,
             leftWindow: leftWindow,

@@ -22,7 +22,10 @@ extension AboutWindowView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                 NativeMetricTile(title: t("版本", "Version"), value: workspace.sceneGraph.context.versionLabel)
                 NativeMetricTile(title: t("工作区", "Workspace"), value: workspace.sceneGraph.context.workspaceSummary)
-                NativeMetricTile(title: t("语言", "Language"), value: workspace.settings.languageMode.pickerLabel)
+                NativeMetricTile(
+                    title: t("语言", "Language"),
+                    value: l10n("跟随系统", table: "Settings", mode: languageMode, fallback: "Follow System")
+                )
                 NativeMetricTile(
                     title: t("更新状态", "Update Status"),
                     value: workspace.settings.scene.latestVersionLabel,

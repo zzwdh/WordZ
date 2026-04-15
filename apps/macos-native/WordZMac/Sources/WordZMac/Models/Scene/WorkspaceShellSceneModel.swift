@@ -4,6 +4,7 @@ enum WorkspaceToolbarAction: String, Identifiable, CaseIterable {
     case refresh
     case showLibrary
     case openSelected
+    case openSourceReader
     case previewCurrentCorpus
     case shareCurrentContent
     case runStats
@@ -11,9 +12,12 @@ enum WorkspaceToolbarAction: String, Identifiable, CaseIterable {
     case runTokenize
     case runTopics
     case runCompare
+    case runSentiment
     case runKeyword
     case runChiSquare
+    case runPlot
     case runNgram
+    case runCluster
     case runKWIC
     case runCollocate
     case runLocator

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class RootContentSceneTests: XCTestCase {
@@ -29,10 +29,85 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertEqual(workspace.rootScene.tabs.count, WorkspaceDetailTab.mainWorkspaceTabs.count)
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .library }))
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .settings }))
-        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 17)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 21)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first?.action, .refresh)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .showLibrary })?.isEnabled, true)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .openSelected })?.isEnabled, true)
+    }
+
+    func testMainWorkspaceCommandContextSharesToolbarSceneModel() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        let context = workspace.commandContext(for: .mainWorkspace)
+
+        XCTAssertTrue(context.supportsWorkspaceCommands)
+        XCTAssertEqual(context.toolbar, workspace.shell.scene.toolbar)
+        XCTAssertEqual(context.toolbar?.item(for: .refresh)?.action, .refresh)
+        XCTAssertEqual(context.toolbar?.item(for: .exportCurrent)?.action, .exportCurrent)
+        XCTAssertEqual(context.toolbar?.item(for: workspace.selectedRoute.toolbarRunAction ?? .runKWIC)?.isEnabled, true)
+        XCTAssertTrue(context.canRefreshWorkspace)
+        XCTAssertEqual(context.selectedMainRoute, workspace.selectedRoute)
+        XCTAssertFalse(context.canSelectMainRoute)
+        XCTAssertFalse(context.canToggleInspector)
+    }
+
+    func testMainWorkspaceCommandContextEnablesSourceViewForProvenanceBackedSelections() async {
+        let repository = FakeWorkspaceRepository(
+            kwicResult: KWICResult(rows: [
+                KWICRow(id: "0-0", left: "", node: "Alpha", right: "beta gamma", sentenceId: 0, sentenceTokenIndex: 0)
+            ])
+        )
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        XCTAssertFalse(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
+
+        workspace.kwic.keyword = "alpha"
+        await workspace.runKWIC()
+
+        XCTAssertTrue(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
+
+        workspace.selectedTab = .stats
+        workspace.syncSceneGraph()
+
+        XCTAssertFalse(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
+    }
+
+    func testMainWorkspaceCommandContextAppliesSceneViewMenuState() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        let context = workspace.commandContext(for: .mainWorkspace).applyingViewMenuState(
+            selectedMainRoute: workspace.selectedRoute,
+            isInspectorPresented: true
+        )
+
+        XCTAssertTrue(context.canRefreshWorkspace)
+        XCTAssertTrue(context.canSelectMainRoute)
+        XCTAssertEqual(context.selectedMainRoute, workspace.selectedRoute)
+        XCTAssertTrue(context.canToggleInspector)
+        XCTAssertTrue(context.isInspectorPresented)
+    }
+
+    func testNonMainWindowCommandContextsDisableViewMenuState() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+
+        for route in [NativeWindowRoute.library, .settings, .help, .sourceReader] {
+            let context = workspace.commandContext(for: route)
+
+            XCTAssertFalse(context.canRefreshWorkspace, "Expected refresh to be disabled for \(route.id)")
+            XCTAssertFalse(context.canSelectMainRoute, "Expected page switching to be disabled for \(route.id)")
+            XCTAssertNil(context.selectedMainRoute, "Expected no selected main route for \(route.id)")
+            XCTAssertFalse(context.canToggleInspector, "Expected inspector toggle to be disabled for \(route.id)")
+            XCTAssertFalse(context.isInspectorPresented, "Expected inspector to default hidden for \(route.id)")
+            XCTAssertFalse(context.canOpenSourceView, "Expected source view action to be disabled for \(route.id)")
+        }
     }
 
     func testMainWorkspaceViewModelTracksTabAndToolbarUpdatesSeparately() async {
@@ -218,12 +293,17 @@ final class RootContentSceneTests: XCTestCase {
     func testRootContentShellActionHandlerHandlesShellStateChanges() {
         let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
         var isSidebarVisible = true
+        var isInspectorVisible = true
         var openedRoutes: [String] = []
         let handler = RootContentShellActionHandler(
             workspace: workspace,
             currentSidebarVisibility: { isSidebarVisible },
             setSidebarVisibility: { nextValue in
                 isSidebarVisible = nextValue
+            },
+            currentInspectorVisibility: { isInspectorVisible },
+            setInspectorVisibility: { nextValue in
+                isInspectorVisible = nextValue
             },
             presentWindow: { route in
                 openedRoutes.append(route.id)
@@ -233,16 +313,20 @@ final class RootContentSceneTests: XCTestCase {
         handler.handle(.selectTab(.compare))
         handler.handle(.presentWelcome)
         handler.handle(.toggleSidebar)
+        handler.handle(.toggleInspector)
         handler.handle(.openWindow(.help))
 
         XCTAssertEqual(workspace.selectedTab, .compare)
         XCTAssertTrue(workspace.isWelcomePresented)
         XCTAssertFalse(isSidebarVisible)
+        XCTAssertFalse(isInspectorVisible)
         XCTAssertEqual(openedRoutes, [NativeWindowRoute.help.id])
 
         handler.handle(.toggleSidebar)
+        handler.handle(.toggleInspector)
 
         XCTAssertTrue(isSidebarVisible)
+        XCTAssertTrue(isInspectorVisible)
     }
 
     func testRootContentShellActionHandlerSelectRouteUpdatesWorkspaceRoute() {
@@ -297,9 +381,13 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertTrue(controller.splitViewItems[2].isCollapsed)
     }
 
-    func testRootContentDefaultLaunchControllerPresentsLibraryWindowOnlyOnce() {
+    func testRootContentDefaultLaunchControllerPresentsLibraryWindowOnFirstLaunch() async {
         var hasPresentedWindow = false
-        let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
+        let hostPreferencesStore = InMemoryHostPreferencesStore()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            hostPreferencesStore: hostPreferencesStore
+        )
         var openedRoutes: [String] = []
         let shellHandler = RootContentShellActionHandler(
             workspace: workspace,
@@ -314,14 +402,120 @@ final class RootContentSceneTests: XCTestCase {
                 get: { hasPresentedWindow },
                 set: { hasPresentedWindow = $0 }
             ),
+            workspace: workspace,
+            hostPreferencesStore: hostPreferencesStore,
             shellActionHandler: shellHandler
         )
+        await workspace.initializeIfNeeded()
 
         controller.presentLibraryWindowIfNeeded()
         controller.presentLibraryWindowIfNeeded()
 
         XCTAssertTrue(hasPresentedWindow)
         XCTAssertEqual(openedRoutes, [NativeWindowRoute.library.id])
+        XCTAssertTrue(hostPreferencesStore.snapshot.hasCompletedInitialLaunch)
+        XCTAssertEqual(hostPreferencesStore.saveCallCount, 1)
+    }
+
+    func testRootContentDefaultLaunchControllerSkipsLibraryAfterInitialLaunchWhenLibraryHasContent() async {
+        var hasPresentedWindow = false
+        let hostPreferencesStore = InMemoryHostPreferencesStore()
+        hostPreferencesStore.snapshot.hasCompletedInitialLaunch = true
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            hostPreferencesStore: hostPreferencesStore
+        )
+        var openedRoutes: [String] = []
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { route in
+                openedRoutes.append(route.id)
+            }
+        )
+        let controller = RootContentDefaultLaunchController(
+            hasPresentedWindow: Binding(
+                get: { hasPresentedWindow },
+                set: { hasPresentedWindow = $0 }
+            ),
+            workspace: workspace,
+            hostPreferencesStore: hostPreferencesStore,
+            shellActionHandler: shellHandler
+        )
+        await workspace.initializeIfNeeded()
+
+        controller.presentLibraryWindowIfNeeded()
+
+        XCTAssertTrue(hasPresentedWindow)
+        XCTAssertTrue(openedRoutes.isEmpty)
+        XCTAssertEqual(hostPreferencesStore.saveCallCount, 0)
+    }
+
+    func testRootContentDefaultLaunchControllerPresentsLibraryWhenInitialLaunchCompletedButLibraryIsEmpty() async {
+        var hasPresentedWindow = false
+        let hostPreferencesStore = InMemoryHostPreferencesStore()
+        hostPreferencesStore.snapshot.hasCompletedInitialLaunch = true
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            hostPreferencesStore: hostPreferencesStore
+        )
+        var openedRoutes: [String] = []
+        let shellHandler = RootContentShellActionHandler(
+            workspace: workspace,
+            currentSidebarVisibility: { true },
+            setSidebarVisibility: { _ in },
+            presentWindow: { route in
+                openedRoutes.append(route.id)
+            }
+        )
+        let controller = RootContentDefaultLaunchController(
+            hasPresentedWindow: Binding(
+                get: { hasPresentedWindow },
+                set: { hasPresentedWindow = $0 }
+            ),
+            workspace: workspace,
+            hostPreferencesStore: hostPreferencesStore,
+            shellActionHandler: shellHandler
+        )
+        await workspace.initializeIfNeeded()
+        workspace.sidebar.librarySnapshot = .empty
+
+        controller.presentLibraryWindowIfNeeded()
+
+        XCTAssertTrue(hasPresentedWindow)
+        XCTAssertEqual(openedRoutes, [NativeWindowRoute.library.id])
+        XCTAssertEqual(hostPreferencesStore.saveCallCount, 0)
+    }
+
+    func testNativeWindowRolePolicyKeepsMainWorkspaceRestorableAndMiniaturizable() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 420),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+
+        NativeWindowRolePolicy.policy(for: .mainWorkspace).apply(to: window)
+
+        XCTAssertTrue(window.isRestorable)
+        XCTAssertTrue(window.styleMask.contains(.miniaturizable))
+        XCTAssertEqual(window.tabbingMode, .disallowed)
+    }
+
+    func testNativeWindowRolePolicyDisablesRestorationAndMinimizeForUpdateWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+
+        NativeWindowRolePolicy.policy(for: .updatePrompt).apply(to: window)
+
+        XCTAssertFalse(window.isRestorable)
+        XCTAssertFalse(window.styleMask.contains(.miniaturizable))
+        XCTAssertEqual(window.tabbingMode, .disallowed)
     }
 
     func testRootContentEventBridgeRoutesCommandNotificationToCommandHandler() {

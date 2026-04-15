@@ -1,34 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="${1:-Sources/WordZMac}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ROOT_DIR="${1:-${REPO_ROOT}/Sources/WordZMac}"
+PACKAGE_FILE="${REPO_ROOT}/Package.swift"
 FAILED=0
 
-readonly VIEWMODEL_ROOT_STEMS=(
-  ChiSquarePageViewModel
-  CollocatePageViewModel
-  ComparePageViewModel
-  KWICPageViewModel
-  KeywordPageViewModel
-  LibraryManagementViewModel
-  LibrarySidebarViewModel
-  LocatorPageViewModel
-  MainWorkspaceRuntimeDependencies
-  MainWorkspaceViewModel
-  NgramPageViewModel
-  SceneSyncSource
-  StatsPageViewModel
-  TokenizePageViewModel
-  TopicsPageViewModel
-  WordPageViewModel
-  WorkspaceSettingsViewModel
-  WorkspaceShellViewModel
+readonly VIEWMODEL_ROOT_DIRS=(
+  Library
+  Pages
+  Settings
+  Workspace
 )
 
 readonly VIEW_ROOT_DIRS=(
   Windows
   Workbench
   Workspace
+)
+
+readonly PACKAGE_TARGETS=(
+  WordZMac
+  WordZAppShell
+  WordZWorkspaceFeature
+  WordZLibraryFeature
+  WordZWorkbenchUI
+  WordZWindowing
+  WordZWorkspaceCore
+  WordZAnalysis
+  WordZStorage
+  WordZEngine
+  WordZHost
+  WordZExport
+  WordZDiagnostics
+  WordZShared
 )
 
 print_check() {
@@ -42,38 +48,6 @@ mark_failure() {
 
 count_root_swift_files() {
   find "$ROOT_DIR/$1" -maxdepth 1 -type f -name '*.swift' | wc -l | tr -d ' '
-}
-
-collect_root_stems() {
-  find "$ROOT_DIR/$1" -maxdepth 1 -type f -name '*.swift' -exec basename {} .swift \; \
-    | sed 's/+.*$//' \
-    | sort -u
-}
-
-check_allowed_root_stems() {
-  local directory="$1"
-  shift
-  local expected=("$@")
-  local current=()
-  local unexpected=()
-  local stem
-
-  while IFS= read -r stem; do
-    [[ -z "$stem" ]] && continue
-    current+=("$stem")
-  done < <(collect_root_stems "$directory")
-
-  for stem in "${current[@]}"; do
-    if [[ ! " ${expected[*]} " =~ " ${stem} " ]]; then
-      unexpected+=("$stem")
-    fi
-  done
-
-  if [[ ${#unexpected[@]} -gt 0 ]]; then
-    mark_failure "$directory gained unexpected root-level stems: ${unexpected[*]}"
-  fi
-
-  echo "[architecture-guard] $directory root stems: ${current[*]}"
 }
 
 collect_root_dirs() {
@@ -114,6 +88,17 @@ check_legacy_services_removed() {
   fi
 }
 
+check_package_declares_expected_targets() {
+  print_check "Checking Package.swift declares the multi-target package graph..."
+  local target
+
+  for target in "${PACKAGE_TARGETS[@]}"; do
+    if ! rg -q "name: \"$target\"" "$PACKAGE_FILE"; then
+      mark_failure "Expected Package.swift to declare target/product $target."
+    fi
+  done
+}
+
 check_root_level_boundaries() {
   print_check "Checking root-level placement boundaries..."
 
@@ -124,6 +109,13 @@ check_root_level_boundaries() {
     find "$ROOT_DIR/Models" -maxdepth 1 -type f -name '*.swift'
   fi
 
+  local viewmodels_count
+  viewmodels_count=$(count_root_swift_files "ViewModels")
+  if [[ "$viewmodels_count" -gt 0 ]]; then
+    mark_failure "ViewModels should not contain root-level Swift files. Found $viewmodels_count."
+    find "$ROOT_DIR/ViewModels" -maxdepth 1 -type f -name '*.swift'
+  fi
+
   local views_count
   views_count=$(count_root_swift_files "Views")
   if [[ "$views_count" -gt 0 ]]; then
@@ -131,10 +123,10 @@ check_root_level_boundaries() {
     find "$ROOT_DIR/Views" -maxdepth 1 -type f -name '*.swift'
   fi
 
-  check_allowed_root_stems "ViewModels" "${VIEWMODEL_ROOT_STEMS[@]}"
+  check_allowed_root_dirs "ViewModels" "${VIEWMODEL_ROOT_DIRS[@]}"
   check_allowed_root_dirs "Views" "${VIEW_ROOT_DIRS[@]}"
 
-  echo "[architecture-guard] Root-level counts: Models=$models_count ViewModels=$(count_root_swift_files "ViewModels") Views=$views_count"
+  echo "[architecture-guard] Root-level counts: Models=$models_count ViewModels=$viewmodels_count Views=$views_count"
 }
 
 check_app_composition_has_no_ui_imports() {
@@ -211,6 +203,17 @@ check_workspace_does_not_reference_views() {
   fi
 }
 
+check_workspace_avoids_concrete_host_ui_types() {
+  print_check "Checking Workspace domain stays off concrete host UI types..."
+  local pattern='NativeWindowDocumentController|\bNSWindow\b|\bNSPasteboard\b|\bNSOpenPanel\b|\bNSSavePanel\b|\bNSAlert\b|\bNSWorkspace\b|\bNSDocumentController\b|^import AppKit'
+  local result
+  result=$(rg -n "$pattern" "$ROOT_DIR/Workspace" || true)
+  if [[ -n "$result" ]]; then
+    mark_failure "Workspace should depend on host protocols/services, not concrete AppKit UI types."
+    echo "$result"
+  fi
+}
+
 check_analysis_does_not_reference_shell_types() {
   print_check "Checking Analysis domain for shell/repository coupling..."
   local pattern='MainWorkspaceViewModel|WorkspaceFlowCoordinator|WorkspaceActionDispatcher|RootContentView|NativeWorkspaceRepository|NativeHostActionService|NativeDialogServicing|QuickLookPreviewFileService|WorkspaceSceneStore|WorkspaceSceneGraphStore|WorkspaceShellViewModel'
@@ -233,7 +236,31 @@ check_storage_does_not_reference_workspace_or_host_shell() {
   fi
 }
 
+check_platform_api_boundaries() {
+  print_check "Checking macOS 15+/Liquid Glass APIs stay inside the window capability layer..."
+  local allowed_files=(
+    "$ROOT_DIR/App/Windowing/NativePlatformCapabilities+Decorations.swift"
+    "$ROOT_DIR/Views/Windows/AdaptiveWindowToolbarSupport.swift"
+    "$ROOT_DIR/Views/Workspace/MainWorkspaceSplitContainer.swift"
+  )
+  local pattern='glassEffect|GlassEffectContainer|glassEffectID|toolbarBackgroundVisibility|toolbarVisibility|defaultWindowPlacement|windowIdealPlacement|WindowDragGesture|allowsWindowActivationEvents|searchToolbarBehavior|ToolbarSpacer|sharedBackgroundVisibility|backgroundExtensionEffect|scrollEdgeEffectStyle|topAlignedAccessoryViewControllers|automaticallyAdjustsSafeAreaInsets|NSSplitViewItemAccessoryViewController|#available\(macOS (15\.0|26\.0)'
+  local find_args=("$ROOT_DIR" -type f -name '*.swift')
+  local allowed_file
+  for allowed_file in "${allowed_files[@]}"; do
+    find_args+=( ! -path "$allowed_file" )
+  done
+
+  local result
+  result=$(find "${find_args[@]}" -print0 | xargs -0 rg -n "$pattern" || true)
+
+  if [[ -n "$result" ]]; then
+    mark_failure "macOS 15+/26 window APIs should stay inside the approved capability/toolbar/accessory layers."
+    echo "$result"
+  fi
+}
+
 main() {
+  check_package_declares_expected_targets
   check_legacy_services_removed
   check_root_level_boundaries
   check_app_composition_has_no_ui_imports
@@ -242,8 +269,10 @@ main() {
   check_composition_has_no_workflow_mutation
   check_non_ui_domains_do_not_import_ui
   check_workspace_does_not_reference_views
+  check_workspace_avoids_concrete_host_ui_types
   check_analysis_does_not_reference_shell_types
   check_storage_does_not_reference_workspace_or_host_shell
+  check_platform_api_boundaries
 
   if [[ "$FAILED" -ne 0 ]]; then
     echo "[architecture-guard] Completed with failures."

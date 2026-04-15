@@ -1,7 +1,66 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class NativeAnalysisEngineTests: XCTestCase {
+    func testAnalysisEngineCacheRemainsStableUnderConcurrentAccess() async throws {
+        let engine = NativeAnalysisEngine()
+        let text = "Alpha beta gamma. Alpha hackers hacker."
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for _ in 0..<8 {
+                group.addTask {
+                    _ = engine.runStats(text: text)
+                    _ = engine.runTokenize(text: text)
+                    _ = engine.runNgram(text: text, n: 2)
+                    _ = try engine.runKWIC(
+                        text: text,
+                        keyword: "alpha",
+                        leftWindow: 2,
+                        rightWindow: 2,
+                        searchOptions: .default
+                    )
+                    _ = try engine.runCollocate(
+                        text: text,
+                        keyword: "alpha",
+                        leftWindow: 2,
+                        rightWindow: 2,
+                        minFreq: 1,
+                        searchOptions: .default
+                    )
+                }
+            }
+
+            try await group.waitForAll()
+        }
+
+        XCTAssertEqual(engine.cachedDocumentCountForTesting, 1)
+        XCTAssertEqual(engine.cachedFrequencySummaryCountForTesting, 1)
+    }
+
+    func testAnalysisRuntimeReusesParsedDocumentAcrossConcurrentRequests() async throws {
+        let runtime = NativeAnalysisRuntime()
+        let text = "Alpha beta gamma. Alpha hackers hacker."
+
+        async let stats = runtime.runStats(text: text)
+        async let tokenize = runtime.runTokenize(text: text)
+        async let ngram = runtime.runNgram(text: text, n: 2)
+        async let kwic = runtime.runKWIC(
+            text: text,
+            keyword: "alpha",
+            leftWindow: 2,
+            rightWindow: 2,
+            searchOptions: .default
+        )
+
+        _ = await stats
+        _ = await tokenize
+        _ = await ngram
+        _ = try await kwic
+
+        let cachedDocumentCount = await runtime.cachedDocumentCountForTesting
+        XCTAssertEqual(cachedDocumentCount, 1)
+    }
+
     func testAnalysisEngineReusesParsedDocumentAcrossMultipleAnalyses() throws {
         let engine = NativeAnalysisEngine()
         let text = "Alpha beta gamma. Alpha hackers hacker."
@@ -173,5 +232,42 @@ final class NativeAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(beta?.dominantCorpusName, "Reference")
         XCTAssertGreaterThan(beta?.keyness ?? 0, 0)
         XCTAssertLessThan(beta?.referenceNormFreq ?? 0, 10_000)
+    }
+
+    func testRunSentimentBuildsGroupedSummariesForTargetAndReferenceInputs() {
+        let engine = NativeAnalysisEngine()
+        let request = SentimentRunRequest(
+            source: .corpusCompare,
+            unit: .document,
+            contextBasis: .visibleContext,
+            thresholds: .default,
+            texts: [
+                SentimentInputText(
+                    id: "target-1",
+                    sourceID: "corpus-1",
+                    sourceTitle: "Target Corpus",
+                    text: "good excellent",
+                    groupID: "target",
+                    groupTitle: "Target"
+                ),
+                SentimentInputText(
+                    id: "reference-1",
+                    sourceID: "corpus-2",
+                    sourceTitle: "Reference Corpus",
+                    text: "bad terrible",
+                    groupID: "reference",
+                    groupTitle: "Reference"
+                )
+            ],
+            backend: .lexicon
+        )
+
+        let result = engine.runSentiment(request)
+
+        XCTAssertEqual(result.groupSummaries.count, 2)
+        XCTAssertEqual(result.groupSummaries.first(where: { $0.id == "target" })?.positiveCount, 1)
+        XCTAssertEqual(result.groupSummaries.first(where: { $0.id == "reference" })?.negativeCount, 1)
+        XCTAssertEqual(result.groupSummaries.first(where: { $0.id == "target" })?.totalTexts, 1)
+        XCTAssertEqual(result.groupSummaries.first(where: { $0.id == "reference" })?.totalTexts, 1)
     }
 }

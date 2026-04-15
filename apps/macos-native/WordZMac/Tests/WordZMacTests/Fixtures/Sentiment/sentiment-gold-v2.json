@@ -1,0 +1,2522 @@
+[
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-001",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The interface is intuitive and especially helpful for beginners."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-002",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The update feels reliable and works reliably for writing tasks."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-003",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Users found the tutorial helpful and genuinely useful in daily use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-004",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The export panel is easy to follow and especially helpful during annotation."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-005",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The concordance view feels stable and works reliably for corpus review."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-006",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Users found the search flow efficient and genuinely useful for comparative work."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-007",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The workspace layout is well designed and especially helpful for classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-008",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The results table feels clear and works reliably for repeated searches."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-009",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Users found the import guide useful and genuinely useful for quick checks."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-010",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The filter panel is smooth and especially helpful for longer sessions."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-011",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The interface feels intuitive and works reliably for beginners."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-012",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Users found the update reliable and genuinely useful for writing tasks."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-013",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The tutorial is helpful and especially helpful in daily use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-014",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The export panel feels easy to follow and works reliably during annotation."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-015",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Users found the concordance view stable and genuinely useful for corpus review."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-016",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The search flow is efficient and especially helpful for comparative work."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-017",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The workspace layout feels well designed and works reliably for classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-train-018",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Users found the results table clear and genuinely useful for repeated searches."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-validation-001",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The import guide is useful and especially helpful for quick checks."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-validation-002",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The filter panel feels smooth and works reliably for longer sessions."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-validation-003",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "Users found the interface intuitive and genuinely useful for beginners."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-validation-004",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The update is reliable and especially helpful for writing tasks."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-validation-005",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The tutorial feels helpful and works reliably in daily use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-validation-006",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "Users found the export panel easy to follow and genuinely useful during annotation."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-test-001",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The concordance view is stable and especially helpful for corpus review."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-test-002",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The search flow feels efficient and works reliably for comparative work."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-test-003",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "Users found the workspace layout well designed and genuinely useful for classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-test-004",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The results table is clear and especially helpful for repeated searches."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-test-005",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The import guide feels useful and works reliably for quick checks."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-positive-test-006",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "Users found the filter panel smooth and genuinely useful for longer sessions."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-001",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The dashboard shows token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-002",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The report includes metadata for each document for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-003",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In the current workspace, the package displays token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-004",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The window opens metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-005",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The article lists token totals and document counts for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-006",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In the current workspace, the project presents metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-007",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The menu uses token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-008",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The table contains metadata for each document for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-009",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In the current workspace, the chapter stores token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-010",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The corpus browser records metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-011",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The dashboard shows token totals and document counts for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-012",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In the current workspace, the report includes metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-013",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The package displays token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-014",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The window opens metadata for each document for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-015",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In the current workspace, the article lists token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-016",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The project presents metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-017",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The menu uses token totals and document counts for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-train-018",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In the current workspace, the table contains metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-validation-001",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The chapter stores token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-validation-002",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The corpus browser records metadata for each document for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-validation-003",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "In the current workspace, the dashboard shows token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-validation-004",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The report includes metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-validation-005",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The package displays token totals and document counts for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-validation-006",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "In the current workspace, the window opens metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-test-001",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The article lists token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-test-002",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The project presents metadata for each document for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-test-003",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "In the current workspace, the menu uses token totals and document counts."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-test-004",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The table contains metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-test-005",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The chapter stores token totals and document counts for the current session."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-neutral-test-006",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "In the current workspace, the corpus browser records metadata for each document."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-001",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The app is slow and often frustrating during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-002",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The workflow looks useful but becomes misleading during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-003",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Users described the warning message as noisy and risky during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-004",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The explanation is hard to trust and often frustrating during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-005",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The export routine looks useful but becomes unstable during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-006",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Users described the setup guide as fragile and risky during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-007",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The search panel is awkward and often frustrating during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-008",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The build step looks useful but becomes confusing during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-009",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Users described the result preview as problematic and risky during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-010",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The import flow is unreliable and often frustrating during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-011",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The app looks useful but becomes slow during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-012",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Users described the workflow as misleading and risky during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-013",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The warning message is noisy and often frustrating during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-014",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The explanation looks useful but becomes hard to trust during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-015",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Users described the export routine as unstable and risky during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-016",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The setup guide is fragile and often frustrating during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-017",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The search panel looks useful but becomes awkward during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-train-018",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Users described the build step as confusing and risky during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-validation-001",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The result preview is problematic and often frustrating during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-validation-002",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The import flow looks useful but becomes unreliable during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-validation-003",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "Users described the app as slow and risky during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-validation-004",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The workflow is misleading and often frustrating during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-validation-005",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The warning message looks useful but becomes noisy during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-validation-006",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "Users described the explanation as hard to trust and risky during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-test-001",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The export routine is unstable and often frustrating during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-test-002",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The setup guide looks useful but becomes fragile during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-test-003",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "Users described the search panel as awkward and risky during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-test-004",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The build step is confusing and often frustrating during classroom demos."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-test-005",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The result preview looks useful but becomes problematic during repeated use."
+  },
+  {
+    "domain" : "general",
+    "id" : "v2-general-negative-test-006",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "Users described the import flow as unreliable and risky during classroom demos."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-001",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The method provides a robust baseline for corpus research."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-002",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The analysis appears carefully designed and particularly useful for mixed-method studies."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-003",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The reviewers described the framework as useful for longitudinal comparison."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-004",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The corpus design provides a reliable baseline for replication work."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-005",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The annotation scheme appears well motivated and particularly useful for low-noise baselines."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-006",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The reviewers described the experimental setup as promising for discourse analysis."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-007",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The scoring strategy provides a insightful baseline for pedagogy."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-008",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The comparison baseline appears effective and particularly useful for follow-up experiments."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-009",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The reviewers described the sampling plan as valuable for interpretive consistency."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-010",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The evidence base provides a systematic baseline for classroom use."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-011",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The method appears robust and particularly useful for corpus research."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-012",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The reviewers described the analysis as carefully designed for mixed-method studies."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-013",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The framework provides a useful baseline for longitudinal comparison."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-014",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The corpus design appears reliable and particularly useful for replication work."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-015",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The reviewers described the annotation scheme as well motivated for low-noise baselines."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-016",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The experimental setup provides a promising baseline for discourse analysis."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-017",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The scoring strategy appears insightful and particularly useful for pedagogy."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-train-018",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The reviewers described the comparison baseline as effective for follow-up experiments."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-validation-001",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The sampling plan provides a valuable baseline for interpretive consistency."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-validation-002",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The evidence base appears systematic and particularly useful for classroom use."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-validation-003",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The reviewers described the method as robust for corpus research."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-validation-004",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The analysis provides a carefully designed baseline for mixed-method studies."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-validation-005",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The framework appears useful and particularly useful for longitudinal comparison."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-validation-006",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "The reviewers described the corpus design as reliable for replication work."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-test-001",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The annotation scheme provides a well motivated baseline for low-noise baselines."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-test-002",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The experimental setup appears promising and particularly useful for discourse analysis."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-test-003",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The reviewers described the scoring strategy as insightful for pedagogy."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-test-004",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The comparison baseline provides a effective baseline for follow-up experiments."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-test-005",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The sampling plan appears valuable and particularly useful for interpretive consistency."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-positive-test-006",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The reviewers described the evidence base as systematic for classroom use."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-001",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The findings are preliminary and should be interpreted cautiously."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-002",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The results remain provisional pending further study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-003",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The analysis is descriptive rather than evaluative in this section."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-004",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The paper reports initial observations without broader claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-005",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The interpretation remains cautious because additional data are needed."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-006",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The study examines 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-007",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The corpus outlines the coding protocol for the pilot set in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-008",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In this paper, section 3 summarizes 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-009",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The appendix documents the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-010",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The experiment describes 120 essays collected in 2024 in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-011",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In this paper, the sample uses the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-012",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The article lists 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-013",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The table reports the coding protocol for the pilot set in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-014",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In this paper, the dataset includes 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-015",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The procedure compares the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-016",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The study examines 120 essays collected in 2024 in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-017",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "In this paper, the corpus outlines the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-train-018",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Section 3 summarizes 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-validation-001",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The appendix documents the coding protocol for the pilot set in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-validation-002",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "In this paper, the experiment describes 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-validation-003",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The sample uses the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-validation-004",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The article lists 120 essays collected in 2024 in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-validation-005",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "In this paper, the table reports the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-validation-006",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The dataset includes 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-test-001",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The procedure compares the coding protocol for the pilot set in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-test-002",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "In this paper, the study examines 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-test-003",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The corpus outlines the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-test-004",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "Section 3 summarizes 120 essays collected in 2024 in the current study."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-test-005",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "In this paper, the appendix documents the coding protocol for the pilot set."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-neutral-test-006",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The experiment describes 120 essays collected in 2024."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-001",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The evidence remains limited for low-resource domains."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-002",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The interpretation appears fragile and somewhat risky for fine-grained annotation."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-003",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The paper notes that the sample is uncertain for classroom transfer."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-004",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The model remains hard to generalize for longitudinal claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-005",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The annotation scheme appears inconclusive and somewhat risky for balanced comparison."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-006",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The paper notes that the baseline is biased for narrow subcorpora."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-007",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The argument remains incomplete for strong causal arguments."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-008",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The dataset appears weak and somewhat risky for robust inference."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-009",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The paper notes that the comparison is under-specified for broader theoretical claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-010",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The procedure remains problematic for reliable replication."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-011",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The evidence appears limited and somewhat risky for low-resource domains."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-012",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The paper notes that the interpretation is fragile for fine-grained annotation."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-013",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The sample remains uncertain for classroom transfer."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-014",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The model appears hard to generalize and somewhat risky for longitudinal claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-015",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The paper notes that the annotation scheme is inconclusive for balanced comparison."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-016",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The baseline remains biased for narrow subcorpora."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-017",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The argument appears incomplete and somewhat risky for strong causal arguments."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-train-018",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The paper notes that the dataset is weak for robust inference."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-validation-001",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The comparison remains under-specified for broader theoretical claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-validation-002",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The procedure appears problematic and somewhat risky for reliable replication."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-validation-003",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The paper notes that the evidence is limited for low-resource domains."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-validation-004",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The interpretation remains fragile for fine-grained annotation."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-validation-005",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The sample appears uncertain and somewhat risky for classroom transfer."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-validation-006",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "The paper notes that the model is hard to generalize for longitudinal claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-test-001",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The annotation scheme remains inconclusive for balanced comparison."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-test-002",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The baseline appears biased and somewhat risky for narrow subcorpora."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-test-003",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The paper notes that the argument is incomplete for strong causal arguments."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-test-004",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The dataset remains weak for robust inference."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-test-005",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The comparison appears under-specified and somewhat risky for broader theoretical claims."
+  },
+  {
+    "domain" : "academic",
+    "id" : "v2-academic-negative-test-006",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The paper notes that the procedure is problematic for reliable replication."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-001",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Officials praised the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-002",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Teachers backed the proposal as a constructive measure after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-003",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "In early coverage, parents highlighted the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-004",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Analysts hailed the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-005",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Local leaders commended the program as a successful response after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-006",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "In early coverage, the mayor supported the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-007",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Reviewers celebrated the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-008",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Investors welcomed the proposal as a constructive measure after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-009",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "In early coverage, observers endorsed the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-010",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Organizers described the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-011",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Officials praised the program as a successful response after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-012",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "In early coverage, teachers backed the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-013",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Parents highlighted the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-014",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Analysts hailed the proposal as a constructive measure after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-015",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "In early coverage, local leaders commended the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-016",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "The mayor supported the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-017",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "Reviewers celebrated the program as a successful response after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-train-018",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "In early coverage, investors welcomed the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-validation-001",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "Observers endorsed the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-validation-002",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "Organizers described the proposal as a constructive measure after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-validation-003",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "In early coverage, officials praised the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-validation-004",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "Teachers backed the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-validation-005",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "Parents highlighted the program as a successful response after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-validation-006",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "In early coverage, analysts hailed the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-test-001",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "Local leaders commended the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-test-002",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "The mayor supported the proposal as a constructive measure after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-test-003",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "In early coverage, reviewers celebrated the program as a successful response."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-test-004",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "Investors welcomed the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-test-005",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "Observers endorsed the program as a successful response after the announcement."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-positive-test-006",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "In early coverage, organizers described the proposal as a constructive measure."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-001",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The committee released the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-002",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The meeting published the notice before noon according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-003",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Reporters noted that the bill held the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-004",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The document filed the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-005",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The hearing introduced the document after the vote according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-006",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Reporters noted that the agency issued the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-007",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The council recorded the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-008",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The report began the notice before noon according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-009",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Reporters noted that the statement scheduled the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-010",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The update announced the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-011",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The committee released the document after the vote according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-012",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Reporters noted that the meeting published the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-013",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The bill held the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-014",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The document filed the notice before noon according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-015",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Reporters noted that the hearing introduced the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-016",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The agency issued the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-017",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "The council recorded the document after the vote according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-train-018",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "Reporters noted that the report began the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-validation-001",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The statement scheduled the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-validation-002",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The update announced the notice before noon according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-validation-003",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "Reporters noted that the committee released the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-validation-004",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The meeting published the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-validation-005",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "The bill held the document after the vote according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-validation-006",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "Reporters noted that the document filed the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-test-001",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The hearing introduced the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-test-002",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The agency issued the notice before noon according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-test-003",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "Reporters noted that the council recorded the document after the vote."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-test-004",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The report began the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-test-005",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "The statement scheduled the document after the vote according to the filing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-neutral-test-006",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "Reporters noted that the update announced the notice before noon."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-001",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Opposition leaders warned of a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-002",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Critics raised concern about serious risks for schools after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-003",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "In follow-up coverage, analysts flagged a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-004",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Officials linked serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-005",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Residents criticized a worsening crisis after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-006",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "In follow-up coverage, commentators called out serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-007",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The report condemned a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-008",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The statement slammed serious risks for schools after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-009",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "In follow-up coverage, campaigners described a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-010",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Observers blamed serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-011",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Opposition leaders warned of a worsening crisis after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-012",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "In follow-up coverage, critics raised concern about serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-013",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Analysts flagged a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-014",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Officials linked serious risks for schools after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-015",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "In follow-up coverage, residents criticized a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-016",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "Commentators called out serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-017",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "The report condemned a worsening crisis after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-train-018",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "In follow-up coverage, the statement slammed serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-validation-001",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "Campaigners described a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-validation-002",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "Observers blamed serious risks for schools after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-validation-003",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "In follow-up coverage, opposition leaders warned of a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-validation-004",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "Critics raised concern about serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-validation-005",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "Analysts flagged a worsening crisis after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-validation-006",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "In follow-up coverage, officials linked serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-test-001",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "Residents criticized a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-test-002",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "Commentators called out serious risks for schools after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-test-003",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "In follow-up coverage, the report condemned a worsening crisis."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-test-004",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "The statement slammed serious risks for schools."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-test-005",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "Campaigners described a worsening crisis after the briefing."
+  },
+  {
+    "domain" : "news",
+    "id" : "v2-news-negative-test-006",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "In follow-up coverage, observers blamed serious risks for schools."
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-001",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "widely praised by teachers"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-002",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "reported as remarkably effective in practice"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-003",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "considered clear and useful for beginners"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-004",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "especially helpful in class"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-005",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "reported as strong support from reviewers"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-006",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "considered easy to follow in context"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-007",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "consistently reliable across tasks"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-008",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "reported as highly valuable for revision"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-009",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "considered well received by students"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-010",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "surprisingly stable over time"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-011",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "reported as widely praised by teachers"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-012",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "considered remarkably effective in practice"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-013",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "clear and useful for beginners"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-014",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "reported as especially helpful in class"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-015",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "considered strong support from reviewers"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-016",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "easy to follow in context"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-017",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "reported as consistently reliable across tasks"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-train-018",
+    "label" : "positive",
+    "split" : "train",
+    "text" : "considered highly valuable for revision"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-validation-001",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "well received by students"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-validation-002",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "reported as surprisingly stable over time"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-validation-003",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "considered widely praised by teachers"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-validation-004",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "remarkably effective in practice"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-validation-005",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "reported as clear and useful for beginners"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-validation-006",
+    "label" : "positive",
+    "split" : "validation",
+    "text" : "considered especially helpful in class"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-test-001",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "strong support from reviewers"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-test-002",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "reported as easy to follow in context"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-test-003",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "considered consistently reliable across tasks"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-test-004",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "highly valuable for revision"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-test-005",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "reported as well received by students"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-positive-test-006",
+    "label" : "positive",
+    "split" : "test",
+    "text" : "considered surprisingly stable over time"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-001",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "as shown in Table 2"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-002",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "noted in the current study"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-003",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "reported for the target corpus"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-004",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "after tokenization was complete"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-005",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "noted according to the appendix"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-006",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "reported within the selected subcorpus"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-007",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "during the second phase"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-008",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "noted for the reference set"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-009",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "reported in the pilot sample"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-010",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "under the present design"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-011",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "noted as shown in Table 2"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-012",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "reported in the current study"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-013",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "for the target corpus"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-014",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "noted after tokenization was complete"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-015",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "reported according to the appendix"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-016",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "within the selected subcorpus"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-017",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "noted during the second phase"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-train-018",
+    "label" : "neutral",
+    "split" : "train",
+    "text" : "reported for the reference set"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-validation-001",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "in the pilot sample"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-validation-002",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "noted under the present design"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-validation-003",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "reported as shown in Table 2"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-validation-004",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "in the current study"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-validation-005",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "noted for the target corpus"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-validation-006",
+    "label" : "neutral",
+    "split" : "validation",
+    "text" : "reported after tokenization was complete"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-test-001",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "according to the appendix"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-test-002",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "noted within the selected subcorpus"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-test-003",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "reported during the second phase"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-test-004",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "for the reference set"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-test-005",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "noted in the pilot sample"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-neutral-test-006",
+    "label" : "neutral",
+    "split" : "test",
+    "text" : "reported under the present design"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-001",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "highly problematic for learners"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-002",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "described as serious risk to stability"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-003",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "viewed as costly and risky for schools"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-004",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "widely criticized in reports"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-005",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "described as difficult to justify in context"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-006",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "viewed as deeply harmful for trust"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-007",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "markedly unstable over time"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-008",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "described as a persistent source of concern"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-009",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "viewed as hard to interpret reliably"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-010",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "severely limited in scope"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-011",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "described as highly problematic for learners"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-012",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "viewed as serious risk to stability"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-013",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "costly and risky for schools"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-014",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "described as widely criticized in reports"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-015",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "viewed as difficult to justify in context"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-016",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "deeply harmful for trust"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-017",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "described as markedly unstable over time"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-train-018",
+    "label" : "negative",
+    "split" : "train",
+    "text" : "viewed as a persistent source of concern"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-validation-001",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "hard to interpret reliably"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-validation-002",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "described as severely limited in scope"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-validation-003",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "viewed as highly problematic for learners"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-validation-004",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "serious risk to stability"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-validation-005",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "described as costly and risky for schools"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-validation-006",
+    "label" : "negative",
+    "split" : "validation",
+    "text" : "viewed as widely criticized in reports"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-test-001",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "difficult to justify in context"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-test-002",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "described as deeply harmful for trust"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-test-003",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "viewed as markedly unstable over time"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-test-004",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "a persistent source of concern"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-test-005",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "described as hard to interpret reliably"
+  },
+  {
+    "domain" : "kwic",
+    "id" : "v2-kwic-negative-test-006",
+    "label" : "negative",
+    "split" : "test",
+    "text" : "viewed as severely limited in scope"
+  }
+]

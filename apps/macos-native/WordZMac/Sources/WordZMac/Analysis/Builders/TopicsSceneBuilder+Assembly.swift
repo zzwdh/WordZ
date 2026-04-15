@@ -5,17 +5,67 @@ struct TopicsClusterComputation: Equatable, Sendable {
     let visibleSegmentsByCluster: [String: [TopicSegmentRow]]
     let totalSegmentsByCluster: [String: Int]
     let representativeSegmentsByCluster: [String: [String]]
-    let summaryTermsByCluster: [String: [TopicKeywordCandidate]]
+    let searchTermsByCluster: [String: [TopicKeywordCandidate]]
+    let displayTermsByCluster: [String: [TopicKeywordCandidate]]
     let searchError: String
 }
 
 extension TopicsSceneBuilder {
+    func exportMetadataLines(
+        from result: TopicAnalysisResult,
+        languageMode: AppLanguageMode,
+        visibleRows: Int,
+        totalRows: Int,
+        query: String,
+        searchOptions: SearchOptionsState,
+        stopwordFilter: StopwordFilterState,
+        keywordDisplayCount: Int
+    ) -> [String] {
+        var additionalLines = [
+            "\(wordZText("模型来源", "Model Provider", mode: languageMode)): \(providerLabel(for: result.modelProvider, languageMode: languageMode))",
+            "\(wordZText("模型版本", "Model Version", mode: languageMode)): \(result.modelVersion)",
+            "\(wordZText("关键词样式", "Keyword Style", mode: languageMode)): \(wordZText("单词", "Single-word only", mode: languageMode))",
+            "\(wordZText("每主题关键词数", "Keywords per Topic", mode: languageMode)): \(keywordDisplayCount)"
+        ]
+        additionalLines.append(
+            contentsOf: result.warnings.enumerated().map { index, warning in
+                "\(wordZText("结果提示", "Result Note", mode: languageMode)) \(index + 1): \(warning)"
+            }
+        )
+
+        return AnalysisExportMetadataSupport.notes(
+            analysisTitle: wordZText("主题", "Topics", mode: languageMode),
+            languageMode: languageMode,
+            visibleRows: visibleRows,
+            totalRows: totalRows,
+            query: query,
+            queryLabel: wordZText("搜索条件", "Search Query", mode: languageMode),
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            additionalLines: additionalLines
+        )
+    }
+
+    func providerLabel(for provider: String, languageMode: AppLanguageMode) -> String {
+        switch provider {
+        case "bundled-local-embedding", "bundled-lexical-embedding":
+            return wordZText("内置主题向量", "Bundled Topic Embedding", mode: languageMode)
+        case "system-sentence-embedding":
+            return wordZText("系统句向量", "System Embedding", mode: languageMode)
+        case "hashed-fallback":
+            return wordZText("稳定兜底", "Stable Fallback", mode: languageMode)
+        default:
+            return provider
+        }
+    }
+
     func prepareClusterComputation(
         from result: TopicAnalysisResult,
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
         includeOutliers: Bool,
+        keywordDisplayCount: Int,
         languageMode: AppLanguageMode
     ) -> TopicsClusterComputation {
         let matcher = SearchTextMatcher(query: query, options: searchOptions)
@@ -25,33 +75,37 @@ extension TopicsSceneBuilder {
                 visibleSegmentsByCluster: [:],
                 totalSegmentsByCluster: [:],
                 representativeSegmentsByCluster: [:],
-                summaryTermsByCluster: [:],
+                searchTermsByCluster: [:],
+                displayTermsByCluster: [:],
                 searchError: matcher.error
             )
         }
 
-        let summaryTermsByCluster = Dictionary(uniqueKeysWithValues: result.clusters.map { cluster in
+        let searchTermsByCluster = Dictionary(uniqueKeysWithValues: result.clusters.map { cluster in
             (
                 cluster.id,
                 TopicFilterSupport.summaryTerms(
                     from: cluster.keywordCandidates,
                     filter: stopwordFilter,
-                    limit: 8
+                    limit: 12
                 )
             )
+        })
+        let displayTermsByCluster = Dictionary(uniqueKeysWithValues: searchTermsByCluster.map { clusterID, candidates in
+            (clusterID, Array(candidates.prefix(max(1, keywordDisplayCount))))
         })
         let visibleSegmentsByCluster = buildVisibleSegmentsByCluster(
             from: result,
             matcher: matcher,
             stopwordFilter: stopwordFilter,
-            summaryTermsByCluster: summaryTermsByCluster
+            searchTermsByCluster: searchTermsByCluster
         )
         let totalSegmentsByCluster = buildTotalSegmentsByCluster(from: result)
         let representativeSegmentsByCluster = buildRepresentativeSegmentsByCluster(from: result)
         let clusterItems = buildClusterItems(
             from: result,
             visibleSegmentsByCluster: visibleSegmentsByCluster,
-            summaryTermsByCluster: summaryTermsByCluster,
+            displayTermsByCluster: displayTermsByCluster,
             representativeSegmentsByCluster: representativeSegmentsByCluster,
             includeOutliers: includeOutliers,
             languageMode: languageMode
@@ -62,7 +116,8 @@ extension TopicsSceneBuilder {
             visibleSegmentsByCluster: visibleSegmentsByCluster,
             totalSegmentsByCluster: totalSegmentsByCluster,
             representativeSegmentsByCluster: representativeSegmentsByCluster,
-            summaryTermsByCluster: summaryTermsByCluster,
+            searchTermsByCluster: searchTermsByCluster,
+            displayTermsByCluster: displayTermsByCluster,
             searchError: ""
         )
     }
@@ -70,7 +125,7 @@ extension TopicsSceneBuilder {
     func buildClusterItems(
         from result: TopicAnalysisResult,
         visibleSegmentsByCluster: [String: [TopicSegmentRow]],
-        summaryTermsByCluster: [String: [TopicKeywordCandidate]],
+        displayTermsByCluster: [String: [TopicKeywordCandidate]],
         representativeSegmentsByCluster: [String: [String]],
         includeOutliers: Bool,
         languageMode: AppLanguageMode
@@ -79,13 +134,13 @@ extension TopicsSceneBuilder {
         return eligibleClusters.map { cluster in
             let visibleSegments = visibleSegmentsByCluster[cluster.id] ?? []
             let preview = representativeSegmentsByCluster[cluster.id]?.first ?? ""
-            let summaryTerms = Array((summaryTermsByCluster[cluster.id] ?? []).prefix(5))
+            let displayTerms = displayTermsByCluster[cluster.id] ?? []
             return TopicClusterSceneItem(
                 id: cluster.id,
                 title: clusterTitle(for: cluster, mode: languageMode),
-                keywordsText: summaryTerms.isEmpty
+                keywordsText: displayTerms.isEmpty
                     ? wordZText("暂无关键词", "No keywords yet", mode: languageMode)
-                    : summaryTerms.map(\.term).joined(separator: " · "),
+                    : displayTerms.map(\.term).joined(separator: " · "),
                 sizeText: "\(wordZText("片段", "Segments", mode: languageMode)) \(cluster.size)",
                 isOutlier: cluster.isOutlier,
                 representativePreview: preview,
@@ -196,6 +251,7 @@ extension TopicsSceneBuilder {
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
         minTopicSize: Int,
+        keywordDisplayCount: Int,
         includeOutliers: Bool,
         sortMode: TopicSegmentSortMode,
         pageSize: TopicsPageSize,
@@ -203,12 +259,33 @@ extension TopicsSceneBuilder {
         visibleColumns: Set<TopicsColumnKey>,
         searchError: String
     ) -> TopicsSceneModel {
-        TopicsSceneModel(
+        let summaryExportMetadataLines = exportMetadataLines(
+            from: result,
+            languageMode: languageMode,
+            visibleRows: 0,
+            totalRows: result.clusters.count,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            keywordDisplayCount: keywordDisplayCount
+        )
+        let segmentsExportMetadataLines = exportMetadataLines(
+            from: result,
+            languageMode: languageMode,
+            visibleRows: 0,
+            totalRows: result.totalSegments,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            keywordDisplayCount: keywordDisplayCount
+        )
+        return TopicsSceneModel(
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
             controls: TopicsControlsSceneModel(
                 minTopicSize: minTopicSize,
+                keywordDisplayCount: keywordDisplayCount,
                 includeOutliers: includeOutliers,
                 selectedSort: sortMode,
                 selectedPageSize: pageSize
@@ -240,7 +317,10 @@ extension TopicsSceneBuilder {
             modelProvider: result.modelProvider,
             modelVersion: result.modelVersion,
             usesFallbackProvider: result.usesFallbackProvider,
-            searchError: searchError
+            warnings: result.warnings,
+            searchError: searchError,
+            summaryExportMetadataLines: summaryExportMetadataLines,
+            segmentsExportMetadataLines: segmentsExportMetadataLines
         )
     }
 }

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class NativeHostPreferencesStoreTests: XCTestCase {
@@ -11,11 +11,12 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
 
         try store.save(
             NativeHostPreferencesSnapshot(
-                languageMode: .bilingual,
+                languageMode: .english,
                 autoUpdateEnabled: false,
                 checkForUpdatesOnLaunch: false,
                 autoDownloadUpdates: true,
                 autoInstallDownloadedUpdates: true,
+                showMenuBarIcon: false,
                 recentDocuments: [],
                 lastUpdateCheckAt: "",
                 lastUpdateStatus: "尚未检查更新。",
@@ -50,7 +51,64 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
         XCTAssertEqual(store.load().recentDocuments.first?.corpusID, "corpus-1")
         XCTAssertFalse(store.load().autoUpdateEnabled)
         XCTAssertTrue(store.load().autoInstallDownloadedUpdates)
-        XCTAssertEqual(store.load().languageMode, .bilingual)
+        XCTAssertFalse(store.load().showMenuBarIcon)
+        XCTAssertEqual(store.load().languageMode, .system)
         XCTAssertEqual(store.load().taskHistory.first?.primaryAction?.action, .openFile(path: "/tmp/demo.csv"))
+    }
+
+    func testLoadMigratesLegacyLanguagePreferenceToSystem() throws {
+        let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("WordZMacHostPrefsLegacyTests-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directoryURL.appendingPathComponent("prefs.json")
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try """
+        {
+          "languageMode": "bilingual",
+          "autoUpdateEnabled": true,
+          "checkForUpdatesOnLaunch": true,
+          "autoDownloadUpdates": false,
+          "autoInstallDownloadedUpdates": false,
+          "recentDocuments": [],
+          "lastUpdateCheckAt": "",
+          "lastUpdateStatus": "尚未检查更新。",
+          "downloadedUpdateVersion": "",
+          "downloadedUpdateName": "",
+          "downloadedUpdatePath": "",
+          "taskHistory": [],
+          "hasCompletedInitialLaunch": false
+        }
+        """.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let store = NativeHostPreferencesStore(fileURL: fileURL)
+
+        XCTAssertEqual(store.load().languageMode, .system)
+        XCTAssertTrue(store.load().showMenuBarIcon)
+    }
+
+    func testLoadFillsDefaultUpdateStatusWhenLegacyPayloadOmitsField() throws {
+        let directoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("WordZMacHostPrefsMissingStatusTests-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directoryURL.appendingPathComponent("prefs.json")
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try """
+        {
+          "languageMode": "system",
+          "autoUpdateEnabled": true,
+          "checkForUpdatesOnLaunch": true,
+          "autoDownloadUpdates": false,
+          "autoInstallDownloadedUpdates": false,
+          "recentDocuments": [],
+          "lastUpdateCheckAt": "",
+          "downloadedUpdateVersion": "",
+          "downloadedUpdateName": "",
+          "downloadedUpdatePath": "",
+          "taskHistory": [],
+          "hasCompletedInitialLaunch": false
+        }
+        """.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let store = NativeHostPreferencesStore(fileURL: fileURL)
+
+        XCTAssertEqual(store.load().lastUpdateStatus, NativeHostPreferencesSnapshot.default.lastUpdateStatus)
     }
 }

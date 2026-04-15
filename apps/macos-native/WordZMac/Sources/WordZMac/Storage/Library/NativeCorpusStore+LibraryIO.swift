@@ -72,7 +72,9 @@ extension NativeCorpusStore {
                     sourceType: databaseDocument.metadata.sourceType,
                     representedPath: databaseDocument.metadata.representedPath,
                     importedAt: databaseDocument.metadata.importedAt,
-                    metadataProfile: databaseDocument.metadata.metadataProfile.merged(over: record.metadata)
+                    metadataProfile: databaseDocument.metadata.metadataProfile.merged(over: record.metadata),
+                    rawText: databaseDocument.rawText.isEmpty ? databaseDocument.text : databaseDocument.rawText,
+                    cleaningSummary: databaseDocument.metadata.cleaningSummary
                 )
                 metadata = try NativeCorpusDatabaseSupport.readMetadata(at: storageURL) ?? metadata
             }
@@ -101,7 +103,9 @@ extension NativeCorpusStore {
             "characterCount": content.count,
             "ttr": stats.ttr,
             "sttr": stats.sttr,
-            "metadata": record.metadata.jsonObject
+            "metadata": record.metadata.jsonObject,
+            "cleaningStatus": (record.cleaningSummary ?? .pending).status.rawValue,
+            "cleaningSummary": (record.cleaningSummary ?? .pending).jsonObject
         ])
     }
 }

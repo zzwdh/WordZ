@@ -4,7 +4,8 @@ extension RootContentView {
     var workspaceContent: some View {
         MainWorkspaceSplitContainer(
             isSidebarVisible: layoutState.sidebarVisibilityBinding,
-            isInspectorVisible: layoutState.inspectorVisibilityBinding
+            isInspectorVisible: layoutState.inspectorVisibilityBinding,
+            topAccessory: workspaceTopAccessoryContent
         ) {
             workspaceSidebarPane
         } detail: {
@@ -17,17 +18,17 @@ extension RootContentView {
     var workspaceSidebarPane: some View {
         SidebarView(
             viewModel: viewModel.sidebar,
-            selectedRoute: selectedRouteBinding
+            selectedRoute: selectedRouteBinding,
+            openAnalysis: commandHandler.selectTab
         )
     }
 
     var workspaceMainPane: some View {
-        VStack(spacing: 0) {
-            workspaceIssueBanner
-            currentDetailView
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        currentDetailView
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // Keep the main workspace on the stable window background until the
+        // 26-specific detail pane treatment is tuned. The adaptive glass path
+        // currently makes the analysis pane read as dimmed.
         .background(WordZTheme.workspaceBackground)
     }
 
@@ -40,8 +41,17 @@ extension RootContentView {
             get: { viewModel.selectedRoute },
             set: { nextValue in
                 guard let nextValue else { return }
+                guard viewModel.selectedRoute != nextValue else { return }
                 shellActionHandler.handle(.selectRoute(nextValue))
             }
         )
+    }
+
+    var usesWorkspaceTopAccessory: Bool {
+        false
+    }
+
+    var workspaceTopAccessoryContent: AnyView? {
+        nil
     }
 }

@@ -8,12 +8,14 @@ struct TokenizeView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: t("分词", "Tokenize")
+            title: t("分词", "Tokenize"),
+            scrollMode: .manual
         ) {
-            tokenizeHeaderActions
-        } content: {
-            tokenizeInputSection
-            tokenizeResultsSection
+            WorkbenchFixedTopScrollContent {
+                tokenizeInputSection
+            } scrolling: {
+                tokenizeResultsSection
+            }
         }
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)

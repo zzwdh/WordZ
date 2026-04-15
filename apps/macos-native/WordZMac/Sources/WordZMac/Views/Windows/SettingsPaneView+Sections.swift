@@ -10,19 +10,40 @@ extension SettingsPaneView {
     }
 
     var appearanceSection: some View {
-        NativeWindowSection(title: t("外观", "Appearance")) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(t("界面语言", "Interface Language"))
+        Group {
+            NativeWindowSection(title: t("外观", "Appearance")) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(t("界面语言", "Interface Language"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text(t("跟随系统", "Follow System"))
+                        .font(.body.weight(.semibold))
+
+                    Text(
+                        t(
+                            "WordZ 会跟随 macOS 当前语言显示界面文案；本地化资源脚手架已保留，方便后续扩展更多语言。",
+                            "WordZ follows the current macOS language for interface copy; the localization scaffold remains in place for future languages."
+                        )
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
-
-                Picker(t("界面语言", "Interface Language"), selection: $settings.languageMode) {
-                    ForEach(Array(AppLanguageMode.allCases), id: \.self) { mode in
-                        Text(mode.pickerLabel)
-                            .tag(mode)
-                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .pickerStyle(.menu)
+            }
+
+            NativeWindowSection(title: t("菜单栏", "Menu Bar")) {
+                Toggle(t("显示右上角菜单栏图标", "Show menu bar icon"), isOn: $settings.showMenuBarIcon)
+
+                Text(
+                    t(
+                        "菜单栏图标现已改为原生 AppKit 实现，避免启动时的彩虹圈卡死；显示切换会立即生效，点击“保存设置”后会在下次启动继续保留。",
+                        "The menu bar icon now uses a native AppKit implementation to avoid launch beachball hangs; visibility changes take effect immediately and persist across launches after Save Settings."
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

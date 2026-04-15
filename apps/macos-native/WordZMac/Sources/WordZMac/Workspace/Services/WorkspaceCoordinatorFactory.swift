@@ -7,7 +7,7 @@ struct WorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
         workspacePersistence: WorkspacePersistenceService,
         workspacePresentation: WorkspacePresentationService,
         sceneStore: WorkspaceSceneStore,
-        windowDocumentController: NativeWindowDocumentController,
+        windowDocumentController: any WindowDocumentSyncing,
         dialogService: NativeDialogServicing,
         hostActionService: any NativeHostActionServicing,
         sessionStore: WorkspaceSessionStore,

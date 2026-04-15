@@ -21,12 +21,18 @@ extension WorkspaceExportCoordinator {
             return graph.topics.exportSnapshot
         case .compare:
             return graph.compare.exportSnapshot
+        case .sentiment:
+            return graph.sentiment.exportSnapshot
         case .keyword:
             return graph.keyword.exportSnapshot
         case .chiSquare:
             return graph.chiSquare.exportSnapshot
+        case .plot:
+            return graph.plot.exportSnapshot
         case .ngram:
             return graph.ngram.exportSnapshot
+        case .cluster:
+            return graph.cluster.exportSnapshot
         case .kwic:
             return graph.kwic.exportSnapshot
         case .collocate:

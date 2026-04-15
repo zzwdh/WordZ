@@ -1,50 +1,20 @@
-import AppKit
 import Foundation
 
 @MainActor
 final class WorkspaceFlowCoordinator {
-    struct WorkspaceRunTaskDescriptor {
-        let titleZh: String
-        let titleEn: String
-        let detailZh: String
-        let detailEn: String
-        let successZh: String
-        let successEn: String
-
-        func title(in mode: AppLanguageMode) -> String {
-            wordZText(titleZh, titleEn, mode: mode)
-        }
-
-        func detail(in mode: AppLanguageMode) -> String {
-            wordZText(detailZh, detailEn, mode: mode)
-        }
-
-        func success(in mode: AppLanguageMode) -> String {
-            wordZText(successZh, successEn, mode: mode)
-        }
-    }
-
-    let repository: any WorkspaceRepository
-    let workspacePersistence: WorkspacePersistenceService
-    let workspacePresentation: WorkspacePresentationService
-    let sceneStore: WorkspaceSceneStore
-    let windowDocumentController: NativeWindowDocumentController
-    let dialogService: NativeDialogServicing
-    let hostActionService: any NativeHostActionServicing
-    let sessionStore: WorkspaceSessionStore
-    let hostPreferencesStore: any NativeHostPreferencesStoring
-    let libraryCoordinator: any LibraryCoordinating
-    let libraryManagementCoordinator: any LibraryManagementCoordinating
-    let exportCoordinator: any WorkspaceExportCoordinating
-    let taskCenter: NativeTaskCenter
-    var isRunningTopicsAnalysis = false
+    let persistenceWorkflow: WorkspacePersistenceWorkflowService
+    let sessionWorkflow: WorkspaceSessionWorkflowService
+    let libraryWorkflow: WorkspaceLibraryWorkflowService
+    let analysisWorkflow: WorkspaceAnalysisWorkflowService
+    let evidenceWorkflow: WorkspaceEvidenceWorkflowService
+    let exportWorkflow: WorkspaceExportWorkflowService
 
     init(
         repository: any WorkspaceRepository,
         workspacePersistence: WorkspacePersistenceService,
         workspacePresentation: WorkspacePresentationService,
         sceneStore: WorkspaceSceneStore,
-        windowDocumentController: NativeWindowDocumentController,
+        windowDocumentController: any WindowDocumentSyncing,
         dialogService: NativeDialogServicing,
         hostActionService: any NativeHostActionServicing,
         sessionStore: WorkspaceSessionStore,
@@ -54,18 +24,52 @@ final class WorkspaceFlowCoordinator {
         exportCoordinator: any WorkspaceExportCoordinating,
         taskCenter: NativeTaskCenter
     ) {
-        self.repository = repository
-        self.workspacePersistence = workspacePersistence
-        self.workspacePresentation = workspacePresentation
-        self.sceneStore = sceneStore
-        self.windowDocumentController = windowDocumentController
-        self.dialogService = dialogService
-        self.hostActionService = hostActionService
-        self.sessionStore = sessionStore
-        self.hostPreferencesStore = hostPreferencesStore
-        self.libraryCoordinator = libraryCoordinator
-        self.libraryManagementCoordinator = libraryManagementCoordinator
-        self.exportCoordinator = exportCoordinator
-        self.taskCenter = taskCenter
+        self.persistenceWorkflow = WorkspacePersistenceWorkflowService(
+            repository: repository,
+            workspacePersistence: workspacePersistence,
+            workspacePresentation: workspacePresentation,
+            sceneStore: sceneStore,
+            windowDocumentController: windowDocumentController,
+            sessionStore: sessionStore,
+            hostPreferencesStore: hostPreferencesStore,
+            hostActionService: hostActionService
+        )
+        self.sessionWorkflow = WorkspaceSessionWorkflowService(
+            repository: repository,
+            sessionStore: sessionStore,
+            sceneStore: sceneStore,
+            libraryCoordinator: libraryCoordinator,
+            persistenceWorkflow: self.persistenceWorkflow
+        )
+        self.libraryWorkflow = WorkspaceLibraryWorkflowService(
+            repository: repository,
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator,
+            libraryManagementCoordinator: libraryManagementCoordinator,
+            dialogService: dialogService,
+            taskCenter: taskCenter,
+            persistenceWorkflow: self.persistenceWorkflow
+        )
+        self.analysisWorkflow = WorkspaceAnalysisWorkflowService(
+            repository: repository,
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator,
+            dialogService: dialogService,
+            hostActionService: hostActionService,
+            exportCoordinator: exportCoordinator,
+            taskCenter: taskCenter,
+            persistenceWorkflow: self.persistenceWorkflow
+        )
+        self.evidenceWorkflow = WorkspaceEvidenceWorkflowService(
+            repository: repository,
+            sessionStore: sessionStore,
+            dialogService: dialogService,
+            hostActionService: hostActionService,
+            exportCoordinator: exportCoordinator
+        )
+        self.exportWorkflow = WorkspaceExportWorkflowService(
+            sceneStore: sceneStore,
+            exportCoordinator: exportCoordinator
+        )
     }
 }

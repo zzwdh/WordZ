@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class CompositionTests: XCTestCase {
@@ -12,6 +12,7 @@ final class CompositionTests: XCTestCase {
         let hostActionService = FakeHostActionService()
         let updateService = FakeUpdateService()
         let notificationService = FakeNotificationService()
+        let applicationActivityInspector = FakeApplicationActivityInspector()
         let buildMetadataProvider = FakeBuildMetadataProvider()
         let taskCenter = NativeTaskCenter()
 
@@ -58,6 +59,7 @@ final class CompositionTests: XCTestCase {
             hostActionService: hostActionService,
             updateService: updateService,
             notificationService: notificationService,
+            applicationActivityInspector: applicationActivityInspector,
             buildMetadataProvider: buildMetadataProvider,
             taskCenter: taskCenter,
             sessionStore: sessionStore,
@@ -69,6 +71,7 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(dependencies.hostActionService as AnyObject === hostActionService)
         XCTAssertTrue(dependencies.updateService as AnyObject === updateService)
         XCTAssertTrue(dependencies.notificationService as AnyObject === notificationService)
+        XCTAssertTrue(dependencies.applicationActivityInspector as AnyObject === applicationActivityInspector)
         XCTAssertTrue(dependencies.libraryCoordinator as AnyObject === libraryCoordinator)
         XCTAssertTrue(dependencies.flowCoordinator === flowCoordinator)
         XCTAssertTrue(dependencies.appCoordinator === appCoordinator)
@@ -81,6 +84,7 @@ final class CompositionTests: XCTestCase {
         let hostActionService = FakeHostActionService()
         let updateService = FakeUpdateService()
         let notificationService = FakeNotificationService()
+        let applicationActivityInspector = FakeApplicationActivityInspector()
         let buildMetadataProvider = FakeBuildMetadataProvider()
         let diagnosticsBundleService = NativeDiagnosticsBundleService()
         let sceneStore = WorkspaceSceneStore()
@@ -115,11 +119,14 @@ final class CompositionTests: XCTestCase {
             repository: repository,
             bootstrapApplier: FakeBootstrapApplier()
         )
+        let windowDocumentController = NativeWindowDocumentController()
         let runtimeFactory = FakeRuntimeDependencyFactory(
             result: MainWorkspaceRuntimeDependencies(
                 hostActionService: hostActionService,
                 updateService: updateService,
                 notificationService: notificationService,
+                applicationActivityInspector: applicationActivityInspector,
+                windowDocumentController: windowDocumentController,
                 libraryCoordinator: libraryCoordinator,
                 flowCoordinator: flowCoordinator,
                 appCoordinator: appCoordinator
@@ -128,7 +135,7 @@ final class CompositionTests: XCTestCase {
 
         let container = NativeAppContainer(
             makeRepository: { repository },
-            makeWindowDocumentController: { NativeWindowDocumentController() },
+            makeWindowDocumentController: { windowDocumentController },
             makeWorkspacePersistence: { WorkspacePersistenceService() },
             makeWorkspacePresentation: { WorkspacePresentationService() },
             makeSceneStore: { sceneStore },
@@ -150,6 +157,7 @@ final class CompositionTests: XCTestCase {
             makeHostActionService: { _ in hostActionService },
             makeUpdateService: { updateService },
             makeNotificationService: { notificationService },
+            makeApplicationActivityInspector: { applicationActivityInspector },
             makeBuildMetadataProvider: { buildMetadataProvider },
             makeQuickLookPreviewFileService: { quickLookPreview },
             makeReportBundleService: { reportBundleService },
@@ -163,6 +171,7 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(workspace.hostActionService as AnyObject === hostActionService)
         XCTAssertTrue(workspace.updateService as AnyObject === updateService)
         XCTAssertTrue(workspace.notificationService as AnyObject === notificationService)
+        XCTAssertTrue(workspace.applicationActivityInspector as AnyObject === applicationActivityInspector)
         XCTAssertTrue(workspace.flowCoordinator === flowCoordinator)
         XCTAssertTrue(workspace.appCoordinator === appCoordinator)
         XCTAssertTrue(workspace.taskCenter === taskCenter)
@@ -175,6 +184,7 @@ final class CompositionTests: XCTestCase {
         let hostActionService = FakeHostActionService()
         let updateService = FakeUpdateService()
         let notificationService = FakeNotificationService()
+        let applicationActivityInspector = FakeApplicationActivityInspector()
         let flowCoordinator = WorkspaceFlowCoordinator(
             repository: repository,
             workspacePersistence: WorkspacePersistenceService(),
@@ -194,11 +204,14 @@ final class CompositionTests: XCTestCase {
             exportCoordinator: WorkspaceExportCoordinator(dialogService: dialogService),
             taskCenter: NativeTaskCenter()
         )
+        let windowDocumentController = NativeWindowDocumentController()
         let runtimeFactory = FakeRuntimeDependencyFactory(
             result: MainWorkspaceRuntimeDependencies(
                 hostActionService: hostActionService,
                 updateService: updateService,
                 notificationService: notificationService,
+                applicationActivityInspector: applicationActivityInspector,
+                windowDocumentController: windowDocumentController,
                 libraryCoordinator: FakeLibraryCoordinator(),
                 flowCoordinator: flowCoordinator,
                 appCoordinator: AppCoordinator(
@@ -219,5 +232,6 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(workspace.hostActionService as AnyObject === hostActionService)
         XCTAssertTrue(workspace.updateService as AnyObject === updateService)
         XCTAssertTrue(workspace.notificationService as AnyObject === notificationService)
+        XCTAssertTrue(workspace.applicationActivityInspector as AnyObject === applicationActivityInspector)
     }
 }

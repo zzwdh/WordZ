@@ -2,7 +2,9 @@ import SwiftUI
 
 enum WorkbenchTablePreferences {
     static let pinnedHeaderKey = "wordz.table.pinnedHeader.enabled"
+    static let minimumEmbeddedTableHeight: CGFloat = 360
     static let defaultTableHeight: CGFloat = 430
+    static let maximumEmbeddedTableHeight: CGFloat = 560
 }
 
 struct WorkbenchSectionCard<Content: View>: View {
@@ -40,12 +42,12 @@ struct WorkbenchTableCard<Content: View>: View {
                 content
                     .frame(
                         maxWidth: .infinity,
-                        minHeight: 360,
+                        minHeight: WorkbenchTablePreferences.minimumEmbeddedTableHeight,
                         idealHeight: WorkbenchTablePreferences.defaultTableHeight,
-                        maxHeight: .infinity,
+                        maxHeight: WorkbenchTablePreferences.maximumEmbeddedTableHeight,
                         alignment: .topLeading
                     )
-                    .layoutPriority(1)
+                    .clipped()
             }
         }
     }

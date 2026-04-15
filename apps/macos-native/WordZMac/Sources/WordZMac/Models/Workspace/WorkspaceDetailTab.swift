@@ -7,9 +7,12 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
     case tokenize = "Tokenize"
     case topics = "Topics"
     case compare = "Compare"
+    case sentiment = "Sentiment"
     case keyword = "Keyword"
     case chiSquare = "Chi-Square"
+    case plot = "Plot"
     case ngram = "N-Gram"
+    case cluster = "Cluster"
     case kwic = "KWIC"
     case collocate = "Collocate"
     case locator = "Locator"
@@ -18,7 +21,7 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     static var mainWorkspaceTabs: [WorkspaceDetailTab] {
-        allCases.filter { $0 != .library && $0 != .settings }
+        WorkspaceFeatureRegistry.mainTabs
     }
 
     var mainWorkspaceTab: WorkspaceDetailTab {
@@ -31,33 +34,25 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
     }
 
     func displayTitle(in mode: AppLanguageMode) -> String {
-        switch self {
-        case .library:
+        if case .library = self {
             return wordZText("语料库", "Library", mode: mode)
-        case .stats:
-            return wordZText("统计", "Stats", mode: mode)
-        case .word:
-            return wordZText("词表", "Word", mode: mode)
-        case .tokenize:
-            return wordZText("分词", "Tokenize", mode: mode)
-        case .topics:
-            return wordZText("主题", "Topics", mode: mode)
-        case .compare:
-            return wordZText("对比", "Compare", mode: mode)
-        case .keyword:
-            return wordZText("关键词", "Keyword", mode: mode)
-        case .chiSquare:
-            return wordZText("卡方", "Chi-Square", mode: mode)
+        }
+        if case .settings = self {
+            return wordZText("设置", "Settings", mode: mode)
+        }
+        if WorkspaceFeatureRegistry.mainTabs.contains(self) {
+            return WorkspaceFeatureRegistry.descriptor(for: self).title(in: mode)
+        }
+
+        switch self {
+        case .stats, .word, .tokenize, .topics, .compare, .sentiment, .keyword, .chiSquare, .plot, .cluster, .collocate, .locator:
+            return WorkspaceFeatureRegistry.descriptor(for: self).title(in: mode)
         case .ngram:
             return "N-Gram"
         case .kwic:
             return "KWIC"
-        case .collocate:
-            return wordZText("搭配词", "Collocate", mode: mode)
-        case .locator:
-            return wordZText("定位", "Locator", mode: mode)
-        case .settings:
-            return wordZText("设置", "Settings", mode: mode)
+        case .library, .settings:
+            return rawValue
         }
     }
 
@@ -83,12 +78,18 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
             return .topics
         case "compare":
             return .compare
+        case "sentiment":
+            return .sentiment
         case "keyword", "keywords":
             return .keyword
         case "chi-square", "chisquare", "chi_square":
             return .chiSquare
+        case "plot":
+            return .plot
         case "ngram":
             return .ngram
+        case "cluster":
+            return .cluster
         case "word-cloud", "wordcloud", "word_cloud", "word cloud":
             return .word
         case "kwic":
@@ -105,33 +106,25 @@ enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
     }
 
     var symbolName: String {
-        switch self {
-        case .library:
+        if case .library = self {
             return "books.vertical"
-        case .stats:
-            return "chart.bar"
-        case .word:
-            return "textformat.abc"
-        case .tokenize:
-            return "text.word.spacing"
-        case .topics:
-            return "square.grid.3x3.topleft.filled"
-        case .compare:
-            return "arrow.left.and.right.square"
-        case .keyword:
-            return "key"
-        case .chiSquare:
-            return "function"
+        }
+        if case .settings = self {
+            return "gearshape"
+        }
+        if WorkspaceFeatureRegistry.mainTabs.contains(self) {
+            return WorkspaceFeatureRegistry.descriptor(for: self).symbolName
+        }
+
+        switch self {
+        case .stats, .word, .tokenize, .topics, .compare, .sentiment, .keyword, .chiSquare, .plot, .cluster, .collocate, .locator:
+            return WorkspaceFeatureRegistry.descriptor(for: self).symbolName
         case .ngram:
             return "text.line.first.and.arrowtriangle.forward"
         case .kwic:
             return "quote.opening"
-        case .collocate:
-            return "link"
-        case .locator:
-            return "scope"
-        case .settings:
-            return "gearshape"
+        case .library, .settings:
+            return rawValue
         }
     }
 }

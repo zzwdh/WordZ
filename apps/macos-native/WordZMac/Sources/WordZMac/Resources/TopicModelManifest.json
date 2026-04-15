@@ -1,7 +1,27 @@
 {
   "modelID": "wordz-topics-english",
-  "version": "1",
+  "version": "3",
   "language": "english",
-  "provider": "system-sentence-embedding",
-  "dimensions": 256
+  "provider": "bundled-local-embedding",
+  "dimensions": 384,
+  "revision": "2026-04-local-v3",
+  "localEmbeddingResource": "TopicLocalEmbeddingModel",
+  "providers": [
+    {
+      "id": "bundled-local-embedding",
+      "type": "bundled-local-embedding",
+      "dimensions": 384,
+      "revision": "2026-04-local-v3"
+    },
+    {
+      "id": "system-sentence-embedding",
+      "type": "system-sentence-embedding"
+    },
+    {
+      "id": "hashed-fallback",
+      "type": "hashed-fallback",
+      "dimensions": 384,
+      "revision": "stable-v2"
+    }
+  ]
 }

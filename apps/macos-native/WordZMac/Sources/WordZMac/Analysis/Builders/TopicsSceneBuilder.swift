@@ -8,6 +8,7 @@ struct TopicsSceneBuilder {
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
         minTopicSize: Int,
+        keywordDisplayCount: Int = 5,
         includeOutliers: Bool,
         selectedClusterID: String?,
         sortMode: TopicSegmentSortMode,
@@ -21,6 +22,7 @@ struct TopicsSceneBuilder {
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
             minTopicSize: minTopicSize,
+            keywordDisplayCount: keywordDisplayCount,
             includeOutliers: includeOutliers,
             selectedClusterID: selectedClusterID,
             sortMode: sortMode,
@@ -37,6 +39,7 @@ struct TopicsSceneBuilder {
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
         minTopicSize: Int,
+        keywordDisplayCount: Int = 5,
         includeOutliers: Bool,
         selectedClusterID: String?,
         sortMode: TopicSegmentSortMode,
@@ -51,6 +54,7 @@ struct TopicsSceneBuilder {
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
             includeOutliers: includeOutliers,
+            keywordDisplayCount: keywordDisplayCount,
             languageMode: languageMode
         )
         let resolvedClusterID = resolveSelectedClusterID(
@@ -67,6 +71,7 @@ struct TopicsSceneBuilder {
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
             minTopicSize: minTopicSize,
+            keywordDisplayCount: keywordDisplayCount,
             includeOutliers: includeOutliers,
             selectedClusterID: selectedClusterID,
             sortMode: sortMode,
@@ -85,6 +90,7 @@ struct TopicsSceneBuilder {
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
         minTopicSize: Int,
+        keywordDisplayCount: Int = 5,
         includeOutliers: Bool,
         selectedClusterID: String?,
         sortMode: TopicSegmentSortMode,
@@ -102,6 +108,7 @@ struct TopicsSceneBuilder {
                 searchOptions: searchOptions,
                 stopwordFilter: stopwordFilter,
                 minTopicSize: minTopicSize,
+                keywordDisplayCount: keywordDisplayCount,
                 includeOutliers: includeOutliers,
                 sortMode: sortMode,
                 pageSize: pageSize,
@@ -130,12 +137,32 @@ struct TopicsSceneBuilder {
                 cluster: $0,
                 selectedClusterSegments: selectedClusterSegments,
                 totalSegments: clusterComputation.totalSegmentsByCluster[$0.id] ?? 0,
-                summaryTerms: clusterComputation.summaryTermsByCluster[$0.id] ?? [],
+                summaryTerms: clusterComputation.displayTermsByCluster[$0.id] ?? [],
                 representativeSegments: clusterComputation.representativeSegmentsByCluster[$0.id] ?? [],
                 languageMode: languageMode
             )
         }
         let summaryRows = buildSummaryRows(from: clusterComputation.clusterItems, languageMode: languageMode)
+        let summaryExportMetadataLines = exportMetadataLines(
+            from: result,
+            languageMode: languageMode,
+            visibleRows: summaryRows.count,
+            totalRows: result.clusters.count,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            keywordDisplayCount: keywordDisplayCount
+        )
+        let segmentsExportMetadataLines = exportMetadataLines(
+            from: result,
+            languageMode: languageMode,
+            visibleRows: tableRows.count,
+            totalRows: selectedClusterSegments.count,
+            query: query,
+            searchOptions: searchOptions,
+            stopwordFilter: stopwordFilter,
+            keywordDisplayCount: keywordDisplayCount
+        )
 
         return TopicsSceneModel(
             query: query,
@@ -143,6 +170,7 @@ struct TopicsSceneBuilder {
             stopwordFilter: stopwordFilter,
             controls: TopicsControlsSceneModel(
                 minTopicSize: minTopicSize,
+                keywordDisplayCount: keywordDisplayCount,
                 includeOutliers: includeOutliers,
                 selectedSort: sortMode,
                 selectedPageSize: pageSize
@@ -168,7 +196,10 @@ struct TopicsSceneBuilder {
             modelProvider: result.modelProvider,
             modelVersion: result.modelVersion,
             usesFallbackProvider: result.usesFallbackProvider,
-            searchError: ""
+            warnings: result.warnings,
+            searchError: "",
+            summaryExportMetadataLines: summaryExportMetadataLines,
+            segmentsExportMetadataLines: segmentsExportMetadataLines
         )
     }
 }

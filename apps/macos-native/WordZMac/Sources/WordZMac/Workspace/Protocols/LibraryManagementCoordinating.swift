@@ -11,12 +11,14 @@ protocol LibraryManagementCoordinating: AnyObject {
     func deleteSelectedCorpus(into library: LibraryManagementViewModel, sidebar: LibrarySidebarViewModel, preferredRoute: NativeWindowRoute?) async throws
     func updateSelectedCorpusMetadata(
         _ metadata: CorpusMetadataProfile,
+        settings: WorkspaceSettingsViewModel,
         into library: LibraryManagementViewModel,
         sidebar: LibrarySidebarViewModel,
         preferredRoute: NativeWindowRoute?
     ) async throws
     func updateSelectedCorporaMetadata(
         _ patch: BatchCorpusMetadataPatch,
+        settings: WorkspaceSettingsViewModel,
         into library: LibraryManagementViewModel,
         sidebar: LibrarySidebarViewModel,
         preferredRoute: NativeWindowRoute?

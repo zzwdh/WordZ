@@ -20,7 +20,14 @@ struct LibraryWindowView: View {
             sidebar: workspace.sidebar,
             onAction: dispatcher.handleLibraryAction
         )
-        .bindWindowRoute(.library)
+        .adaptiveWindowScaffold(for: .library)
+        .bindWindowRoute(.library, titleProvider: { mode in
+            NativeWindowRoute.library.title(in: mode)
+        })
+        .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .library))
+        .importedPathDropDestination(route: .library) { paths in
+            await workspace.handleExternalPaths(paths)
+        }
         .task {
             await workspace.initializeIfNeeded()
             await workspace.refreshLibraryManagement()

@@ -1,24 +1,23 @@
 import SwiftUI
 
 extension WordView {
-    var wordHeaderActions: some View {
-        WorkbenchPageHeaderActions(
-            summary: "\(viewModel.query.isEmpty ? t("全部词项", "All terms") : viewModel.query) · \(viewModel.stopwordFilter.summaryText(in: languageMode))",
-            layout: .trailingStack
-        ) {
-            Button(t("开始统计", "Run Word")) { onAction(.run) }
-                .buttonStyle(.borderedProminent)
-                .disabled(isBusy)
-        }
-    }
-
     var wordInputSection: some View {
         WorkbenchSearchToolbarSection(
             searchOptions: $viewModel.searchOptions,
             stopwordFilter: $viewModel.stopwordFilter,
             isEditingStopwords: $viewModel.isEditingStopwords
         ) {
-            searchField
+            VStack(alignment: .leading, spacing: 12) {
+                WorkbenchInlineActionStrip {
+                    searchField
+                } actions: {
+                    wordRunButton
+                }
+
+                Text(wordControlSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -77,5 +76,15 @@ extension WordView {
     var searchField: some View {
         TextField(t("搜索词（留空显示全部）", "Search term (leave blank for all)"), text: $viewModel.query)
             .textFieldStyle(.roundedBorder)
+    }
+
+    var wordRunButton: some View {
+        Button(t("开始统计", "Run Word")) { onAction(.run) }
+            .buttonStyle(.borderedProminent)
+            .disabled(isBusy)
+    }
+
+    var wordControlSummary: String {
+        "\(viewModel.query.isEmpty ? t("全部词项", "All terms") : viewModel.query) · \(viewModel.stopwordFilter.summaryText(in: languageMode))"
     }
 }

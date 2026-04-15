@@ -8,12 +8,14 @@ struct CollocateView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: t("搭配词", "Collocate")
+            title: t("搭配词", "Collocate"),
+            scrollMode: .manual
         ) {
-            collocateHeader
-        } content: {
-            collocateInputSection
-            collocateResultsSection
+            WorkbenchFixedTopScrollContent {
+                collocateInputSection
+            } scrolling: {
+                collocateResultsSection
+            }
         }
         .sheet(isPresented: $viewModel.isEditingStopwords) {
             StopwordEditorSheet(filter: $viewModel.stopwordFilter)

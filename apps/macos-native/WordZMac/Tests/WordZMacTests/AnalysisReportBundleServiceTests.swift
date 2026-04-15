@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class AnalysisReportBundleServiceTests: XCTestCase {
@@ -32,6 +32,11 @@ final class AnalysisReportBundleServiceTests: XCTestCase {
             ],
             generatedFiles: [
                 AnalysisReportBundleGeneratedFile(
+                    relativePath: "method-summary.txt",
+                    description: "Method summary export.",
+                    data: Data("Visible Rows: 1".utf8)
+                ),
+                AnalysisReportBundleGeneratedFile(
                     relativePath: "notes/context.json",
                     description: "Additional report metadata.",
                     data: Data("{\"activeTab\":\"stats\"}".utf8)
@@ -52,6 +57,7 @@ final class AnalysisReportBundleServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("report.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("workspace-draft.json").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("current-result.csv").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("method-summary.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("reading/summary.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("notes/context.json").path))
 
@@ -59,11 +65,15 @@ final class AnalysisReportBundleServiceTests: XCTestCase {
         XCTAssertTrue(csvText.contains("rose"))
         XCTAssertTrue(csvText.contains("Visible Rows: 1"))
 
+        let methodSummaryText = try String(contentsOf: bundleDirectoryURL.appendingPathComponent("method-summary.txt"), encoding: .utf8)
+        XCTAssertTrue(methodSummaryText.contains("Visible Rows: 1"))
+
         let manifestData = try Data(contentsOf: bundleDirectoryURL.appendingPathComponent("manifest.json"))
         let manifestObject = try XCTUnwrap(JSONSerialization.jsonObject(with: manifestData) as? [String: Any])
         let includedFiles = try XCTUnwrap(manifestObject["includedFiles"] as? [[String: Any]])
         let paths = includedFiles.compactMap { $0["path"] as? String }
         XCTAssertTrue(paths.contains("current-result.csv"))
+        XCTAssertTrue(paths.contains("method-summary.txt"))
         XCTAssertTrue(paths.contains("reading/summary.txt"))
     }
 

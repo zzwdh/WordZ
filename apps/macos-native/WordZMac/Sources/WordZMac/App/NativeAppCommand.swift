@@ -12,8 +12,10 @@ enum NativeAppCommand: String {
     case showAboutWindow
     case showHelpWindow
     case showReleaseNotesWindow
+    case toggleInspector
     case refreshWorkspace
     case openSelectedCorpus
+    case openSourceReader
     case quickLookCurrentCorpus
     case shareCurrentContent
     case runStats
@@ -21,9 +23,12 @@ enum NativeAppCommand: String {
     case runTokenize
     case runTopics
     case runCompare
+    case runSentiment
     case runKeyword
     case runChiSquare
+    case runPlot
     case runNgram
+    case runCluster
     case runKWIC
     case runCollocate
     case runLocator

@@ -5,20 +5,24 @@ extension TopicsSceneBuilder {
         from result: TopicAnalysisResult,
         matcher: SearchTextMatcher,
         stopwordFilter: StopwordFilterState,
-        summaryTermsByCluster: [String: [TopicKeywordCandidate]]
+        searchTermsByCluster: [String: [TopicKeywordCandidate]]
     ) -> [String: [TopicSegmentRow]] {
         guard matcher.error.isEmpty else { return [:] }
         var visibleSegmentsByCluster: [String: [TopicSegmentRow]] = [:]
         visibleSegmentsByCluster.reserveCapacity(result.clusters.count)
 
         for segment in result.segments {
-            let keywords = (summaryTermsByCluster[segment.topicID] ?? []).map(\.term)
+            let keywords = (searchTermsByCluster[segment.topicID] ?? []).map(\.term)
+            let segmentTokens = TopicFilterSupport.tokenize(segment.text)
+            let haystackTokens = keywords + segmentTokens
             let matches = TopicFilterSupport.matchesSegment(
                 text: segment.text,
                 query: matcher.normalizedQuery,
                 options: matcher.options,
                 stopword: stopwordFilter,
-                keywords: keywords
+                keywords: keywords,
+                pretokenizedText: segmentTokens,
+                pretokenizedHaystack: haystackTokens
             )
             if matches.matches {
                 visibleSegmentsByCluster[segment.topicID, default: []].append(segment)
@@ -42,7 +46,11 @@ extension TopicsSceneBuilder {
     func buildRepresentativeSegmentsByCluster(
         from result: TopicAnalysisResult
     ) -> [String: [String]] {
-        let segmentsByID = Dictionary(uniqueKeysWithValues: result.segments.map { ($0.id, $0.text) })
+        var segmentsByID: [String: String] = [:]
+        segmentsByID.reserveCapacity(result.segments.count)
+        for segment in result.segments where segmentsByID[segment.id] == nil {
+            segmentsByID[segment.id] = segment.text
+        }
         return Dictionary(uniqueKeysWithValues: result.clusters.map { cluster in
             (
                 cluster.id,
@@ -60,16 +68,19 @@ extension TopicsSceneBuilder {
         guard matcher.error.isEmpty else { return [] }
         let cluster = result.cluster(for: clusterID)
         let keywords = cluster.map {
-            TopicFilterSupport.summaryTerms(from: $0.keywordCandidates, filter: stopwordFilter, limit: 8).map(\.term)
+            TopicFilterSupport.summaryTerms(from: $0.keywordCandidates, filter: stopwordFilter, limit: 12).map(\.term)
         } ?? []
         return result.segments.filter { segment in
             guard segment.topicID == clusterID else { return false }
+            let segmentTokens = TopicFilterSupport.tokenize(segment.text)
             return TopicFilterSupport.matchesSegment(
                 text: segment.text,
                 query: matcher.normalizedQuery,
                 options: matcher.options,
                 stopword: stopwordFilter,
-                keywords: keywords
+                keywords: keywords,
+                pretokenizedText: segmentTokens,
+                pretokenizedHaystack: keywords + segmentTokens
             ).matches
         }
     }

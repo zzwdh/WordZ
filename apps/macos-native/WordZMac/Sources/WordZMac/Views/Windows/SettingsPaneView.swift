@@ -12,6 +12,15 @@ struct SettingsPaneView: View {
             settingsSectionList
             settingsDetailContent
         }
+        .toolbar {
+            if NativeWindowPresentationProfile.profile(for: .settings)
+                .resolvedToolbarMode(capabilities: .current) == .swiftUIPrimary {
+                SettingsWindowToolbar(
+                    languageMode: languageMode,
+                    onAction: onAction
+                )
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -33,7 +42,6 @@ struct SettingsPaneView: View {
                 )
 
                 sectionContent
-                settingsSaveRow
             }
             .padding(20)
         }
@@ -57,15 +65,6 @@ struct SettingsPaneView: View {
             aboutSection
         }
     }
-
-    private var settingsSaveRow: some View {
-        HStack {
-            Spacer()
-            Button(t("保存设置", "Save Settings")) { onAction(.save) }
-                .buttonStyle(.borderedProminent)
-        }
-    }
-
     private var currentSection: SettingsSection {
         selectedSection ?? .workspace
     }

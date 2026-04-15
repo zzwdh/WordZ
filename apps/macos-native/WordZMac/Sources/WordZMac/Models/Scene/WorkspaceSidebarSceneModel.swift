@@ -71,12 +71,12 @@ struct WorkspaceSidebarSceneModel: Equatable {
     static let empty = WorkspaceSidebarSceneModel(
         appName: "WordZ",
         versionLabel: "mac native preview",
-        engineStatus: "正在连接本地引擎...",
+        engineStatus: l10n("正在连接本地引擎...", table: "Errors", mode: .system, fallback: "Connecting to the native engine…"),
         engineState: .connecting,
         targetCorpus: WorkspaceSidebarCorpusSlotSceneModel(
             title: "Target Corpus",
             corpusID: nil,
-            summary: "未选择语料",
+            summary: l10n("未选择语料", table: "Errors", mode: .system, fallback: "No corpus selected"),
             detail: "Select a target corpus",
             isOptional: false
         ),

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class WorkspaceServicesTests: XCTestCase {
     func testWorkspacePersistenceBuildsDraftWithSelectedCorpusFallbacks() {
@@ -30,6 +30,7 @@ final class WorkspaceServicesTests: XCTestCase {
             collocateRightWindow: "6",
             collocateMinFreq: "2",
             topicsMinTopicSize: "3",
+            topicsKeywordDisplayCount: "7",
             topicsIncludeOutliers: true,
             topicsPageSize: "50",
             topicsActiveTopicID: "topic-1",
@@ -55,12 +56,70 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.ngramPageSize, "100")
         XCTAssertEqual(draft.collocateMinFreq, "2")
         XCTAssertEqual(draft.topicsMinTopicSize, "3")
+        XCTAssertEqual(draft.topicsKeywordDisplayCount, "7")
         XCTAssertTrue(draft.topicsIncludeOutliers)
         XCTAssertEqual(draft.topicsPageSize, "50")
         XCTAssertEqual(draft.topicsActiveTopicID, "topic-1")
         XCTAssertEqual(draft.chiSquareA, "4")
         XCTAssertEqual(draft.chiSquareD, "10")
         XCTAssertTrue(draft.chiSquareUseYates)
+    }
+
+    func testWorkspacePersistenceBuildsDraftWithSentimentState() {
+        let draft = WorkspacePersistenceService().buildDraft(
+            selectedTab: .sentiment,
+            selectedFolderID: "folder-1",
+            selectedCorpusSetID: "",
+            selectedCorpus: nil,
+            openedCorpus: nil,
+            searchQuery: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            sentimentSource: .corpusCompare,
+            sentimentUnit: .document,
+            sentimentContextBasis: .fullSentenceWhenAvailable,
+            sentimentBackend: .coreML,
+            sentimentChartKind: .trendLine,
+            sentimentThresholdPreset: .balanced,
+            sentimentDecisionThreshold: 0.25,
+            sentimentMinimumEvidence: 0.6,
+            sentimentNeutralBias: 1.0,
+            sentimentRowFilterQuery: "good",
+            sentimentLabelFilter: .positive,
+            sentimentSelectedCorpusIDs: ["corpus-1"],
+            sentimentReferenceCorpusID: "corpus-2",
+            ngramSize: "2",
+            ngramPageSize: "10",
+            kwicLeftWindow: "5",
+            kwicRightWindow: "5",
+            collocateLeftWindow: "5",
+            collocateRightWindow: "5",
+            collocateMinFreq: "1",
+            topicsMinTopicSize: "2",
+            topicsIncludeOutliers: true,
+            topicsPageSize: "50",
+            topicsActiveTopicID: "",
+            chiSquareA: "",
+            chiSquareB: "",
+            chiSquareC: "",
+            chiSquareD: "",
+            chiSquareUseYates: false
+        )
+
+        XCTAssertEqual(draft.currentTab, WorkspaceDetailTab.sentiment.snapshotValue)
+        XCTAssertEqual(draft.sentimentSource, .corpusCompare)
+        XCTAssertEqual(draft.sentimentUnit, .document)
+        XCTAssertEqual(draft.sentimentContextBasis, .fullSentenceWhenAvailable)
+        XCTAssertEqual(draft.sentimentBackend, .coreML)
+        XCTAssertEqual(draft.sentimentChartKind, .trendLine)
+        XCTAssertEqual(draft.sentimentThresholdPreset, .balanced)
+        XCTAssertEqual(draft.sentimentDecisionThreshold, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(draft.sentimentMinimumEvidence, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(draft.sentimentNeutralBias, 1.0, accuracy: 0.0001)
+        XCTAssertEqual(draft.sentimentRowFilterQuery, "good")
+        XCTAssertEqual(draft.sentimentLabelFilter, .positive)
+        XCTAssertEqual(draft.sentimentSelectedCorpusIDs, ["corpus-1"])
+        XCTAssertEqual(draft.sentimentReferenceCorpusID, "corpus-2")
     }
 
     func testWorkspacePresentationBuildsRepresentedPathAndSummary() {
@@ -315,6 +374,69 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(store.graphRevision, revisionAfterInitialSync)
     }
 
+    @MainActor
+    func testWorkspaceSceneGraphStoreSyncResultUpdatesSentimentNode() {
+        let store = WorkspaceSceneGraphStore()
+        let statsScene = StatsSceneBuilder().build(
+            from: makeStatsResult(rowCount: 2),
+            sortMode: .frequencyDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: Set(StatsColumnKey.allCases)
+        )
+        let sentimentScene = SentimentSceneBuilder().build(
+            from: makeSentimentResult(),
+            thresholdPreset: .conservative,
+            filterQuery: "",
+            labelFilter: nil,
+            sortMode: .original,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: SentimentPageViewModel.defaultVisibleColumns,
+            selectedRowID: nil,
+            chartKind: .distributionBar
+        )
+
+        store.sync(
+            context: .empty,
+            sidebar: .empty,
+            shell: WorkspaceShellSceneModel(
+                workspaceSummary: "工作区：空",
+                buildSummary: "SwiftUI + Node.js sidecar",
+                toolbar: WorkspaceToolbarSceneModel(items: [])
+            ),
+            library: .empty,
+            settings: .empty,
+            activeTab: .stats,
+            stats: statsScene,
+            topics: nil,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+
+        store.syncResult(
+            activeTab: .sentiment,
+            resultTab: .sentiment,
+            stats: nil,
+            compare: nil,
+            sentiment: sentimentScene,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+
+        XCTAssertEqual(store.graph.activeTab, .sentiment)
+        XCTAssertTrue(store.graph.sentiment.hasResult)
+        XCTAssertEqual(store.graph.sentiment.totalRows, 2)
+        XCTAssertEqual(store.graph.sentiment.visibleRows, 2)
+    }
+
     func testLibrarySnapshotFallsBackToItemsPayload() {
         let snapshot = LibrarySnapshot(json: [
             "folders": [
@@ -372,7 +494,8 @@ final class WorkspaceServicesTests: XCTestCase {
             corpusIDs: [importedCorpus.id],
             metadataFilterState: CorpusMetadataFilterState(
                 sourceQuery: "教材",
-                yearQuery: "2024",
+                yearFrom: "2020",
+                yearTo: "2024",
                 genreQuery: "",
                 tagsQuery: "课堂"
             )
@@ -382,11 +505,92 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.corpusSets.map(\.name), ["课堂语料集"])
         XCTAssertEqual(snapshot.corpusSets.first?.corpusIDs, [importedCorpus.id])
         XCTAssertEqual(snapshot.corpusSets.first?.metadataFilterState.sourceQuery, "教材")
+        XCTAssertEqual(snapshot.corpusSets.first?.metadataFilterState.yearFrom, "2020")
+        XCTAssertEqual(snapshot.corpusSets.first?.metadataFilterState.yearTo, "2024")
 
         try store.deleteCorpusSet(corpusSetID: savedSet.id)
 
         snapshot = try store.listLibrary()
         XCTAssertTrue(snapshot.corpusSets.isEmpty)
+    }
+
+    func testNativeCorpusStorePersistsConcordanceSavedSetRoundTrip() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-hit-set-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        let savedSet = try store.saveConcordanceSavedSet(
+            makeConcordanceSavedSet(kind: .kwic, rowCount: 2)
+        )
+
+        var sets = try store.listConcordanceSavedSets()
+        XCTAssertEqual(sets.map(\.name), ["KWIC Set"])
+        XCTAssertEqual(sets.first?.kind, .kwic)
+        XCTAssertEqual(sets.first?.rows.count, 2)
+
+        try store.deleteConcordanceSavedSet(setID: savedSet.id)
+
+        sets = try store.listConcordanceSavedSets()
+        XCTAssertTrue(sets.isEmpty)
+    }
+
+    func testNativeCorpusStorePersistsEvidenceItemRoundTrip() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-evidence-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        let first = makeEvidenceItem(sourceKind: .kwic, reviewStatus: .pending)
+        let second = EvidenceItem(
+            id: "evidence-locator-keep-2",
+            sourceKind: .locator,
+            savedSetID: nil,
+            savedSetName: nil,
+            corpusID: "corpus-2",
+            corpusName: "Locator Corpus",
+            sentenceId: 4,
+            sentenceTokenIndex: 5,
+            leftContext: "left",
+            keyword: "node",
+            rightContext: "right",
+            fullSentenceText: "left node right",
+            citationText: "Sentence 5: left node right",
+            query: "node",
+            leftWindow: 5,
+            rightWindow: 5,
+            searchOptionsSnapshot: nil,
+            stopwordFilterSnapshot: nil,
+            reviewStatus: .keep,
+            note: "keep this",
+            createdAt: "2026-04-13T00:00:00Z",
+            updatedAt: "2026-04-13T00:00:00Z"
+        )
+
+        _ = try store.saveEvidenceItem(first)
+        var savedSecond = try store.saveEvidenceItem(second)
+
+        var items = try store.listEvidenceItems()
+        XCTAssertEqual(items.map(\.id), [second.id, first.id])
+
+        savedSecond.reviewStatus = .exclude
+        savedSecond.note = "updated"
+        _ = try store.saveEvidenceItem(savedSecond)
+
+        try store.replaceEvidenceItems([first, savedSecond])
+
+        items = try store.listEvidenceItems()
+        XCTAssertEqual(items.map(\.id), [first.id, savedSecond.id])
+        XCTAssertEqual(items.last?.reviewStatus, .exclude)
+        XCTAssertEqual(items.last?.note, "updated")
+
+        try store.deleteEvidenceItem(itemID: first.id)
+        items = try store.listEvidenceItems()
+        XCTAssertEqual(items.map(\.id), [savedSecond.id])
     }
 
     func testNativeCorpusStoreImportsCorporaIntoDBStorageFiles() throws {
@@ -417,10 +621,16 @@ final class WorkspaceServicesTests: XCTestCase {
                 at: rootURL.appendingPathComponent("corpora").appendingPathComponent(storageFileName)
             )
         )
-        XCTAssertEqual(storedDocument.metadata.schemaVersion, 3)
+        XCTAssertEqual(storedDocument.metadata.schemaVersion, NativeCorpusDatabaseSupport.currentSchemaVersion)
         XCTAssertEqual(storedDocument.metadata.detectedEncoding, "utf-8")
         XCTAssertEqual(storedDocument.metadata.tokenCount, 3)
         XCTAssertEqual(storedDocument.metadata.typeCount, 3)
+        XCTAssertFalse(storedDocument.metadata.cleanedTextDigest.isEmpty)
+        XCTAssertNotNil(
+            try NativeCorpusDatabaseSupport.readStoredTokenizedArtifact(
+                at: rootURL.appendingPathComponent("corpora").appendingPathComponent(storageFileName)
+            )
+        )
         XCTAssertEqual(storedDocument.metadata.metadataProfile.sourceLabel, "")
         XCTAssertEqual(storedDocument.text, "alpha beta gamma")
     }
@@ -641,6 +851,7 @@ final class WorkspaceServicesTests: XCTestCase {
             collocateRightWindow: "7",
             collocateMinFreq: "2",
             topicsMinTopicSize: "4",
+            topicsKeywordDisplayCount: "9",
             topicsIncludeOutliers: false,
             topicsPageSize: "25",
             topicsActiveTopicID: "topic-2",
@@ -658,6 +869,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.compareReferenceCorpusID, "corpus-2")
         XCTAssertEqual(snapshot.compareSelectedCorpusIDs, ["corpus-1", "corpus-2"])
         XCTAssertEqual(snapshot.topicsMinTopicSize, "4")
+        XCTAssertEqual(snapshot.topicsKeywordDisplayCount, "9")
         XCTAssertFalse(snapshot.topicsIncludeOutliers)
         XCTAssertEqual(snapshot.topicsPageSize, "25")
         XCTAssertEqual(snapshot.topicsActiveTopicID, "topic-2")
@@ -700,6 +912,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertEqual(snapshot.topicsMinTopicSize, "2")
+        XCTAssertEqual(snapshot.topicsKeywordDisplayCount, "5")
         XCTAssertTrue(snapshot.topicsIncludeOutliers)
         XCTAssertEqual(snapshot.chiSquareA, "")
         XCTAssertFalse(snapshot.chiSquareUseYates)
@@ -729,6 +942,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
+        XCTAssertEqual(snapshot.topicsKeywordDisplayCount, "5")
         XCTAssertEqual(snapshot.topicsPageSize, "50")
         XCTAssertEqual(snapshot.chiSquareA, "")
         XCTAssertFalse(snapshot.chiSquareUseYates)
@@ -889,6 +1103,63 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertFalse(lines.first?.contains("\"频次\"") ?? false)
         XCTAssertFalse(lines.first?.contains("\"Range\"") ?? false)
         XCTAssertTrue(lines.dropFirst().first?.contains("\"100.00\"") ?? false)
+    }
+
+    @MainActor
+    func testWorkspaceExportCoordinatorExportsSentimentScene() async throws {
+        let dialog = FakeDialogService()
+        let exportPath = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("wordz-sentiment-visible-columns.csv")
+        try? FileManager.default.removeItem(at: exportPath)
+        dialog.savePathResult = exportPath.path
+        let coordinator = WorkspaceExportCoordinator(dialogService: dialog)
+        let sentimentScene = SentimentSceneBuilder().build(
+            from: makeSentimentResult(),
+            thresholdPreset: .conservative,
+            filterQuery: "",
+            labelFilter: nil,
+            sortMode: .original,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: SentimentPageViewModel.defaultVisibleColumns,
+            selectedRowID: nil,
+            chartKind: .distributionBar
+        )
+        let graph = WorkspaceSceneGraph(
+            context: .empty,
+            sidebar: .empty,
+            shell: WorkspaceShellSceneModel(
+                workspaceSummary: "工作区：空",
+                buildSummary: "SwiftUI + Node.js sidecar",
+                toolbar: WorkspaceToolbarSceneModel(items: [])
+            ),
+            library: .empty,
+            settings: .empty,
+            activeTab: .sentiment,
+            stats: .empty(title: "Stats", status: ""),
+            compare: .empty(title: "Compare", status: ""),
+            sentiment: WorkspaceResultSceneNode(
+                title: "Sentiment",
+                status: "显示 2 / 2",
+                totalRows: sentimentScene.totalRows,
+                visibleRows: sentimentScene.visibleRows,
+                hasResult: true,
+                table: sentimentScene.table,
+                tableRows: sentimentScene.tableRows,
+                exportMetadataLines: sentimentScene.exportMetadataLines
+            ),
+            chiSquare: .empty(title: "Chi-Square", status: ""),
+            ngram: .empty(title: "N-Gram", status: ""),
+            kwic: .empty(title: "KWIC", status: ""),
+            collocate: .empty(title: "Collocate", status: ""),
+            locator: .empty(title: "Locator", status: "")
+        )
+
+        let savedPath = try await coordinator.exportActiveScene(graph: graph)
+
+        XCTAssertEqual(savedPath, exportPath.path)
+        let contents = try String(contentsOf: exportPath, encoding: .utf8)
+        XCTAssertTrue(contents.contains("This is good."))
+        XCTAssertTrue(contents.contains("This is bad."))
     }
 
     func testQuickLookPreviewFileServiceWritesTextAndCSVPreviews() throws {

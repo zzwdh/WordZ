@@ -18,6 +18,8 @@ struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
     let sourceType: String
     let representedPath: String
     let metadata: CorpusMetadataProfile
+    let cleaningStatus: LibraryCorpusCleaningStatus
+    let cleaningSummary: LibraryCorpusCleaningReportSummary?
 
     init(json: JSONObject) {
         self.id = JSONFieldReader.string(json, key: "id")
@@ -29,6 +31,18 @@ struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
         self.metadata = CorpusMetadataProfile(
             json: JSONFieldReader.dictionary(json, key: "metadata").isEmpty ? json : JSONFieldReader.dictionary(json, key: "metadata")
         )
+        let cleaningSummaryObject = JSONFieldReader.dictionary(json, key: "cleaningSummary")
+        let resolvedCleaningSummary = cleaningSummaryObject.isEmpty
+            ? nil
+            : LibraryCorpusCleaningReportSummary(json: cleaningSummaryObject)
+        self.cleaningSummary = resolvedCleaningSummary?.isPending == true ? nil : resolvedCleaningSummary
+        if let resolvedCleaningSummary {
+            self.cleaningStatus = resolvedCleaningSummary.status
+        } else {
+            self.cleaningStatus = LibraryCorpusCleaningStatus(
+                rawValue: JSONFieldReader.string(json, key: "cleaningStatus")
+            )
+        }
     }
 }
 

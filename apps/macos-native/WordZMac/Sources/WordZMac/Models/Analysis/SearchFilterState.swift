@@ -20,17 +20,40 @@ enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
+enum SearchMatchMode: String, CaseIterable, Identifiable, Codable, Sendable {
+    case token
+    case phraseExact
+
+    var id: String { rawValue }
+
+    func title(in mode: AppLanguageMode) -> String {
+        switch self {
+        case .token:
+            return wordZText("整词", "Whole words", mode: mode)
+        case .phraseExact:
+            return wordZText("短语精确匹配", "Exact phrase", mode: mode)
+        }
+    }
+}
+
 struct SearchOptionsState: Equatable, Codable, Sendable {
     var words: Bool = true
     var caseSensitive: Bool = false
     var regex: Bool = false
+    var matchMode: SearchMatchMode = .token
 
     static let `default` = SearchOptionsState()
 
-    init(words: Bool = true, caseSensitive: Bool = false, regex: Bool = false) {
+    init(
+        words: Bool = true,
+        caseSensitive: Bool = false,
+        regex: Bool = false,
+        matchMode: SearchMatchMode = .token
+    ) {
         self.words = words
         self.caseSensitive = caseSensitive
         self.regex = regex
+        self.matchMode = matchMode
     }
 
     init(json: JSONObject) {
@@ -38,19 +61,30 @@ struct SearchOptionsState: Equatable, Codable, Sendable {
         self.caseSensitive = JSONFieldReader.bool(json, key: "caseSensitive")
             || JSONFieldReader.bool(json, key: "case")
         self.regex = JSONFieldReader.bool(json, key: "regex")
+        self.matchMode = SearchMatchMode(
+            rawValue: JSONFieldReader.string(json, key: "matchMode", fallback: SearchMatchMode.token.rawValue)
+        ) ?? .token
     }
 
     func asJSONObject() -> JSONObject {
         [
             "words": words,
             "caseSensitive": caseSensitive,
-            "regex": regex
+            "regex": regex,
+            "matchMode": matchMode.rawValue
         ]
     }
 
     func summaryText(in mode: AppLanguageMode) -> String {
         var enabled: [String] = []
-        if words { enabled.append(wordZText("整词", "Whole words", mode: mode)) }
+        switch matchMode {
+        case .token:
+            if words {
+                enabled.append(wordZText("整词", "Whole words", mode: mode))
+            }
+        case .phraseExact:
+            enabled.append(matchMode.title(in: mode))
+        }
         if caseSensitive { enabled.append(wordZText("区分大小写", "Case sensitive", mode: mode)) }
         if regex { enabled.append("Regex") }
         return enabled.isEmpty
@@ -60,6 +94,29 @@ struct SearchOptionsState: Equatable, Codable, Sendable {
 
     var summaryText: String {
         summaryText(in: .system)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.words = try container.decodeIfPresent(Bool.self, forKey: .words) ?? true
+        self.caseSensitive = try container.decodeIfPresent(Bool.self, forKey: .caseSensitive) ?? false
+        self.regex = try container.decodeIfPresent(Bool.self, forKey: .regex) ?? false
+        self.matchMode = try container.decodeIfPresent(SearchMatchMode.self, forKey: .matchMode) ?? .token
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(words, forKey: .words)
+        try container.encode(caseSensitive, forKey: .caseSensitive)
+        try container.encode(regex, forKey: .regex)
+        try container.encode(matchMode, forKey: .matchMode)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case words
+        case caseSensitive
+        case regex
+        case matchMode
     }
 }
 

@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 private final class CancellationFlag: @unchecked Sendable {
     private let lock = NSLock()
@@ -149,6 +149,59 @@ final class NativeCorpusStoreMaintenanceTests: XCTestCase {
         XCTAssertEqual(result.failureItems.count, 1)
         XCTAssertEqual(result.failureItems.first?.fileName, "sample.png")
         XCTAssertTrue(result.failureItems.first?.reason.contains("暂不支持") == true)
+    }
+
+    func testImportCorpusPathsStoresRawTextAndCleanedContent() throws {
+        let fileManager = FileManager.default
+        let rootURL = temporaryDirectory(named: "wordz-library-auto-cleaning-import")
+        try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let sourceURL = rootURL.appendingPathComponent("sample.txt")
+        let rawText = "\u{FEFF}\nAlpha\u{00A0}Beta\t\u{200B}\r\nLine\u{0000} two  \n\n"
+        try rawText.write(to: sourceURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let result = try store.importCorpusPaths([sourceURL.path], folderId: "", preserveHierarchy: false)
+
+        let corpus = try XCTUnwrap(result.importedItems.first)
+        XCTAssertEqual(result.cleaningSummary.cleanedCount, 1)
+        XCTAssertEqual(result.cleaningSummary.changedCount, 1)
+        XCTAssertEqual(corpus.cleaningStatus, .cleanedWithChanges)
+
+        let opened = try store.openSavedCorpus(corpusId: corpus.id)
+        XCTAssertEqual(opened.content, "Alpha Beta\nLine two")
+
+        let record = try XCTUnwrap(store.loadCorpora().first(where: { $0.id == corpus.id }))
+        let storageURL = store.corporaDirectoryURL.appendingPathComponent(record.storageFileName)
+        let storedDocument = try XCTUnwrap(NativeCorpusDatabaseSupport.readDocument(at: storageURL))
+        XCTAssertEqual(storedDocument.rawText, rawText)
+        XCTAssertEqual(storedDocument.text, "Alpha Beta\nLine two")
+    }
+
+    func testCleanCorporaReusesStoredRawTextAndReportsChanges() throws {
+        let fileManager = FileManager.default
+        let rootURL = temporaryDirectory(named: "wordz-library-auto-cleaning-rerun")
+        try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let sourceURL = rootURL.appendingPathComponent("sample.txt")
+        try "\u{FEFF}\nAlpha\u{00A0}Beta\t\u{200B}\r\nLine\u{0000} two  \n\n".write(
+            to: sourceURL,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths([sourceURL.path], folderId: "", preserveHierarchy: false)
+        let corpus = try XCTUnwrap(imported.importedItems.first)
+
+        let result = try store.cleanCorpora(corpusIds: [corpus.id])
+
+        XCTAssertEqual(result.requestedCount, 1)
+        XCTAssertEqual(result.cleanedCount, 1)
+        XCTAssertEqual(result.changedCount, 1)
+        XCTAssertEqual(result.cleanedItems.first?.id, corpus.id)
+        XCTAssertEqual(result.cleanedItems.first?.cleaningStatus, .cleanedWithChanges)
+        XCTAssertEqual(try store.openSavedCorpus(corpusId: corpus.id).content, "Alpha Beta\nLine two")
     }
 
     private func temporaryDirectory(named prefix: String) -> URL {

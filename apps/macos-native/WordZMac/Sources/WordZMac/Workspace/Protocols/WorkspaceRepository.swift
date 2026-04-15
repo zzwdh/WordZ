@@ -8,6 +8,7 @@ protocol WorkspaceRepository: AnyObject {
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) async throws -> LibraryImportResult
     func openSavedCorpus(corpusId: String) async throws -> OpenedCorpus
     func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary
+    func cleanCorpora(corpusIds: [String]) async throws -> LibraryCorpusCleaningBatchResult
     func updateCorpusMetadata(corpusId: String, metadata: CorpusMetadataProfile) async throws -> LibraryCorpusItem
     func renameCorpus(corpusId: String, newName: String) async throws -> LibraryCorpusItem
     func moveCorpus(corpusId: String, targetFolderId: String) async throws -> LibraryCorpusItem
@@ -25,6 +26,8 @@ protocol WorkspaceRepository: AnyObject {
     func runTokenize(text: String) async throws -> TokenizeResult
     func runTopics(text: String, options: TopicAnalysisOptions) async throws -> TopicAnalysisResult
     func runCompare(comparisonEntries: [CompareRequestEntry]) async throws -> CompareResult
+    func runSentiment(_ request: SentimentRunRequest) async throws -> SentimentRunResult
+    func runKeywordSuite(_ request: KeywordSuiteRunRequest) async throws -> KeywordSuiteResult
     func runKeyword(
         targetEntry: KeywordRequestEntry,
         referenceEntry: KeywordRequestEntry,
@@ -32,9 +35,21 @@ protocol WorkspaceRepository: AnyObject {
     ) async throws -> KeywordResult
     func runChiSquare(a: Int, b: Int, c: Int, d: Int, yates: Bool) async throws -> ChiSquareResult
     func runNgram(text: String, n: Int) async throws -> NgramResult
+    func runPlot(_ request: PlotRunRequest) async throws -> PlotResult
+    func runCluster(_ request: ClusterRunRequest) async throws -> ClusterResult
     func runKWIC(text: String, keyword: String, leftWindow: Int, rightWindow: Int, searchOptions: SearchOptionsState) async throws -> KWICResult
     func runCollocate(text: String, keyword: String, leftWindow: Int, rightWindow: Int, minFreq: Int, searchOptions: SearchOptionsState) async throws -> CollocateResult
     func runLocator(text: String, sentenceId: Int, nodeIndex: Int, leftWindow: Int, rightWindow: Int) async throws -> LocatorResult
+    func listKeywordSavedLists() async throws -> [KeywordSavedList]
+    func saveKeywordSavedList(_ list: KeywordSavedList) async throws -> KeywordSavedList
+    func deleteKeywordSavedList(listID: String) async throws
+    func listConcordanceSavedSets() async throws -> [ConcordanceSavedSet]
+    func saveConcordanceSavedSet(_ set: ConcordanceSavedSet) async throws -> ConcordanceSavedSet
+    func deleteConcordanceSavedSet(setID: String) async throws
+    func listEvidenceItems() async throws -> [EvidenceItem]
+    func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem
+    func deleteEvidenceItem(itemID: String) async throws
+    func replaceEvidenceItems(_ items: [EvidenceItem]) async throws
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws
     func saveUISettings(_ snapshot: UISettingsSnapshot) async throws
     func stop() async
@@ -57,6 +72,14 @@ protocol LibraryImportProgressReportingRepository: AnyObject {
         preserveHierarchy: Bool,
         progress: (@Sendable (LibraryImportProgressSnapshot) -> Void)?
     ) async throws -> LibraryImportResult
+}
+
+@MainActor
+protocol LibraryCorpusCleaningProgressReportingRepository: AnyObject {
+    func cleanCorpora(
+        corpusIds: [String],
+        progress: (@Sendable (LibraryCorpusCleaningProgressSnapshot) -> Void)?
+    ) async throws -> LibraryCorpusCleaningBatchResult
 }
 
 @MainActor

@@ -30,6 +30,7 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
     var representedPath: String
     var storageFileName: String
     var metadata: CorpusMetadataProfile
+    var cleaningSummary: LibraryCorpusCleaningReportSummary?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -40,6 +41,7 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
         case representedPath
         case storageFileName
         case metadata
+        case cleaningSummary
     }
 
     init(
@@ -50,7 +52,8 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
         sourceType: String,
         representedPath: String,
         storageFileName: String,
-        metadata: CorpusMetadataProfile
+        metadata: CorpusMetadataProfile,
+        cleaningSummary: LibraryCorpusCleaningReportSummary? = nil
     ) {
         self.id = id
         self.name = name
@@ -60,6 +63,7 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
         self.representedPath = representedPath
         self.storageFileName = storageFileName
         self.metadata = metadata
+        self.cleaningSummary = cleaningSummary
     }
 
     init(from decoder: Decoder) throws {
@@ -72,6 +76,7 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
         representedPath = try container.decode(String.self, forKey: .representedPath)
         storageFileName = try container.decode(String.self, forKey: .storageFileName)
         metadata = try container.decodeIfPresent(CorpusMetadataProfile.self, forKey: .metadata) ?? .empty
+        cleaningSummary = try container.decodeIfPresent(LibraryCorpusCleaningReportSummary.self, forKey: .cleaningSummary)
     }
 
     var libraryItem: LibraryCorpusItem {
@@ -86,7 +91,9 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
             "folderName": folderName,
             "sourceType": sourceType,
             "representedPath": representedPath,
-            "metadata": metadata.jsonObject
+            "metadata": metadata.jsonObject,
+            "cleaningStatus": (cleaningSummary?.status ?? .pending).rawValue,
+            "cleaningSummary": cleaningSummary?.jsonObject ?? [:]
         ]
     }
 }

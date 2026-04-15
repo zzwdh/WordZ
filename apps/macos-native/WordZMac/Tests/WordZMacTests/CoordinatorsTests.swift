@@ -1,5 +1,5 @@
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 @MainActor
 final class CoordinatorsTests: XCTestCase {
@@ -335,6 +335,54 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertEqual(features.compare.scene?.totalRows, repository.compareResult.rows.count)
     }
 
+    func testWorkspaceFlowCoordinatorCopyCompareMethodSummaryUsesHostClipboardService() async {
+        let repository = FakeWorkspaceRepository()
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let hostActionService = FakeHostActionService()
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: FakeDialogService(),
+            hostActionService: hostActionService,
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        let compare = ComparePageViewModel()
+        compare.syncLibrarySnapshot(repository.bootstrapState.librarySnapshot)
+        let library = LibraryManagementViewModel()
+        let features = WorkspaceFeatureSet(
+            sidebar: sidebar,
+            shell: WorkspaceShellViewModel(),
+            library: library,
+            stats: StatsPageViewModel(),
+            compare: compare,
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        await flowCoordinator.runCompare(features: features)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        await flowCoordinator.copyCompareMethodSummary(features: features)
+
+        XCTAssertEqual(hostActionService.copiedClipboardTexts.count, 1)
+        XCTAssertTrue(hostActionService.copiedClipboardTexts[0].contains(features.compare.scene?.methodSummary ?? ""))
+        XCTAssertTrue(library.statusMessage.contains("方法摘要"))
+        XCTAssertEqual(sidebar.lastErrorMessage, "")
+    }
+
     func testWorkspaceFlowCoordinatorCurrentDraftIncludesCompareSelection() {
         let repository = FakeWorkspaceRepository()
         let sceneStore = WorkspaceSceneStore()
@@ -568,6 +616,7 @@ final class CoordinatorsTests: XCTestCase {
     func testLibraryManagementCoordinatorAppliesBatchMetadataPatchAcrossSelection() async throws {
         let repository = FakeWorkspaceRepository()
         let sessionStore = WorkspaceSessionStore()
+        let settings = WorkspaceSettingsViewModel()
         let coordinator = LibraryManagementCoordinator(
             repository: repository,
             dialogService: FakeDialogService(),
@@ -585,6 +634,7 @@ final class CoordinatorsTests: XCTestCase {
                 genreLabel: "新闻",
                 tagsToAdd: ["课堂, 重点"]
             ),
+            settings: settings,
             into: library,
             sidebar: sidebar
         )
@@ -606,6 +656,67 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertTrue(corpusTwo.metadata.tags.contains("研究"))
         XCTAssertTrue(corpusTwo.metadata.tags.contains("重点"))
         XCTAssertTrue(library.scene.statusMessage.contains("已批量更新 2 条语料"))
+        XCTAssertEqual(repository.savedUISettings.last?.recentMetadataSourceLabels, ["语料平台"])
+        XCTAssertEqual(settings.exportSnapshot().recentMetadataSourceLabels, ["语料平台"])
+        XCTAssertEqual(sidebar.recentMetadataSourceLabels, ["语料平台"])
+    }
+
+    func testLibraryManagementCoordinatorPersistsRecentSourceAfterSingleMetadataUpdate() async throws {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let settings = WorkspaceSettingsViewModel()
+        let coordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore
+        )
+        let library = LibraryManagementViewModel()
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        library.applyBootstrap(repository.bootstrapState.librarySnapshot)
+        library.selectCorpus("corpus-1")
+
+        try await coordinator.updateSelectedCorpusMetadata(
+            CorpusMetadataProfile(sourceLabel: "播客", yearLabel: "2026", genreLabel: "访谈", tags: ["口语"]),
+            settings: settings,
+            into: library,
+            sidebar: sidebar
+        )
+
+        XCTAssertEqual(repository.savedUISettings.last?.recentMetadataSourceLabels, ["播客"])
+        XCTAssertEqual(settings.exportSnapshot().recentMetadataSourceLabels, ["播客"])
+        XCTAssertEqual(sidebar.recentMetadataSourceLabels, ["播客"])
+    }
+
+    func testLibraryManagementCoordinatorAppliesBatchYearOverrideAcrossSelection() async throws {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let settings = WorkspaceSettingsViewModel()
+        let coordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore
+        )
+        let library = LibraryManagementViewModel()
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        library.applyBootstrap(repository.bootstrapState.librarySnapshot)
+        library.selectCorpusIDs(["corpus-1", "corpus-2"])
+
+        try await coordinator.updateSelectedCorporaMetadata(
+            BatchCorpusMetadataPatch(yearLabel: "2025"),
+            settings: settings,
+            into: library,
+            sidebar: sidebar
+        )
+
+        let updatedCorpora = repository.librarySnapshot.corpora
+        let corpusOne = try XCTUnwrap(updatedCorpora.first(where: { $0.id == "corpus-1" }))
+        let corpusTwo = try XCTUnwrap(updatedCorpora.first(where: { $0.id == "corpus-2" }))
+
+        XCTAssertEqual(corpusOne.metadata.yearLabel, "2025")
+        XCTAssertEqual(corpusTwo.metadata.yearLabel, "2025")
+        XCTAssertTrue(repository.savedUISettings.isEmpty)
     }
 
     func testWorkspaceFlowCoordinatorExportCurrentWritesTokenizedTextAsUTF8() async throws {

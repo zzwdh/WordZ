@@ -4,9 +4,10 @@ struct SidebarView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @ObservedObject var viewModel: LibrarySidebarViewModel
     @Binding var selectedRoute: WorkspaceMainRoute?
+    let openAnalysis: (WorkspaceDetailTab) -> Void
 
     var body: some View {
-        List(selection: $selectedRoute) {
+        List {
             sidebarSections
         }
         .listStyle(.sidebar)

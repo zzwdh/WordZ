@@ -1,8 +1,14 @@
 import AppKit
 import XCTest
-@testable import WordZMac
+@testable import WordZWorkspaceCore
 
 final class NativeTableViewTests: XCTestCase {
+    func testWorkbenchTablePreferencesKeepEmbeddedTablesFiniteInsideScrollingLayouts() {
+        XCTAssertEqual(WorkbenchTablePreferences.minimumEmbeddedTableHeight, 360)
+        XCTAssertEqual(WorkbenchTablePreferences.defaultTableHeight, 430)
+        XCTAssertEqual(WorkbenchTablePreferences.maximumEmbeddedTableHeight, 560)
+    }
+
     @MainActor
     func testCoordinatorBuildsColumnsOnInitialApplyEvenWhenDescriptorDoesNotChange() {
         let descriptor = NativeTableDescriptor(columns: [

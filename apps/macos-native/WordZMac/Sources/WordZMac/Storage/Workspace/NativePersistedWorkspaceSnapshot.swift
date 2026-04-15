@@ -13,6 +13,21 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let tokenizeLemmaStrategy: TokenLemmaStrategy
     let compareReferenceCorpusID: String
     let compareSelectedCorpusIDs: [String]
+    let sentimentSource: SentimentInputSource
+    let sentimentUnit: SentimentAnalysisUnit
+    let sentimentContextBasis: SentimentContextBasis
+    let sentimentBackend: SentimentBackendKind
+    let sentimentChartKind: SentimentChartKind
+    let sentimentThresholdPreset: SentimentThresholdPreset
+    let sentimentDecisionThreshold: Double
+    let sentimentMinimumEvidence: Double
+    let sentimentNeutralBias: Double
+    let sentimentRowFilterQuery: String
+    let sentimentLabelFilter: SentimentLabel?
+    let sentimentSelectedCorpusIDs: [String]
+    let sentimentReferenceCorpusID: String
+    let keywordActiveTab: KeywordSuiteTab
+    let keywordSuiteConfiguration: KeywordSuiteConfiguration
     let keywordTargetCorpusID: String
     let keywordReferenceCorpusID: String
     let keywordLowercased: Bool
@@ -20,14 +35,26 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let keywordMinimumFrequency: String
     let keywordStatistic: KeywordStatisticMethod
     let keywordStopwordFilter: StopwordFilterState
+    let plotQuery: String
+    let plotSearchOptions: SearchOptionsState
     let ngramSize: String
     let ngramPageSize: String
+    let clusterSelectedN: String
+    let clusterMinFrequency: String
+    let clusterSortMode: ClusterSortMode
+    let clusterCaseSensitive: Bool
+    let clusterStopwordFilter: StopwordFilterState
+    let clusterPunctuationMode: ClusterPunctuationMode
+    let clusterSelectedPhrase: String
+    let clusterPageSize: String
+    let clusterReferenceCorpusID: String
     let kwicLeftWindow: String
     let kwicRightWindow: String
     let collocateLeftWindow: String
     let collocateRightWindow: String
     let collocateMinFreq: String
     let topicsMinTopicSize: String
+    let topicsKeywordDisplayCount: String
     let topicsIncludeOutliers: Bool
     let topicsPageSize: String
     let topicsActiveTopicID: String
@@ -52,6 +79,21 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case tokenizeLemmaStrategy
         case compareReferenceCorpusID
         case compareSelectedCorpusIDs
+        case sentimentSource
+        case sentimentUnit
+        case sentimentContextBasis
+        case sentimentBackend
+        case sentimentChartKind
+        case sentimentThresholdPreset
+        case sentimentDecisionThreshold
+        case sentimentMinimumEvidence
+        case sentimentNeutralBias
+        case sentimentRowFilterQuery
+        case sentimentLabelFilter
+        case sentimentSelectedCorpusIDs
+        case sentimentReferenceCorpusID
+        case keywordActiveTab
+        case keywordSuiteConfiguration
         case keywordTargetCorpusID
         case keywordReferenceCorpusID
         case keywordLowercased
@@ -59,14 +101,26 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case keywordMinimumFrequency
         case keywordStatistic
         case keywordStopwordFilter
+        case plotQuery
+        case plotSearchOptions
         case ngramSize
         case ngramPageSize
+        case clusterSelectedN
+        case clusterMinFrequency
+        case clusterSortMode
+        case clusterCaseSensitive
+        case clusterStopwordFilter
+        case clusterPunctuationMode
+        case clusterSelectedPhrase
+        case clusterPageSize
+        case clusterReferenceCorpusID
         case kwicLeftWindow
         case kwicRightWindow
         case collocateLeftWindow
         case collocateRightWindow
         case collocateMinFreq
         case topicsMinTopicSize
+        case topicsKeywordDisplayCount
         case topicsIncludeOutliers
         case topicsPageSize
         case topicsActiveTopicID
@@ -94,6 +148,21 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         tokenizeLemmaStrategy: TokenLemmaStrategy,
         compareReferenceCorpusID: String,
         compareSelectedCorpusIDs: [String],
+        sentimentSource: SentimentInputSource = .openedCorpus,
+        sentimentUnit: SentimentAnalysisUnit = .sentence,
+        sentimentContextBasis: SentimentContextBasis = .visibleContext,
+        sentimentBackend: SentimentBackendKind = .lexicon,
+        sentimentChartKind: SentimentChartKind = .distributionBar,
+        sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
+        sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
+        sentimentMinimumEvidence: Double = SentimentThresholds.default.minimumEvidence,
+        sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
+        sentimentRowFilterQuery: String = "",
+        sentimentLabelFilter: SentimentLabel? = nil,
+        sentimentSelectedCorpusIDs: [String] = [],
+        sentimentReferenceCorpusID: String = "",
+        keywordActiveTab: KeywordSuiteTab,
+        keywordSuiteConfiguration: KeywordSuiteConfiguration,
         keywordTargetCorpusID: String,
         keywordReferenceCorpusID: String,
         keywordLowercased: Bool,
@@ -101,14 +170,26 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         keywordMinimumFrequency: String,
         keywordStatistic: KeywordStatisticMethod,
         keywordStopwordFilter: StopwordFilterState,
+        plotQuery: String,
+        plotSearchOptions: SearchOptionsState,
         ngramSize: String,
         ngramPageSize: String,
+        clusterSelectedN: String,
+        clusterMinFrequency: String,
+        clusterSortMode: ClusterSortMode,
+        clusterCaseSensitive: Bool,
+        clusterStopwordFilter: StopwordFilterState,
+        clusterPunctuationMode: ClusterPunctuationMode,
+        clusterSelectedPhrase: String,
+        clusterPageSize: String,
+        clusterReferenceCorpusID: String,
         kwicLeftWindow: String,
         kwicRightWindow: String,
         collocateLeftWindow: String,
         collocateRightWindow: String,
         collocateMinFreq: String,
         topicsMinTopicSize: String,
+        topicsKeywordDisplayCount: String = "5",
         topicsIncludeOutliers: Bool,
         topicsPageSize: String,
         topicsActiveTopicID: String,
@@ -132,6 +213,21 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
         self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
+        self.sentimentSource = sentimentSource
+        self.sentimentUnit = sentimentUnit
+        self.sentimentContextBasis = sentimentContextBasis
+        self.sentimentBackend = sentimentBackend
+        self.sentimentChartKind = sentimentChartKind
+        self.sentimentThresholdPreset = sentimentThresholdPreset
+        self.sentimentDecisionThreshold = sentimentDecisionThreshold
+        self.sentimentMinimumEvidence = sentimentMinimumEvidence
+        self.sentimentNeutralBias = sentimentNeutralBias
+        self.sentimentRowFilterQuery = sentimentRowFilterQuery
+        self.sentimentLabelFilter = sentimentLabelFilter
+        self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
+        self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
+        self.keywordActiveTab = keywordActiveTab
+        self.keywordSuiteConfiguration = keywordSuiteConfiguration
         self.keywordTargetCorpusID = keywordTargetCorpusID
         self.keywordReferenceCorpusID = keywordReferenceCorpusID
         self.keywordLowercased = keywordLowercased
@@ -139,14 +235,26 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.keywordMinimumFrequency = keywordMinimumFrequency
         self.keywordStatistic = keywordStatistic
         self.keywordStopwordFilter = keywordStopwordFilter
+        self.plotQuery = plotQuery
+        self.plotSearchOptions = plotSearchOptions
         self.ngramSize = ngramSize
         self.ngramPageSize = ngramPageSize
+        self.clusterSelectedN = clusterSelectedN
+        self.clusterMinFrequency = clusterMinFrequency
+        self.clusterSortMode = clusterSortMode
+        self.clusterCaseSensitive = clusterCaseSensitive
+        self.clusterStopwordFilter = clusterStopwordFilter
+        self.clusterPunctuationMode = clusterPunctuationMode
+        self.clusterSelectedPhrase = clusterSelectedPhrase
+        self.clusterPageSize = clusterPageSize
+        self.clusterReferenceCorpusID = clusterReferenceCorpusID
         self.kwicLeftWindow = kwicLeftWindow
         self.kwicRightWindow = kwicRightWindow
         self.collocateLeftWindow = collocateLeftWindow
         self.collocateRightWindow = collocateRightWindow
         self.collocateMinFreq = collocateMinFreq
         self.topicsMinTopicSize = topicsMinTopicSize
+        self.topicsKeywordDisplayCount = topicsKeywordDisplayCount
         self.topicsIncludeOutliers = topicsIncludeOutliers
         self.topicsPageSize = topicsPageSize
         self.topicsActiveTopicID = topicsActiveTopicID
@@ -173,6 +281,21 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             tokenizeLemmaStrategy: draft.tokenizeLemmaStrategy,
             compareReferenceCorpusID: draft.compareReferenceCorpusID,
             compareSelectedCorpusIDs: draft.compareSelectedCorpusIDs,
+            sentimentSource: draft.sentimentSource,
+            sentimentUnit: draft.sentimentUnit,
+            sentimentContextBasis: draft.sentimentContextBasis,
+            sentimentBackend: draft.sentimentBackend,
+            sentimentChartKind: draft.sentimentChartKind,
+            sentimentThresholdPreset: draft.sentimentThresholdPreset,
+            sentimentDecisionThreshold: draft.sentimentDecisionThreshold,
+            sentimentMinimumEvidence: draft.sentimentMinimumEvidence,
+            sentimentNeutralBias: draft.sentimentNeutralBias,
+            sentimentRowFilterQuery: draft.sentimentRowFilterQuery,
+            sentimentLabelFilter: draft.sentimentLabelFilter,
+            sentimentSelectedCorpusIDs: draft.sentimentSelectedCorpusIDs,
+            sentimentReferenceCorpusID: draft.sentimentReferenceCorpusID,
+            keywordActiveTab: draft.keywordActiveTab,
+            keywordSuiteConfiguration: draft.keywordSuiteConfiguration,
             keywordTargetCorpusID: draft.keywordTargetCorpusID,
             keywordReferenceCorpusID: draft.keywordReferenceCorpusID,
             keywordLowercased: draft.keywordLowercased,
@@ -180,14 +303,26 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             keywordMinimumFrequency: draft.keywordMinimumFrequency,
             keywordStatistic: draft.keywordStatistic,
             keywordStopwordFilter: draft.keywordStopwordFilter,
+            plotQuery: draft.plotQuery,
+            plotSearchOptions: draft.plotSearchOptions,
             ngramSize: draft.ngramSize,
             ngramPageSize: draft.ngramPageSize,
+            clusterSelectedN: draft.clusterSelectedN,
+            clusterMinFrequency: draft.clusterMinFrequency,
+            clusterSortMode: draft.clusterSortMode,
+            clusterCaseSensitive: draft.clusterCaseSensitive,
+            clusterStopwordFilter: draft.clusterStopwordFilter,
+            clusterPunctuationMode: draft.clusterPunctuationMode,
+            clusterSelectedPhrase: draft.clusterSelectedPhrase,
+            clusterPageSize: draft.clusterPageSize,
+            clusterReferenceCorpusID: draft.clusterReferenceCorpusID,
             kwicLeftWindow: draft.kwicLeftWindow,
             kwicRightWindow: draft.kwicRightWindow,
             collocateLeftWindow: draft.collocateLeftWindow,
             collocateRightWindow: draft.collocateRightWindow,
             collocateMinFreq: draft.collocateMinFreq,
             topicsMinTopicSize: draft.topicsMinTopicSize,
+            topicsKeywordDisplayCount: draft.topicsKeywordDisplayCount,
             topicsIncludeOutliers: draft.topicsIncludeOutliers,
             topicsPageSize: draft.topicsPageSize,
             topicsActiveTopicID: draft.topicsActiveTopicID,
@@ -215,6 +350,20 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.tokenizeLemmaStrategy = try container.decodeIfPresent(TokenLemmaStrategy.self, forKey: .tokenizeLemmaStrategy) ?? .normalizedSurface
         self.compareReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .compareReferenceCorpusID) ?? ""
         self.compareSelectedCorpusIDs = try container.decodeIfPresent([String].self, forKey: .compareSelectedCorpusIDs) ?? []
+        self.sentimentSource = try container.decodeIfPresent(SentimentInputSource.self, forKey: .sentimentSource) ?? .openedCorpus
+        self.sentimentUnit = try container.decodeIfPresent(SentimentAnalysisUnit.self, forKey: .sentimentUnit) ?? .sentence
+        self.sentimentContextBasis = try container.decodeIfPresent(SentimentContextBasis.self, forKey: .sentimentContextBasis) ?? .visibleContext
+        self.sentimentBackend = try container.decodeIfPresent(SentimentBackendKind.self, forKey: .sentimentBackend) ?? .lexicon
+        self.sentimentChartKind = try container.decodeIfPresent(SentimentChartKind.self, forKey: .sentimentChartKind) ?? .distributionBar
+        self.sentimentThresholdPreset = try container.decodeIfPresent(SentimentThresholdPreset.self, forKey: .sentimentThresholdPreset) ?? .conservative
+        self.sentimentDecisionThreshold = try container.decodeIfPresent(Double.self, forKey: .sentimentDecisionThreshold) ?? SentimentThresholds.default.decisionThreshold
+        self.sentimentMinimumEvidence = try container.decodeIfPresent(Double.self, forKey: .sentimentMinimumEvidence) ?? SentimentThresholds.default.minimumEvidence
+        self.sentimentNeutralBias = try container.decodeIfPresent(Double.self, forKey: .sentimentNeutralBias) ?? SentimentThresholds.default.neutralBias
+        self.sentimentRowFilterQuery = try container.decodeIfPresent(String.self, forKey: .sentimentRowFilterQuery) ?? ""
+        self.sentimentLabelFilter = try container.decodeIfPresent(SentimentLabel.self, forKey: .sentimentLabelFilter)
+        self.sentimentSelectedCorpusIDs = try container.decodeIfPresent([String].self, forKey: .sentimentSelectedCorpusIDs) ?? []
+        self.sentimentReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .sentimentReferenceCorpusID) ?? ""
+        self.keywordActiveTab = try container.decodeIfPresent(KeywordSuiteTab.self, forKey: .keywordActiveTab) ?? .words
         self.keywordTargetCorpusID = try container.decodeIfPresent(String.self, forKey: .keywordTargetCorpusID) ?? ""
         self.keywordReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .keywordReferenceCorpusID) ?? ""
         self.keywordLowercased = try container.decodeIfPresent(Bool.self, forKey: .keywordLowercased) ?? true
@@ -222,14 +371,38 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.keywordMinimumFrequency = try container.decodeIfPresent(String.self, forKey: .keywordMinimumFrequency) ?? "2"
         self.keywordStatistic = try container.decodeIfPresent(KeywordStatisticMethod.self, forKey: .keywordStatistic) ?? .logLikelihood
         self.keywordStopwordFilter = try container.decodeIfPresent(StopwordFilterState.self, forKey: .keywordStopwordFilter) ?? .default
+        self.keywordSuiteConfiguration = try container.decodeIfPresent(KeywordSuiteConfiguration.self, forKey: .keywordSuiteConfiguration)
+            ?? .legacy(
+                targetCorpusID: self.keywordTargetCorpusID,
+                referenceCorpusID: self.keywordReferenceCorpusID,
+                options: KeywordPreprocessingOptions(
+                    lowercased: self.keywordLowercased,
+                    removePunctuation: self.keywordRemovePunctuation,
+                    stopwordFilter: self.keywordStopwordFilter,
+                    minimumFrequency: Int(self.keywordMinimumFrequency) ?? 2,
+                    statistic: self.keywordStatistic
+                )
+            )
+        self.plotQuery = try container.decodeIfPresent(String.self, forKey: .plotQuery) ?? ""
+        self.plotSearchOptions = try container.decodeIfPresent(SearchOptionsState.self, forKey: .plotSearchOptions) ?? .default
         self.ngramSize = try container.decodeIfPresent(String.self, forKey: .ngramSize) ?? "2"
         self.ngramPageSize = try container.decodeIfPresent(String.self, forKey: .ngramPageSize) ?? "10"
+        self.clusterSelectedN = try container.decodeIfPresent(String.self, forKey: .clusterSelectedN) ?? "3"
+        self.clusterMinFrequency = try container.decodeIfPresent(String.self, forKey: .clusterMinFrequency) ?? "3"
+        self.clusterSortMode = try container.decodeIfPresent(ClusterSortMode.self, forKey: .clusterSortMode) ?? .frequencyDescending
+        self.clusterCaseSensitive = try container.decodeIfPresent(Bool.self, forKey: .clusterCaseSensitive) ?? false
+        self.clusterStopwordFilter = try container.decodeIfPresent(StopwordFilterState.self, forKey: .clusterStopwordFilter) ?? .default
+        self.clusterPunctuationMode = try container.decodeIfPresent(ClusterPunctuationMode.self, forKey: .clusterPunctuationMode) ?? .boundary
+        self.clusterSelectedPhrase = try container.decodeIfPresent(String.self, forKey: .clusterSelectedPhrase) ?? ""
+        self.clusterPageSize = try container.decodeIfPresent(String.self, forKey: .clusterPageSize) ?? "100"
+        self.clusterReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .clusterReferenceCorpusID) ?? ""
         self.kwicLeftWindow = try container.decodeIfPresent(String.self, forKey: .kwicLeftWindow) ?? "5"
         self.kwicRightWindow = try container.decodeIfPresent(String.self, forKey: .kwicRightWindow) ?? "5"
         self.collocateLeftWindow = try container.decodeIfPresent(String.self, forKey: .collocateLeftWindow) ?? "5"
         self.collocateRightWindow = try container.decodeIfPresent(String.self, forKey: .collocateRightWindow) ?? "5"
         self.collocateMinFreq = try container.decodeIfPresent(String.self, forKey: .collocateMinFreq) ?? "1"
         self.topicsMinTopicSize = try container.decodeIfPresent(String.self, forKey: .topicsMinTopicSize) ?? "2"
+        self.topicsKeywordDisplayCount = try container.decodeIfPresent(String.self, forKey: .topicsKeywordDisplayCount) ?? "5"
         self.topicsIncludeOutliers = try container.decodeIfPresent(Bool.self, forKey: .topicsIncludeOutliers) ?? true
         self.topicsPageSize = try container.decodeIfPresent(String.self, forKey: .topicsPageSize) ?? "50"
         self.topicsActiveTopicID = try container.decodeIfPresent(String.self, forKey: .topicsActiveTopicID) ?? ""
@@ -260,6 +433,21 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             tokenizeLemmaStrategy: tokenizeLemmaStrategy,
             compareReferenceCorpusID: compareReferenceCorpusID,
             compareSelectedCorpusIDs: compareSelectedCorpusIDs,
+            sentimentSource: sentimentSource,
+            sentimentUnit: sentimentUnit,
+            sentimentContextBasis: sentimentContextBasis,
+            sentimentBackend: sentimentBackend,
+            sentimentChartKind: sentimentChartKind,
+            sentimentThresholdPreset: sentimentThresholdPreset,
+            sentimentDecisionThreshold: sentimentDecisionThreshold,
+            sentimentMinimumEvidence: sentimentMinimumEvidence,
+            sentimentNeutralBias: sentimentNeutralBias,
+            sentimentRowFilterQuery: sentimentRowFilterQuery,
+            sentimentLabelFilter: sentimentLabelFilter,
+            sentimentSelectedCorpusIDs: sentimentSelectedCorpusIDs,
+            sentimentReferenceCorpusID: sentimentReferenceCorpusID,
+            keywordActiveTab: keywordActiveTab,
+            keywordSuiteConfiguration: keywordSuiteConfiguration,
             keywordTargetCorpusID: keywordTargetCorpusID,
             keywordReferenceCorpusID: keywordReferenceCorpusID,
             keywordLowercased: keywordLowercased,
@@ -267,14 +455,26 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             keywordMinimumFrequency: keywordMinimumFrequency,
             keywordStatistic: keywordStatistic,
             keywordStopwordFilter: keywordStopwordFilter,
+            plotQuery: plotQuery,
+            plotSearchOptions: plotSearchOptions,
             ngramSize: ngramSize,
             ngramPageSize: ngramPageSize,
+            clusterSelectedN: clusterSelectedN,
+            clusterMinFrequency: clusterMinFrequency,
+            clusterSortMode: clusterSortMode,
+            clusterCaseSensitive: clusterCaseSensitive,
+            clusterStopwordFilter: clusterStopwordFilter,
+            clusterPunctuationMode: clusterPunctuationMode,
+            clusterSelectedPhrase: clusterSelectedPhrase,
+            clusterPageSize: clusterPageSize,
+            clusterReferenceCorpusID: clusterReferenceCorpusID,
             kwicLeftWindow: kwicLeftWindow,
             kwicRightWindow: kwicRightWindow,
             collocateLeftWindow: collocateLeftWindow,
             collocateRightWindow: collocateRightWindow,
             collocateMinFreq: collocateMinFreq,
             topicsMinTopicSize: topicsMinTopicSize,
+            topicsKeywordDisplayCount: topicsKeywordDisplayCount,
             topicsIncludeOutliers: topicsIncludeOutliers,
             topicsPageSize: topicsPageSize,
             topicsActiveTopicID: topicsActiveTopicID,

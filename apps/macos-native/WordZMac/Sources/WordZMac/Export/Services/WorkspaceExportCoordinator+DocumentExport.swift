@@ -32,7 +32,7 @@ extension WorkspaceExportCoordinator {
         guard let savePath = await dialogService.chooseSavePath(
             title: title,
             suggestedName: textDocument.suggestedName,
-            allowedExtension: "txt",
+            allowedExtension: textDocument.allowedExtension,
             preferredRoute: preferredRoute
         ) else {
             return nil

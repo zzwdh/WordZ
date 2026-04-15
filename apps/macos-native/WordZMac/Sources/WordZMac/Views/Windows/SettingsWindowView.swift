@@ -19,7 +19,11 @@ struct SettingsWindowView: View {
             settings: workspace.settings,
             onAction: dispatcher.handleSettingsAction
         )
-        .bindWindowRoute(.settings)
+        .adaptiveWindowScaffold(for: .settings)
+        .bindWindowRoute(.settings, titleProvider: { mode in
+            NativeWindowRoute.settings.title(in: mode)
+        })
+        .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .settings))
         .task {
             await workspace.initializeIfNeeded()
             workspace.syncSceneGraph(source: .settings)
