@@ -15,6 +15,7 @@ extension WorkspaceResultSceneNodeBuilder {
         visibleRows: Int,
         table: NativeTableDescriptor,
         tableRows: [NativeTableRowDescriptor],
+        tableSnapshot: ResultTableSnapshot? = nil,
         exportMetadataLines: [String] = []
     ) -> WorkspaceResultSceneNode {
         WorkspaceResultSceneNode(
@@ -24,7 +25,7 @@ extension WorkspaceResultSceneNodeBuilder {
             visibleRows: visibleRows,
             hasResult: true,
             table: table,
-            tableRows: tableRows,
+            tableSnapshot: tableSnapshot ?? ResultTableSnapshot.stable(rows: tableRows),
             exportMetadataLines: exportMetadataLines
         )
     }

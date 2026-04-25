@@ -1,0 +1,6 @@
+{
+  "version": "en-heuristic-v3",
+  "backendRevision": "lexicon-rules-v3",
+  "resourceRevision": "sentiment-pack-en-v3",
+  "bundledPackIDs": ["general", "academic", "news", "kwic", "mixed"]
+}

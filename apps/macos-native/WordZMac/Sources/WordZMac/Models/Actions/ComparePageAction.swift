@@ -4,6 +4,10 @@ enum ComparePageAction: Equatable {
     case run
     case openKWIC
     case openCollocate
+    case openSentiment
+    case openSentimentExemplar(String)
+    case openSentimentSourceReader(String)
+    case openTopics
     case saveCorpusSet
     case analyzeInKeywordSuite
     case toggleCorpusSelection(String)

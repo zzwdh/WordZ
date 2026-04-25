@@ -36,6 +36,9 @@ extension KeywordView {
     }
 
     var keywordHeaderSummary: String {
-        "\(viewModel.focusSelectionSummary) → \(viewModel.referenceSelectionSummary)"
+        [
+            "\(viewModel.focusSelectionSummary) → \(viewModel.referenceSelectionSummary)",
+            viewModel.annotationSummary(in: languageMode)
+        ].joined(separator: "\n")
     }
 }

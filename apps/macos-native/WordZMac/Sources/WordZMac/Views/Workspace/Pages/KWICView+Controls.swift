@@ -36,8 +36,12 @@ extension KWICView {
     }
 
     var keywordField: some View {
-        TextField(t("检索词", "Keyword"), text: $viewModel.keyword)
-            .textFieldStyle(.roundedBorder)
+        LexicalAutocompleteTextField(
+            title: t("检索词", "Keyword"),
+            text: $viewModel.keyword,
+            searchOptions: viewModel.searchOptions,
+            controller: lexicalAutocompleteController
+        )
     }
 
     var leftWindowField: some View {

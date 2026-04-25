@@ -9,9 +9,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
     @Published var stats: StatsPageViewModel
     @Published var word: WordPageViewModel
     @Published var tokenize: TokenizePageViewModel
-    @Published var topics: TopicsPageViewModel
     @Published var compare: ComparePageViewModel
-    @Published var sentiment: SentimentPageViewModel
     @Published var keyword: KeywordPageViewModel
     @Published var chiSquare: ChiSquarePageViewModel
     @Published var plot: PlotPageViewModel
@@ -20,7 +18,6 @@ package final class MainWorkspaceViewModel: ObservableObject {
     @Published var kwic: KWICPageViewModel
     @Published var collocate: CollocatePageViewModel
     @Published var locator: LocatorPageViewModel
-    @Published var evidenceWorkbench: EvidenceWorkbenchViewModel
     @Published var sourceReader: SourceReaderViewModel
     @Published var settings: WorkspaceSettingsViewModel
     @Published var sceneGraph = WorkspaceSceneGraph.empty
@@ -29,6 +26,9 @@ package final class MainWorkspaceViewModel: ObservableObject {
     @Published var activeIssue: WorkspaceIssueBanner?
     @Published var welcomeScene = WelcomeSceneModel.empty
     @Published var analysisPresets: [AnalysisPresetItem] = []
+    @Published var annotationState = WorkspaceAnnotationState.default
+    @Published var runningTaskKeys: Set<WorkspaceRuntimeTaskKey> = []
+    let lexicalAutocomplete: LexicalAutocompleteController
     let taskCenter: NativeTaskCenter
     let menuBarStatus = WordZMenuBarStatusModel()
 
@@ -37,6 +37,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
     let rootSceneBuilder: any RootContentSceneBuilding
     let flowCoordinator: WorkspaceFlowCoordinator
     let appCoordinator: AppCoordinator
+    let featurePages: WorkspaceFeaturePageHandles
     let sessionStore: WorkspaceSessionStore
     let dialogService: NativeDialogServicing
     let hostPreferencesStore: any NativeHostPreferencesStoring
@@ -50,6 +51,16 @@ package final class MainWorkspaceViewModel: ObservableObject {
     let applicationActivityInspector: any ApplicationActivityInspecting
     let buildMetadataProvider: any NativeBuildMetadataProviding
     let diagnosticsBundleService: any NativeDiagnosticsBundleServicing
+    let sessionActor: WorkspaceSessionActor
+    lazy var taskSupervisor = WorkspaceTaskSupervisor(
+        sessionActor: sessionActor,
+        onRunningStateChange: { [weak self] key, isRunning in
+            self?.applyRuntimeTaskState(key: key, isRunning: isRunning)
+        },
+        onBlockingOperationCountChange: { [weak self] count in
+            self?.shell.setBlockingOperationCount(count)
+        }
+    )
     var initialized = false
     var inputChangeSyncTask: Task<Void, Never>?
     var updateState = NativeUpdateStateSnapshot.empty
@@ -66,9 +77,14 @@ package final class MainWorkspaceViewModel: ObservableObject {
     var lastAppliedSceneGraphRevision = -1
     var isApplyingSceneSyncRequest = false
     var pendingSceneSyncRequest: SceneSyncRequest?
+    var isApplyingWorkspaceAnnotationState = false
     var features: WorkspaceFeatureSet {
         WorkspaceFeatureSet(workspace: self)
     }
+
+    var topics: TopicsPageViewModel { projectedFeaturePage(featurePages.topics) }
+    var sentiment: SentimentPageViewModel { projectedFeaturePage(featurePages.sentiment) }
+    var evidenceWorkbench: EvidenceWorkbenchViewModel { projectedFeaturePage(featurePages.evidenceWorkbench) }
 
     init(
         repository: any WorkspaceRepository,
@@ -101,7 +117,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
         kwic: KWICPageViewModel,
         collocate: CollocatePageViewModel,
         locator: LocatorPageViewModel,
-        evidenceWorkbench: EvidenceWorkbenchViewModel = EvidenceWorkbenchViewModel(),
+        evidenceWorkbench: EvidenceWorkbenchViewModel = EvidenceWorkbenchViewModel.makeFeaturePage(),
         sourceReader: SourceReaderViewModel = SourceReaderViewModel(),
         settings: WorkspaceSettingsViewModel
     ) {
@@ -122,15 +138,17 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.buildMetadataProvider = buildMetadataProvider
         self.diagnosticsBundleService = diagnosticsBundleService
         self.taskCenter = taskCenter
+        self.lexicalAutocomplete = LexicalAutocompleteController(
+            repository: repository as? any StoredFrequencyArtifactReadingRepository
+        )
+        self.sessionActor = WorkspaceSessionActor()
         self.sidebar = sidebar
         self.shell = shell
         self.library = library
         self.stats = stats
         self.word = word
         self.tokenize = tokenize
-        self.topics = topics
         self.compare = compare
-        self.sentiment = sentiment
         self.keyword = keyword
         self.chiSquare = chiSquare
         self.plot = plot
@@ -139,9 +157,13 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.kwic = kwic
         self.collocate = collocate
         self.locator = locator
-        self.evidenceWorkbench = evidenceWorkbench
         self.sourceReader = sourceReader
         self.settings = settings
+        self.featurePages = WorkspaceFeaturePageHandles(
+            topics: topics,
+            sentiment: sentiment,
+            evidenceWorkbench: evidenceWorkbench
+        )
         self.flowCoordinator = runtimeDependencies.flowCoordinator
         self.appCoordinator = runtimeDependencies.appCoordinator
 
@@ -150,4 +172,12 @@ package final class MainWorkspaceViewModel: ObservableObject {
         syncSceneGraph()
     }
 
+}
+
+@MainActor
+private func projectedFeaturePage<T>(_ page: AnyObject) -> T {
+    guard let projected = page as? T else {
+        preconditionFailure("Injected workspace feature page does not match the concrete SwiftUI view model.")
+    }
+    return projected
 }

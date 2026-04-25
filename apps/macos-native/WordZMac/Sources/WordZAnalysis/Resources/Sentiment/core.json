@@ -1,0 +1,20 @@
+[
+  { "term": "good", "score": 1.4, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "great", "score": 2.0, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "excellent", "score": 2.2, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "positive", "score": 1.6, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "benefit", "score": 1.3, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "effective", "score": 1.5, "category": "corePositive", "domainTags": ["core", "general", "academic"], "matchMode": "either" },
+  { "term": "helpful", "score": 1.5, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "valuable", "score": 1.5, "category": "corePositive", "domainTags": ["core", "general", "academic"], "matchMode": "either" },
+  { "term": "bad", "score": -1.4, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "poor", "score": -1.5, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "terrible", "score": -2.2, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "awful", "score": -2.2, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "negative", "score": -1.6, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "problem", "score": -1.2, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
+  { "term": "problematic", "score": -1.5, "category": "coreNegative", "domainTags": ["core", "general", "academic"], "matchMode": "either" },
+  { "term": "harmful", "score": -1.8, "category": "coreNegative", "domainTags": ["general", "news"], "matchMode": "either" },
+  { "term": "high quality", "score": 2.0, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "low quality", "score": -1.9, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "surface" }
+]

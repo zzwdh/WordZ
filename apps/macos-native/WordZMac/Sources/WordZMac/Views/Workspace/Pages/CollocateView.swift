@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CollocateView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: CollocatePageViewModel
     let isBusy: Bool
     let onAction: (CollocatePageAction) -> Void

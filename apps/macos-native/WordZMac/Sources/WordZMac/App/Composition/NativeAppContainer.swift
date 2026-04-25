@@ -1,8 +1,10 @@
 import Foundation
+import WordZEngine
 
 @MainActor
 package final class NativeAppContainer {
     typealias RepositoryFactory = () -> any WorkspaceRepository
+    package typealias FeaturePageBundleFactory = () -> WorkspaceFeaturePageBundle
     typealias WindowDocumentControllerFactory = () -> NativeWindowDocumentController
     typealias WorkspacePersistenceFactory = () -> WorkspacePersistenceService
     typealias WorkspacePresentationFactory = () -> WorkspacePresentationService
@@ -25,6 +27,7 @@ package final class NativeAppContainer {
     typealias RuntimeDependencyFactory = () -> any MainWorkspaceRuntimeDependencyBuilding
 
     private let makeRepository: RepositoryFactory
+    private let makeFeaturePages: FeaturePageBundleFactory
     private let makeWindowDocumentController: WindowDocumentControllerFactory
     private let makeWorkspacePersistence: WorkspacePersistenceFactory
     private let makeWorkspacePresentation: WorkspacePresentationFactory
@@ -46,9 +49,15 @@ package final class NativeAppContainer {
     private let makeDiagnosticsBundleService: DiagnosticsBundleFactory
     private let makeRuntimeDependencyFactory: RuntimeDependencyFactory
 
-    convenience init(composition: NativeAppLiveComposition) {
+    convenience init(
+        composition: NativeAppLiveComposition,
+        makeFeaturePages: @escaping FeaturePageBundleFactory = {
+            WorkspaceFeatureSetDefaultPages.bundle()
+        }
+    ) {
         self.init(
             makeRepository: composition.storage.makeRepository,
+            makeFeaturePages: makeFeaturePages,
             makeWindowDocumentController: composition.workspace.makeWindowDocumentController,
             makeWorkspacePersistence: composition.storage.makeWorkspacePersistence,
             makeWorkspacePresentation: composition.workspace.makeWorkspacePresentation,
@@ -74,6 +83,9 @@ package final class NativeAppContainer {
 
     init(
         makeRepository: @escaping RepositoryFactory = { NativeWorkspaceRepository() },
+        makeFeaturePages: @escaping FeaturePageBundleFactory = {
+            WorkspaceFeatureSetDefaultPages.bundle()
+        },
         makeWindowDocumentController: @escaping WindowDocumentControllerFactory = { NativeWindowDocumentController() },
         makeWorkspacePersistence: @escaping WorkspacePersistenceFactory = { WorkspacePersistenceService() },
         makeWorkspacePresentation: @escaping WorkspacePresentationFactory = { WorkspacePresentationService() },
@@ -112,6 +124,7 @@ package final class NativeAppContainer {
         makeRuntimeDependencyFactory: @escaping RuntimeDependencyFactory = { MainWorkspaceRuntimeDependencyFactory() }
     ) {
         self.makeRepository = makeRepository
+        self.makeFeaturePages = makeFeaturePages
         self.makeWindowDocumentController = makeWindowDocumentController
         self.makeWorkspacePersistence = makeWorkspacePersistence
         self.makeWorkspacePresentation = makeWorkspacePresentation
@@ -134,8 +147,15 @@ package final class NativeAppContainer {
         self.makeRuntimeDependencyFactory = makeRuntimeDependencyFactory
     }
 
-    package static func live() -> NativeAppContainer {
-        NativeAppContainer(composition: .live())
+    package static func live(
+        makeFeaturePages: @escaping FeaturePageBundleFactory = {
+            WorkspaceFeatureSetDefaultPages.bundle()
+        }
+    ) -> NativeAppContainer {
+        NativeAppContainer(
+            composition: .live(),
+            makeFeaturePages: makeFeaturePages
+        )
     }
 
     nonisolated private static func defaultUpdateDownloadsDirectory() -> URL {
@@ -145,6 +165,8 @@ package final class NativeAppContainer {
     }
 
     package func makeMainWorkspaceViewModel() -> MainWorkspaceViewModel {
+        let featurePages = makeFeaturePages()
+        _ = WorkspaceFeaturePageHandles(bundle: featurePages)
         let dialogService = makeDialogService()
         let sceneStore = makeSceneStore()
         let sessionStore = makeSessionStore()
@@ -197,9 +219,9 @@ package final class NativeAppContainer {
             stats: StatsPageViewModel(),
             word: WordPageViewModel(),
             tokenize: TokenizePageViewModel(),
-            topics: TopicsPageViewModel(),
+            topics: featurePages.topics,
             compare: ComparePageViewModel(),
-            sentiment: SentimentPageViewModel(),
+            sentiment: featurePages.sentiment,
             keyword: KeywordPageViewModel(),
             chiSquare: ChiSquarePageViewModel(),
             plot: PlotPageViewModel(),
@@ -208,6 +230,7 @@ package final class NativeAppContainer {
             kwic: KWICPageViewModel(),
             collocate: CollocatePageViewModel(),
             locator: LocatorPageViewModel(),
+            evidenceWorkbench: featurePages.evidenceWorkbench,
             settings: WorkspaceSettingsViewModel()
         )
     }

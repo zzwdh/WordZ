@@ -10,7 +10,8 @@ extension MainWorkspaceViewModel {
         let exportableCurrent = hasExportableCurrentContent(in: graph, selectedTab: selectedTab)
         let runSentimentEnabled = sentiment.canRun(
             hasOpenedCorpus: sidebar.selectedCorpusID != nil,
-            hasKWICRows: kwic.scene?.rows.isEmpty == false
+            hasKWICRows: kwic.scene?.rows.isEmpty == false,
+            hasTopicRows: topics.canAnalyzeVisibleTopicsInSentiment
         )
         shell.updateSelectionAvailability(
             hasSelection: sidebar.selectedCorpusID != nil,

@@ -15,6 +15,9 @@ extension KWICView {
                     Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    Text(scene.annotationSummary)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 } trailing: {
                     Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows) / \(scene.totalRows)")
                         .font(.caption)
@@ -83,7 +86,7 @@ extension KWICView {
             WorkbenchTableCard {
                 NativeTableView(
                     descriptor: scene.table,
-                    rows: scene.tableRows,
+                    snapshot: scene.tableSnapshot,
                     selectedRowID: viewModel.selectedRowID,
                     onSelectionChange: { onAction(.selectRow($0)) },
                     onDoubleClick: { onAction(.activateRow($0)) },

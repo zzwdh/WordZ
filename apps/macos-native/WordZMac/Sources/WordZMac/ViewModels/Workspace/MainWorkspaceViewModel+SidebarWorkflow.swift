@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 extension MainWorkspaceViewModel {
     func handleMetadataFiltersChanged(selectionChanged: Bool) {
+        syncLexicalAutocompleteSelection()
         let filteredIDs = Set(sidebar.filteredCorpora.map(\.id))
         library.syncSidebarSelection(sidebar.selectedCorpusID)
 
@@ -26,6 +27,11 @@ extension MainWorkspaceViewModel {
         } else {
             flowCoordinator.markWorkspaceEdited(features: features)
             syncSceneGraph(source: .librarySelection)
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.flowCoordinator.refreshLibraryManagement(features: self.features)
         }
     }
 
@@ -100,5 +106,9 @@ extension MainWorkspaceViewModel {
         keyword.syncLibrarySnapshot(filteredWorkflowLibrarySnapshot)
         cluster.syncLibrarySnapshot(filteredWorkflowLibrarySnapshot)
         library.syncSidebarSelection(sidebar.selectedCorpusID)
+    }
+
+    func syncLexicalAutocompleteSelection() {
+        lexicalAutocomplete.updateSelectedCorpusID(sidebar.selectedCorpusID)
     }
 }

@@ -16,6 +16,7 @@ extension MainWorkspaceViewModel {
         await performWithoutSceneSyncCallbacks {
             await appCoordinator.refreshAll(features: features)
         }
+        restoreWorkspaceAnnotationState(from: sessionStore.workspaceSnapshot)
         await reloadAnalysisPresets()
         syncSceneGraph()
         showWelcomeIfNeeded()
@@ -32,6 +33,7 @@ extension MainWorkspaceViewModel {
         await performWithoutSceneSyncCallbacks {
             await appCoordinator.refreshAll(features: features)
         }
+        restoreWorkspaceAnnotationState(from: sessionStore.workspaceSnapshot)
         await reloadAnalysisPresets()
         syncSceneGraph()
         showWelcomeIfNeeded()
@@ -69,6 +71,7 @@ extension MainWorkspaceViewModel {
         await performWithoutSceneSyncCallbacks {
             await flowCoordinator.newWorkspace(features: features)
         }
+        restoreWorkspaceAnnotationState(from: sessionStore.workspaceSnapshot)
         syncSceneGraph(source: .full)
         clearActiveIssue()
     }
@@ -78,6 +81,7 @@ extension MainWorkspaceViewModel {
         await performWithoutSceneSyncCallbacks {
             await flowCoordinator.restoreSavedWorkspace(features: features)
         }
+        restoreWorkspaceAnnotationState(from: sessionStore.workspaceSnapshot)
         syncSceneGraph(source: .full)
         clearActiveIssue()
     }

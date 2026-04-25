@@ -57,6 +57,20 @@ protocol StoredTokenPositionIndexProvidingLibraryStore: LibraryStore {
     func loadStoredTokenPositionIndex(corpusId: String) throws -> StoredTokenPositionIndexArtifact?
 }
 
+protocol StoredSentenceSearchProvidingLibraryStore: LibraryStore {
+    func loadCandidateSentenceIDs(corpusId: String, phraseTokens: [String]) throws -> [Int]
+}
+
+protocol StoredLocatorProvidingLibraryStore: LibraryStore {
+    func loadStoredLocatorResult(
+        corpusId: String,
+        sentenceId: Int,
+        nodeIndex: Int,
+        leftWindow: Int,
+        rightWindow: Int
+    ) throws -> LocatorResult?
+}
+
 protocol CorpusSetManagingLibraryStore: LibraryStore {
     func saveCorpusSet(
         name: String,
@@ -64,4 +78,19 @@ protocol CorpusSetManagingLibraryStore: LibraryStore {
         metadataFilterState: CorpusMetadataFilterState
     ) throws -> LibraryCorpusSetItem
     func deleteCorpusSet(corpusSetID: String) throws
+}
+
+protocol MetadataFilteringLibraryStore: LibraryStore {
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState
+    ) throws -> LibrarySnapshot
+}
+
+protocol FullTextSearchingLibraryStore: MetadataFilteringLibraryStore {
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState,
+        searchQuery: String
+    ) throws -> LibrarySnapshot
 }

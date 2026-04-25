@@ -208,6 +208,7 @@ struct KeywordSceneModel: Equatable {
     let listMode: KeywordSavedListViewMode
     let focusSummary: String
     let referenceSummary: String
+    let annotationSummary: String
     let configurationSummary: String
     let methodSummary: String
     let methodNotes: [String]
@@ -222,13 +223,14 @@ struct KeywordSceneModel: Equatable {
     let ngramsCount: Int
     let savedListsCount: Int
     let rows: [KeywordSceneRow]
-    let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let emptyStateTitle: String
     let emptyStateMessage: String
 
     // Compatibility aliases for older views/tests that still use the v1 naming.
     var preprocessingSummary: String { configurationSummary }
     var targetSummary: String { focusSummary }
+    var tableRows: [NativeTableRowDescriptor] { tableSnapshot.rows }
 
     func column(for key: KeywordColumnKey) -> NativeTableColumnDescriptor? {
         table.column(id: key.rawValue)

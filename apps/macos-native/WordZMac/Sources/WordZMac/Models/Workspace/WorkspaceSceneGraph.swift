@@ -7,8 +7,32 @@ struct WorkspaceResultSceneNode: Equatable {
     let visibleRows: Int
     let hasResult: Bool
     let table: NativeTableDescriptor
-    let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let exportMetadataLines: [String]
+
+    var tableRows: [NativeTableRowDescriptor] {
+        tableSnapshot.rows
+    }
+
+    init(
+        title: String,
+        status: String,
+        totalRows: Int,
+        visibleRows: Int,
+        hasResult: Bool,
+        table: NativeTableDescriptor,
+        tableSnapshot: ResultTableSnapshot,
+        exportMetadataLines: [String] = []
+    ) {
+        self.title = title
+        self.status = status
+        self.totalRows = totalRows
+        self.visibleRows = visibleRows
+        self.hasResult = hasResult
+        self.table = table
+        self.tableSnapshot = tableSnapshot
+        self.exportMetadataLines = exportMetadataLines
+    }
 
     init(
         title: String,
@@ -20,14 +44,16 @@ struct WorkspaceResultSceneNode: Equatable {
         tableRows: [NativeTableRowDescriptor],
         exportMetadataLines: [String] = []
     ) {
-        self.title = title
-        self.status = status
-        self.totalRows = totalRows
-        self.visibleRows = visibleRows
-        self.hasResult = hasResult
-        self.table = table
-        self.tableRows = tableRows
-        self.exportMetadataLines = exportMetadataLines
+        self.init(
+            title: title,
+            status: status,
+            totalRows: totalRows,
+            visibleRows: visibleRows,
+            hasResult: hasResult,
+            table: table,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
+            exportMetadataLines: exportMetadataLines
+        )
     }
 
     static func empty(title: String, status: String) -> WorkspaceResultSceneNode {
@@ -38,7 +64,7 @@ struct WorkspaceResultSceneNode: Equatable {
             visibleRows: 0,
             hasResult: false,
             table: .empty,
-            tableRows: [],
+            tableSnapshot: .empty,
             exportMetadataLines: []
         )
     }
@@ -54,7 +80,7 @@ struct WorkspaceResultSceneNode: Equatable {
     }
 
     var isExportable: Bool {
-        hasResult && !table.visibleColumns.isEmpty && !tableRows.isEmpty
+        hasResult && !table.visibleColumns.isEmpty && !tableSnapshot.rows.isEmpty
     }
 
     static func == (lhs: WorkspaceResultSceneNode, rhs: WorkspaceResultSceneNode) -> Bool {
@@ -64,7 +90,7 @@ struct WorkspaceResultSceneNode: Equatable {
             lhs.visibleRows == rhs.visibleRows &&
             lhs.hasResult == rhs.hasResult &&
             lhs.table == rhs.table &&
-            lhs.tableRows.isContentEqual(to: rhs.tableRows) &&
+            lhs.tableSnapshot.version == rhs.tableSnapshot.version &&
             lhs.exportMetadataLines == rhs.exportMetadataLines
     }
 }
@@ -141,6 +167,7 @@ struct WorkspaceSceneGraph: Equatable {
         shell: WorkspaceShellSceneModel(
             workspaceSummary: WorkspaceSceneContext.empty.workspaceSummary,
             buildSummary: WorkspaceSceneContext.empty.buildSummary,
+            annotationSummary: WorkspaceAnnotationState.default.summary(in: .system),
             toolbar: WorkspaceToolbarSceneModel(items: [])
         ),
         library: .empty,

@@ -34,6 +34,31 @@ struct NativeDiagnosticsBundleGeneratedFile: Equatable, Sendable {
     let description: String
 }
 
+struct NativeDiagnosticsStorageSnapshot: Codable, Equatable, Sendable {
+    let rootPath: String
+    let libraryDatabaseExists: Bool
+    let workspaceDatabaseExists: Bool
+    let librarySchemaVersion: Int
+    let workspaceSchemaVersion: Int
+    let folderCount: Int
+    let activeCorpusCount: Int
+    let quarantinedCorpusCount: Int
+    let corpusSetCount: Int
+    let recycleEntryCount: Int
+    let pendingShardMigrationCount: Int
+    let workspaceSnapshotCount: Int
+    let uiSettingsCount: Int
+    let analysisPresetCount: Int
+    let keywordSavedListCount: Int
+    let concordanceSavedSetCount: Int
+    let evidenceItemCount: Int
+    let sentimentReviewSampleCount: Int
+    let corpusShardFileCount: Int
+    let recycleFileCount: Int
+    let libraryWALSidecarExists: Bool
+    let workspaceWALSidecarExists: Bool
+}
+
 struct NativeDiagnosticsBundlePayload: Sendable {
     let bundleBaseName: String
     let reportText: String

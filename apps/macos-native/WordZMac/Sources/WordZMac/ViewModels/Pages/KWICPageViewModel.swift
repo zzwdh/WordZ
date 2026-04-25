@@ -61,6 +61,7 @@ final class KWICPageViewModel: ObservableObject, AnalysisInputStateControlling, 
     var pageSize: KWICPageSize = .fifty
     var currentPage = 1
     var visibleColumns: Set<KWICColumnKey> = KWICPageViewModel.defaultVisibleColumns
+    var annotationState = WorkspaceAnnotationState.default
     var sceneBuildRevision = 0
     var cachedFilteredRows: [KWICRow]?
     var cachedStopwordFilter = StopwordFilterState.default
@@ -125,6 +126,12 @@ final class KWICPageViewModel: ObservableObject, AnalysisInputStateControlling, 
 
     var rightWindowValue: Int {
         Int(rightWindow) ?? 5
+    }
+
+    func applyWorkspaceAnnotationState(_ state: WorkspaceAnnotationState) {
+        guard annotationState != state else { return }
+        annotationState = state
+        rebuildScene()
     }
 
     func syncSavedSetEditorState(resetFilter: Bool) {

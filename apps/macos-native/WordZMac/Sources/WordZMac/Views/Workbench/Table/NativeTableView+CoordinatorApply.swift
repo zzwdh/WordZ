@@ -5,6 +5,7 @@ extension NativeTableView.Coordinator {
     func apply(
         descriptor: NativeTableDescriptor,
         rows: [NativeTableRowDescriptor],
+        snapshot: ResultTableSnapshot? = nil,
         selectedRowID: String?,
         onSelectionChange: ((String?) -> Void)?,
         onDoubleClick: ((String) -> Void)?,
@@ -19,15 +20,29 @@ extension NativeTableView.Coordinator {
         let startedAt = Date()
         let previousDescriptor = self.descriptor
         let previousRows = self.rows
+        let previousSnapshotVersion = self.snapshotVersion
         let previousSelectedRowID = self.selectedRowID
         let previousSelectedRowIDs = self.selectedRowIDs
         let previousDensity = resolvedDensity(for: previousDescriptor)
         let previousHeaderPinning = self.isHeaderPinned
         let columnsChanged = previousDescriptor != descriptor
-        let rowsChanged = !previousRows.isContentEqual(to: rows)
+        let resolvedRows = snapshot?.rows ?? rows
+        let resolvedRowIndexByID = snapshot?.rowIndexByID ?? Dictionary(
+            uniqueKeysWithValues: resolvedRows.enumerated().map { index, row in
+                (row.id, index)
+            }
+        )
+        let rowsChanged: Bool
+        if let snapshot {
+            rowsChanged = previousSnapshotVersion != snapshot.version
+        } else {
+            rowsChanged = !previousRows.isContentEqual(to: resolvedRows)
+        }
 
         self.descriptor = descriptor
-        self.rows = rows
+        self.rows = resolvedRows
+        self.snapshotVersion = snapshot?.version
+        self.rowIndexByID = resolvedRowIndexByID
         self.selectedRowID = selectedRowID
         self.onSelectionChange = onSelectionChange
         self.onDoubleClick = onDoubleClick
@@ -45,14 +60,14 @@ extension NativeTableView.Coordinator {
         let headerPinningChanged = previousHeaderPinning != isHeaderPinned
         updateTableMetrics(nextDensity)
 
-        let availableIDs = Set(rows.map(\.id))
+        let availableIDs = Set(resolvedRows.map(\.id))
         selectedRowIDs = previousSelectedRowIDs.intersection(availableIDs)
         if let selectedRowID, availableIDs.contains(selectedRowID) {
             selectedRowIDs.insert(selectedRowID)
         }
 
         let selectionChanged = previousSelectedRowID != selectedRowID || previousSelectedRowIDs != selectedRowIDs
-        let emptinessChanged = previousRows.isEmpty != rows.isEmpty
+        let emptinessChanged = previousRows.isEmpty != resolvedRows.isEmpty
         let densityChanged = previousDensity != nextDensity
 
         if columnsChanged || densityChanged || !hasBuiltColumns {
@@ -73,7 +88,7 @@ extension NativeTableView.Coordinator {
             tableView?.reloadData()
             reloadOutcome = ReloadOutcome(
                 mode: .fullColumnsChanged,
-                reloadedRowCount: rows.count
+                reloadedRowCount: resolvedRows.count
             )
         } else if rowsChanged {
             reloadOutcome = reloadVisibleRows(previousRowCount: previousRows.count)
@@ -86,7 +101,7 @@ extension NativeTableView.Coordinator {
 
         AnalysisPerformanceTelemetry.logTableApply(
             storageKey: descriptor.storageKey,
-            rowCount: rows.count,
+            rowCount: resolvedRows.count,
             columnCount: descriptor.columns.count,
             columnsChanged: columnsChanged,
             rowsChanged: rowsChanged,

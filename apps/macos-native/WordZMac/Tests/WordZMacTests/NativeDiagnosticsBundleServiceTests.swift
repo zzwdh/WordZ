@@ -8,7 +8,7 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
         try fileManager.createDirectory(at: tempRoot, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: tempRoot) }
 
-        let persistedWorkspaceURL = tempRoot.appendingPathComponent("workspace-state.json")
+        let persistedWorkspaceURL = tempRoot.appendingPathComponent("workspace-snapshot.json")
         let startupLogURL = tempRoot.appendingPathComponent("wordz-startup-crash.log")
         try Data("{\"currentTab\":\"stats\"}".utf8).write(to: persistedWorkspaceURL)
         try Data("startup failed".utf8).write(to: startupLogURL)
@@ -91,13 +91,18 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
                     data: Data("{\"downloadedUpdatePath\":\"<redacted>/WordZ.dmg\"}".utf8),
                     relativePath: "persisted/native-host-preferences.json",
                     description: "Sanitized persisted host preferences."
+                ),
+                NativeDiagnosticsBundleGeneratedFile(
+                    data: Data("{\"librarySchemaVersion\":2,\"pendingShardMigrationCount\":1}".utf8),
+                    relativePath: "storage-snapshot.json",
+                    description: "Current local storage topology and migration summary."
                 )
             ],
             extraFiles: [
                 NativeDiagnosticsBundleSourceFile(
                     sourceURL: persistedWorkspaceURL,
-                    relativePath: "persisted/workspace-state.json",
-                    description: "Persisted workspace state."
+                    relativePath: "persisted/workspace-snapshot.json",
+                    description: "Persisted workspace snapshot."
                 ),
                 NativeDiagnosticsBundleSourceFile(
                     sourceURL: startupLogURL,
@@ -119,13 +124,14 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
         let bundleDirectoryURL = extractDirectoryURL.appendingPathComponent("WordZMac-diagnostics-test", isDirectory: true)
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("diagnostics.txt").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("build-metadata.json").path))
-        XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("workspace-state.json").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("workspace-snapshot.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("ui-settings.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("host-preferences.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("task-history.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("runtime-context.json").path))
-        XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("persisted/workspace-state.json").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("persisted/workspace-snapshot.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("persisted/native-host-preferences.json").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("storage-snapshot.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("logs/startup-crash.log").path))
         let persistedHostPreferencesData = try Data(contentsOf: bundleDirectoryURL.appendingPathComponent("persisted/native-host-preferences.json"))
         XCTAssertTrue(String(decoding: persistedHostPreferencesData, as: UTF8.self).contains("<redacted>/WordZ.dmg"))
@@ -136,7 +142,8 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
         let includedPaths = includedFiles.compactMap { $0["path"] as? String }
         XCTAssertTrue(includedPaths.contains("diagnostics.txt"))
         XCTAssertTrue(includedPaths.contains("persisted/native-host-preferences.json"))
-        XCTAssertTrue(includedPaths.contains("persisted/workspace-state.json"))
+        XCTAssertTrue(includedPaths.contains("persisted/workspace-snapshot.json"))
+        XCTAssertTrue(includedPaths.contains("storage-snapshot.json"))
         XCTAssertTrue(includedPaths.contains("logs/startup-crash.log"))
     }
 

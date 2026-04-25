@@ -1,0 +1,13 @@
+[
+  { "term": "requires further study", "reason": "academic_caution" },
+  { "term": "should be interpreted cautiously", "reason": "academic_caution" },
+  { "term": "preliminary", "reason": "preliminary_claim" },
+  { "term": "tentative", "reason": "tentative_claim" },
+  { "term": "results should be interpreted cautiously", "reason": "academic_caution" },
+  { "term": "with caution", "reason": "academic_caution" },
+  { "term": "according to court records", "reason": "procedural_news_frame" },
+  { "term": "before noon", "reason": "procedural_news_frame" },
+  { "term": "in a court filing", "reason": "procedural_news_frame" },
+  { "term": "issued the notice", "reason": "procedural_news_frame" },
+  { "term": "released the statement", "reason": "procedural_news_frame" }
+]

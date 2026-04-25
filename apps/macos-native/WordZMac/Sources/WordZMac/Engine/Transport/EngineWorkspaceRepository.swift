@@ -1,7 +1,8 @@
 import Foundation
+import WordZEngine
 
 @MainActor
-final class EngineWorkspaceRepository: WorkspaceRepository {
+final class EngineWorkspaceRepository: WorkspaceRepository, MetadataFilteringLibraryRepository {
     private let engineClient: EngineClient
     private let nativeAnalysisRuntime = NativeAnalysisRuntime()
 
@@ -29,6 +30,16 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
 
     func listLibrary(folderId: String = "all") async throws -> LibrarySnapshot {
         try await engineClient.listLibrary(folderId: folderId)
+    }
+
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState
+    ) async throws -> LibrarySnapshot {
+        try await engineClient.listLibrary(
+            folderId: folderId,
+            metadataFilterState: metadataFilterState
+        )
     }
 
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) async throws -> LibraryImportResult {
@@ -306,6 +317,20 @@ final class EngineWorkspaceRepository: WorkspaceRepository {
     }
 
     func replaceEvidenceItems(_ items: [EvidenceItem]) async throws {
+    }
+
+    func listSentimentReviewSamples() async throws -> [SentimentReviewSample] {
+        []
+    }
+
+    func saveSentimentReviewSample(_ sample: SentimentReviewSample) async throws -> SentimentReviewSample {
+        sample
+    }
+
+    func deleteSentimentReviewSample(sampleID: String) async throws {
+    }
+
+    func replaceSentimentReviewSamples(_ samples: [SentimentReviewSample]) async throws {
     }
 
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws {

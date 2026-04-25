@@ -62,7 +62,7 @@ extension CompareView {
             WorkbenchMethodNoteCard(
                 title: t("结果说明", "How to Read These Results"),
                 summary: scene.methodSummary,
-                notes: scene.methodNotes
+                notes: scene.methodNotes + [scene.annotationSummary]
             )
 
             HStack {
@@ -75,7 +75,7 @@ extension CompareView {
             WorkbenchTableCard {
                 NativeTableView(
                     descriptor: scene.table,
-                    rows: scene.tableRows,
+                    snapshot: scene.tableSnapshot,
                     selectedRowID: viewModel.selectedRowID,
                     onSelectionChange: { onAction(.selectRow($0)) },
                     onSortByColumn: { columnID in

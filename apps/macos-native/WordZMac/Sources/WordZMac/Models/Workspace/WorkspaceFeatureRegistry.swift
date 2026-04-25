@@ -92,7 +92,7 @@ enum WorkspaceFeatureRegistry {
                     StatsView(
                         viewModel: workspace.stats,
                         sidebar: workspace.sidebar,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.stats),
                         onAction: dispatcher.handleStatsAction
                     )
                 )
@@ -115,7 +115,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     WordView(
                         viewModel: workspace.word,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.word),
                         onAction: dispatcher.handleWordAction
                     )
                 )
@@ -138,35 +138,13 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     TokenizeView(
                         viewModel: workspace.tokenize,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.tokenize),
                         onAction: dispatcher.handleTokenizeAction
                     )
                 )
             }
         ),
-        .init(
-            key: .topics,
-            route: .topics,
-            tab: .topics,
-            titleZh: "主题",
-            titleEn: "Topics",
-            sidebarSubtitleZh: "查看主题簇、代表词与片段分布",
-            sidebarSubtitleEn: "Inspect topic clusters, keywords, and segment spread",
-            symbolName: "square.grid.3x3.topleft.filled",
-            commandAction: .runTopics,
-            showsInSidebar: true,
-            showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    TopicsView(
-                        viewModel: workspace.topics,
-                        isBusy: workspace.shell.isBusy,
-                        onAction: dispatcher.handleTopicsAction
-                    )
-                )
-            }
-        ),
+        topicsDescriptor(),
         .init(
             key: .compare,
             route: .compare,
@@ -184,35 +162,13 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     CompareView(
                         viewModel: workspace.compare,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.compare),
                         onAction: dispatcher.handleCompareAction
                     )
                 )
             }
         ),
-        .init(
-            key: .sentiment,
-            route: .sentiment,
-            tab: .sentiment,
-            titleZh: "情感",
-            titleEn: "Sentiment",
-            sidebarSubtitleZh: "查看 neutrality / positivity / negativity 的启发式分布",
-            sidebarSubtitleEn: "Inspect heuristic neutrality / positivity / negativity distributions",
-            symbolName: "waveform.path.ecg.text",
-            commandAction: .runSentiment,
-            showsInSidebar: true,
-            showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    SentimentView(
-                        viewModel: workspace.sentiment,
-                        isBusy: workspace.shell.isBusy,
-                        onAction: dispatcher.handleSentimentAction
-                    )
-                )
-            }
-        ),
+        sentimentDescriptor(),
         .init(
             key: .keyword,
             route: .keyword,
@@ -230,7 +186,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     KeywordView(
                         viewModel: workspace.keyword,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.keyword),
                         onAction: dispatcher.handleKeywordAction
                     )
                 )
@@ -253,7 +209,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     ChiSquareView(
                         viewModel: workspace.chiSquare,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.chiSquare),
                         onAction: dispatcher.handleChiSquareAction
                     )
                 )
@@ -276,7 +232,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     PlotView(
                         viewModel: workspace.plot,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.plot),
                         onAction: dispatcher.handlePlotAction
                     )
                 )
@@ -299,7 +255,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     NgramView(
                         viewModel: workspace.ngram,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.ngram),
                         onAction: dispatcher.handleNgramAction
                     )
                 )
@@ -322,7 +278,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     ClusterView(
                         viewModel: workspace.cluster,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.cluster),
                         onAction: dispatcher.handleClusterAction
                     )
                 )
@@ -346,7 +302,7 @@ enum WorkspaceFeatureRegistry {
                     KWICView(
                         viewModel: workspace.kwic,
                         evidenceWorkbench: workspace.evidenceWorkbench,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.kwic),
                         onAction: dispatcher.handleKWICAction
                     )
                 )
@@ -369,7 +325,7 @@ enum WorkspaceFeatureRegistry {
                 AnyView(
                     CollocateView(
                         viewModel: workspace.collocate,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.collocate),
                         onAction: dispatcher.handleCollocateAction
                     )
                 )
@@ -393,7 +349,7 @@ enum WorkspaceFeatureRegistry {
                     LocatorView(
                         viewModel: workspace.locator,
                         evidenceWorkbench: workspace.evidenceWorkbench,
-                        isBusy: workspace.shell.isBusy,
+                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.locator),
                         onAction: dispatcher.handleLocatorAction
                     )
                 )

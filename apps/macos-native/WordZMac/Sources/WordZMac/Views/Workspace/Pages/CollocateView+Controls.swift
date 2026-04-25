@@ -50,8 +50,12 @@ extension CollocateView {
     }
 
     var keywordField: some View {
-        TextField(t("节点词", "Node Word"), text: $viewModel.keyword)
-            .textFieldStyle(.roundedBorder)
+        LexicalAutocompleteTextField(
+            title: t("节点词", "Node Word"),
+            text: $viewModel.keyword,
+            searchOptions: viewModel.searchOptions,
+            controller: lexicalAutocompleteController
+        )
     }
 
     var leftWindowField: some View {

@@ -65,6 +65,7 @@ final class CollocatePageViewModel: ObservableObject, AnalysisInputStateControll
     var pageSize: CollocatePageSize = .fifty
     var currentPage = 1
     var visibleColumns: Set<CollocateColumnKey> = CollocatePageViewModel.defaultVisibleColumns
+    var annotationState = WorkspaceAnnotationState.default
     var focusMetric: CollocateAssociationMetric = .logDice
     var lastRunConfiguration: CollocateRunConfiguration?
     var sceneBuildRevision = 0
@@ -113,5 +114,11 @@ final class CollocatePageViewModel: ObservableObject, AnalysisInputStateControll
             return row
         }
         return scene.rows.first
+    }
+
+    func applyWorkspaceAnnotationState(_ state: WorkspaceAnnotationState) {
+        guard annotationState != state else { return }
+        annotationState = state
+        rebuildScene()
     }
 }

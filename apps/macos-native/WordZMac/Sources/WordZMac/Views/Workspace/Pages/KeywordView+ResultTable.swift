@@ -11,7 +11,7 @@ extension KeywordView {
         WorkbenchTableCard {
             NativeTableView(
                 descriptor: scene.table,
-                rows: scene.tableRows,
+                snapshot: scene.tableSnapshot,
                 selectedRowID: viewModel.selectedRowID,
                 onSelectionChange: { onAction(.selectRow($0)) },
                 onSortByColumn: { columnID in

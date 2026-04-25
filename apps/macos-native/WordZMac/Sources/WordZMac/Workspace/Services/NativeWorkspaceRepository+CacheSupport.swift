@@ -13,6 +13,7 @@ extension NativeWorkspaceRepositoryCore {
                 storedTokenizedArtifactsByTextDigest[digest] = nil
                 storedTokenPositionIndexesByTextDigest[digest] = nil
                 storedCorpusIDsByTextDigest[digest] = nil
+                storedSentenceSearchCandidateIDsByKey = storedSentenceSearchCandidateIDsByKey.filter { $0.key.textDigest != digest }
             }
             openedCorpusCache[corpusId] = nil
         } else {
@@ -21,6 +22,7 @@ extension NativeWorkspaceRepositoryCore {
             storedTokenizedArtifactsByTextDigest.removeAll()
             storedTokenPositionIndexesByTextDigest.removeAll()
             storedCorpusIDsByTextDigest.removeAll()
+            storedSentenceSearchCandidateIDsByKey.removeAll()
         }
     }
 
@@ -54,12 +56,16 @@ extension NativeWorkspaceRepositoryCore {
             if let cached = storedTokenizedArtifactsByCorpusID[corpusId], !cached.textDigest.isEmpty {
                 storedTokenizedArtifactsByTextDigest[cached.textDigest] = nil
                 storedCorpusIDsByTextDigest[cached.textDigest] = nil
+                storedSentenceSearchCandidateIDsByKey = storedSentenceSearchCandidateIDsByKey.filter {
+                    $0.key.textDigest != cached.textDigest
+                }
             }
             storedTokenizedArtifactsByCorpusID[corpusId] = nil
         } else {
             storedTokenizedArtifactsByCorpusID.removeAll()
             storedTokenizedArtifactsByTextDigest.removeAll()
             storedCorpusIDsByTextDigest.removeAll()
+            storedSentenceSearchCandidateIDsByKey.removeAll()
         }
     }
 
@@ -92,6 +98,11 @@ extension NativeWorkspaceRepositoryCore {
         let textDigest = DocumentCacheKey(text: text).textDigest
         guard artifact.textDigest.isEmpty || artifact.textDigest == textDigest else { return }
         storedFrequencyArtifactsByTextDigest[textDigest] = artifact
+    }
+
+    func cacheStoredCorpusID(for corpusId: String, text: String) {
+        let textDigest = DocumentCacheKey(text: text).textDigest
+        storedCorpusIDsByTextDigest[textDigest] = corpusId
     }
 
     func storedTokenizedArtifact(for corpusId: String) throws -> StoredTokenizedArtifact? {
@@ -139,6 +150,56 @@ extension NativeWorkspaceRepositoryCore {
         }
         storedTokenPositionIndexesByTextDigest[textDigest] = artifact
         return artifact
+    }
+
+    func storedSentenceCandidateIDs(
+        forTextDigest textDigest: String,
+        matcher: SearchTextMatcher
+    ) throws -> Set<Int>? {
+        guard matcher.options.matchMode == .phraseExact,
+              !matcher.phraseTokens.isEmpty,
+              let corpusId = storedCorpusIDsByTextDigest[textDigest],
+              let store = storage as? any StoredSentenceSearchProvidingLibraryStore else {
+            return nil
+        }
+
+        let key = StoredSentenceSearchCacheKey(
+            textDigest: textDigest,
+            phraseSignature: matcher.phraseTokens.joined(separator: "\u{1F}")
+        )
+        if let cached = storedSentenceSearchCandidateIDsByKey[key] {
+            return cached
+        }
+
+        let candidateIDs = Set(
+            try store.loadCandidateSentenceIDs(
+                corpusId: corpusId,
+                phraseTokens: matcher.phraseTokens
+            )
+        )
+        storedSentenceSearchCandidateIDsByKey[key] = candidateIDs
+        return candidateIDs
+    }
+
+    func storedLocatorResult(
+        forTextDigest textDigest: String,
+        sentenceId: Int,
+        nodeIndex: Int,
+        leftWindow: Int,
+        rightWindow: Int
+    ) throws -> LocatorResult? {
+        guard let corpusId = storedCorpusIDsByTextDigest[textDigest],
+              let store = storage as? any StoredLocatorProvidingLibraryStore else {
+            return nil
+        }
+
+        return try store.loadStoredLocatorResult(
+            corpusId: corpusId,
+            sentenceId: sentenceId,
+            nodeIndex: nodeIndex,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow
+        )
     }
 
     func prepareStoredCompareCorpora(from entries: [CompareRequestEntry]) throws -> [PreparedCompareCorpus]? {

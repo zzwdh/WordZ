@@ -132,17 +132,22 @@ extension NativeCorpusDatabaseSupport {
         let storedDigest = stringColumn(statement, index: 0)
         let cleanedText = stringColumn(statement, index: 1)
         let legacyText = stringColumn(statement, index: 2)
-        let tokenizedSentencesJSON = stringColumn(statement, index: 3)
-        guard !tokenizedSentencesJSON.isEmpty else {
-            return nil
-        }
-
         let resolvedDigest: String
         if storedDigest.isEmpty {
             let storedText = preferredStoredText(cleanedText: cleanedText, legacyText: legacyText)
             resolvedDigest = DocumentCacheKey(text: storedText).textDigest
         } else {
             resolvedDigest = storedDigest
+        }
+
+        let relationalSentences = try readTokenizedSentencesFromRelationalTables(on: db)
+        if !relationalSentences.isEmpty {
+            return StoredTokenizedArtifact(textDigest: resolvedDigest, sentences: relationalSentences)
+        }
+
+        let tokenizedSentencesJSON = stringColumn(statement, index: 3)
+        guard !tokenizedSentencesJSON.isEmpty else {
+            return nil
         }
 
         let sentences = decodeTokenizedSentences(from: tokenizedSentencesJSON)
@@ -159,6 +164,82 @@ extension NativeCorpusDatabaseSupport {
             return []
         }
         return items.map(TokenizedSentence.init)
+    }
+
+    private static func readTokenizedSentencesFromRelationalTables(
+        on db: OpaquePointer?
+    ) throws -> [TokenizedSentence] {
+        let sentenceStatement = try prepare(
+            """
+            SELECT sentence_id,
+                   text
+            FROM sentence
+            ORDER BY sentence_id ASC;
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(sentenceStatement) }
+
+        var sentenceOrder: [Int] = []
+        var sentenceTextByID: [Int: String] = [:]
+        while sqlite3_step(sentenceStatement) == SQLITE_ROW {
+            let sentenceID = Int(sqlite3_column_int(sentenceStatement, 0))
+            sentenceOrder.append(sentenceID)
+            sentenceTextByID[sentenceID] = stringColumn(sentenceStatement, index: 1)
+        }
+        guard !sentenceOrder.isEmpty else { return [] }
+
+        let tokenStatement = try prepare(
+            """
+            SELECT sentence_id,
+                   token_index,
+                   original_term,
+                   normalized_term,
+                   lemma,
+                   lexical_class,
+                   script
+            FROM token
+            ORDER BY sentence_id ASC, token_index ASC;
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(tokenStatement) }
+
+        var tokensBySentenceID: [Int: [TokenizedToken]] = [:]
+        while sqlite3_step(tokenStatement) == SQLITE_ROW {
+            let sentenceID = Int(sqlite3_column_int(tokenStatement, 0))
+            let tokenIndex = Int(sqlite3_column_int(tokenStatement, 1))
+            let lemma = normalizedOptionalString(stringColumn(tokenStatement, index: 4))
+            let lexicalClass = TokenLexicalClass(rawValue: stringColumn(tokenStatement, index: 5))
+            let script = TokenScript(rawValue: stringColumn(tokenStatement, index: 6)) ?? .other
+
+            tokensBySentenceID[sentenceID, default: []].append(
+                TokenizedToken(
+                    original: stringColumn(tokenStatement, index: 2),
+                    normalized: stringColumn(tokenStatement, index: 3),
+                    sentenceId: sentenceID,
+                    tokenIndex: tokenIndex,
+                    annotations: TokenLinguisticAnnotations(
+                        script: script,
+                        lemma: lemma,
+                        lexicalClass: lexicalClass
+                    )
+                )
+            )
+        }
+
+        return sentenceOrder.map { sentenceID in
+            TokenizedSentence(
+                sentenceId: sentenceID,
+                text: sentenceTextByID[sentenceID, default: ""],
+                tokens: tokensBySentenceID[sentenceID, default: []]
+            )
+        }
+    }
+
+    private static func normalizedOptionalString(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     static func readStoredTokenPositionIndexArtifact(at url: URL) throws -> StoredTokenPositionIndexArtifact? {

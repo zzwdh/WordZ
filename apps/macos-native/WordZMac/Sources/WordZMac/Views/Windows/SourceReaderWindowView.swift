@@ -45,6 +45,11 @@ struct SourceReaderWindowView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
+                        if let annotationSummary = sourceReader.scene?.annotationSummary, !annotationSummary.isEmpty {
+                            Text(annotationSummary)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer()
@@ -87,9 +92,16 @@ struct SourceReaderWindowView: View {
                 }
 
                 if let hitCountSummary = sourceReader.scene?.hitCountSummary {
-                    Text(hitCountSummary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(hitCountSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let captureDraftSummary = sourceReader.captureDraftSummary {
+                            Text(captureDraftSummary)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .padding(20)
@@ -172,8 +184,21 @@ struct SourceReaderWindowView: View {
                                         title: t("引文", "Citation"),
                                         content: selection.hit.citationText
                                     )
+
+                                    if !selection.annotationItems.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(t("命中标注", "Hit Annotation"))
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                            annotationGrid(selection.annotationItems)
+                                        }
+                                    }
                                 }
                             }
+                        }
+
+                        if sourceReader.canAddEvidence {
+                            SourceReaderCaptureDraftCard(sourceReader: sourceReader)
                         }
 
                         WorkbenchSectionCard {
@@ -238,6 +263,34 @@ struct SourceReaderWindowView: View {
                 .font(.callout)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
+        }
+    }
+
+    private func annotationGrid(_ items: [SourceReaderAnnotationSceneItem]) -> some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.adaptive(minimum: 140), alignment: .leading)
+            ],
+            alignment: .leading,
+            spacing: 8
+        ) {
+            ForEach(items) { item in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(item.value)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(WordZTheme.primarySurfaceSoft)
+                )
+            }
         }
     }
 

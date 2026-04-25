@@ -117,6 +117,47 @@ extension NativeAnalysisEngine {
 
         return PlotDocumentDistribution(tokenCount: tokenCount, hitMarkers: hitMarkers)
     }
+
+    func runPlot(
+        artifact: StoredTokenizedArtifact,
+        candidateSentenceIDs: Set<Int>,
+        keyword: String,
+        searchOptions: SearchOptionsState
+    ) throws -> PlotDocumentDistribution {
+        let matcher = SearchTextMatcher(query: keyword, options: searchOptions)
+        if !matcher.error.isEmpty {
+            throw NSError(
+                domain: "WordZMac.NativeAnalysisEngine",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: matcher.error]
+            )
+        }
+
+        let tokenCount = artifact.tokenCount
+        let sentenceOffsets = absoluteSentenceOffsets(from: artifact.sentences.map { sentence in
+            PlotSentenceOffset(sentenceId: sentence.sentenceId, tokenCount: sentence.tokens.count)
+        })
+
+        var hitMarkers: [PlotHitMarker] = []
+        for sentence in artifact.sentences where candidateSentenceIDs.contains(sentence.sentenceId) {
+            let sentenceOffset = sentenceOffsets[sentence.sentenceId, default: 0]
+            for match in plotMatches(in: sentence, matcher: matcher) {
+                hitMarkers.append(
+                    PlotHitMarker(
+                        id: "\(sentence.sentenceId)-\(match.startIndex)",
+                        sentenceId: sentence.sentenceId,
+                        tokenIndex: match.startIndex,
+                        normalizedPosition: normalizedPosition(
+                            absoluteTokenIndex: sentenceOffset + match.startIndex,
+                            tokenCount: tokenCount
+                        )
+                    )
+                )
+            }
+        }
+
+        return PlotDocumentDistribution(tokenCount: tokenCount, hitMarkers: hitMarkers)
+    }
 }
 
 private struct PlotMatch {

@@ -12,7 +12,6 @@ final class WorkspaceAnalysisWorkflowService {
     let exportCoordinator: any WorkspaceExportCoordinating
     let taskCenter: NativeTaskCenter
     let persistenceWorkflow: WorkspacePersistenceWorkflowService
-    private var isRunningTopicsAnalysis = false
 
     init(
         repository: any WorkspaceRepository,
@@ -62,8 +61,6 @@ final class WorkspaceAnalysisWorkflowService {
             title: descriptor.title(in: .system),
             detail: descriptor.detail(in: .system)
         )
-        setBusy(true, features: features)
-        defer { setBusy(false, features: features) }
 
         do {
             try await operation()
@@ -441,204 +438,6 @@ final class WorkspaceAnalysisWorkflowService {
         }
     }
 
-    func runTopics(
-        features: WorkspaceFeatureSet,
-        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
-    ) async {
-        guard !isRunningTopicsAnalysis else { return }
-        isRunningTopicsAnalysis = true
-        var taskID: UUID?
-        defer { isRunningTopicsAnalysis = false }
-
-        do {
-            let corpus = try await ensureOpenedCorpus(
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            )
-            setBusy(true, features: features)
-            defer { setBusy(false, features: features) }
-
-            let options = TopicAnalysisOptions(
-                granularity: .paragraph,
-                language: "english",
-                minTopicSize: features.topics.minTopicSizeValue,
-                includeOutliers: features.topics.includeOutliers,
-                searchQuery: features.topics.normalizedQuery,
-                searchOptions: features.topics.searchOptions,
-                stopwordFilter: features.topics.stopwordFilter
-            )
-            let createdTaskID = taskCenter.beginTask(
-                title: wordZText("Topics 建模", "Run Topics", mode: .system),
-                detail: wordZText("正在准备主题建模…", "Preparing topic modeling…", mode: .system),
-                progress: 0
-            )
-            taskID = createdTaskID
-
-            let analysisTask = Task { () throws -> TopicAnalysisResult in
-                if let progressRepository = repository as? TopicProgressReportingRepository {
-                    return try await progressRepository.runTopics(text: corpus.content, options: options) { [weak taskCenter] progress in
-                        Task { @MainActor in
-                            taskCenter?.updateTask(
-                                id: createdTaskID,
-                                detail: self.localizedTopicProgressDetail(progress),
-                                progress: progress.progress
-                            )
-                        }
-                    }
-                }
-                return try await repository.runTopics(text: corpus.content, options: options)
-            }
-            taskCenter.registerCancelHandler(id: createdTaskID) {
-                analysisTask.cancel()
-            }
-
-            let result = try await analysisTask.value
-            features.topics.apply(result)
-            completeRun(
-                selecting: .topics,
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            )
-            features.sidebar.clearError()
-            taskCenter.completeTask(
-                id: createdTaskID,
-                detail: wordZText("Topics 结果已准备完成。", "Topics results are ready.", mode: .system)
-            )
-        } catch is CancellationError {
-            features.sidebar.clearError()
-        } catch {
-            features.sidebar.setError(error.localizedDescription)
-            if let taskID {
-                taskCenter.failTask(id: taskID, detail: error.localizedDescription)
-            }
-        }
-    }
-
-    func runSentiment(
-        features: WorkspaceFeatureSet,
-        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
-    ) async {
-        switch features.sentiment.source {
-        case .openedCorpus:
-            await performOpenedCorpusRunTask(
-                .sentiment,
-                selecting: .sentiment,
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            ) { corpus in
-                let text = SentimentInputText(
-                    id: features.sidebar.selectedCorpusID ?? UUID().uuidString,
-                    sourceID: features.sidebar.selectedCorpusID,
-                    sourceTitle: corpus.displayName.isEmpty ? wordZText("当前语料", "Opened Corpus", mode: .system) : corpus.displayName,
-                    text: corpus.content,
-                    groupID: "target",
-                    groupTitle: wordZText("目标语料", "Target", mode: .system)
-                )
-                let request = features.sentiment.currentRunRequest(texts: [text])
-                let result = try await self.repository.runSentiment(request)
-                features.sentiment.apply(result)
-            }
-        case .pastedText:
-            let trimmed = features.sentiment.manualText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
-                features.sidebar.setError(wordZText("请先输入要分析的英文文本。", "Enter some English text to analyze first.", mode: .system))
-                return
-            }
-            await performResultRunTask(
-                .sentiment,
-                selecting: .sentiment,
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            ) {
-                let text = SentimentInputText(
-                    id: "manual-text",
-                    sourceTitle: wordZText("粘贴文本", "Pasted Text", mode: .system),
-                    text: trimmed,
-                    groupID: "manual",
-                    groupTitle: wordZText("手动输入", "Manual Input", mode: .system)
-                )
-                let request = features.sentiment.currentRunRequest(texts: [text])
-                let result = try await self.repository.runSentiment(request)
-                features.sentiment.apply(result)
-            }
-        case .kwicVisible:
-            guard let scene = features.kwic.scene, !scene.rows.isEmpty else {
-                features.sidebar.setError(wordZText("请先生成 KWIC 结果。", "Run KWIC first to analyze visible concordance lines.", mode: .system))
-                return
-            }
-            let documentText = sessionStore.openedCorpus?.content
-            await performResultRunTask(
-                .sentiment,
-                selecting: .sentiment,
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            ) {
-                let texts = scene.rows.map { row in
-                    SentimentInputText(
-                        id: row.id,
-                        sourceID: features.sidebar.selectedCorpusID,
-                        sourceTitle: wordZText("KWIC", "KWIC", mode: .system),
-                        text: row.concordanceText,
-                        sentenceID: row.sentenceId,
-                        tokenIndex: row.sentenceTokenIndex,
-                        groupID: "kwic",
-                        groupTitle: wordZText("索引行", "Concordance", mode: .system),
-                        documentText: documentText
-                    )
-                }
-                let request = features.sentiment.currentRunRequest(texts: texts)
-                let result = try await self.repository.runSentiment(request)
-                features.sentiment.apply(result)
-            }
-        case .corpusCompare:
-            let targetCorpora = features.sentiment.selectedTargetCorpusItems()
-            guard !targetCorpora.isEmpty else {
-                features.sidebar.setError(wordZText("请至少选择一条目标语料。", "Select at least one target corpus first.", mode: .system))
-                return
-            }
-
-            await performResultRunTask(
-                .sentiment,
-                selecting: .sentiment,
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            ) {
-                var texts: [SentimentInputText] = []
-                for corpus in targetCorpora {
-                    let opened = try await self.repository.openSavedCorpus(corpusId: corpus.id)
-                    texts.append(
-                        SentimentInputText(
-                            id: "target::\(corpus.id)",
-                            sourceID: corpus.id,
-                            sourceTitle: corpus.name,
-                            text: opened.content,
-                            groupID: "target",
-                            groupTitle: wordZText("目标语料", "Target", mode: .system)
-                        )
-                    )
-                }
-
-                if let referenceCorpus = features.sentiment.selectedReferenceCorpusItem() {
-                    let opened = try await self.repository.openSavedCorpus(corpusId: referenceCorpus.id)
-                    texts.append(
-                        SentimentInputText(
-                            id: "reference::\(referenceCorpus.id)",
-                            sourceID: referenceCorpus.id,
-                            sourceTitle: referenceCorpus.name,
-                            text: opened.content,
-                            groupID: "reference",
-                            groupTitle: wordZText("参照语料", "Reference", mode: .system)
-                        )
-                    )
-                }
-
-                let request = features.sentiment.currentRunRequest(texts: texts)
-                let result = try await self.repository.runSentiment(request)
-                features.sentiment.apply(result)
-            }
-        }
-    }
-
     func runPlot(
         features: WorkspaceFeatureSet,
         syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
@@ -815,6 +614,27 @@ final class WorkspaceAnalysisWorkflowService {
             features.sidebar.setError("请先选择一条 Compare 结果。")
             return false
         }
+
+        if target == .sentiment {
+            features.compare.applySentimentDrilldownContext(
+                CompareSentimentDrilldownContext(
+                    focusTerm: row.word,
+                    targetCorpora: features.compare.selectedTargetCorpusItems(),
+                    referenceCorpora: features.compare.selectedReferenceCorpusItems()
+                )
+            )
+            features.sentiment.source = .corpusCompare
+            features.sentiment.unit = .sentence
+            features.sentiment.contextBasis = .fullSentenceWhenAvailable
+            features.sentiment.selectedCorpusIDs = Set(features.compare.selectedCorpusIDsSnapshot)
+            features.sentiment.selectedReferenceCorpusID = features.compare.selectedReferenceCorpusIDSnapshot
+            features.sentiment.rowFilterQuery = row.word
+            features.sentiment.labelFilter = nil
+            features.shell.selectedTab = .sentiment
+            markWorkspaceEdited(features)
+            return true
+        }
+
         guard let resolvedCorpus = resolveCompareDrilldownCorpus(for: row, features: features),
               features.sidebar.librarySnapshot.corpora.contains(where: { $0.id == resolvedCorpus.corpusId }) else {
             features.sidebar.setError("当前 Compare 结果没有可用的语料上下文。")
@@ -840,6 +660,8 @@ final class WorkspaceAnalysisWorkflowService {
         case .collocate:
             features.collocate.keyword = row.word
             features.shell.selectedTab = .collocate
+        case .sentiment, .topics:
+            break
         }
         markWorkspaceEdited(features)
         return true
@@ -880,7 +702,7 @@ final class WorkspaceAnalysisWorkflowService {
         return true
     }
 
-    private func buildKeywordRequestEntries(
+    func buildKeywordRequestEntries(
         from corpora: [LibraryCorpusItem]
     ) async throws -> [KeywordRequestEntry] {
         var entries: [KeywordRequestEntry] = []

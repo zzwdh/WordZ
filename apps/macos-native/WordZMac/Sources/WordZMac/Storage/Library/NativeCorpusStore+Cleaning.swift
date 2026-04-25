@@ -69,19 +69,21 @@ extension NativeCorpusStore {
             )
 
             do {
-                let storageURL = corporaDirectoryURL.appendingPathComponent(record.storageFileName)
+                let currentRecord = try migrateShardIfNeeded(record: record)
+                corpora[recordIndex] = currentRecord
+                let storageURL = corporaDirectoryURL.appendingPathComponent(currentRecord.storageFileName)
                 guard fileManager.fileExists(atPath: storageURL.path) else {
-                    throw missingItemError("语料文件已丢失：\(record.name)")
+                    throw missingItemError("语料文件已丢失：\(currentRecord.name)")
                 }
 
-                let storedDocument = try loadStoredDocumentForCleaning(at: storageURL, record: record)
+                let storedDocument = try loadStoredDocumentForCleaning(at: storageURL, record: currentRecord)
                 let rawInput = storedDocument.rawText.isEmpty ? storedDocument.text : storedDocument.rawText
                 let cleaned = CorpusAutoCleaningSupport.clean(rawInput)
                 guard !cleaned.cleanedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     throw NSError(
                         domain: "WordZMac.NativeCorpusStore",
                         code: 422,
-                        userInfo: [NSLocalizedDescriptionKey: "自动清洗后未保留可用文本：\(record.name)。"]
+                        userInfo: [NSLocalizedDescriptionKey: "自动清洗后未保留可用文本：\(currentRecord.name)。"]
                     )
                 }
 
@@ -97,8 +99,8 @@ extension NativeCorpusStore {
                         text: cleaned.cleanedText,
                         encodingName: storedDocument.metadata.detectedEncoding
                     ),
-                    sourceType: storedDocument.metadata.sourceType.isEmpty ? record.sourceType : storedDocument.metadata.sourceType,
-                    representedPath: storedDocument.metadata.representedPath.isEmpty ? record.representedPath : storedDocument.metadata.representedPath,
+                    sourceType: storedDocument.metadata.sourceType.isEmpty ? currentRecord.sourceType : storedDocument.metadata.sourceType,
+                    representedPath: storedDocument.metadata.representedPath.isEmpty ? currentRecord.representedPath : storedDocument.metadata.representedPath,
                     importedAt: storedDocument.metadata.importedAt.isEmpty ? timestamp() : storedDocument.metadata.importedAt,
                     metadataProfile: mergedMetadata,
                     rawText: cleaned.rawText,

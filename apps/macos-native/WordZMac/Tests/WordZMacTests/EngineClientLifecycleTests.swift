@@ -1,4 +1,5 @@
 import XCTest
+import WordZEngine
 @testable import WordZWorkspaceCore
 
 final class EngineClientLifecycleTests: XCTestCase {

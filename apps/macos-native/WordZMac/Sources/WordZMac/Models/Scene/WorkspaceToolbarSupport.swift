@@ -17,6 +17,8 @@ extension WorkspaceToolbarAction {
             return .openSelectedCorpus
         case .openSourceReader:
             return .openSourceReader
+        case .annotationControls:
+            return .refreshWorkspace
         case .previewCurrentCorpus:
             return .quickLookCurrentCorpus
         case .shareCurrentContent:
@@ -64,6 +66,8 @@ extension WorkspaceToolbarAction {
             return "arrow.up.right.square"
         case .openSourceReader:
             return "doc.text.magnifyingglass"
+        case .annotationControls:
+            return "slider.horizontal.3"
         case .previewCurrentCorpus:
             return "space"
         case .shareCurrentContent:

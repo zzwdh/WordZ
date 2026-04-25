@@ -6,6 +6,7 @@ struct WordSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         definition: FrequencyMetricDefinition = .default,
         sortMode: WordSortMode,
         pageSize: WordPageSize,
@@ -66,13 +67,17 @@ struct WordSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
-            additionalLines: [definition.summary(in: languageMode)]
+            additionalLines: [
+                definition.summary(in: languageMode),
+                annotationState.summary(in: languageMode)
+            ]
         )
 
         return WordSceneModel(
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationSummary: annotationState.summary(in: languageMode),
             definition: definition,
             definitionSummary: definition.summary(in: languageMode),
             exportMetadataLines: exportMetadataLines,

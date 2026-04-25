@@ -17,6 +17,7 @@ extension TokenizePageViewModel {
         let searchOptionsSnapshot = searchOptions
         let stopwordSnapshot = stopwordFilter
         let languagePresetSnapshot = languagePreset
+        let annotationProfileSnapshot = annotationProfile
         let lemmaStrategySnapshot = lemmaStrategy
         let sortSnapshot = sortMode
         let pageSizeSnapshot = pageSize
@@ -38,6 +39,7 @@ extension TokenizePageViewModel {
                     searchOptions: searchOptionsSnapshot,
                     stopwordFilter: stopwordSnapshot,
                     languagePreset: languagePresetSnapshot,
+                    annotationProfile: annotationProfileSnapshot,
                     lemmaStrategy: lemmaStrategySnapshot,
                     sortMode: sortSnapshot,
                     pageSize: pageSizeSnapshot,
@@ -58,12 +60,15 @@ extension TokenizePageViewModel {
         let resultSnapshot = result
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "tokenize", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
+                try Task.checkCancellation()
                 let presetFilteredTokens = sceneBuilder.filterPresetTokens(
                     from: resultSnapshot,
                     languagePreset: languagePresetSnapshot
                 )
+                try Task.checkCancellation()
                 let filtered = sceneBuilder.filterRows(
                     presetFilteredTokens,
                     query: querySnapshot,
@@ -71,17 +76,20 @@ extension TokenizePageViewModel {
                     stopword: stopwordSnapshot,
                     lemmaStrategy: lemmaStrategySnapshot
                 )
+                try Task.checkCancellation()
                 let sortedTokens = sceneBuilder.sortRows(
                     filtered.rows,
                     mode: sortSnapshot,
                     lemmaStrategy: lemmaStrategySnapshot
                 )
+                try Task.checkCancellation()
                 let nextScene = sceneBuilder.build(
                     from: resultSnapshot,
                     query: querySnapshot,
                     searchOptions: searchOptionsSnapshot,
                     stopwordFilter: stopwordSnapshot,
                     languagePreset: languagePresetSnapshot,
+                    annotationProfile: annotationProfileSnapshot,
                     lemmaStrategy: lemmaStrategySnapshot,
                     sortMode: sortSnapshot,
                     pageSize: pageSizeSnapshot,

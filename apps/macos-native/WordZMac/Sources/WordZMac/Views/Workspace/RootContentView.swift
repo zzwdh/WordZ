@@ -35,10 +35,16 @@ struct RootContentView: View {
                         toolbar: viewModel.shell.scene.toolbar,
                         selectedRoute: viewModel.selectedRoute,
                         languageMode: languageMode,
+                        annotationState: viewModel.annotationState,
+                        annotationSummary: viewModel.shell.scene.annotationSummary,
                         isSidebarVisible: isSidebarVisible,
                         isInspectorVisible: isInspectorVisible,
                         onToggleSidebar: { shellActionHandler.handle(.toggleSidebar) },
                         onToggleInspector: { shellActionHandler.handle(.toggleInspector) },
+                        onSelectAnnotationProfile: { viewModel.setAnnotationProfile($0) },
+                        onToggleAnnotationScript: { viewModel.toggleAnnotationScript($0) },
+                        onToggleAnnotationLexicalClass: { viewModel.toggleAnnotationLexicalClass($0) },
+                        onClearAnnotationFilters: { viewModel.clearAnnotationFilters() },
                         onPostCommand: { NativeAppCommandCenter.post($0) }
                     )
                 }

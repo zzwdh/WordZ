@@ -82,6 +82,17 @@ final class KeywordPageViewModel: ObservableObject, AnalysisInputStateControllin
     }
     @Published var importedReferenceListSourceName: String?
     @Published var importedReferenceListImportedAt: String?
+    @Published var annotationProfile: WorkspaceAnnotationProfile = .surface {
+        didSet {
+            guard oldValue != annotationProfile else { return }
+            let nextUnit = annotationProfile.keywordUnit
+            if unit != nextUnit {
+                unit = nextUnit
+            } else {
+                handleInputChange()
+            }
+        }
+    }
     @Published var unit: KeywordUnit = .normalizedSurface {
         didSet {
             guard oldValue != unit else { return }
@@ -204,6 +215,14 @@ final class KeywordPageViewModel: ObservableObject, AnalysisInputStateControllin
         KeywordRunConfiguration(configuration: suiteConfiguration)
     }
 
+    var workspaceAnnotationState: WorkspaceAnnotationState {
+        WorkspaceAnnotationState(
+            profile: annotationProfile,
+            lexicalClasses: Array(selectedLexicalClasses),
+            scripts: Array(selectedScripts)
+        )
+    }
+
     var suiteConfiguration: KeywordSuiteConfiguration {
         KeywordSuiteConfiguration(
             focusSelection: KeywordTargetSelection(
@@ -219,7 +238,7 @@ final class KeywordPageViewModel: ObservableObject, AnalysisInputStateControllin
                 importedListSourceName: importedReferenceListSourceName,
                 importedListImportedAt: importedReferenceListImportedAt
             ),
-            unit: unit,
+            unit: annotationProfile.keywordUnit,
             direction: direction,
             statistic: statistic,
             thresholds: KeywordThresholds(
@@ -231,7 +250,7 @@ final class KeywordPageViewModel: ObservableObject, AnalysisInputStateControllin
             ),
             tokenFilters: KeywordTokenFilterState(
                 languagePreset: languagePreset,
-                lemmaStrategy: unit.lemmaStrategy,
+                lemmaStrategy: annotationProfile.tokenizeLemmaStrategy,
                 scripts: selectedScripts.sorted { $0.rawValue < $1.rawValue },
                 lexicalClasses: selectedLexicalClasses.sorted { $0.rawValue < $1.rawValue },
                 stopwordFilter: stopwordFilter
@@ -281,5 +300,9 @@ final class KeywordPageViewModel: ObservableObject, AnalysisInputStateControllin
 
     var minAbsLogRatioValue: Double {
         max(0, Double(minAbsLogRatio) ?? 0)
+    }
+
+    func annotationSummary(in mode: AppLanguageMode) -> String {
+        workspaceAnnotationState.summary(in: mode)
     }
 }

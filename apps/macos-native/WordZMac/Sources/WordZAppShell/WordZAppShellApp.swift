@@ -1,5 +1,6 @@
 import SwiftUI
 import WordZWorkspaceCore
+import WordZWorkspaceFeature
 
 package struct WordZAppShell: App {
     @NSApplicationDelegateAdaptor(NativeApplicationDelegate.self) private var applicationDelegate
@@ -8,7 +9,10 @@ package struct WordZAppShell: App {
     @StateObject private var localization = WordZLocalization.shared
 
     package init() {
-        let container = NativeAppContainer.live()
+        _ = WordZWorkspaceFeatureModule.activationSummary
+        let container = NativeAppContainer.live(
+            makeFeaturePages: WordZWorkspaceFeaturePageFactory.makePageBundle
+        )
         let workspace = container.makeMainWorkspaceViewModel()
         _workspace = StateObject(wrappedValue: workspace)
         _menuBarController = StateObject(

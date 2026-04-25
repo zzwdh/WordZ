@@ -54,6 +54,21 @@ extension NativeCorpusDatabaseSupport {
         sqlite3_column_double(statement, index)
     }
 
+    static func scalarInt(_ sql: String, on db: OpaquePointer?) throws -> Int {
+        let statement = try prepare(sql, on: db)
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return 0 }
+        return Int(sqlite3_column_int64(statement, 0))
+    }
+
+    static func scalarText(_ sql: String, on db: OpaquePointer?) throws -> String? {
+        let statement = try prepare(sql, on: db)
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+        let value = stringColumn(statement, index: 0)
+        return value.isEmpty ? nil : value
+    }
+
     static func databaseError(on db: OpaquePointer?, message: String) -> NSError {
         NSError(
             domain: "WordZMac.NativeCorpusDatabaseSupport",

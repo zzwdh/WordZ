@@ -128,3 +128,32 @@ extension NativeDiagnosticsBundleContext {
         )
     }
 }
+
+extension NativeDiagnosticsStorageSnapshot {
+    func redactedForDiagnostics() -> NativeDiagnosticsStorageSnapshot {
+        NativeDiagnosticsStorageSnapshot(
+            rootPath: NativeDiagnosticsRedactionSupport.redactPath(rootPath),
+            libraryDatabaseExists: libraryDatabaseExists,
+            workspaceDatabaseExists: workspaceDatabaseExists,
+            librarySchemaVersion: librarySchemaVersion,
+            workspaceSchemaVersion: workspaceSchemaVersion,
+            folderCount: folderCount,
+            activeCorpusCount: activeCorpusCount,
+            quarantinedCorpusCount: quarantinedCorpusCount,
+            corpusSetCount: corpusSetCount,
+            recycleEntryCount: recycleEntryCount,
+            pendingShardMigrationCount: pendingShardMigrationCount,
+            workspaceSnapshotCount: workspaceSnapshotCount,
+            uiSettingsCount: uiSettingsCount,
+            analysisPresetCount: analysisPresetCount,
+            keywordSavedListCount: keywordSavedListCount,
+            concordanceSavedSetCount: concordanceSavedSetCount,
+            evidenceItemCount: evidenceItemCount,
+            sentimentReviewSampleCount: sentimentReviewSampleCount,
+            corpusShardFileCount: corpusShardFileCount,
+            recycleFileCount: recycleFileCount,
+            libraryWALSidecarExists: libraryWALSidecarExists,
+            workspaceWALSidecarExists: workspaceWALSidecarExists
+        )
+    }
+}

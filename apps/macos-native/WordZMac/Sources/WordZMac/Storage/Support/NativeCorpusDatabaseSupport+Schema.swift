@@ -10,6 +10,16 @@ extension NativeCorpusDatabaseSupport {
     static func ensureDocumentSchema(on db: OpaquePointer?) throws {
         try execute(
             """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL,
+                description TEXT NOT NULL
+            );
+            """,
+            on: db
+        )
+        try execute(
+            """
             CREATE TABLE IF NOT EXISTS corpus_document (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 schema_version INTEGER NOT NULL,
@@ -38,6 +48,55 @@ extension NativeCorpusDatabaseSupport {
                 raw_text TEXT NOT NULL DEFAULT '',
                 cleaned_text TEXT NOT NULL DEFAULT '',
                 text TEXT NOT NULL
+            );
+            """,
+            on: db
+        )
+        try execute(
+            """
+            CREATE TABLE IF NOT EXISTS cleaning_rule_hit (
+                rule_id TEXT NOT NULL,
+                hit_count INTEGER NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (rule_id, position)
+            );
+            """,
+            on: db
+        )
+        try execute(
+            """
+            CREATE TABLE IF NOT EXISTS sentence (
+                sentence_id INTEGER PRIMARY KEY,
+                paragraph_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                token_count INTEGER NOT NULL
+            );
+            """,
+            on: db
+        )
+        try execute(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS sentence_fts USING fts5(
+                text,
+                content = 'sentence',
+                content_rowid = 'sentence_id',
+                tokenize = 'unicode61 remove_diacritics 2'
+            );
+            """,
+            on: db
+        )
+        try execute(
+            """
+            CREATE TABLE IF NOT EXISTS token (
+                sentence_id INTEGER NOT NULL,
+                token_index INTEGER NOT NULL,
+                paragraph_id INTEGER NOT NULL,
+                original_term TEXT NOT NULL,
+                normalized_term TEXT NOT NULL,
+                lemma TEXT NOT NULL DEFAULT '',
+                lexical_class TEXT NOT NULL DEFAULT '',
+                script TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (sentence_id, token_index)
             );
             """,
             on: db
@@ -88,6 +147,13 @@ extension NativeCorpusDatabaseSupport {
         try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_year_label ON corpus_document(year_label ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_genre_label ON corpus_document(genre_label ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_tags_text ON corpus_document(tags_text ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_cleaning_rule_hit_rule_id ON cleaning_rule_hit(rule_id ASC, position ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_sentence_paragraph_id ON sentence(paragraph_id ASC, sentence_id ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_paragraph_id ON token(paragraph_id ASC, sentence_id ASC, token_index ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_normalized_term ON token(normalized_term ASC, sentence_id ASC, token_index ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_lemma ON token(lemma ASC, sentence_id ASC, token_index ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_lexical_class ON token(lexical_class ASC, sentence_id ASC, token_index ASC);", on: db)
+        try execute("CREATE INDEX IF NOT EXISTS idx_token_script ON token(script ASC, sentence_id ASC, token_index ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_count ON token_frequency(count DESC, term ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_rank ON token_frequency(rank_index ASC, term ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_token_frequency_norm_frequency ON token_frequency(norm_frequency DESC, term ASC);", on: db)

@@ -1,0 +1,22 @@
+[
+  { "term": "robust", "score": 1.5, "category": "corePositive", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "accurate", "score": 1.4, "category": "corePositive", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "insightful", "score": 1.5, "category": "corePositive", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "well motivated", "score": 1.6, "category": "corePositive", "domainTags": ["academic"], "matchMode": "surface" },
+  { "term": "sound", "score": 1.0, "category": "weakEvaluative", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "promising", "score": 1.1, "category": "weakEvaluative", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "encouraging", "score": 1.2, "category": "weakEvaluative", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "uncertain", "score": -0.35, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "uncertainty", "score": -0.4, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "limitation", "score": -0.45, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "limitations", "score": -0.45, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "surface" },
+  { "term": "limited", "score": -0.4, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "tentative", "score": -0.35, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "preliminary", "score": -0.3, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "inconclusive", "score": -0.5, "category": "academicCaution", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "biased", "score": -1.4, "category": "coreNegative", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "incomplete", "score": -1.2, "category": "coreNegative", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "under-specified", "score": -1.3, "category": "coreNegative", "domainTags": ["academic"], "matchMode": "surface" },
+  { "term": "flawed", "score": -1.4, "category": "coreNegative", "domainTags": ["academic"], "matchMode": "either" },
+  { "term": "inaccurate", "score": -1.5, "category": "coreNegative", "domainTags": ["academic"], "matchMode": "either" }
+]

@@ -1,0 +1,25 @@
+{
+  "countsByDomain" : {
+    "news" : 54
+  },
+  "countsByLabel" : {
+    "negative" : 18,
+    "neutral" : 18,
+    "positive" : 18
+  },
+  "countsBySplit" : {
+    "test" : 18,
+    "train" : 18,
+    "validation" : 18
+  },
+  "countsByTag" : {
+    "commentary" : 18,
+    "procedural" : 6,
+    "quoted" : 6,
+    "reported" : 6,
+    "stance" : 18
+  },
+  "notes" : "Manually adjudicated English news-oriented benchmark focused on procedural neutrality, quoted language, reported speech, commentary, and stance framing.",
+  "totalExamples" : 54,
+  "version" : "v3"
+}

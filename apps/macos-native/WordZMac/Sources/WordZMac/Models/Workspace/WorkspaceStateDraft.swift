@@ -9,6 +9,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let searchQuery: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationProfile: WorkspaceAnnotationProfile
+    let annotationLexicalClasses: [TokenLexicalClass]
+    let annotationScripts: [TokenScript]
     let tokenizeLanguagePreset: TokenizeLanguagePreset
     let tokenizeLemmaStrategy: TokenLemmaStrategy
     let compareReferenceCorpusID: String
@@ -17,6 +20,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let sentimentUnit: SentimentAnalysisUnit
     let sentimentContextBasis: SentimentContextBasis
     let sentimentBackend: SentimentBackendKind
+    let sentimentDomainPackID: SentimentDomainPackID
+    let sentimentRuleProfileID: String
+    let sentimentCalibrationProfileID: String
     let sentimentChartKind: SentimentChartKind
     let sentimentThresholdPreset: SentimentThresholdPreset
     let sentimentDecisionThreshold: Double
@@ -24,6 +30,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let sentimentNeutralBias: Double
     let sentimentRowFilterQuery: String
     let sentimentLabelFilter: SentimentLabel?
+    let sentimentReviewFilter: SentimentReviewFilter
+    let sentimentReviewStatusFilter: SentimentReviewStatusFilter
+    let sentimentShowOnlyHardCases: Bool
+    let sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile
+    let sentimentImportedLexiconBundles: [SentimentUserLexiconBundle]
     let sentimentSelectedCorpusIDs: [String]
     let sentimentReferenceCorpusID: String
     let keywordActiveTab: KeywordSuiteTab
@@ -75,6 +86,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         searchQuery: "",
         searchOptions: .default,
         stopwordFilter: .default,
+        annotationProfile: .surface,
+        annotationLexicalClasses: [],
+        annotationScripts: [],
         tokenizeLanguagePreset: .mixedChineseEnglish,
         tokenizeLemmaStrategy: .normalizedSurface,
         compareReferenceCorpusID: "",
@@ -83,6 +97,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         sentimentUnit: .sentence,
         sentimentContextBasis: .visibleContext,
         sentimentBackend: .lexicon,
+        sentimentDomainPackID: .mixed,
+        sentimentRuleProfileID: SentimentRuleProfile.default.id,
+        sentimentCalibrationProfileID: SentimentCalibrationProfile.default.id,
         sentimentChartKind: .distributionBar,
         sentimentThresholdPreset: .conservative,
         sentimentDecisionThreshold: SentimentThresholds.default.decisionThreshold,
@@ -90,6 +107,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         sentimentNeutralBias: SentimentThresholds.default.neutralBias,
         sentimentRowFilterQuery: "",
         sentimentLabelFilter: nil,
+        sentimentReviewFilter: .all,
+        sentimentReviewStatusFilter: .all,
+        sentimentShowOnlyHardCases: false,
+        sentimentWorkspaceCalibrationProfile: .workspaceDefault,
+        sentimentImportedLexiconBundles: [],
         sentimentSelectedCorpusIDs: [],
         sentimentReferenceCorpusID: "",
         keywordActiveTab: .words,
@@ -142,6 +164,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         searchQuery: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationProfile: WorkspaceAnnotationProfile = .surface,
+        annotationLexicalClasses: [TokenLexicalClass] = [],
+        annotationScripts: [TokenScript] = [],
         tokenizeLanguagePreset: TokenizeLanguagePreset = .mixedChineseEnglish,
         tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
         compareReferenceCorpusID: String = "",
@@ -150,6 +175,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         sentimentUnit: SentimentAnalysisUnit = .sentence,
         sentimentContextBasis: SentimentContextBasis = .visibleContext,
         sentimentBackend: SentimentBackendKind = .lexicon,
+        sentimentDomainPackID: SentimentDomainPackID = .mixed,
+        sentimentRuleProfileID: String = SentimentRuleProfile.default.id,
+        sentimentCalibrationProfileID: String = SentimentCalibrationProfile.default.id,
         sentimentChartKind: SentimentChartKind = .distributionBar,
         sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
         sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
@@ -157,6 +185,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
         sentimentRowFilterQuery: String = "",
         sentimentLabelFilter: SentimentLabel? = nil,
+        sentimentReviewFilter: SentimentReviewFilter = .all,
+        sentimentReviewStatusFilter: SentimentReviewStatusFilter = .all,
+        sentimentShowOnlyHardCases: Bool = false,
+        sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile = .workspaceDefault,
+        sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
         sentimentSelectedCorpusIDs: [String] = [],
         sentimentReferenceCorpusID: String = "",
         keywordActiveTab: KeywordSuiteTab = .words,
@@ -207,6 +240,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.searchQuery = searchQuery
         self.searchOptions = searchOptions
         self.stopwordFilter = stopwordFilter
+        self.annotationProfile = annotationProfile
+        self.annotationLexicalClasses = annotationLexicalClasses
+        self.annotationScripts = annotationScripts
         self.tokenizeLanguagePreset = tokenizeLanguagePreset
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
@@ -215,6 +251,9 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.sentimentUnit = sentimentUnit
         self.sentimentContextBasis = sentimentContextBasis
         self.sentimentBackend = sentimentBackend
+        self.sentimentDomainPackID = sentimentDomainPackID
+        self.sentimentRuleProfileID = sentimentRuleProfileID
+        self.sentimentCalibrationProfileID = sentimentCalibrationProfileID
         self.sentimentChartKind = sentimentChartKind
         self.sentimentThresholdPreset = sentimentThresholdPreset
         self.sentimentDecisionThreshold = sentimentDecisionThreshold
@@ -222,6 +261,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.sentimentNeutralBias = sentimentNeutralBias
         self.sentimentRowFilterQuery = sentimentRowFilterQuery
         self.sentimentLabelFilter = sentimentLabelFilter
+        self.sentimentReviewFilter = sentimentReviewFilter
+        self.sentimentReviewStatusFilter = sentimentReviewStatusFilter
+        self.sentimentShowOnlyHardCases = sentimentShowOnlyHardCases
+        self.sentimentWorkspaceCalibrationProfile = sentimentWorkspaceCalibrationProfile
+        self.sentimentImportedLexiconBundles = sentimentImportedLexiconBundles
         self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
         self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
         self.keywordActiveTab = keywordActiveTab
@@ -279,6 +323,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
                 "options": searchOptions.asJSONObject(),
                 "stopwordFilter": stopwordFilter.asJSONObject()
             ],
+            "annotation": [
+                "profile": annotationProfile.rawValue,
+                "lexicalClasses": annotationLexicalClasses.map(\.rawValue),
+                "scripts": annotationScripts.map(\.rawValue)
+            ],
             "tokenize": [
                 "languagePreset": tokenizeLanguagePreset.rawValue,
                 "lemmaStrategy": tokenizeLemmaStrategy.rawValue
@@ -294,11 +343,19 @@ struct WorkspaceStateDraft: Equatable, Sendable {
                 "backend": sentimentBackend.rawValue,
                 "chartKind": sentimentChartKind.rawValue,
                 "thresholdPreset": sentimentThresholdPreset.rawValue,
+                "calibrationProfileID": sentimentCalibrationProfileID,
+                "workspaceCalibrationProfile": encodeSentimentCalibrationProfileToJSONObject(sentimentWorkspaceCalibrationProfile) as Any,
                 "decisionThreshold": sentimentDecisionThreshold,
                 "minimumEvidence": sentimentMinimumEvidence,
                 "neutralBias": sentimentNeutralBias,
                 "rowFilterQuery": sentimentRowFilterQuery,
                 "labelFilter": sentimentLabelFilter?.rawValue as Any,
+                "domainPackID": sentimentDomainPackID.rawValue,
+                "ruleProfileID": sentimentRuleProfileID,
+                "reviewFilter": sentimentReviewFilter.rawValue,
+                "reviewStatusFilter": sentimentReviewStatusFilter.rawValue,
+                "showOnlyHardCases": sentimentShowOnlyHardCases,
+                "userLexiconBundles": encodeSentimentLexiconBundlesToJSONObject(sentimentImportedLexiconBundles),
                 "selectedCorpusIDs": sentimentSelectedCorpusIDs,
                 "referenceCorpusID": sentimentReferenceCorpusID
             ],
@@ -369,4 +426,28 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     var snapshotSummary: WorkspaceSnapshotSummary {
         WorkspaceSnapshotSummary(draft: self)
     }
+}
+
+private func encodeSentimentLexiconBundlesToJSONObject(
+    _ bundles: [SentimentUserLexiconBundle]
+) -> [JSONObject] {
+    bundles.compactMap { bundle in
+        guard let data = try? JSONEncoder().encode(bundle),
+              let object = try? JSONSerialization.jsonObject(with: data) as? JSONObject
+        else {
+            return nil
+        }
+        return object
+    }
+}
+
+private func encodeSentimentCalibrationProfileToJSONObject(
+    _ profile: SentimentCalibrationProfile
+) -> JSONObject? {
+    guard let data = try? JSONEncoder().encode(profile),
+          let object = try? JSONSerialization.jsonObject(with: data) as? JSONObject
+    else {
+        return nil
+    }
+    return object
 }

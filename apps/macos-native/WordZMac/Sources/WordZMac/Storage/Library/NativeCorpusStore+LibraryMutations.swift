@@ -12,9 +12,11 @@ extension NativeCorpusStore {
         }
 
         corpora[index].metadata = metadata
-        let storageURL = corporaDirectoryURL.appendingPathComponent(corpora[index].storageFileName)
+        let updatedRecord = try migrateShardIfNeeded(record: corpora[index])
+        corpora[index] = updatedRecord
+        let storageURL = corporaDirectoryURL.appendingPathComponent(updatedRecord.storageFileName)
         if fileManager.fileExists(atPath: storageURL.path) {
-            _ = try readStoredCorpusText(at: storageURL, record: corpora[index])
+            _ = try readStoredCorpusText(at: storageURL, record: updatedRecord)
             try NativeCorpusDatabaseSupport.updateMetadata(at: storageURL, metadataProfile: metadata)
         }
         try saveCorpora(corpora)
@@ -45,14 +47,15 @@ extension NativeCorpusStore {
     }
 
     func deleteCorpus(corpusId: String) throws {
-        var corpora = try loadCorpora()
-        guard let index = corpora.firstIndex(where: { $0.id == corpusId }) else {
+        let existingCorpora = try loadCorpora()
+        guard let index = existingCorpora.firstIndex(where: { $0.id == corpusId }) else {
             throw missingItemError("未找到要删除的语料。")
         }
-        let record = corpora.remove(at: index)
-        try moveStorageToRecycle(for: record)
-        var recycle = try loadRecycleEntries()
-        recycle.append(
+        let existingRecycle = try loadRecycleEntries()
+        var nextCorpora = existingCorpora
+        let record = nextCorpora.remove(at: index)
+        var nextRecycle = existingRecycle
+        nextRecycle.append(
             NativeRecycleRecord(
                 recycleEntryId: UUID().uuidString,
                 type: "corpus",
@@ -65,8 +68,17 @@ extension NativeCorpusStore {
                 corpora: [record]
             )
         )
-        try saveCorpora(corpora)
-        try saveRecycleEntries(recycle)
+
+        try storageMutationCoordinator.perform { transaction in
+            try snapshotLibraryCatalogMutation(
+                transaction,
+                corpora: existingCorpora,
+                recycleEntries: existingRecycle
+            )
+            try moveStorageToRecycle(for: record, transaction: transaction)
+            try saveCorpora(nextCorpora)
+            try saveRecycleEntries(nextRecycle)
+        }
     }
 
     func createFolder(name: String) throws -> LibraryFolderItem {
@@ -97,21 +109,21 @@ extension NativeCorpusStore {
     }
 
     func deleteFolder(folderId: String) throws {
-        var folders = try loadFolders()
-        guard let folderIndex = folders.firstIndex(where: { $0.id == folderId }) else {
+        let existingFolders = try loadFolders()
+        guard let folderIndex = existingFolders.firstIndex(where: { $0.id == folderId }) else {
             throw missingItemError("未找到要删除的文件夹。")
         }
-        let folder = folders.remove(at: folderIndex)
+        let existingCorpora = try loadCorpora()
+        let existingRecycle = try loadRecycleEntries()
+        var nextFolders = existingFolders
+        let folder = nextFolders.remove(at: folderIndex)
 
-        var corpora = try loadCorpora()
-        let removedCorpora = corpora.filter { $0.folderId == folder.id }
-        corpora.removeAll { $0.folderId == folder.id }
-        for corpus in removedCorpora {
-            try moveStorageToRecycle(for: corpus)
-        }
+        var nextCorpora = existingCorpora
+        let removedCorpora = nextCorpora.filter { $0.folderId == folder.id }
+        nextCorpora.removeAll { $0.folderId == folder.id }
 
-        var recycle = try loadRecycleEntries()
-        recycle.append(
+        var nextRecycle = existingRecycle
+        nextRecycle.append(
             NativeRecycleRecord(
                 recycleEntryId: UUID().uuidString,
                 type: "folder",
@@ -125,8 +137,19 @@ extension NativeCorpusStore {
             )
         )
 
-        try saveFolders(folders)
-        try saveCorpora(corpora)
-        try saveRecycleEntries(recycle)
+        try storageMutationCoordinator.perform { transaction in
+            try snapshotLibraryCatalogMutation(
+                transaction,
+                folders: existingFolders,
+                corpora: existingCorpora,
+                recycleEntries: existingRecycle
+            )
+            for corpus in removedCorpora {
+                try moveStorageToRecycle(for: corpus, transaction: transaction)
+            }
+            try saveFolders(nextFolders)
+            try saveCorpora(nextCorpora)
+            try saveRecycleEntries(nextRecycle)
+        }
     }
 }

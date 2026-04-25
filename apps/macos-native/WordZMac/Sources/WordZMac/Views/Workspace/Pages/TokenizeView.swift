@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TokenizeView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: TokenizePageViewModel
     let isBusy: Bool
     let onAction: (TokenizePageAction) -> Void

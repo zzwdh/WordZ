@@ -50,9 +50,11 @@ extension LocatorPageViewModel {
         }
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "locator", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
-                sceneBuilder.build(
+                try Task.checkCancellation()
+                return sceneBuilder.build(
                     from: resultSnapshot,
                     source: sourceSnapshot,
                     leftWindow: leftWindowSnapshot,

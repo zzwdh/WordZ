@@ -37,6 +37,28 @@ final class PlotClusterAnalysisEngineTests: XCTestCase {
         XCTAssertTrue(result.hitMarkers.allSatisfy { (0...1).contains($0.normalizedPosition) })
     }
 
+    func testRunPlotArtifactPhraseExactSupportsCandidateSentenceFastPath() throws {
+        let engine = NativeAnalysisEngine()
+        let text = "Alpha beta gamma.\nAlpha delta theta.\nAlpha beta again."
+        let documentKey = DocumentCacheKey(text: text)
+        let artifact = StoredTokenizedArtifact(
+            textDigest: documentKey.textDigest,
+            document: engine.indexedDocument(for: text, documentKey: documentKey).document
+        )
+
+        let result = try engine.runPlot(
+            artifact: artifact,
+            candidateSentenceIDs: Set([0, 2]),
+            keyword: "alpha beta",
+            searchOptions: SearchOptionsState(matchMode: .phraseExact)
+        )
+
+        XCTAssertEqual(result.tokenCount, 9)
+        XCTAssertEqual(result.hitMarkers.map(\.id), ["0-0", "2-0"])
+        XCTAssertEqual(result.hitMarkers.map(\.sentenceId), [0, 2])
+        XCTAssertEqual(result.hitMarkers.map(\.normalizedPosition), [0, 0.75])
+    }
+
     func testRunKWICPhraseExactMatchesContiguousTokensWithinSentence() throws {
         let engine = NativeAnalysisEngine()
 

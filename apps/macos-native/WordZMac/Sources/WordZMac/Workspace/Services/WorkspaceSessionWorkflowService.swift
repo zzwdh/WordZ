@@ -155,6 +155,7 @@ final class WorkspaceSessionWorkflowService {
         sessionStore.markEdited()
         persistenceWorkflow.persistWorkspaceState(
             features: features,
+            strategy: .debounced(nanoseconds: 1_500_000_000),
             refreshPresentationAfterSave: false,
             syncWindowAfterSave: true,
             syncFeatureContexts: syncFeatureContexts
@@ -256,7 +257,8 @@ final class WorkspaceSessionWorkflowService {
             hasExportableContent: false,
             runSentimentEnabled: features.sentiment.canRun(
                 hasOpenedCorpus: features.sidebar.selectedCorpusID != nil,
-                hasKWICRows: features.kwic.scene?.rows.isEmpty == false
+                hasKWICRows: features.kwic.scene?.rows.isEmpty == false,
+                hasTopicRows: features.topics.canAnalyzeVisibleTopicsInSentiment
             )
         )
     }

@@ -63,8 +63,12 @@ extension CompareView {
     }
 
     var searchField: some View {
-        TextField(t("过滤词（留空显示全部）", "Filter term (leave blank for all)"), text: $viewModel.query)
-            .textFieldStyle(.roundedBorder)
+        LexicalAutocompleteTextField(
+            title: t("过滤词（留空显示全部）", "Filter term (leave blank for all)"),
+            text: $viewModel.query,
+            searchOptions: viewModel.searchOptions,
+            controller: lexicalAutocompleteController
+        )
     }
 
     var referencePicker: some View {

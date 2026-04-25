@@ -52,6 +52,9 @@ extension MainWorkspaceViewModel {
             self.flowCoordinator.handleCorpusSelectionChange(features: self.features)
             self.syncSceneGraph(source: .librarySelection)
         }
+        sidebar.onSelectionStateChange = { [weak self] in
+            self?.syncLexicalAutocompleteSelection()
+        }
         sidebar.onMetadataFilterChange = { [weak self] selectionChanged in
             guard let self else { return }
             self.handleMetadataFiltersChanged(selectionChanged: selectionChanged)
@@ -70,6 +73,7 @@ extension MainWorkspaceViewModel {
 
         bindInputCallbacks()
         library.syncSidebarSelection(sidebar.selectedCorpusID)
+        syncLexicalAutocompleteSelection()
     }
 
     private func bindInputCallbacks() {
@@ -78,6 +82,10 @@ extension MainWorkspaceViewModel {
         }
         word.onSceneChange = { [weak self] in
             self?.syncVisibleResultSceneIfNeeded(.word)
+        }
+        tokenize.onAnnotationProfileChange = { [weak self] profile in
+            guard let self, !self.isApplyingWorkspaceAnnotationState else { return }
+            self.setAnnotationProfile(profile)
         }
         compare.onInputChange = { [weak self] in
             self?.scheduleInputStateSync()

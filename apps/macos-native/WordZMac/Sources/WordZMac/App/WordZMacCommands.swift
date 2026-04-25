@@ -240,6 +240,123 @@ struct WordZMacCommands: Commands {
             .disabled(!isContextEnabled(\.canExportReportBundle))
         }
 
+        dossierAndAnnotationCommands
+    }
+
+    @CommandsBuilder
+    private var dossierAndAnnotationCommands: some Commands {
+        CommandMenu(t("Dossier", "Dossier")) {
+            Section(t("当前分组", "Current Group")) {
+                Button(evidenceGroupingMode.moveSelectedGroupTitle(.up, in: localization.effectiveMode)) {
+                    performFocusedCommand("moveSelectedEvidenceGroup.up") { context in
+                        await moveSelectedEvidenceGroup(.up, using: context)
+                    }
+                }
+                .disabled(!isContextEnabled(\.canMoveEvidenceGroupUp))
+
+                Button(evidenceGroupingMode.moveSelectedGroupTitle(.down, in: localization.effectiveMode)) {
+                    performFocusedCommand("moveSelectedEvidenceGroup.down") { context in
+                        await moveSelectedEvidenceGroup(.down, using: context)
+                    }
+                }
+                .disabled(!isContextEnabled(\.canMoveEvidenceGroupDown))
+
+                Divider()
+
+                Button(evidenceGroupingMode.splitSelectedGroupTitle(in: localization.effectiveMode)) {
+                    performFocusedCommand("splitSelectedEvidenceGroup") { context in
+                        await splitSelectedEvidenceGroup(using: context)
+                    }
+                }
+                .disabled(!isContextEnabled(\.canSplitEvidenceGroup))
+
+                Button(evidenceGroupingMode.renameSelectedGroupTitle(in: localization.effectiveMode)) {
+                    performFocusedCommand("renameSelectedEvidenceGroup") { context in
+                        await renameSelectedEvidenceGroup(using: context)
+                    }
+                }
+                .disabled(!isContextEnabled(\.canRenameEvidenceGroup))
+
+                Button(evidenceGroupingMode.mergeSelectedGroupTitle(in: localization.effectiveMode)) {
+                    performFocusedCommand("mergeSelectedEvidenceGroup") { context in
+                        await mergeSelectedEvidenceGroup(using: context)
+                    }
+                }
+                .disabled(!isContextEnabled(\.canMergeEvidenceGroup))
+            }
+
+            Divider()
+
+            Button(t("导出 Dossier", "Export Dossier")) {
+                performFocusedCommand("exportEvidenceDossier") { context in
+                    await exportEvidenceDossier(using: context)
+                }
+            }
+            .disabled(!isContextEnabled(\.canExportEvidenceDossier))
+
+            Button(t("导出 JSON", "Export JSON")) {
+                performFocusedCommand("exportEvidenceJSON") { context in
+                    await exportEvidenceJSON(using: context)
+                }
+            }
+            .disabled(!isContextEnabled(\.canExportEvidenceJSON))
+        }
+
+        annotationAndHelpCommands
+    }
+
+    @CommandsBuilder
+    private var annotationAndHelpCommands: some Commands {
+        CommandMenu(t("标注", "Annotation")) {
+            Section(t("词形策略", "Profile")) {
+                ForEach(WorkspaceAnnotationProfile.allCases) { profile in
+                    Button(profile.title(in: localization.effectiveMode)) {
+                        workspace.setAnnotationProfile(profile)
+                    }
+                    .disabled(!annotationCommandsEnabled)
+                }
+            }
+
+            Divider()
+
+            Menu(t("脚本过滤", "Script Filter")) {
+                ForEach(TokenScript.allCases) { script in
+                    Button {
+                        workspace.toggleAnnotationScript(script)
+                    } label: {
+                        if workspace.annotationState.scriptSet.contains(script) {
+                            Label(script.title(in: localization.effectiveMode), systemImage: "checkmark")
+                        } else {
+                            Text(script.title(in: localization.effectiveMode))
+                        }
+                    }
+                    .disabled(!annotationCommandsEnabled)
+                }
+            }
+
+            Menu(t("词类过滤", "Lexical Class Filter")) {
+                ForEach(TokenLexicalClass.allCases) { lexicalClass in
+                    Button {
+                        workspace.toggleAnnotationLexicalClass(lexicalClass)
+                    } label: {
+                        if workspace.annotationState.lexicalClassSet.contains(lexicalClass) {
+                            Label(lexicalClass.title(in: localization.effectiveMode), systemImage: "checkmark")
+                        } else {
+                            Text(lexicalClass.title(in: localization.effectiveMode))
+                        }
+                    }
+                    .disabled(!annotationCommandsEnabled)
+                }
+            }
+
+            Divider()
+
+            Button(t("清空脚本与词类过滤", "Clear Script and Class Filters")) {
+                workspace.clearAnnotationFilters()
+            }
+            .disabled(!annotationCommandsEnabled || (workspace.annotationState.lexicalClasses.isEmpty && workspace.annotationState.scripts.isEmpty))
+        }
+
         CommandGroup(replacing: .help) {
             Button(t("检查更新…", "Check for Updates…")) {
                 performAsyncCommand("checkForUpdates") {
@@ -342,6 +459,14 @@ struct WordZMacCommands: Commands {
         toolbarCommandContext?.toolbar?.item(for: action)?.isEnabled ?? false
     }
 
+    private var annotationCommandsEnabled: Bool {
+        commandContext?.canConfigureAnnotation ?? false
+    }
+
+    private var evidenceGroupingMode: EvidenceWorkbenchGroupingMode {
+        workspace.evidenceWorkbench.groupingMode
+    }
+
     private func analysisCommand(_ title: String, action: WorkspaceToolbarAction) -> some View {
         Button(title) {
             postCommand(action.nativeCommand, name: action.rawValue)
@@ -427,6 +552,44 @@ struct WordZMacCommands: Commands {
     private func exportCurrent(using context: WorkspaceCommandContext) async {
         guard context.canExportCurrent else { return }
         await workspace.exportCurrent(preferredWindowRoute: context.route)
+    }
+
+    private func moveSelectedEvidenceGroup(
+        _ direction: EvidenceWorkbenchMoveDirection,
+        using context: WorkspaceCommandContext
+    ) async {
+        switch direction {
+        case .up:
+            guard context.canMoveEvidenceGroupUp else { return }
+        case .down:
+            guard context.canMoveEvidenceGroupDown else { return }
+        }
+        await workspace.moveSelectedEvidenceGroup(direction)
+    }
+
+    private func splitSelectedEvidenceGroup(using context: WorkspaceCommandContext) async {
+        guard context.canSplitEvidenceGroup else { return }
+        await workspace.splitSelectedEvidenceGroup(preferredWindowRoute: context.route)
+    }
+
+    private func renameSelectedEvidenceGroup(using context: WorkspaceCommandContext) async {
+        guard context.canRenameEvidenceGroup else { return }
+        await workspace.renameSelectedEvidenceGroup(preferredWindowRoute: context.route)
+    }
+
+    private func mergeSelectedEvidenceGroup(using context: WorkspaceCommandContext) async {
+        guard context.canMergeEvidenceGroup else { return }
+        await workspace.mergeSelectedEvidenceGroup(preferredWindowRoute: context.route)
+    }
+
+    private func exportEvidenceDossier(using context: WorkspaceCommandContext) async {
+        guard context.canExportEvidenceDossier else { return }
+        await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: context.route)
+    }
+
+    private func exportEvidenceJSON(using context: WorkspaceCommandContext) async {
+        guard context.canExportEvidenceJSON else { return }
+        await workspace.exportEvidenceJSON(preferredWindowRoute: context.route)
     }
 
     private func saveAnalysisPreset(using context: WorkspaceCommandContext) async {

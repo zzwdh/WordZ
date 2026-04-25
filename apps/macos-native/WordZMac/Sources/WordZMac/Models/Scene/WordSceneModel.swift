@@ -156,6 +156,7 @@ struct WordSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationSummary: String
     let definition: FrequencyMetricDefinition
     let definitionSummary: String
     let exportMetadataLines: [String]

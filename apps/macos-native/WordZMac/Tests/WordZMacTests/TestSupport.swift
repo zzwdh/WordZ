@@ -3,7 +3,7 @@ import Foundation
 @testable import WordZWorkspaceCore
 
 @MainActor
-final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository {
+final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository {
     var startedUserDataURL: URL?
     var stopCalled = false
     var loadBootstrapStateCallCount = 0
@@ -25,6 +25,12 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var runCollocateCallCount = 0
     var runLocatorCallCount = 0
     var lastRunPlotRequest: PlotRunRequest?
+    var lastRunTopicsText: String?
+    var lastRunTopicsOptions: TopicAnalysisOptions?
+    var lastSentimentRequest: SentimentRunRequest?
+    var lastCompareRequestEntries: [CompareRequestEntry] = []
+    var lastKeywordSuiteRequest: KeywordSuiteRunRequest?
+    var lastRunKWICKeyword = ""
     var lastRunKWICSearchOptions = SearchOptionsState.default
     var lastRunCollocateSearchOptions = SearchOptionsState.default
     var lastRunLocatorSentenceId: Int?
@@ -32,6 +38,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var importCorpusPathsCallCount = 0
     var cleanCorporaCallCount = 0
     var listLibraryCallCount = 0
+    var fullTextListLibraryCallCount = 0
     var createFolderCallCount = 0
     var renameCorpusCallCount = 0
     var moveCorpusCallCount = 0
@@ -59,15 +66,23 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var saveEvidenceItemCallCount = 0
     var deleteEvidenceItemCallCount = 0
     var replaceEvidenceItemsCallCount = 0
+    var listSentimentReviewSamplesCallCount = 0
+    var saveSentimentReviewSampleCallCount = 0
+    var deleteSentimentReviewSampleCallCount = 0
+    var replaceSentimentReviewSamplesCallCount = 0
     var savedWorkspaceDrafts: [WorkspaceStateDraft] = []
     var savedUISettings: [UISettingsSnapshot] = []
     var analysisPresetItems: [AnalysisPresetItem] = []
     var keywordSavedLists: [KeywordSavedList] = []
     var concordanceSavedSets: [ConcordanceSavedSet] = []
     var evidenceItems: [EvidenceItem] = []
+    var sentimentReviewSamples: [SentimentReviewSample] = []
 
     var bootstrapState: WorkspaceBootstrapState
     var openedCorpus: OpenedCorpus
+    var openedCorporaByID: [String: OpenedCorpus]
+    var storedFrequencyArtifactsByCorpusID: [String: StoredFrequencyArtifact] = [:]
+    var storedTokenizedArtifactsByCorpusID: [String: StoredTokenizedArtifact] = [:]
     var librarySnapshot: LibrarySnapshot
     var recycleSnapshot: RecycleBinSnapshot
     var statsResult: StatsResult
@@ -120,6 +135,10 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var saveEvidenceItemError: Error?
     var deleteEvidenceItemError: Error?
     var replaceEvidenceItemsError: Error?
+    var listSentimentReviewSamplesError: Error?
+    var saveSentimentReviewSampleError: Error?
+    var deleteSentimentReviewSampleError: Error?
+    var replaceSentimentReviewSamplesError: Error?
     var statsError: Error?
     var tokenizeError: Error?
     var topicsError: Error?
@@ -137,10 +156,19 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var saveWorkspaceError: Error?
     var saveUISettingsError: Error?
     var topicsDelayNanoseconds: UInt64 = 0
+    var compareDelayNanoseconds: UInt64 = 0
+    var keywordSuiteDelayNanoseconds: UInt64 = 0
+    var kwicDelayNanoseconds: UInt64 = 0
+    var saveWorkspaceDelayNanoseconds: UInt64 = 0
+    var compareResultProvider: (([CompareRequestEntry]) async throws -> CompareResult)?
+    var keywordSuiteResultProvider: ((KeywordSuiteRunRequest) async throws -> KeywordSuiteResult)?
+    var kwicResultProvider: ((String) async throws -> KWICResult)?
+    var lastListLibrarySearchQuery = ""
 
     init(
         bootstrapState: WorkspaceBootstrapState = makeBootstrapState(),
         openedCorpus: OpenedCorpus = makeOpenedCorpus(),
+        openedCorporaByID: [String: OpenedCorpus] = [:],
         recycleSnapshot: RecycleBinSnapshot = makeRecycleSnapshot(),
         statsResult: StatsResult = makeStatsResult(),
         corpusInfoResult: CorpusInfoSummary = makeCorpusInfoSummary(),
@@ -163,6 +191,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     ) {
         self.bootstrapState = bootstrapState
         self.openedCorpus = openedCorpus
+        self.openedCorporaByID = openedCorporaByID
         self.librarySnapshot = bootstrapState.librarySnapshot
         self.recycleSnapshot = recycleSnapshot
         self.statsResult = statsResult
@@ -205,6 +234,46 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
         listLibraryCallCount += 1
         if let listLibraryError { throw listLibraryError }
         return librarySnapshot
+    }
+
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState,
+        searchQuery: String
+    ) async throws -> LibrarySnapshot {
+        fullTextListLibraryCallCount += 1
+        lastListLibrarySearchQuery = searchQuery
+        if let listLibraryError { throw listLibraryError }
+
+        let trimmedSearchQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filteredCorpora = librarySnapshot.corpora.filter { corpus in
+            let metadataMatches = metadataFilterState.isEmpty || metadataFilterState.matches(corpus.metadata)
+            let folderMatches = folderId.isEmpty || folderId == "all" || corpus.folderId == folderId
+            let searchMatches: Bool
+            if trimmedSearchQuery.isEmpty {
+                searchMatches = true
+            } else {
+                let searchableFields = [
+                    corpus.name,
+                    corpus.folderName,
+                    corpus.sourceType,
+                    corpus.metadata.sourceLabel,
+                    corpus.metadata.yearLabel,
+                    corpus.metadata.genreLabel,
+                    corpus.metadata.tagsText
+                ]
+                searchMatches = searchableFields.contains {
+                    $0.localizedCaseInsensitiveContains(trimmedSearchQuery)
+                }
+            }
+            return metadataMatches && folderMatches && searchMatches
+        }
+
+        return LibrarySnapshot(
+            folders: librarySnapshot.folders,
+            corpora: filteredCorpora,
+            corpusSets: librarySnapshot.corpusSets
+        )
     }
 
     func saveCorpusSet(
@@ -383,7 +452,18 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     func openSavedCorpus(corpusId: String) async throws -> OpenedCorpus {
         openSavedCorpusCallCount += 1
         if let openError { throw openError }
+        if let openedCorpus = openedCorporaByID[corpusId] {
+            return openedCorpus
+        }
         return openedCorpus
+    }
+
+    func loadStoredFrequencyArtifact(corpusId: String) async throws -> StoredFrequencyArtifact? {
+        storedFrequencyArtifactsByCorpusID[corpusId]
+    }
+
+    func loadStoredTokenizedArtifact(corpusId: String) async throws -> StoredTokenizedArtifact? {
+        storedTokenizedArtifactsByCorpusID[corpusId]
     }
 
     func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
@@ -423,6 +503,8 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
 
     func runTopics(text: String, options: TopicAnalysisOptions) async throws -> TopicAnalysisResult {
         runTopicsCallCount += 1
+        lastRunTopicsText = text
+        lastRunTopicsOptions = options
         if topicsDelayNanoseconds > 0 {
             try? await Task.sleep(nanoseconds: topicsDelayNanoseconds)
         }
@@ -432,19 +514,34 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
 
     func runCompare(comparisonEntries: [CompareRequestEntry]) async throws -> CompareResult {
         runCompareCallCount += 1
+        lastCompareRequestEntries = comparisonEntries
+        if compareDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: compareDelayNanoseconds)
+        }
         if let compareError { throw compareError }
+        if let compareResultProvider {
+            return try await compareResultProvider(comparisonEntries)
+        }
         return compareResult
     }
 
     func runSentiment(_ request: SentimentRunRequest) async throws -> SentimentRunResult {
         runSentimentCallCount += 1
+        lastSentimentRequest = request
         if let sentimentError { throw sentimentError }
         return sentimentResult
     }
 
     func runKeywordSuite(_ request: KeywordSuiteRunRequest) async throws -> KeywordSuiteResult {
         runKeywordSuiteCallCount += 1
+        lastKeywordSuiteRequest = request
+        if keywordSuiteDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: keywordSuiteDelayNanoseconds)
+        }
         if let keywordSuiteError { throw keywordSuiteError }
+        if let keywordSuiteResultProvider {
+            return try await keywordSuiteResultProvider(request)
+        }
         return keywordSuiteResult
     }
 
@@ -494,8 +591,15 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
         searchOptions: SearchOptionsState
     ) async throws -> KWICResult {
         runKWICCallCount += 1
+        lastRunKWICKeyword = keyword
         lastRunKWICSearchOptions = searchOptions
+        if kwicDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: kwicDelayNanoseconds)
+        }
         if let kwicError { throw kwicError }
+        if let kwicResultProvider {
+            return try await kwicResultProvider(keyword)
+        }
         return kwicResult
     }
 
@@ -587,6 +691,35 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
         replaceEvidenceItemsCallCount += 1
         if let replaceEvidenceItemsError { throw replaceEvidenceItemsError }
         evidenceItems = items
+    }
+
+    func listSentimentReviewSamples() async throws -> [SentimentReviewSample] {
+        listSentimentReviewSamplesCallCount += 1
+        if let listSentimentReviewSamplesError { throw listSentimentReviewSamplesError }
+        return sentimentReviewSamples
+    }
+
+    func saveSentimentReviewSample(_ sample: SentimentReviewSample) async throws -> SentimentReviewSample {
+        saveSentimentReviewSampleCallCount += 1
+        if let saveSentimentReviewSampleError { throw saveSentimentReviewSampleError }
+        if let existingIndex = sentimentReviewSamples.firstIndex(where: { $0.id == sample.id || $0.matchKey == sample.matchKey }) {
+            sentimentReviewSamples[existingIndex] = sample
+        } else {
+            sentimentReviewSamples.insert(sample, at: 0)
+        }
+        return sample
+    }
+
+    func deleteSentimentReviewSample(sampleID: String) async throws {
+        deleteSentimentReviewSampleCallCount += 1
+        if let deleteSentimentReviewSampleError { throw deleteSentimentReviewSampleError }
+        sentimentReviewSamples.removeAll { $0.id == sampleID }
+    }
+
+    func replaceSentimentReviewSamples(_ samples: [SentimentReviewSample]) async throws {
+        replaceSentimentReviewSamplesCallCount += 1
+        if let replaceSentimentReviewSamplesError { throw replaceSentimentReviewSamplesError }
+        sentimentReviewSamples = samples
     }
 
     func renameCorpus(corpusId: String, newName: String) async throws -> LibraryCorpusItem {
@@ -727,6 +860,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     }
 
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws {
+        if saveWorkspaceDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: saveWorkspaceDelayNanoseconds)
+        }
         if let saveWorkspaceError { throw saveWorkspaceError }
         savedWorkspaceDrafts.append(draft)
     }
@@ -889,6 +1025,83 @@ final class FakeWorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
 }
 
 @MainActor
+final class SpySentimentWorkflowService: WorkspaceSentimentWorkflowServing {
+    var runSentimentCallCount = 0
+    var importBundleCallCount = 0
+    var exportSummaryCallCount = 0
+    var exportStructuredJSONCallCount = 0
+    var lastManualText: String?
+
+    func runSentiment(
+        features: WorkspaceSentimentWorkflowContext,
+        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
+    ) async {
+        runSentimentCallCount += 1
+        lastManualText = features.sentiment.manualText
+    }
+
+    func importSentimentUserLexiconBundle(
+        features: WorkspaceSentimentWorkflowContext,
+        preferredRoute: NativeWindowRoute?,
+        markWorkspaceEdited: @escaping @MainActor (WorkspaceFeatureSet) -> Void
+    ) async {
+        importBundleCallCount += 1
+    }
+
+    func exportSentimentSummary(
+        features: WorkspaceSentimentWorkflowContext,
+        preferredRoute: NativeWindowRoute?
+    ) async {
+        exportSummaryCallCount += 1
+    }
+
+    func exportSentimentStructuredJSON(
+        features: WorkspaceSentimentWorkflowContext,
+        preferredRoute: NativeWindowRoute?
+    ) async {
+        exportStructuredJSONCallCount += 1
+    }
+}
+
+@MainActor
+final class SpyWorkspaceFeatureWorkflowFactory: WorkspaceFeatureWorkflowBuilding {
+    let sentimentWorkflow: any WorkspaceSentimentWorkflowServing
+    var makeCallCount = 0
+
+    init(sentimentWorkflow: any WorkspaceSentimentWorkflowServing) {
+        self.sentimentWorkflow = sentimentWorkflow
+    }
+
+    func make(
+        repository: any WorkspaceRepository,
+        sessionStore: WorkspaceSessionStore,
+        dialogService: NativeDialogServicing,
+        hostActionService: any NativeHostActionServicing,
+        exportCoordinator: any WorkspaceExportCoordinating,
+        taskCenter: NativeTaskCenter,
+        analysisWorkflow: WorkspaceAnalysisWorkflowService
+    ) -> WorkspaceFeatureWorkflowSet {
+        makeCallCount += 1
+        return WorkspaceFeatureWorkflowSet(
+            sentiment: sentimentWorkflow,
+            topics: WorkspaceTopicsWorkflowService(
+                repository: repository,
+                sessionStore: sessionStore,
+                taskCenter: taskCenter,
+                analysisWorkflow: analysisWorkflow
+            ),
+            evidence: WorkspaceEvidenceWorkflowService(
+                repository: repository,
+                sessionStore: sessionStore,
+                dialogService: dialogService,
+                hostActionService: hostActionService,
+                exportCoordinator: exportCoordinator
+            )
+        )
+    }
+}
+
+@MainActor
 final class FakeRuntimeDependencyFactory: MainWorkspaceRuntimeDependencyBuilding {
     let result: MainWorkspaceRuntimeDependencies
     var makeCallCount = 0
@@ -918,168 +1131,6 @@ final class FakeRuntimeDependencyFactory: MainWorkspaceRuntimeDependencyBuilding
         makeCallCount += 1
         return result
     }
-}
-
-@MainActor
-func makeWorkspaceFlowCoordinator(
-    repository: any WorkspaceRepository,
-    workspacePersistence: WorkspacePersistenceService = WorkspacePersistenceService(),
-    workspacePresentation: WorkspacePresentationService = WorkspacePresentationService(),
-    sceneStore: WorkspaceSceneStore = WorkspaceSceneStore(),
-    windowDocumentController: NativeWindowDocumentController = NativeWindowDocumentController(),
-    dialogService: NativeDialogServicing = NativeSheetDialogService(),
-    hostActionService: (any NativeHostActionServicing)? = nil,
-    sessionStore: WorkspaceSessionStore,
-    hostPreferencesStore: (any NativeHostPreferencesStoring)? = nil,
-    libraryCoordinator: any LibraryCoordinating,
-    libraryManagementCoordinator: (any LibraryManagementCoordinating)? = nil,
-    exportCoordinator: (any WorkspaceExportCoordinating)? = nil,
-    taskCenter: NativeTaskCenter? = nil
-) -> WorkspaceFlowCoordinator {
-    let resolvedHostActionService = hostActionService ?? NativeHostActionService(dialogService: dialogService)
-    let resolvedHostPreferencesStore = hostPreferencesStore ?? NativeHostPreferencesStore()
-    let resolvedLibraryManagementCoordinator = libraryManagementCoordinator ?? LibraryManagementCoordinator(
-        repository: repository,
-        dialogService: dialogService,
-        sessionStore: sessionStore
-    )
-    let resolvedExportCoordinator = exportCoordinator ?? WorkspaceExportCoordinator(dialogService: dialogService)
-    let resolvedTaskCenter = taskCenter ?? NativeTaskCenter()
-
-    return WorkspaceFlowCoordinator(
-        repository: repository,
-        workspacePersistence: workspacePersistence,
-        workspacePresentation: workspacePresentation,
-        sceneStore: sceneStore,
-        windowDocumentController: windowDocumentController,
-        dialogService: dialogService,
-        hostActionService: resolvedHostActionService,
-        sessionStore: sessionStore,
-        hostPreferencesStore: resolvedHostPreferencesStore,
-        libraryCoordinator: libraryCoordinator,
-        libraryManagementCoordinator: resolvedLibraryManagementCoordinator,
-        exportCoordinator: resolvedExportCoordinator,
-        taskCenter: resolvedTaskCenter
-    )
-}
-
-@MainActor
-func makeAppCoordinator(
-    repository: any WorkspaceRepository,
-    sceneStore: WorkspaceSceneStore,
-    sessionStore: WorkspaceSessionStore,
-    flowCoordinator: WorkspaceFlowCoordinator,
-    hostPreferencesStore: any NativeHostPreferencesStoring = NativeHostPreferencesStore(),
-    buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService()
-) -> AppCoordinator {
-    AppCoordinator(
-        repository: repository,
-        bootstrapApplier: WorkspaceBootstrapApplier(
-            sceneStore: sceneStore,
-            sessionStore: sessionStore,
-            flowCoordinator: flowCoordinator,
-            hostPreferencesStore: hostPreferencesStore,
-            buildMetadataProvider: buildMetadataProvider
-        )
-    )
-}
-
-@MainActor
-func makeMainWorkspaceViewModel(
-    repository: any WorkspaceRepository,
-    workspacePersistence: WorkspacePersistenceService = WorkspacePersistenceService(),
-    workspacePresentation: WorkspacePresentationService = WorkspacePresentationService(),
-    sceneStore: WorkspaceSceneStore = WorkspaceSceneStore(),
-    sceneGraphStore: WorkspaceSceneGraphStore = WorkspaceSceneGraphStore(),
-    rootSceneBuilder: any RootContentSceneBuilding = RootContentSceneBuilder(),
-    windowDocumentController: NativeWindowDocumentController = NativeWindowDocumentController(),
-    dialogService: NativeDialogServicing = NativeSheetDialogService(),
-    hostPreferencesStore: any NativeHostPreferencesStoring = NativeHostPreferencesStore(),
-    hostActionService: (any NativeHostActionServicing)? = nil,
-    quickLookPreviewFileService: any QuickLookPreviewFilePreparing = QuickLookPreviewFileService(),
-    reportBundleService: any AnalysisReportBundleServicing = AnalysisReportBundleService(),
-    updateService: (any NativeUpdateServicing)? = nil,
-    notificationService: (any NativeNotificationServicing)? = nil,
-    applicationActivityInspector: (any ApplicationActivityInspecting)? = nil,
-    buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService(),
-    diagnosticsBundleService: any NativeDiagnosticsBundleServicing = NativeDiagnosticsBundleService(),
-    taskCenter: NativeTaskCenter = NativeTaskCenter(),
-    sessionStore: WorkspaceSessionStore = WorkspaceSessionStore(),
-    libraryCoordinator: (any LibraryCoordinating)? = nil,
-    coordinatorFactory: (any WorkspaceCoordinatorBuilding)? = nil,
-    runtimeDependencyFactory: (any MainWorkspaceRuntimeDependencyBuilding)? = nil,
-    sidebar: LibrarySidebarViewModel = LibrarySidebarViewModel(),
-    shell: WorkspaceShellViewModel = WorkspaceShellViewModel(),
-    library: LibraryManagementViewModel = LibraryManagementViewModel(),
-    stats: StatsPageViewModel = StatsPageViewModel(),
-    word: WordPageViewModel = WordPageViewModel(),
-    tokenize: TokenizePageViewModel = TokenizePageViewModel(),
-    topics: TopicsPageViewModel = TopicsPageViewModel(),
-    compare: ComparePageViewModel = ComparePageViewModel(),
-    sentiment: SentimentPageViewModel = SentimentPageViewModel(),
-    keyword: KeywordPageViewModel = KeywordPageViewModel(),
-    chiSquare: ChiSquarePageViewModel = ChiSquarePageViewModel(),
-    plot: PlotPageViewModel = PlotPageViewModel(),
-    ngram: NgramPageViewModel = NgramPageViewModel(),
-    cluster: ClusterPageViewModel = ClusterPageViewModel(),
-    kwic: KWICPageViewModel = KWICPageViewModel(),
-    collocate: CollocatePageViewModel = CollocatePageViewModel(),
-    locator: LocatorPageViewModel = LocatorPageViewModel(),
-    settings: WorkspaceSettingsViewModel = WorkspaceSettingsViewModel()
-) -> MainWorkspaceViewModel {
-    let resolvedRuntimeDependencyFactory = runtimeDependencyFactory ?? MainWorkspaceRuntimeDependencyFactory()
-    let runtimeDependencies = resolvedRuntimeDependencyFactory.make(
-        repository: repository,
-        workspacePersistence: workspacePersistence,
-        workspacePresentation: workspacePresentation,
-        sceneStore: sceneStore,
-        windowDocumentController: windowDocumentController,
-        dialogService: dialogService,
-        hostPreferencesStore: hostPreferencesStore,
-        hostActionService: hostActionService,
-        updateService: updateService,
-        notificationService: notificationService,
-        applicationActivityInspector: applicationActivityInspector,
-        buildMetadataProvider: buildMetadataProvider,
-        taskCenter: taskCenter,
-        sessionStore: sessionStore,
-        libraryCoordinator: libraryCoordinator,
-        coordinatorFactory: coordinatorFactory
-    )
-
-    return MainWorkspaceViewModel(
-        repository: repository,
-        runtimeDependencies: runtimeDependencies,
-        sceneStore: sceneStore,
-        sceneGraphStore: sceneGraphStore,
-        rootSceneBuilder: rootSceneBuilder,
-        dialogService: dialogService,
-        hostPreferencesStore: hostPreferencesStore,
-        quickLookPreviewFileService: quickLookPreviewFileService,
-        reportBundleService: reportBundleService,
-        buildMetadataProvider: buildMetadataProvider,
-        diagnosticsBundleService: diagnosticsBundleService,
-        taskCenter: taskCenter,
-        sessionStore: sessionStore,
-        sidebar: sidebar,
-        shell: shell,
-        library: library,
-        stats: stats,
-        word: word,
-        tokenize: tokenize,
-        topics: topics,
-        compare: compare,
-        sentiment: sentiment,
-        keyword: keyword,
-        chiSquare: chiSquare,
-        plot: plot,
-        ngram: ngram,
-        cluster: cluster,
-        kwic: kwic,
-        collocate: collocate,
-        locator: locator,
-        settings: settings
-    )
 }
 
 struct FakeBuildMetadataProvider: NativeBuildMetadataProviding {
@@ -1488,9 +1539,50 @@ final class CountingRootContentSceneBuilder: RootContentSceneBuilding {
 func makeBootstrapState(
     workspaceSnapshot: WorkspaceSnapshotSummary = makeWorkspaceSnapshot(),
     corpusSets: [LibraryCorpusSetItem] = [],
+    corpora: [LibraryCorpusItem]? = nil,
     uiSettings: UISettingsSnapshot = .default
 ) -> WorkspaceBootstrapState {
-    WorkspaceBootstrapState(
+    let defaultCorpora: [LibraryCorpusItem] = [
+        LibraryCorpusItem(json: [
+            "id": "corpus-1",
+            "name": "Demo Corpus",
+            "folderId": "folder-1",
+            "folderName": "Default",
+            "sourceType": "txt",
+            "representedPath": "/tmp/demo.txt",
+            "metadata": [
+                "sourceLabel": "教材",
+                "yearLabel": "2024",
+                "genreLabel": "教学",
+                "tags": ["课堂", "基础"]
+            ],
+            "cleaningStatus": "cleanedWithChanges",
+            "cleaningSummary": makeCleaningReportSummary(
+                status: .cleanedWithChanges,
+                cleanedAt: "2026-04-11T00:00:00Z",
+                originalCharacterCount: 180,
+                cleanedCharacterCount: 176,
+                ruleHits: [
+                    LibraryCorpusCleaningRuleHit(id: "space-normalization", count: 2)
+                ]
+            ).jsonObject
+        ]),
+        LibraryCorpusItem(json: [
+            "id": "corpus-2",
+            "name": "Compare Corpus",
+            "folderId": "folder-1",
+            "folderName": "Default",
+            "sourceType": "txt",
+            "representedPath": "/tmp/compare.txt",
+            "metadata": [
+                "sourceLabel": "期刊",
+                "yearLabel": "2023",
+                "genreLabel": "学术",
+                "tags": ["研究", "对比"]
+            ]
+        ])
+    ]
+    return WorkspaceBootstrapState(
         appInfo: AppInfoSummary(json: [
             "name": "WordZ",
             "version": "1.1.0",
@@ -1502,46 +1594,7 @@ func makeBootstrapState(
             folders: [
                 LibraryFolderItem(json: ["id": "folder-1", "name": "Default"])
             ],
-            corpora: [
-                LibraryCorpusItem(json: [
-                    "id": "corpus-1",
-                    "name": "Demo Corpus",
-                    "folderId": "folder-1",
-                    "folderName": "Default",
-                    "sourceType": "txt",
-                    "representedPath": "/tmp/demo.txt",
-                    "metadata": [
-                        "sourceLabel": "教材",
-                        "yearLabel": "2024",
-                        "genreLabel": "教学",
-                        "tags": ["课堂", "基础"]
-                    ],
-                    "cleaningStatus": "cleanedWithChanges",
-                    "cleaningSummary": makeCleaningReportSummary(
-                        status: .cleanedWithChanges,
-                        cleanedAt: "2026-04-11T00:00:00Z",
-                        originalCharacterCount: 180,
-                        cleanedCharacterCount: 176,
-                        ruleHits: [
-                            LibraryCorpusCleaningRuleHit(id: "space-normalization", count: 2)
-                        ]
-                    ).jsonObject
-                ]),
-                LibraryCorpusItem(json: [
-                    "id": "corpus-2",
-                    "name": "Compare Corpus",
-                    "folderId": "folder-1",
-                    "folderName": "Default",
-                    "sourceType": "txt",
-                    "representedPath": "/tmp/compare.txt",
-                    "metadata": [
-                        "sourceLabel": "期刊",
-                        "yearLabel": "2023",
-                        "genreLabel": "学术",
-                        "tags": ["研究", "对比"]
-                    ]
-                ])
-            ],
+            corpora: corpora ?? defaultCorpora,
             corpusSets: corpusSets
         ),
         workspaceSnapshot: workspaceSnapshot,
@@ -1562,6 +1615,9 @@ func makeWorkspaceSnapshot(
     sentimentUnit: SentimentAnalysisUnit = .sentence,
     sentimentContextBasis: SentimentContextBasis = .visibleContext,
     sentimentBackend: SentimentBackendKind = .lexicon,
+    sentimentDomainPackID: SentimentDomainPackID = .mixed,
+    sentimentRuleProfileID: String = SentimentRuleProfile.default.id,
+    sentimentCalibrationProfileID: String = SentimentCalibrationProfile.default.id,
     sentimentChartKind: SentimentChartKind = .distributionBar,
     sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
     sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
@@ -1569,12 +1625,20 @@ func makeWorkspaceSnapshot(
     sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
     sentimentRowFilterQuery: String = "",
     sentimentLabelFilter: SentimentLabel? = nil,
+    sentimentReviewFilter: SentimentReviewFilter = .all,
+    sentimentReviewStatusFilter: SentimentReviewStatusFilter = .all,
+    sentimentShowOnlyHardCases: Bool = false,
+    sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile = .workspaceDefault,
+    sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
     sentimentSelectedCorpusIDs: [String] = [],
     sentimentReferenceCorpusID: String = "",
     keywordActiveTab: KeywordSuiteTab = .words,
     keywordSuiteConfiguration: KeywordSuiteConfiguration? = nil,
     keywordTargetCorpusID: String = "",
     keywordReferenceCorpusID: String = "",
+    annotationProfile: WorkspaceAnnotationProfile = .surface,
+    annotationLexicalClasses: [TokenLexicalClass] = [],
+    annotationScripts: [TokenScript] = [],
     keywordLowercased: Bool = true,
     keywordRemovePunctuation: Bool = true,
     keywordMinimumFrequency: String = "2",
@@ -1615,6 +1679,11 @@ func makeWorkspaceSnapshot(
             "selectedCorpusSetID": selectedCorpusSetID,
             "corpusNames": corpusNames
         ],
+        "annotation": [
+            "profile": annotationProfile.rawValue,
+            "lexicalClasses": annotationLexicalClasses.map(\.rawValue),
+            "scripts": annotationScripts.map(\.rawValue)
+        ],
         "search": [
             "query": searchQuery,
             "options": [
@@ -1641,13 +1710,21 @@ func makeWorkspaceSnapshot(
             "unit": sentimentUnit.rawValue,
             "contextBasis": sentimentContextBasis.rawValue,
             "backend": sentimentBackend.rawValue,
+            "domainPackID": sentimentDomainPackID.rawValue,
+            "ruleProfileID": sentimentRuleProfileID,
+            "calibrationProfileID": sentimentCalibrationProfileID,
             "chartKind": sentimentChartKind.rawValue,
             "thresholdPreset": sentimentThresholdPreset.rawValue,
+            "workspaceCalibrationProfile": sentimentCalibrationProfileJSONObject(sentimentWorkspaceCalibrationProfile) as Any,
             "decisionThreshold": sentimentDecisionThreshold,
             "minimumEvidence": sentimentMinimumEvidence,
             "neutralBias": sentimentNeutralBias,
             "rowFilterQuery": sentimentRowFilterQuery,
             "labelFilter": sentimentLabelFilter?.rawValue as Any,
+            "reviewFilter": sentimentReviewFilter.rawValue,
+            "reviewStatusFilter": sentimentReviewStatusFilter.rawValue,
+            "showOnlyHardCases": sentimentShowOnlyHardCases,
+            "userLexiconBundles": sentimentImportedLexiconBundles.compactMap(sentimentLexiconBundleJSONObject),
             "selectedCorpusIDs": sentimentSelectedCorpusIDs,
             "referenceCorpusID": sentimentReferenceCorpusID
         ],
@@ -1674,6 +1751,54 @@ func makeWorkspaceSnapshot(
             "useYates": chiSquareUseYates
         ]
     ])
+}
+
+func makeSentimentUserLexiconBundle(
+    id: String = "teaching-bundle",
+    version: String = "1.0",
+    author: String = "WordZ Tests",
+    notes: String = "Imported for testing",
+    entries: [SentimentUserLexiconEntry] = [
+        SentimentUserLexiconEntry(
+            term: "corpus-savvy",
+            score: 1.4,
+            category: .corePositive,
+            domainTags: [.general],
+            matchMode: .either
+        )
+    ]
+) -> SentimentUserLexiconBundle {
+    SentimentUserLexiconBundle(
+        manifest: SentimentUserLexiconBundleManifest(
+            id: id,
+            version: version,
+            author: author,
+            notes: notes
+        ),
+        entries: entries
+    )
+}
+
+private func sentimentLexiconBundleJSONObject(
+    _ bundle: SentimentUserLexiconBundle
+) -> JSONObject? {
+    guard let data = try? JSONEncoder().encode(bundle),
+          let object = try? JSONSerialization.jsonObject(with: data) as? JSONObject
+    else {
+        return nil
+    }
+    return object
+}
+
+private func sentimentCalibrationProfileJSONObject(
+    _ profile: SentimentCalibrationProfile
+) -> JSONObject? {
+    guard let data = try? JSONEncoder().encode(profile),
+          let object = try? JSONSerialization.jsonObject(with: data) as? JSONObject
+    else {
+        return nil
+    }
+    return object
 }
 
 func makeOpenedCorpus(displayName: String = "Demo Corpus") -> OpenedCorpus {
@@ -1880,6 +2005,59 @@ func makeTopicAnalysisResult() -> TopicAnalysisResult {
         totalSegments: 3,
         clusteredSegments: 2,
         outlierCount: 1,
+        warnings: []
+    )
+}
+
+func makeCompareTopicsResult(focusTerm: String = "alpha") -> TopicAnalysisResult {
+    TopicAnalysisResult(
+        modelVersion: "wordz-topics-english-1",
+        modelProvider: "system-sentence-embedding",
+        usesFallbackProvider: false,
+        clusters: [
+            TopicClusterSummary(
+                id: "topic-1",
+                index: 1,
+                isOutlier: false,
+                size: 2,
+                keywordCandidates: [
+                    TopicKeywordCandidate(term: focusTerm, score: 1.35),
+                    TopicKeywordCandidate(term: "contrast", score: 1.08)
+                ],
+                representativeSegmentIDs: ["compare-topic-reference-1"]
+            )
+        ],
+        segments: [
+            TopicSegmentRow(
+                id: "compare-topic-reference-1",
+                topicID: "topic-1",
+                paragraphIndex: 2,
+                text: "\(focusTerm) reference framing keeps the contrast visible.",
+                similarityScore: 0.94,
+                isOutlier: false,
+                sourceID: "corpus-2",
+                sourceTitle: "Compare Corpus",
+                groupID: "reference",
+                groupTitle: "Reference",
+                sourceParagraphIndex: 1
+            ),
+            TopicSegmentRow(
+                id: "compare-topic-target-1",
+                topicID: "topic-1",
+                paragraphIndex: 1,
+                text: "\(focusTerm) target framing keeps the comparison grounded.",
+                similarityScore: 0.82,
+                isOutlier: false,
+                sourceID: "corpus-1",
+                sourceTitle: "Demo Corpus",
+                groupID: "target",
+                groupTitle: "Target",
+                sourceParagraphIndex: 1
+            )
+        ],
+        totalSegments: 2,
+        clusteredSegments: 2,
+        outlierCount: 0,
         warnings: []
     )
 }
@@ -2165,7 +2343,7 @@ func makeSentimentResult() -> SentimentRunResult {
     return SentimentRunResult(
         request: request,
         backendKind: .lexicon,
-        backendRevision: "lexicon-rules-v2",
+        backendRevision: "lexicon-rules-v3",
         resourceRevision: "sentiment-pack-test-v1",
         supportsEvidenceHits: true,
         rows: rows,
@@ -2185,6 +2363,159 @@ func makeSentimentResult() -> SentimentRunResult {
                 averageNeutrality: 0.305,
                 averageNegativity: 0.34,
                 averageNetScore: 0.025
+            )
+        ],
+        lexiconVersion: "test-v1"
+    )
+}
+
+func makeSentimentReviewSample(
+    result: SentimentRunResult = makeSentimentResult(),
+    rowID: String = "sentiment-negative",
+    decision: SentimentReviewDecision = .overridePositive,
+    note: String? = "Reviewed in tests",
+    timestamp: String = "2026-04-18T12:00:00Z"
+) -> SentimentReviewSample {
+    let row = result.rows.first(where: { $0.id == rowID }) ?? result.rows[0]
+    return SentimentReviewOverlaySupport.makeReviewSample(
+        decision: decision,
+        row: row,
+        result: result,
+        note: note,
+        timestamp: timestamp
+    )
+}
+
+func makeSentimentPresentationResult(
+    result: SentimentRunResult = makeSentimentResult(),
+    reviewSamples: [SentimentReviewSample] = []
+) -> SentimentPresentationResult {
+    SentimentReviewOverlaySupport.makePresentationResult(
+        rawResult: result,
+        reviewSamples: reviewSamples
+    )
+}
+
+func makeCompareSentimentResult(focusTerm: String = "alpha") -> SentimentRunResult {
+    let request = SentimentRunRequest(
+        source: .corpusCompare,
+        unit: .sentence,
+        contextBasis: .fullSentenceWhenAvailable,
+        thresholds: .default,
+        texts: [
+            SentimentInputText(
+                id: "target::corpus-1",
+                sourceID: "corpus-1",
+                sourceTitle: "Demo Corpus",
+                text: "\(focusTerm) is good.",
+                groupID: "target",
+                groupTitle: "Target"
+            ),
+            SentimentInputText(
+                id: "reference::corpus-2",
+                sourceID: "corpus-2",
+                sourceTitle: "Compare Corpus",
+                text: "\(focusTerm) is bad.",
+                groupID: "reference",
+                groupTitle: "Reference"
+            )
+        ],
+        backend: .lexicon
+    )
+
+    let rows = [
+        SentimentRowResult(
+            id: "target::corpus-1::sentence::0",
+            sourceID: "corpus-1",
+            sourceTitle: "Demo Corpus",
+            groupID: "target",
+            groupTitle: "Target",
+            text: "\(focusTerm) is good.",
+            positivityScore: 0.66,
+            negativityScore: 0.08,
+            neutralityScore: 0.26,
+            finalLabel: .positive,
+            netScore: 1.10,
+            evidence: [],
+            evidenceCount: 0,
+            mixedEvidence: false,
+            diagnostics: .empty,
+            sentenceID: 0,
+            tokenIndex: 0
+        ),
+        SentimentRowResult(
+            id: "reference::corpus-2::sentence::0",
+            sourceID: "corpus-2",
+            sourceTitle: "Compare Corpus",
+            groupID: "reference",
+            groupTitle: "Reference",
+            text: "\(focusTerm) is bad.",
+            positivityScore: 0.07,
+            negativityScore: 0.68,
+            neutralityScore: 0.25,
+            finalLabel: .negative,
+            netScore: -1.14,
+            evidence: [],
+            evidenceCount: 0,
+            mixedEvidence: false,
+            diagnostics: .empty,
+            sentenceID: 0,
+            tokenIndex: 0
+        )
+    ]
+
+    return SentimentRunResult(
+        request: request,
+        backendKind: .lexicon,
+        backendRevision: "lexicon-rules-v3",
+        resourceRevision: "sentiment-pack-test-v1",
+        supportsEvidenceHits: true,
+        rows: rows,
+        overallSummary: SentimentAggregateSummary(
+            id: "overall",
+            title: "Overall",
+            totalTexts: 2,
+            positiveCount: 1,
+            neutralCount: 0,
+            negativeCount: 1,
+            positiveRatio: 0.5,
+            neutralRatio: 0.0,
+            negativeRatio: 0.5,
+            averagePositivity: 0.365,
+            averageNeutrality: 0.255,
+            averageNegativity: 0.38,
+            averageNetScore: -0.02
+        ),
+        groupSummaries: [
+            SentimentAggregateSummary(
+                id: "target",
+                title: "Target",
+                totalTexts: 1,
+                positiveCount: 1,
+                neutralCount: 0,
+                negativeCount: 0,
+                positiveRatio: 1.0,
+                neutralRatio: 0.0,
+                negativeRatio: 0.0,
+                averagePositivity: 0.66,
+                averageNeutrality: 0.26,
+                averageNegativity: 0.08,
+                averageNetScore: 1.10
+            ),
+            SentimentAggregateSummary(
+                id: "reference",
+                title: "Reference",
+                totalTexts: 1,
+                positiveCount: 0,
+                neutralCount: 0,
+                negativeCount: 1,
+                positiveRatio: 0.0,
+                neutralRatio: 0.0,
+                negativeRatio: 1.0,
+                averagePositivity: 0.07,
+                averageNeutrality: 0.25,
+                averageNegativity: 0.68,
+                averageNetScore: -1.14
             )
         ],
         lexiconVersion: "test-v1"
@@ -2410,30 +2741,83 @@ func makeConcordanceSavedSet(
 }
 
 func makeEvidenceItem(
+    id: String? = nil,
     sourceKind: EvidenceSourceKind = .kwic,
-    reviewStatus: EvidenceReviewStatus = .pending
+    reviewStatus: EvidenceReviewStatus = .pending,
+    sectionTitle: String? = nil,
+    claim: String? = nil,
+    tags: [String] = [],
+    note: String? = nil
 ) -> EvidenceItem {
-    EvidenceItem(
-        id: "evidence-\(sourceKind.rawValue)-\(reviewStatus.rawValue)",
+    let savedSetID: String?
+    let savedSetName: String?
+    let keyword: String
+    let query: String
+    let searchOptionsSnapshot: SearchOptionsState?
+    let stopwordFilterSnapshot: StopwordFilterState?
+
+    switch sourceKind {
+    case .kwic:
+        savedSetID = "saved-kwic-3"
+        savedSetName = "KWIC Set"
+        keyword = "node"
+        query = "node"
+        searchOptionsSnapshot = .default
+        stopwordFilterSnapshot = .default
+    case .locator:
+        savedSetID = nil
+        savedSetName = nil
+        keyword = "locator-node"
+        query = "locator-node"
+        searchOptionsSnapshot = nil
+        stopwordFilterSnapshot = nil
+    case .plot:
+        savedSetID = nil
+        savedSetName = nil
+        keyword = "plot-hit"
+        query = "plot-hit"
+        searchOptionsSnapshot = nil
+        stopwordFilterSnapshot = nil
+    case .sentiment:
+        savedSetID = nil
+        savedSetName = nil
+        keyword = "sentiment-hit"
+        query = "sentiment-hit"
+        searchOptionsSnapshot = nil
+        stopwordFilterSnapshot = nil
+    case .topics:
+        savedSetID = nil
+        savedSetName = nil
+        keyword = "topic-hit"
+        query = "topic-hit"
+        searchOptionsSnapshot = nil
+        stopwordFilterSnapshot = nil
+    }
+
+    return EvidenceItem(
+        id: id ?? "evidence-\(sourceKind.rawValue)-\(reviewStatus.rawValue)",
         sourceKind: sourceKind,
-        savedSetID: sourceKind == .kwic ? "saved-kwic-3" : nil,
-        savedSetName: sourceKind == .kwic ? "KWIC Set" : nil,
+        savedSetID: savedSetID,
+        savedSetName: savedSetName,
         corpusID: "corpus-1",
         corpusName: "Demo Corpus",
         sentenceId: 2,
         sentenceTokenIndex: 3,
         leftContext: "left context",
-        keyword: sourceKind == .kwic ? "node" : "locator-node",
+        keyword: keyword,
         rightContext: "right context",
         fullSentenceText: "left context node right context",
         citationText: "Sentence 3: left context node right context",
-        query: sourceKind == .kwic ? "node" : "locator-node",
+        query: query,
         leftWindow: 5,
         rightWindow: 5,
-        searchOptionsSnapshot: sourceKind == .kwic ? .default : nil,
-        stopwordFilterSnapshot: sourceKind == .kwic ? .default : nil,
+        searchOptionsSnapshot: searchOptionsSnapshot,
+        stopwordFilterSnapshot: stopwordFilterSnapshot,
         reviewStatus: reviewStatus,
-        note: nil,
+        sectionTitle: sectionTitle,
+        claim: claim,
+        tags: tags,
+        note: note,
         createdAt: "2026-04-13T00:00:00Z",
         updatedAt: "2026-04-13T00:00:00Z"
     )
@@ -2460,7 +2844,13 @@ func makeLibraryBackupSummary() -> LibraryBackupSummary {
     LibraryBackupSummary(json: [
         "backupDir": "/tmp/wordz-backup",
         "folderCount": 1,
-        "corpusCount": 2
+        "corpusCount": 2,
+        "librarySchemaVersion": 2,
+        "workspaceSchemaVersion": 1,
+        "pendingShardMigrationCount": 0,
+        "quarantinedCorpusCount": 0,
+        "corpusSetCount": 1,
+        "recycleEntryCount": 0
     ])
 }
 
@@ -2469,7 +2859,13 @@ func makeLibraryRestoreSummary() -> LibraryRestoreSummary {
         "restoredFromDir": "/tmp/wordz-backup",
         "previousLibraryBackupDir": "/tmp/wordz-prev",
         "folderCount": 1,
-        "corpusCount": 2
+        "corpusCount": 2,
+        "librarySchemaVersion": 2,
+        "workspaceSchemaVersion": 1,
+        "pendingShardMigrationCount": 0,
+        "quarantinedCorpusCount": 0,
+        "corpusSetCount": 1,
+        "recycleEntryCount": 0
     ])
 }
 

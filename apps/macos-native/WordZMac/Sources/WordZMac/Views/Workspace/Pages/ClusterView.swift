@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ClusterView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: ClusterPageViewModel
     let isBusy: Bool
     let onAction: (ClusterPageAction) -> Void
@@ -87,6 +88,9 @@ struct ClusterView: View {
                 Text("N = \(scene.selectedN) · \(t("最小频次", "Min Freq")) \(scene.minimumFrequency)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Text(scene.annotationSummary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 if !scene.searchError.isEmpty {
                     Text(scene.searchError)
                         .font(.caption)
@@ -184,8 +188,12 @@ struct ClusterView: View {
     }
 
     private var searchField: some View {
-        TextField(t("搜索词串（留空显示全部）", "Search phrase (leave blank for all)"), text: $viewModel.query)
-            .textFieldStyle(.roundedBorder)
+        LexicalAutocompleteTextField(
+            title: t("搜索词串（留空显示全部）", "Search phrase (leave blank for all)"),
+            text: $viewModel.query,
+            searchOptions: viewModel.searchOptions,
+            controller: lexicalAutocompleteController
+        )
     }
 
     private var nPicker: some View {

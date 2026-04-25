@@ -20,6 +20,18 @@ private struct SentimentPhraseMatch {
     let lemma: String?
 }
 
+private struct AdjustedSentimentEvidence {
+    let hit: SentimentEvidenceHit
+    let trace: SentimentRuleTrace
+    let reviewFlags: [SentimentReviewFlag]
+}
+
+private struct SentimentCueContext {
+    let insideQuotes: Bool
+    let reportingVerb: String?
+    let isReportedSpeech: Bool
+}
+
 private struct SentimentScoredRow {
     let positivityScore: Double
     let negativityScore: Double
@@ -37,27 +49,70 @@ private struct SentimentScoredRow {
 final class LexiconSentimentAnalyzer: SentimentAnalyzing {
     private let indexDocument: (String, DocumentCacheKey?) -> ParsedDocumentIndex
     private let lexicon: SentimentLexiconStore
+    private let rulePackResolver: SentimentRulePackResolver
+    private let scopeSegmenter: SentimentScopeSegmenter
+    private let calibrationProfileProvider: SentimentCalibrationProfileProviding
 
     init(
         indexDocument: @escaping (String, DocumentCacheKey?) -> ParsedDocumentIndex,
-        lexicon: SentimentLexiconStore = .shared
+        lexicon: SentimentLexiconStore = .shared,
+        rulePackResolver: SentimentRulePackResolver? = nil,
+        scopeSegmenter: SentimentScopeSegmenter = SentimentScopeSegmenter(),
+        calibrationProfileProvider: SentimentCalibrationProfileProviding = DefaultSentimentCalibrationProfileProvider()
     ) {
         self.indexDocument = indexDocument
         self.lexicon = lexicon
+        self.rulePackResolver = rulePackResolver ?? SentimentRulePackResolver(lexicon: lexicon)
+        self.scopeSegmenter = scopeSegmenter
+        self.calibrationProfileProvider = calibrationProfileProvider
     }
 
     func analyze(_ request: SentimentRunRequest) throws -> SentimentRunResult {
+        if let loadError = lexicon.loadError {
+            throw loadError
+        }
+
+        let resolvedPack = rulePackResolver.resolve(for: request)
+        let calibrationProfile = calibrationProfileProvider.calibrationProfile(for: request)
+        let thresholds = effectiveThresholds(for: request, calibrationProfile: calibrationProfile)
+
         let rows: [SentimentRowResult]
         switch request.unit {
         case .document:
-            rows = request.texts.map { scoreDocument($0, request: request) }
+            rows = request.texts.map {
+                scoreDocument(
+                    $0,
+                    request: request,
+                    resolvedPack: resolvedPack,
+                    thresholds: thresholds,
+                    calibrationProfile: calibrationProfile
+                )
+            }
         case .sentence:
             rows = buildSentenceUnits(request: request).map { unit in
-                makeRow(from: scoreUnit(unit, request: request), unit: unit)
+                makeRow(
+                    from: scoreUnit(
+                        unit,
+                        request: request,
+                        resolvedPack: resolvedPack,
+                        thresholds: thresholds,
+                        calibrationProfile: calibrationProfile
+                    ),
+                    unit: unit
+                )
             }
-        case .concordanceLine:
+        case .concordanceLine, .sourceSentence:
             rows = buildConcordanceUnits(request: request).map { unit in
-                makeRow(from: scoreUnit(unit, request: request), unit: unit)
+                makeRow(
+                    from: scoreUnit(
+                        unit,
+                        request: request,
+                        resolvedPack: resolvedPack,
+                        thresholds: thresholds,
+                        calibrationProfile: calibrationProfile
+                    ),
+                    unit: unit
+                )
             }
         }
 
@@ -68,13 +123,20 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             resourceRevision: lexicon.resourceRevision,
             supportsEvidenceHits: true,
             rows: rows,
-            lexiconVersion: lexicon.version
+            lexiconVersion: lexicon.version,
+            activeRuleProfileRevision: request.ruleProfile.revision,
+            activePackIDs: resolvedPack.activePackIDs,
+            calibrationProfileRevision: calibrationProfile.revision,
+            userLexiconBundleIDs: request.userLexiconBundleIDs
         )
     }
 
     private func scoreDocument(
         _ input: SentimentInputText,
-        request: SentimentRunRequest
+        request: SentimentRunRequest,
+        resolvedPack: SentimentResolvedRulePack,
+        thresholds: SentimentThresholds,
+        calibrationProfile: SentimentCalibrationProfile
     ) -> SentimentRowResult {
         let text = resolveText(for: input, request: request)
         let indexed = indexDocument(text, DocumentCacheKey(text: text))
@@ -105,9 +167,25 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
                 tokenIndex: input.tokenIndex,
                 tokens: indexed.document.tokens
             )
-            scoredSentences = [scoreUnit(fallbackUnit, request: request)]
+            scoredSentences = [
+                scoreUnit(
+                    fallbackUnit,
+                    request: request,
+                    resolvedPack: resolvedPack,
+                    thresholds: thresholds,
+                    calibrationProfile: calibrationProfile
+                )
+            ]
         } else {
-            scoredSentences = sentenceUnits.map { scoreUnit($0, request: request) }
+            scoredSentences = sentenceUnits.map {
+                scoreUnit(
+                    $0,
+                    request: request,
+                    resolvedPack: resolvedPack,
+                    thresholds: thresholds,
+                    calibrationProfile: calibrationProfile
+                )
+            }
         }
 
         let sentenceCount = Double(max(scoredSentences.count, 1))
@@ -119,10 +197,16 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             $0 + $1.positiveEvidence + $1.negativeEvidence
         } / sentenceCount
         let evidence = scoredSentences.flatMap(\.evidence)
+        let allRuleTraces = scoredSentences.flatMap { $0.diagnostics.ruleTraces }
+        let allReviewFlags = Set(scoredSentences.flatMap { $0.diagnostics.reviewFlags })
         let mixedEvidence = scoredSentences.contains(where: \.mixedEvidence)
-            || (positiveMean > 0.2 && negativeMean > 0.2 && abs(netMean) < request.thresholds.decisionThreshold)
+            || (positiveMean > 0.2 && negativeMean > 0.2 && abs(netMean) < thresholds.decisionThreshold)
+
         let finalLabel: SentimentLabel
-        if evidence.isEmpty || averageEvidence < request.thresholds.minimumEvidence || abs(netMean) < request.thresholds.decisionThreshold || mixedEvidence {
+        if evidence.isEmpty
+            || averageEvidence < thresholds.minimumEvidence
+            || abs(netMean) < thresholds.decisionThreshold
+            || mixedEvidence {
             finalLabel = .neutral
         } else if positiveMean >= negativeMean {
             finalLabel = .positive
@@ -130,7 +214,11 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             finalLabel = .negative
         }
 
-        let scopeNotes = Array(Set(scoredSentences.flatMap { $0.diagnostics.scopeNotes })).sorted()
+        var scopeNotes = Array(Set(scoredSentences.flatMap { $0.diagnostics.scopeNotes })).sorted()
+        if mixedEvidence {
+            scopeNotes.append("mixedEvidence")
+        }
+
         let diagnostics = SentimentRowDiagnostics(
             mixedEvidence: mixedEvidence,
             ruleSummary: "Document aggregated from \(scoredSentences.count) sentences",
@@ -140,7 +228,13 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             subunitCount: scoredSentences.count,
             truncated: false,
             aggregatedFrom: .sentenceMean,
-            modelRevision: nil
+            modelRevision: nil,
+            ruleTraces: allRuleTraces,
+            reviewFlags: Array(allReviewFlags),
+            activeRuleProfileID: request.ruleProfile.id,
+            activePackIDs: resolvedPack.activePackIDs,
+            calibrationProfileRevision: calibrationProfile.revision,
+            inferencePath: .lexicon
         )
 
         return SentimentRowResult(
@@ -205,63 +299,112 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
 
     private func scoreUnit(
         _ unit: SentimentScoringUnit,
-        request: SentimentRunRequest
+        request: SentimentRunRequest,
+        resolvedPack: SentimentResolvedRulePack,
+        thresholds: SentimentThresholds,
+        calibrationProfile: SentimentCalibrationProfile
     ) -> SentimentScoredRow {
-        let matches = sentimentMatches(in: unit.tokens)
-        var adjustedHits = matches.map { adjustSentimentMatch($0, in: unit, matches: matches) }
-        let hasAcademicShield = adjustedHits.contains {
-            $0.ruleTags.contains(SentimentCueCategory.academicCaution.rawValue)
-        } && !adjustedHits.contains {
-            $0.ruleTags.contains(SentimentCueCategory.corePositive.rawValue)
-                || $0.ruleTags.contains(SentimentCueCategory.coreNegative.rawValue)
+        let resolvedTokens = unit.tokens.map {
+            TokenLemmaStrategy.lemmaPreferred.resolvedToken(
+                normalized: $0.normalized,
+                annotations: $0.annotations
+            )
         }
-        if hasAcademicShield {
-            adjustedHits = adjustedHits.map { hit in
-                guard hit.ruleTags.contains(SentimentCueCategory.academicCaution.rawValue)
-                    || hit.ruleTags.contains(SentimentCueCategory.weakEvaluative.rawValue) else {
-                    return hit
+        let normalizedTokens = unit.tokens.map(\.normalized)
+        let clauses = weightedClauses(
+            in: unit,
+            resolvedTokens: resolvedTokens,
+            normalizedTokens: normalizedTokens
+        )
+        let matches = sentimentMatches(in: unit.tokens, resolvedPack: resolvedPack)
+        let neutralShieldReason = neutralShieldReason(in: unit, resolvedTokens: resolvedTokens)
+        let quoteDiscountEnabled = request.ruleProfile.quoteDiscountEnabled
+        let tokenRanges = tokenRanges(in: unit.text, tokens: unit.tokens)
+        let quoteSpans = quoteSpans(in: unit.text)
+        let bangCount = unit.text.filter { $0 == "!" }.count
+
+        var adjusted: [AdjustedSentimentEvidence] = matches.map {
+            adjustSentimentMatch(
+                $0,
+                in: unit,
+                matches: matches,
+                clauses: clauses,
+                resolvedTokens: resolvedTokens,
+                normalizedTokens: normalizedTokens,
+                tokenRanges: tokenRanges,
+                quoteSpans: quoteSpans,
+                neutralShieldReason: neutralShieldReason,
+                bangCount: bangCount,
+                quoteDiscountEnabled: quoteDiscountEnabled,
+                neutralShieldStrength: request.ruleProfile.neutralShieldStrength,
+                quoteDiscountMultiplier: request.ruleProfile.quoteDiscountMultiplier,
+                reportingDiscountMultiplier: request.ruleProfile.reportingDiscountMultiplier
+            )
+        }
+
+        let hasShieldedContext = neutralShieldReason != nil
+            || adjusted.contains(where: { $0.trace.neutralShieldReason?.isEmpty == false })
+        let hasStrongPolarCue = adjusted.contains {
+            [.corePositive, .coreNegative, .newsEvaluative].contains($0.trace.cueCategory)
+                && abs($0.hit.adjustedScore) >= 1.0
+        }
+        if hasShieldedContext && !hasStrongPolarCue {
+            adjusted = adjusted.map { evidence in
+                guard [.academicCaution, .weakEvaluative, .hedge].contains(evidence.trace.cueCategory) else {
+                    return evidence
                 }
-                return SentimentEvidenceHit(
-                    id: hit.id,
-                    surface: hit.surface,
-                    lemma: hit.lemma,
-                    baseScore: hit.baseScore,
-                    adjustedScore: hit.adjustedScore * 0.65,
-                    ruleTags: hit.ruleTags + ["neutralityShielded"],
-                    tokenIndex: hit.tokenIndex,
-                    tokenLength: hit.tokenLength
+                let dampenedScore = evidence.hit.adjustedScore * request.ruleProfile.neutralShieldStrength
+                return rebuildEvidence(
+                    evidence,
+                    adjustedScore: dampenedScore,
+                    tag: "neutralityShielded",
+                    note: neutralShieldReason ?? "neutral shield",
+                    multiplier: request.ruleProfile.neutralShieldStrength,
+                    addReviewFlag: .shielded
                 )
             }
         }
 
-        let positiveEvidence = adjustedHits.reduce(0.0) { $0 + max($1.adjustedScore, 0) }
-        let negativeEvidence = adjustedHits.reduce(0.0) { $0 + max(-$1.adjustedScore, 0) }
+        let hits = adjusted.map(\.hit)
+        let positiveEvidence = hits.reduce(0.0) { $0 + max($1.adjustedScore, 0) }
+        let negativeEvidence = hits.reduce(0.0) { $0 + max(-$1.adjustedScore, 0) }
         let evidenceTotal = positiveEvidence + negativeEvidence
         let netScore = positiveEvidence - negativeEvidence
         let mixedEvidence = positiveEvidence > 0
             && negativeEvidence > 0
-            && abs(netScore) < request.thresholds.decisionThreshold
-        let shieldBonus = hasAcademicShield ? 0.25 : 0.0
-        let neutralRaw = adjustedHits.isEmpty
+            && abs(netScore) < thresholds.decisionThreshold
+        let shieldBonus = hasShieldedContext ? 0.25 : 0.0
+        let neutralRaw = hits.isEmpty
             ? 2.0
-            : max(0.2, request.thresholds.neutralBias + shieldBonus - abs(netScore))
+            : max(0.2, thresholds.neutralBias + shieldBonus - abs(netScore))
         let total = max(positiveEvidence + negativeEvidence + neutralRaw, 0.0001)
         let finalLabel: SentimentLabel
-        if adjustedHits.isEmpty || evidenceTotal < request.thresholds.minimumEvidence || abs(netScore) < request.thresholds.decisionThreshold || mixedEvidence {
+        if hits.isEmpty || evidenceTotal < thresholds.minimumEvidence || abs(netScore) < thresholds.decisionThreshold || mixedEvidence {
             finalLabel = .neutral
-        } else if netScore >= request.thresholds.decisionThreshold {
+        } else if netScore >= thresholds.decisionThreshold {
             finalLabel = .positive
         } else {
             finalLabel = .negative
         }
 
-        let scopeNotes = Array(Set(adjustedHits.flatMap(\.ruleTags))).sorted()
+        var reviewFlags = Set(adjusted.flatMap(\.reviewFlags))
+        if mixedEvidence {
+            reviewFlags.insert(.mixedEvidence)
+        }
+        if abs(netScore) < thresholds.decisionThreshold + 0.15 {
+            reviewFlags.insert(.lowMargin)
+        }
+        if hasShieldedContext {
+            reviewFlags.insert(.shielded)
+        }
+
+        let scopeNotes = Array(Set(hits.flatMap(\.ruleTags) + [neutralShieldReason].compactMap { $0 })).sorted()
         let diagnostics = SentimentRowDiagnostics(
             mixedEvidence: mixedEvidence,
             ruleSummary: buildRuleSummary(
-                evidenceCount: adjustedHits.count,
+                evidenceCount: hits.count,
                 mixedEvidence: mixedEvidence,
-                scopeNotes: scopeNotes
+                ruleTraces: adjusted.map(\.trace)
             ),
             scopeNotes: scopeNotes,
             confidence: nil,
@@ -269,7 +412,13 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             subunitCount: nil,
             truncated: false,
             aggregatedFrom: .direct,
-            modelRevision: nil
+            modelRevision: nil,
+            ruleTraces: adjusted.map(\.trace),
+            reviewFlags: Array(reviewFlags).sorted(by: { $0.rawValue < $1.rawValue }),
+            activeRuleProfileID: request.ruleProfile.id,
+            activePackIDs: resolvedPack.activePackIDs,
+            calibrationProfileRevision: calibrationProfile.revision,
+            inferencePath: .lexicon
         )
 
         return SentimentScoredRow(
@@ -278,8 +427,8 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             neutralityScore: neutralRaw / total,
             finalLabel: finalLabel,
             netScore: netScore,
-            evidence: adjustedHits,
-            evidenceCount: adjustedHits.count,
+            evidence: hits,
+            evidenceCount: hits.count,
             mixedEvidence: mixedEvidence,
             positiveEvidence: positiveEvidence,
             negativeEvidence: negativeEvidence,
@@ -312,24 +461,28 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
         )
     }
 
-    private func sentimentMatches(in tokens: [ParsedToken]) -> [SentimentPhraseMatch] {
+    private func sentimentMatches(
+        in tokens: [ParsedToken],
+        resolvedPack: SentimentResolvedRulePack
+    ) -> [SentimentPhraseMatch] {
         let lemmaTokens = tokens.map {
             TokenLemmaStrategy.lemmaPreferred.resolvedToken(
                 normalized: $0.normalized,
                 annotations: $0.annotations
             )
         }
+
         var matches: [SentimentPhraseMatch] = []
         var index = 0
 
         while index < tokens.count {
             var matchedPhrase: SentimentPhraseMatch?
             let remaining = tokens.count - index
-            let maxLength = min(lexicon.maxEntryLength, remaining)
+            let maxLength = min(resolvedPack.maxEntryLength, remaining)
 
             if maxLength > 0 {
                 for length in stride(from: maxLength, through: 1, by: -1) {
-                    guard let entries = lexicon.entriesByLength[length] else { continue }
+                    guard let entries = resolvedPack.entriesByLength[length] else { continue }
                     let normalizedSlice = Array(tokens[index..<(index + length)].map(\.normalized))
                     let lemmaSlice = Array(lemmaTokens[index..<(index + length)])
                     if let entry = entries.first(where: {
@@ -368,74 +521,154 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
     private func adjustSentimentMatch(
         _ match: SentimentPhraseMatch,
         in unit: SentimentScoringUnit,
-        matches: [SentimentPhraseMatch]
-    ) -> SentimentEvidenceHit {
-        let resolvedTokens = unit.tokens.map {
-            TokenLemmaStrategy.lemmaPreferred.resolvedToken(
-                normalized: $0.normalized,
-                annotations: $0.annotations
+        matches: [SentimentPhraseMatch],
+        clauses: [SentimentClauseSegment],
+        resolvedTokens: [String],
+        normalizedTokens: [String],
+        tokenRanges: [Range<String.Index>],
+        quoteSpans: [Range<String.Index>],
+        neutralShieldReason: String?,
+        bangCount: Int,
+        quoteDiscountEnabled: Bool,
+        neutralShieldStrength: Double,
+        quoteDiscountMultiplier: Double,
+        reportingDiscountMultiplier: Double
+    ) -> AdjustedSentimentEvidence {
+        let clause = clause(for: match, clauses: clauses)
+        let cueContext = cueContext(
+            for: match,
+            resolvedTokens: resolvedTokens,
+            normalizedTokens: normalizedTokens,
+            tokenRanges: tokenRanges,
+            quoteSpans: quoteSpans
+        )
+        var adjustedScore = match.entry.score * clause.weight
+        var ruleTags: [String] = ["lexicon", match.entry.category.rawValue]
+        var traceSteps: [SentimentRuleTraceStep] = [
+            SentimentRuleTraceStep(
+                tag: "cueMatched",
+                note: match.entry.term,
+                multiplier: nil
+            )
+        ]
+        var reviewFlags: Set<SentimentReviewFlag> = []
+
+        if clause.weight != 1.0 {
+            let contrastTag = clause.weight > 1.0 ? "postContrast" : "preContrast"
+            ruleTags.append(contrastTag)
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: contrastTag,
+                    note: clause.weight > 1.0 ? "post-contrast clause reweighted" : "pre-contrast clause reweighted",
+                    multiplier: clause.weight
+                )
             )
         }
-        let normalizedTokens = unit.tokens.map(\.normalized)
-        let contrastiveIndexes = resolvedTokens.enumerated().compactMap { offset, value in
-            lexicon.contrastives.contains(value) ? offset : nil
-        }
-        let lastContrastiveIndex = contrastiveIndexes.max()
-        let reportingVerbPresent = resolvedTokens.contains(where: lexicon.reportingVerbs.contains)
-            || normalizedTokens.contains(where: lexicon.reportingVerbs.contains)
-        let hasQuoteMarks = unit.text.contains("\"")
-            || unit.text.contains("“")
-            || unit.text.contains("”")
-            || unit.text.contains("'")
-        let bangCount = unit.text.filter { $0 == "!" }.count
 
-        var adjustedScore = match.entry.score
-        var ruleTags: [String] = ["lexicon", match.entry.category.rawValue]
-
-        if let multiplier = precedingSentimentMultiplier(
+        if let intensity = precedingSentimentMultiplier(
             at: match.tokenIndex,
             resolvedTokens: resolvedTokens,
+            normalizedTokens: normalizedTokens,
             matches: matches
         ) {
-            adjustedScore *= multiplier
-            ruleTags.append(multiplier >= 1 ? "intensified" : "downtoned")
+            adjustedScore *= intensity.multiplier
+            ruleTags.append(intensity.multiplier >= 1 ? "intensified" : "downtoned")
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: intensity.multiplier >= 1 ? "intensified" : "downtoned",
+                    note: intensity.trigger,
+                    multiplier: intensity.multiplier
+                )
+            )
         }
 
-        if hasNegator(before: match.tokenIndex, resolvedTokens: resolvedTokens) {
+        if let negator = negationCue(
+            before: match.tokenIndex,
+            resolvedTokens: resolvedTokens,
+            normalizedTokens: normalizedTokens
+        ) {
             if adjustedScore >= 0 {
                 adjustedScore = -abs(adjustedScore) * 0.8
             } else {
                 adjustedScore = abs(adjustedScore) * 0.6
             }
             ruleTags.append("negated")
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: "negated",
+                    note: negator,
+                    multiplier: adjustedScore.sign == .minus ? -0.8 : 0.6
+                )
+            )
         }
 
         if match.entry.category == .weakEvaluative {
             adjustedScore *= 0.85
             ruleTags.append("weakCue")
-        }
-
-        if let lastContrastiveIndex {
-            if match.tokenIndex > lastContrastiveIndex {
-                adjustedScore *= 1.25
-                ruleTags.append("postContrast")
-            } else if match.tokenIndex < lastContrastiveIndex {
-                adjustedScore *= 0.75
-                ruleTags.append("preContrast")
-            }
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: "weakCue",
+                    note: "weak evaluative cue",
+                    multiplier: 0.85
+                )
+            )
         }
 
         if bangCount > 0, unit.tokens.count <= 25 {
-            adjustedScore *= min(1.3, 1.0 + (0.1 * Double(bangCount)))
+            let multiplier = min(1.3, 1.0 + (0.1 * Double(bangCount)))
+            adjustedScore *= multiplier
             ruleTags.append("exclamation")
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: "exclamation",
+                    note: "sentence punctuation emphasis",
+                    multiplier: multiplier
+                )
+            )
         }
 
-        if hasQuoteMarks, reportingVerbPresent {
-            adjustedScore *= 0.85
+        if quoteDiscountEnabled, cueContext.insideQuotes {
+            adjustedScore *= quoteDiscountMultiplier
             ruleTags.append("quotedEvidence")
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: "quotedEvidence",
+                    note: "quoted cue discounted",
+                    multiplier: quoteDiscountMultiplier
+                )
+            )
+            reviewFlags.insert(.quoted)
         }
 
-        return SentimentEvidenceHit(
+        if quoteDiscountEnabled, cueContext.isReportedSpeech {
+            adjustedScore *= reportingDiscountMultiplier
+            ruleTags.append("reportedSpeech")
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: "reportedSpeech",
+                    note: cueContext.reportingVerb.map { "attributed via \($0)" } ?? "reported speech discounted",
+                    multiplier: reportingDiscountMultiplier
+                )
+            )
+            reviewFlags.insert(.reported)
+        }
+
+        var shieldReason = neutralShieldReason
+        if match.entry.category == .academicCaution || lexicon.hedges.contains(match.surface.lowercased()) {
+            adjustedScore *= neutralShieldStrength
+            ruleTags.append("neutralityShielded")
+            traceSteps.append(
+                SentimentRuleTraceStep(
+                    tag: "neutralityShielded",
+                    note: shieldReason ?? "academic hedge or cautious framing",
+                    multiplier: neutralShieldStrength
+                )
+            )
+            shieldReason = shieldReason ?? "academic hedge"
+            reviewFlags.insert(.shielded)
+        }
+
+        let hit = SentimentEvidenceHit(
             id: "\(unit.id)::\(match.tokenIndex)",
             surface: match.surface,
             lemma: match.lemma?.isEmpty == false ? match.lemma : nil,
@@ -445,34 +678,107 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             tokenIndex: match.tokenIndex,
             tokenLength: match.tokenLength
         )
+
+        let trace = SentimentRuleTrace(
+            id: "\(unit.id)::trace::\(match.tokenIndex)",
+            cueSurface: match.surface,
+            cueLemma: match.lemma?.isEmpty == false ? match.lemma : nil,
+            cueCategory: match.entry.category,
+            packID: match.entry.packID,
+            scopeStart: max(0, match.tokenIndex - 3),
+            scopeEnd: min(unit.tokens.count - 1, match.tokenIndex + max(match.tokenLength, 2)),
+            clauseIndex: clause.index,
+            clauseWeight: clause.weight,
+            baseScore: match.entry.score,
+            adjustedScore: adjustedScore,
+            appliedSteps: traceSteps,
+            neutralShieldReason: shieldReason
+        )
+
+        return AdjustedSentimentEvidence(
+            hit: hit,
+            trace: trace,
+            reviewFlags: Array(reviewFlags)
+        )
     }
 
-    private func hasNegator(
-        before tokenIndex: Int,
-        resolvedTokens: [String]
-    ) -> Bool {
-        guard tokenIndex > 0 else { return false }
-        let start = max(0, tokenIndex - 3)
-        for candidateIndex in stride(from: tokenIndex - 1, through: start, by: -1) {
-            if lexicon.contrastives.contains(resolvedTokens[candidateIndex]) {
-                return false
+    private func clause(
+        for match: SentimentPhraseMatch,
+        clauses: [SentimentClauseSegment]
+    ) -> SentimentClauseSegment {
+        clauses.first(where: { match.tokenIndex >= $0.startTokenIndex && match.tokenIndex <= $0.endTokenIndex })
+            ?? SentimentClauseSegment(index: 0, startTokenIndex: 0, endTokenIndex: max(match.tokenIndex, 0), weight: 1.0)
+    }
+
+    private func weightedClauses(
+        in unit: SentimentScoringUnit,
+        resolvedTokens: [String],
+        normalizedTokens: [String]
+    ) -> [SentimentClauseSegment] {
+        var clauses = scopeSegmenter.segment(tokens: unit.tokens, resolvedTokens: resolvedTokens, lexicon: lexicon)
+        guard let firstContrastiveIndex = resolvedTokens.firstIndex(where: lexicon.contrastives.contains)
+            ?? normalizedTokens.firstIndex(where: lexicon.contrastives.contains) else {
+            return clauses
+        }
+
+        clauses = clauses.map { clause in
+            let weight: Double
+            if clause.endTokenIndex < firstContrastiveIndex {
+                weight = 0.75
+            } else if clause.startTokenIndex > firstContrastiveIndex {
+                weight = 1.25
+            } else {
+                weight = 1.0
             }
-            if lexicon.negators.contains(resolvedTokens[candidateIndex]) {
-                return true
+            return SentimentClauseSegment(
+                index: clause.index,
+                startTokenIndex: clause.startTokenIndex,
+                endTokenIndex: clause.endTokenIndex,
+                weight: weight
+            )
+        }
+        return clauses
+    }
+
+    private func negationCue(
+        before tokenIndex: Int,
+        resolvedTokens: [String],
+        normalizedTokens: [String]
+    ) -> String? {
+        guard tokenIndex > 0 else { return nil }
+        let start = max(0, tokenIndex - 4)
+        for candidateIndex in stride(from: tokenIndex - 1, through: start, by: -1) {
+            let resolved = resolvedTokens[candidateIndex]
+            let normalized = normalizedTokens[candidateIndex]
+            if lexicon.contrastives.contains(resolved) || lexicon.contrastives.contains(normalized) {
+                return nil
+            }
+            if lexicon.negators.contains(resolved) || lexicon.negators.contains(normalized) {
+                return resolved
+            }
+            if candidateIndex > 0 {
+                let bigramResolved = "\(resolvedTokens[candidateIndex - 1]) \(resolved)"
+                let bigramNormalized = "\(normalizedTokens[candidateIndex - 1]) \(normalized)"
+                if ["fail to", "lack of"].contains(bigramResolved) || ["fail to", "lack of"].contains(bigramNormalized) {
+                    return bigramResolved
+                }
             }
         }
-        return false
+        return nil
     }
 
     private func precedingSentimentMultiplier(
         at tokenIndex: Int,
         resolvedTokens: [String],
+        normalizedTokens: [String],
         matches: [SentimentPhraseMatch]
-    ) -> Double? {
+    ) -> (trigger: String, multiplier: Double)? {
         guard tokenIndex > 0 else { return nil }
         let start = max(0, tokenIndex - 2)
         for candidateIndex in stride(from: tokenIndex - 1, through: start, by: -1) {
-            if lexicon.contrastives.contains(resolvedTokens[candidateIndex]) {
+            let resolved = resolvedTokens[candidateIndex]
+            let normalized = normalizedTokens[candidateIndex]
+            if lexicon.contrastives.contains(resolved) || lexicon.contrastives.contains(normalized) {
                 return nil
             }
             let hasEarlierCueBetween = matches.contains { match in
@@ -481,38 +787,277 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
             if hasEarlierCueBetween {
                 return nil
             }
-            if let multiplier = lexicon.intensifiers[resolvedTokens[candidateIndex]] {
-                return multiplier
+            if let multiplier = lexicon.intensifiers[resolved] ?? lexicon.intensifiers[normalized] {
+                return (resolved, multiplier)
             }
         }
         return nil
     }
 
+    private func neutralShieldReason(
+        in unit: SentimentScoringUnit,
+        resolvedTokens: [String]
+    ) -> String? {
+        let joined = resolvedTokens.joined(separator: " ")
+        for (cue, reason) in lexicon.neutralShields {
+            if joined.contains(cue) || unit.text.localizedCaseInsensitiveContains(cue) {
+                return reason
+            }
+        }
+        if resolvedTokens.contains(where: lexicon.hedges.contains) {
+            return "hedged framing"
+        }
+        return nil
+    }
+
+    private func cueContext(
+        for match: SentimentPhraseMatch,
+        resolvedTokens: [String],
+        normalizedTokens: [String],
+        tokenRanges: [Range<String.Index>],
+        quoteSpans: [Range<String.Index>]
+    ) -> SentimentCueContext {
+        let insideQuotes = cueCharacterRange(for: match, tokenRanges: tokenRanges)
+            .map { isInsideQuotes($0, quoteSpans: quoteSpans) } ?? false
+        let reportingVerb = reportingVerb(
+            near: match.tokenIndex,
+            resolvedTokens: resolvedTokens,
+            normalizedTokens: normalizedTokens,
+            allowFollowingVerb: insideQuotes
+        )
+        let isReportedSpeech: Bool
+        if insideQuotes {
+            isReportedSpeech = reportingVerb != nil
+        } else {
+            isReportedSpeech = reportingVerb != nil && reportingConnectorExists(
+                before: match.tokenIndex,
+                resolvedTokens: resolvedTokens,
+                normalizedTokens: normalizedTokens
+            )
+        }
+        return SentimentCueContext(
+            insideQuotes: insideQuotes,
+            reportingVerb: reportingVerb,
+            isReportedSpeech: isReportedSpeech
+        )
+    }
+
+    private func tokenRanges(
+        in text: String,
+        tokens: [ParsedToken]
+    ) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        var searchStart = text.startIndex
+
+        for token in tokens {
+            guard searchStart <= text.endIndex,
+                  let range = text.range(of: token.original, range: searchStart..<text.endIndex) else {
+                continue
+            }
+            ranges.append(range)
+            searchStart = range.upperBound
+        }
+        return ranges
+    }
+
+    private func quoteSpans(in text: String) -> [Range<String.Index>] {
+        var spans: [Range<String.Index>] = []
+        var openingQuote: String.Index?
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let character = text[index]
+            if character == "\"" || character == "“" || character == "”" {
+                if let existingOpeningQuote = openingQuote {
+                    let start = text.index(after: existingOpeningQuote)
+                    if start <= index {
+                        spans.append(start..<index)
+                    }
+                    self.consumeTrailingQuotePunctuation(in: text, from: &index)
+                    openingQuote = nil
+                } else {
+                    openingQuote = index
+                }
+            }
+            index = text.index(after: index)
+        }
+
+        return spans
+    }
+
+    private func consumeTrailingQuotePunctuation(
+        in text: String,
+        from index: inout String.Index
+    ) {
+        while index < text.endIndex {
+            let nextIndex = text.index(after: index)
+            guard nextIndex < text.endIndex else { return }
+            let character = text[nextIndex]
+            if character == "," || character == "." || character == ";" || character == ":" {
+                index = nextIndex
+                continue
+            }
+            return
+        }
+    }
+
+    private func cueCharacterRange(
+        for match: SentimentPhraseMatch,
+        tokenRanges: [Range<String.Index>]
+    ) -> Range<String.Index>? {
+        let startIndex = match.tokenIndex
+        let endIndex = match.tokenIndex + match.tokenLength - 1
+        guard tokenRanges.indices.contains(startIndex),
+              tokenRanges.indices.contains(endIndex) else {
+            return nil
+        }
+        return tokenRanges[startIndex].lowerBound..<tokenRanges[endIndex].upperBound
+    }
+
+    private func isInsideQuotes(
+        _ cueRange: Range<String.Index>,
+        quoteSpans: [Range<String.Index>]
+    ) -> Bool {
+        quoteSpans.contains { span in
+            span.lowerBound <= cueRange.lowerBound && span.upperBound >= cueRange.upperBound
+        }
+    }
+
+    private func reportingVerb(
+        near tokenIndex: Int,
+        resolvedTokens: [String],
+        normalizedTokens: [String],
+        allowFollowingVerb: Bool
+    ) -> String? {
+        guard !resolvedTokens.isEmpty else { return nil }
+        let start = max(0, tokenIndex - 4)
+        let end = min(resolvedTokens.count - 1, allowFollowingVerb ? tokenIndex + 4 : tokenIndex)
+
+        if tokenIndex > 0 {
+            for candidateIndex in stride(from: tokenIndex - 1, through: start, by: -1) {
+                let resolved = resolvedTokens[candidateIndex]
+                let normalized = normalizedTokens[candidateIndex]
+                if lexicon.reportingVerbs.contains(resolved) || lexicon.reportingVerbs.contains(normalized) {
+                    return resolved
+                }
+            }
+        }
+
+        guard allowFollowingVerb, tokenIndex + 1 <= end else { return nil }
+        for candidateIndex in (tokenIndex + 1)...end {
+            let resolved = resolvedTokens[candidateIndex]
+            let normalized = normalizedTokens[candidateIndex]
+            if lexicon.reportingVerbs.contains(resolved) || lexicon.reportingVerbs.contains(normalized) {
+                return resolved
+            }
+        }
+
+        return nil
+    }
+
+    private func reportingConnectorExists(
+        before tokenIndex: Int,
+        resolvedTokens: [String],
+        normalizedTokens: [String]
+    ) -> Bool {
+        guard tokenIndex > 0 else { return false }
+        let start = max(0, tokenIndex - 4)
+        let connectors: Set<String> = ["as", "that", "to", "be", "being", "is", "are", "was", "were"]
+
+        for candidateIndex in stride(from: tokenIndex - 1, through: start, by: -1) {
+            let resolved = resolvedTokens[candidateIndex]
+            let normalized = normalizedTokens[candidateIndex]
+            guard lexicon.reportingVerbs.contains(resolved) || lexicon.reportingVerbs.contains(normalized) else {
+                continue
+            }
+            let betweenResolved = resolvedTokens[(candidateIndex + 1)..<tokenIndex]
+            let betweenNormalized = normalizedTokens[(candidateIndex + 1)..<tokenIndex]
+            return betweenResolved.contains(where: connectors.contains)
+                || betweenNormalized.contains(where: connectors.contains)
+        }
+
+        return false
+    }
+
     private func buildRuleSummary(
         evidenceCount: Int,
         mixedEvidence: Bool,
-        scopeNotes: [String]
+        ruleTraces: [SentimentRuleTrace]
     ) -> String {
         guard evidenceCount > 0 else { return "No strong lexical evidence" }
-        let keyNotes = scopeNotes
-            .filter { $0 != "lexicon" }
+        let stepTags = ruleTraces
+            .flatMap(\.appliedSteps)
+            .map(\.tag)
+            .filter { $0 != "cueMatched" }
+            .uniquedPreservingOrder()
             .prefix(3)
             .joined(separator: ", ")
         if mixedEvidence {
-            return keyNotes.isEmpty
+            return stepTags.isEmpty
                 ? "Mixed evidence across \(evidenceCount) cues"
-                : "Mixed evidence across \(evidenceCount) cues (\(keyNotes))"
+                : "Mixed evidence across \(evidenceCount) cues (\(stepTags))"
         }
-        return keyNotes.isEmpty
+        return stepTags.isEmpty
             ? "\(evidenceCount) lexical cue(s)"
-            : "\(evidenceCount) cue(s) with \(keyNotes)"
+            : "\(evidenceCount) cue(s) with \(stepTags)"
+    }
+
+    private func effectiveThresholds(
+        for request: SentimentRunRequest,
+        calibrationProfile: SentimentCalibrationProfile
+    ) -> SentimentThresholds {
+        var thresholds = calibrationProfile.thresholds(overriding: request.thresholds)
+        thresholds.neutralBias += calibrationProfile.domainBiasAdjustments[request.resolvedDomainPackID.rawValue] ?? 0
+        return thresholds
+    }
+
+    private func rebuildEvidence(
+        _ evidence: AdjustedSentimentEvidence,
+        adjustedScore: Double,
+        tag: String,
+        note: String,
+        multiplier: Double,
+        addReviewFlag: SentimentReviewFlag
+    ) -> AdjustedSentimentEvidence {
+        let hit = SentimentEvidenceHit(
+            id: evidence.hit.id,
+            surface: evidence.hit.surface,
+            lemma: evidence.hit.lemma,
+            baseScore: evidence.hit.baseScore,
+            adjustedScore: adjustedScore,
+            ruleTags: evidence.hit.ruleTags + [tag],
+            tokenIndex: evidence.hit.tokenIndex,
+            tokenLength: evidence.hit.tokenLength
+        )
+        let trace = SentimentRuleTrace(
+            id: evidence.trace.id,
+            cueSurface: evidence.trace.cueSurface,
+            cueLemma: evidence.trace.cueLemma,
+            cueCategory: evidence.trace.cueCategory,
+            packID: evidence.trace.packID,
+            scopeStart: evidence.trace.scopeStart,
+            scopeEnd: evidence.trace.scopeEnd,
+            clauseIndex: evidence.trace.clauseIndex,
+            clauseWeight: evidence.trace.clauseWeight,
+            baseScore: evidence.trace.baseScore,
+            adjustedScore: adjustedScore,
+            appliedSteps: evidence.trace.appliedSteps + [
+                SentimentRuleTraceStep(tag: tag, note: note, multiplier: multiplier)
+            ],
+            neutralShieldReason: note
+        )
+        return AdjustedSentimentEvidence(
+            hit: hit,
+            trace: trace,
+            reviewFlags: Array(Set(evidence.reviewFlags + [addReviewFlag]))
+        )
     }
 
     private func resolveText(
         for input: SentimentInputText,
         request: SentimentRunRequest
     ) -> String {
-        guard request.unit == .concordanceLine,
+        guard request.unit == .concordanceLine || request.unit == .sourceSentence,
               request.contextBasis == .fullSentenceWhenAvailable,
               let documentText = input.documentText,
               let sentenceID = input.sentenceID else {
@@ -523,3 +1068,11 @@ final class LexiconSentimentAnalyzer: SentimentAnalyzing {
     }
 }
 
+private extension Array where Element == String {
+    func uniquedPreservingOrder() -> [String] {
+        var seen: Set<String> = []
+        return filter { value in
+            seen.insert(value).inserted
+        }
+    }
+}

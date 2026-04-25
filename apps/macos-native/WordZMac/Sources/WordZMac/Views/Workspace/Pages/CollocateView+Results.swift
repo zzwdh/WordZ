@@ -30,6 +30,9 @@ extension CollocateView {
                     Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    Text(scene.annotationSummary)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 } trailing: {
                     Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows) / \(scene.totalRows)")
                         .font(.caption)

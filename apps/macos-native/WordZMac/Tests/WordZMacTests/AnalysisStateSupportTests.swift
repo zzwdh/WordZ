@@ -44,6 +44,51 @@ final class AnalysisStateSupportTests: XCTestCase {
         XCTAssertTrue(controller.isCurrentSceneBuild(controller.sceneBuildRevision))
     }
 
+    func testSceneBuildSchedulingCancelsPreviousOwnerTaskBeforeApply() {
+        let controller = FakeRevisionController()
+        var appliedValues: [String] = []
+        let secondApplied = expectation(description: "second scene applied")
+        let settled = expectation(description: "scheduler settled")
+
+        let firstRevision = controller.beginSceneBuildPass()
+        AnalysisSceneBuildScheduling.schedule(
+            owner: controller,
+            context: .init(page: "test", rowCount: 1, revision: firstRevision, isAsync: true),
+            build: {
+                Thread.sleep(forTimeInterval: 0.15)
+                try Task.checkCancellation()
+                return "first"
+            },
+            apply: { value in
+                appliedValues.append(value)
+                return true
+            }
+        )
+
+        let secondRevision = controller.beginSceneBuildPass()
+        AnalysisSceneBuildScheduling.schedule(
+            owner: controller,
+            context: .init(page: "test", rowCount: 1, revision: secondRevision, isAsync: true),
+            build: {
+                "second"
+            },
+            apply: { value in
+                appliedValues.append(value)
+                if value == "second" {
+                    secondApplied.fulfill()
+                }
+                return true
+            }
+        )
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            settled.fulfill()
+        }
+
+        wait(for: [secondApplied, settled], timeout: 1.0)
+        XCTAssertEqual(appliedValues, ["second"])
+    }
+
     func testSyncSelectedRowFallsBackToFirstAvailableRow() {
         let controller = FakeSelectionController()
         controller.selectedRowID = "missing"

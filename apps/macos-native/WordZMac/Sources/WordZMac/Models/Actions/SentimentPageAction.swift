@@ -6,6 +6,9 @@ enum SentimentPageAction {
     case changeUnit(SentimentAnalysisUnit)
     case changeContextBasis(SentimentContextBasis)
     case changeBackend(SentimentBackendKind)
+    case changeDomainPack(SentimentDomainPackID)
+    case changeRuleProfile(String)
+    case changeCalibrationProfile(String)
     case changeChartKind(SentimentChartKind)
     case changeThresholdPreset(SentimentThresholdPreset)
     case changeDecisionThreshold(Double)
@@ -13,6 +16,15 @@ enum SentimentPageAction {
     case changeNeutralBias(Double)
     case changeFilterQuery(String)
     case changeLabelFilter(SentimentLabel?)
+    case changeReviewFilter(SentimentReviewFilter)
+    case changeReviewStatusFilter(SentimentReviewStatusFilter)
+    case toggleShowOnlyHardCases(Bool)
+    case confirmSelectedRow
+    case overrideSelectedRow(SentimentLabel)
+    case clearSelectedRowReview
+    case changeSelectedRowReviewNote(String)
+    case importUserLexiconBundle
+    case removeUserLexiconBundle(String)
     case changeSort(SentimentSortMode)
     case sortByColumn(SentimentColumnKey)
     case changePageSize(SentimentPageSize)
@@ -21,6 +33,8 @@ enum SentimentPageAction {
     case changeManualText(String)
     case toggleCorpusSelection(String)
     case changeReferenceCorpus(String?)
+    case openSourceReader
+    case addCurrentRowToEvidenceWorkbench
     case exportSummary
     case exportStructuredJSON
 }

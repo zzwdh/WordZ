@@ -4,10 +4,16 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
     let toolbar: WorkspaceToolbarSceneModel
     let selectedRoute: WorkspaceMainRoute
     let languageMode: AppLanguageMode
+    let annotationState: WorkspaceAnnotationState
+    let annotationSummary: String
     let isSidebarVisible: Bool
     let isInspectorVisible: Bool
     let onToggleSidebar: () -> Void
     let onToggleInspector: () -> Void
+    let onSelectAnnotationProfile: (WorkspaceAnnotationProfile) -> Void
+    let onToggleAnnotationScript: (TokenScript) -> Void
+    let onToggleAnnotationLexicalClass: (TokenLexicalClass) -> Void
+    let onClearAnnotationFilters: () -> Void
     let onPostCommand: (NativeAppCommand) -> Void
 
     @ToolbarContentBuilder
@@ -54,6 +60,10 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
                 )
             }
 
+            if let annotationItem = toolbar.item(for: .annotationControls) {
+                annotationToolbarMenu(title: annotationItem.title, isEnabled: annotationItem.isEnabled)
+            }
+
             toolbarButton(
                 title: wordZText("运行", "Run", mode: languageMode),
                 systemImage: "play.fill",
@@ -97,6 +107,64 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
             Image(systemName: systemImage)
         }
         .help(help)
+        .disabled(!isEnabled)
+        .accessibilityLabel(title)
+    }
+
+    private func annotationToolbarMenu(title: String, isEnabled: Bool) -> some View {
+        Menu {
+            Section(wordZText("词形策略", "Profile", mode: languageMode)) {
+                ForEach(WorkspaceAnnotationProfile.allCases) { profile in
+                    Button {
+                        onSelectAnnotationProfile(profile)
+                    } label: {
+                        if annotationState.profile == profile {
+                            Label(profile.title(in: languageMode), systemImage: "checkmark")
+                        } else {
+                            Text(profile.title(in: languageMode))
+                        }
+                    }
+                }
+            }
+
+            Section(wordZText("脚本过滤", "Script Filter", mode: languageMode)) {
+                ForEach(TokenScript.allCases) { script in
+                    Button {
+                        onToggleAnnotationScript(script)
+                    } label: {
+                        if annotationState.scriptSet.contains(script) {
+                            Label(script.title(in: languageMode), systemImage: "checkmark")
+                        } else {
+                            Text(script.title(in: languageMode))
+                        }
+                    }
+                }
+            }
+
+            Section(wordZText("词类过滤", "Lexical Class Filter", mode: languageMode)) {
+                ForEach(TokenLexicalClass.allCases) { lexicalClass in
+                    Button {
+                        onToggleAnnotationLexicalClass(lexicalClass)
+                    } label: {
+                        if annotationState.lexicalClassSet.contains(lexicalClass) {
+                            Label(lexicalClass.title(in: languageMode), systemImage: "checkmark")
+                        } else {
+                            Text(lexicalClass.title(in: languageMode))
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            Button(wordZText("清空脚本与词类过滤", "Clear Script and Class Filters", mode: languageMode)) {
+                onClearAnnotationFilters()
+            }
+            .disabled(annotationState.lexicalClasses.isEmpty && annotationState.scripts.isEmpty)
+        } label: {
+            Image(systemName: WorkspaceToolbarAction.annotationControls.toolbarSymbolName)
+        }
+        .help("\(title)\n\(annotationSummary)")
         .disabled(!isEnabled)
         .accessibilityLabel(title)
     }

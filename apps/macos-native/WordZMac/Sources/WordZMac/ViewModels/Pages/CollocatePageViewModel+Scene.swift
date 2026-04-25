@@ -32,6 +32,7 @@ extension CollocatePageViewModel {
                     query: configuration.query,
                     searchOptions: configuration.searchOptions,
                     stopwordFilter: stopwordFilter,
+                    annotationState: annotationState,
                     focusMetric: focusMetric,
                     leftWindow: configuration.leftWindow,
                     rightWindow: configuration.rightWindow,
@@ -52,6 +53,7 @@ extension CollocatePageViewModel {
 
         let resultSnapshot = result
         let stopwordSnapshot = stopwordFilter
+        let annotationStateSnapshot = annotationState
         let focusMetricSnapshot = focusMetric
         let sortSnapshot = sortMode
         let pageSizeSnapshot = pageSize
@@ -60,18 +62,23 @@ extension CollocatePageViewModel {
         let configurationSnapshot = configuration
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "collocate", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
+                try Task.checkCancellation()
                 let filteredRows = sceneBuilder.filterRows(
                     from: resultSnapshot.rows,
                     stopwordFilter: stopwordSnapshot
                 )
+                try Task.checkCancellation()
                 let sortedRows = sceneBuilder.sortRows(filteredRows, mode: sortSnapshot)
+                try Task.checkCancellation()
                 let nextScene = sceneBuilder.build(
                     from: resultSnapshot,
                     query: configurationSnapshot.query,
                     searchOptions: configurationSnapshot.searchOptions,
                     stopwordFilter: stopwordSnapshot,
+                    annotationState: annotationStateSnapshot,
                     focusMetric: focusMetricSnapshot,
                     leftWindow: configurationSnapshot.leftWindow,
                     rightWindow: configurationSnapshot.rightWindow,

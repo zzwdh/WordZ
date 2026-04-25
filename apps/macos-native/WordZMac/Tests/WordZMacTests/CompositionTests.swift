@@ -77,6 +77,62 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(dependencies.appCoordinator === appCoordinator)
     }
 
+    func testWorkspaceCoordinatorFactoryCanInjectFeatureWorkflowFactory() async {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let dialogService = FakeDialogService()
+        let hostActionService = FakeHostActionService()
+        let hostPreferencesStore = InMemoryHostPreferencesStore()
+        let buildMetadataProvider = FakeBuildMetadataProvider()
+        let taskCenter = NativeTaskCenter()
+        let libraryCoordinator = FakeLibraryCoordinator()
+        let sentimentWorkflow = SpySentimentWorkflowService()
+        let featureWorkflowFactory = SpyWorkspaceFeatureWorkflowFactory(
+            sentimentWorkflow: sentimentWorkflow
+        )
+        let coordinatorFactory = WorkspaceCoordinatorFactory(
+            featureWorkflowFactory: featureWorkflowFactory
+        )
+
+        let coordinators = coordinatorFactory.make(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: WorkspaceSceneStore(),
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: dialogService,
+            hostActionService: hostActionService,
+            sessionStore: sessionStore,
+            hostPreferencesStore: hostPreferencesStore,
+            buildMetadataProvider: buildMetadataProvider,
+            taskCenter: taskCenter,
+            libraryCoordinator: libraryCoordinator
+        )
+
+        let features = WorkspaceFeatureSet(
+            sidebar: LibrarySidebarViewModel(),
+            shell: WorkspaceShellViewModel(),
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            compare: ComparePageViewModel(),
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+        features.sentiment.source = .pastedText
+        features.sentiment.manualText = "Injected sentiment workflow"
+
+        await coordinators.flowCoordinator.runSentiment(features: features)
+
+        XCTAssertEqual(featureWorkflowFactory.makeCallCount, 1)
+        XCTAssertEqual(sentimentWorkflow.runSentimentCallCount, 1)
+        XCTAssertEqual(sentimentWorkflow.lastManualText, "Injected sentiment workflow")
+        XCTAssertEqual(repository.runSentimentCallCount, 0)
+    }
+
     func testNativeAppContainerBuildsWorkspaceFromRuntimeDependencyFactory() {
         let repository = FakeWorkspaceRepository()
         let dialogService = FakeDialogService()
@@ -94,6 +150,9 @@ final class CompositionTests: XCTestCase {
         let sessionStore = WorkspaceSessionStore()
         let quickLookPreview = QuickLookPreviewFileService(rootDirectory: FileManager.default.temporaryDirectory)
         let reportBundleService = AnalysisReportBundleService()
+        let topics = TopicsPageViewModel()
+        let sentiment = SentimentPageViewModel()
+        let evidenceWorkbench = EvidenceWorkbenchViewModel()
 
         let libraryCoordinator = FakeLibraryCoordinator()
         let flowCoordinator = WorkspaceFlowCoordinator(
@@ -135,6 +194,13 @@ final class CompositionTests: XCTestCase {
 
         let container = NativeAppContainer(
             makeRepository: { repository },
+            makeFeaturePages: {
+                WorkspaceFeaturePageBundle(
+                    topics: topics,
+                    sentiment: sentiment,
+                    evidenceWorkbench: evidenceWorkbench
+                )
+            },
             makeWindowDocumentController: { windowDocumentController },
             makeWorkspacePersistence: { WorkspacePersistenceService() },
             makeWorkspacePresentation: { WorkspacePresentationService() },
@@ -175,6 +241,9 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(workspace.flowCoordinator === flowCoordinator)
         XCTAssertTrue(workspace.appCoordinator === appCoordinator)
         XCTAssertTrue(workspace.taskCenter === taskCenter)
+        XCTAssertTrue(workspace.topics === topics)
+        XCTAssertTrue(workspace.sentiment === sentiment)
+        XCTAssertTrue(workspace.evidenceWorkbench === evidenceWorkbench)
     }
 
     func testMainWorkspaceAssemblyHelperUsesProvidedRuntimeDependencyFactory() {
@@ -233,5 +302,29 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(workspace.updateService as AnyObject === updateService)
         XCTAssertTrue(workspace.notificationService as AnyObject === notificationService)
         XCTAssertTrue(workspace.applicationActivityInspector as AnyObject === applicationActivityInspector)
+    }
+
+    func testMainWorkspaceViewModelKeepsInjectedFeaturePagesBehindHandles() {
+        let repository = FakeWorkspaceRepository()
+        let topics = TopicsPageViewModel()
+        let sentiment = SentimentPageViewModel()
+        let evidenceWorkbench = EvidenceWorkbenchViewModel()
+
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            topics: topics,
+            sentiment: sentiment,
+            evidenceWorkbench: evidenceWorkbench
+        )
+
+        XCTAssertTrue(workspace.topics === topics)
+        XCTAssertTrue(workspace.sentiment === sentiment)
+        XCTAssertTrue(workspace.evidenceWorkbench === evidenceWorkbench)
+        XCTAssertTrue(workspace.featurePages.topics === topics)
+        XCTAssertTrue(workspace.featurePages.sentiment === sentiment)
+        XCTAssertTrue(workspace.featurePages.evidenceWorkbench === evidenceWorkbench)
+        XCTAssertTrue(workspace.features.topics as AnyObject === topics)
+        XCTAssertTrue(workspace.features.sentiment as AnyObject === sentiment)
+        XCTAssertTrue(workspace.features.evidenceWorkbench as AnyObject === evidenceWorkbench)
     }
 }

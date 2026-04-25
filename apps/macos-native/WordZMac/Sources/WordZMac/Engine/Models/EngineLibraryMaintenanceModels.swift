@@ -395,11 +395,23 @@ struct LibraryBackupSummary: Equatable, Sendable {
     let backupDir: String
     let folderCount: Int
     let corpusCount: Int
+    let librarySchemaVersion: Int
+    let workspaceSchemaVersion: Int
+    let pendingShardMigrationCount: Int
+    let quarantinedCorpusCount: Int
+    let corpusSetCount: Int
+    let recycleEntryCount: Int
 
     init(json: JSONObject) {
         self.backupDir = JSONFieldReader.string(json, key: "backupDir")
         self.folderCount = JSONFieldReader.int(json, key: "folderCount")
         self.corpusCount = JSONFieldReader.int(json, key: "corpusCount")
+        self.librarySchemaVersion = JSONFieldReader.int(json, key: "librarySchemaVersion")
+        self.workspaceSchemaVersion = JSONFieldReader.int(json, key: "workspaceSchemaVersion")
+        self.pendingShardMigrationCount = JSONFieldReader.int(json, key: "pendingShardMigrationCount")
+        self.quarantinedCorpusCount = JSONFieldReader.int(json, key: "quarantinedCorpusCount")
+        self.corpusSetCount = JSONFieldReader.int(json, key: "corpusSetCount")
+        self.recycleEntryCount = JSONFieldReader.int(json, key: "recycleEntryCount")
     }
 }
 
@@ -408,12 +420,24 @@ struct LibraryRestoreSummary: Equatable, Sendable {
     let previousLibraryBackupDir: String
     let folderCount: Int
     let corpusCount: Int
+    let librarySchemaVersion: Int
+    let workspaceSchemaVersion: Int
+    let pendingShardMigrationCount: Int
+    let quarantinedCorpusCount: Int
+    let corpusSetCount: Int
+    let recycleEntryCount: Int
 
     init(json: JSONObject) {
         self.restoredFromDir = JSONFieldReader.string(json, key: "restoredFromDir")
         self.previousLibraryBackupDir = JSONFieldReader.string(json, key: "previousLibraryBackupDir")
         self.folderCount = JSONFieldReader.int(json, key: "folderCount")
         self.corpusCount = JSONFieldReader.int(json, key: "corpusCount")
+        self.librarySchemaVersion = JSONFieldReader.int(json, key: "librarySchemaVersion")
+        self.workspaceSchemaVersion = JSONFieldReader.int(json, key: "workspaceSchemaVersion")
+        self.pendingShardMigrationCount = JSONFieldReader.int(json, key: "pendingShardMigrationCount")
+        self.quarantinedCorpusCount = JSONFieldReader.int(json, key: "quarantinedCorpusCount")
+        self.corpusSetCount = JSONFieldReader.int(json, key: "corpusSetCount")
+        self.recycleEntryCount = JSONFieldReader.int(json, key: "recycleEntryCount")
     }
 }
 

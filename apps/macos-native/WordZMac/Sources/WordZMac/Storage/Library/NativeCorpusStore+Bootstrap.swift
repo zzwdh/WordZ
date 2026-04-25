@@ -7,33 +7,17 @@ extension NativeCorpusStore {
         try fileManager.createDirectory(at: corporaDirectoryURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: recycleDirectoryURL, withIntermediateDirectories: true)
 
-        if !fileManager.fileExists(atPath: foldersURL.path) {
-            try saveFolders([])
-        }
-        if !fileManager.fileExists(atPath: corporaURL.path) {
-            try saveCorpora([])
-        }
-        if !fileManager.fileExists(atPath: corpusSetsURL.path) {
-            try saveCorpusSets([])
-        }
-        if !fileManager.fileExists(atPath: recycleURL.path) {
-            try saveRecycleEntries([])
-        }
-        if !fileManager.fileExists(atPath: analysisPresetsURL.path) {
-            try saveAnalysisPresets([])
-        }
-        if !fileManager.fileExists(atPath: workspaceURL.path) {
-            try saveWorkspaceSnapshot(.empty)
-        }
-        if !fileManager.fileExists(atPath: uiSettingsURL.path) {
-            try saveUISettings(.default)
-        }
+        try storageMigrationCoordinator.ensureInitialized()
 
         _ = try loadFolders()
         _ = try loadCorpora()
         _ = try loadCorpusSets()
         _ = try loadRecycleEntries()
         _ = try loadAnalysisPresets()
+        _ = try loadKeywordSavedLists()
+        _ = try loadConcordanceSavedSets()
+        _ = try loadEvidenceItems()
+        _ = try loadSentimentReviewSamples()
         _ = try loadWorkspacePersistedSnapshot()
         _ = try loadPersistedUISettings()
         isInitialized = true

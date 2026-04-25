@@ -66,7 +66,7 @@ struct NativeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
             )
             try writeJSONObject(
                 payload.workspaceDraft.asJSONObject(),
-                to: bundleDirectoryURL.appendingPathComponent("workspace-state.json"),
+                to: bundleDirectoryURL.appendingPathComponent("workspace-snapshot.json"),
                 relativeTo: bundleDirectoryURL,
                 description: "Current workspace snapshot draft.",
                 manifestEntries: &manifestEntries

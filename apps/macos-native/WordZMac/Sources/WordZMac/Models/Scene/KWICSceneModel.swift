@@ -135,6 +135,7 @@ struct KWICSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationSummary: String
     let leftWindow: Int
     let rightWindow: Int
     let sorting: KWICSortingSceneModel
@@ -144,9 +145,13 @@ struct KWICSceneModel: Equatable {
     let filteredRows: Int
     let visibleRows: Int
     let rows: [KWICSceneRow]
-    let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let exportMetadataLines: [String]
     let searchError: String
+
+    var tableRows: [NativeTableRowDescriptor] {
+        tableSnapshot.rows
+    }
 
     func column(for key: KWICColumnKey) -> NativeTableColumnDescriptor? {
         table.column(id: key.rawValue)

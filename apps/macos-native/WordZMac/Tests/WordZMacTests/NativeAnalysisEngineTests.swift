@@ -202,6 +202,22 @@ final class NativeAnalysisEngineTests: XCTestCase {
         XCTAssertGreaterThan(beta?.mutualInformation ?? 0, 0)
     }
 
+    func testRunCollocateSupportsPhraseExactMatches() throws {
+        let engine = NativeAnalysisEngine()
+        let result = try engine.runCollocate(
+            text: "alpha beta gamma. alpha delta theta. alpha beta again.",
+            keyword: "alpha beta",
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1,
+            searchOptions: SearchOptionsState(matchMode: .phraseExact)
+        )
+
+        XCTAssertEqual(result.rows.first(where: { $0.word == "gamma" })?.total, 1)
+        XCTAssertEqual(result.rows.first(where: { $0.word == "again" })?.total, 1)
+        XCTAssertNil(result.rows.first(where: { $0.word == "delta" }))
+    }
+
     func testRunCompareComputesSignedKeynessAgainstReferenceCorpora() {
         let engine = NativeAnalysisEngine()
         let result = engine.runCompare(comparisonEntries: [

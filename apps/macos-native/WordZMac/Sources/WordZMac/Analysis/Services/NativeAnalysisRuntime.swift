@@ -95,6 +95,23 @@ actor NativeAnalysisRuntime {
         }
     }
 
+    func runPlot(
+        artifact: StoredTokenizedArtifact,
+        candidateSentenceIDs: Set<Int>,
+        keyword: String,
+        searchOptions: SearchOptionsState
+    ) async throws -> PlotDocumentDistribution {
+        let engine = self.engine
+        return try await Self.runDetached {
+            try engine.runPlot(
+                artifact: artifact,
+                candidateSentenceIDs: candidateSentenceIDs,
+                keyword: keyword,
+                searchOptions: searchOptions
+            )
+        }
+    }
+
     func runKWIC(
         text: String,
         keyword: String,
@@ -144,6 +161,27 @@ actor NativeAnalysisRuntime {
         return try await Self.runDetached {
             try engine.runKWIC(
                 artifact: artifact,
+                keyword: keyword,
+                leftWindow: leftWindow,
+                rightWindow: rightWindow,
+                searchOptions: searchOptions
+            )
+        }
+    }
+
+    func runKWIC(
+        artifact: StoredTokenizedArtifact,
+        candidateSentenceIDs: Set<Int>,
+        keyword: String,
+        leftWindow: Int,
+        rightWindow: Int,
+        searchOptions: SearchOptionsState
+    ) async throws -> KWICResult {
+        let engine = self.engine
+        return try await Self.runDetached {
+            try engine.runKWIC(
+                artifact: artifact,
+                candidateSentenceIDs: candidateSentenceIDs,
                 keyword: keyword,
                 leftWindow: leftWindow,
                 rightWindow: rightWindow,
@@ -206,6 +244,29 @@ actor NativeAnalysisRuntime {
         return try await Self.runDetached {
             try engine.runCollocate(
                 artifact: artifact,
+                keyword: keyword,
+                leftWindow: leftWindow,
+                rightWindow: rightWindow,
+                minFreq: minFreq,
+                searchOptions: searchOptions
+            )
+        }
+    }
+
+    func runCollocate(
+        artifact: StoredTokenizedArtifact,
+        candidateSentenceIDs: Set<Int>,
+        keyword: String,
+        leftWindow: Int,
+        rightWindow: Int,
+        minFreq: Int,
+        searchOptions: SearchOptionsState
+    ) async throws -> CollocateResult {
+        let engine = self.engine
+        return try await Self.runDetached {
+            try engine.runCollocate(
+                artifact: artifact,
+                candidateSentenceIDs: candidateSentenceIDs,
                 keyword: keyword,
                 leftWindow: leftWindow,
                 rightWindow: rightWindow,

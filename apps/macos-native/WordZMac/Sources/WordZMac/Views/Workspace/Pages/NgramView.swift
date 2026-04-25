@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NgramView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: NgramPageViewModel
     let isBusy: Bool
     let onAction: (NgramPageAction) -> Void

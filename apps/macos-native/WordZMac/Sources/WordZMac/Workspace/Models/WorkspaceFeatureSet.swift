@@ -1,15 +1,15 @@
 import Foundation
 
-struct WorkspaceFeatureSet {
+struct WorkspaceFeatureSet: @unchecked Sendable {
     let sidebar: LibrarySidebarViewModel
     let shell: WorkspaceShellViewModel
     let library: LibraryManagementViewModel
     let stats: StatsPageViewModel
     let word: WordPageViewModel
     let tokenize: TokenizePageViewModel
-    let topics: TopicsPageViewModel
+    let topics: any WorkspaceTopicsPageState
     let compare: ComparePageViewModel
-    let sentiment: SentimentPageViewModel
+    let sentiment: any WorkspaceSentimentPageState
     let keyword: KeywordPageViewModel
     let chiSquare: ChiSquarePageViewModel
     let plot: PlotPageViewModel
@@ -18,7 +18,7 @@ struct WorkspaceFeatureSet {
     let kwic: KWICPageViewModel
     let collocate: CollocatePageViewModel
     let locator: LocatorPageViewModel
-    let evidenceWorkbench: EvidenceWorkbenchViewModel
+    let evidenceWorkbench: any WorkspaceEvidenceWorkbenchState
     let settings: WorkspaceSettingsViewModel
 
     @MainActor
@@ -29,9 +29,9 @@ struct WorkspaceFeatureSet {
         stats: StatsPageViewModel,
         word: WordPageViewModel = WordPageViewModel(),
         tokenize: TokenizePageViewModel = TokenizePageViewModel(),
-        topics: TopicsPageViewModel = TopicsPageViewModel(),
+        topics: any WorkspaceTopicsPageState = WorkspaceFeatureSetDefaultPages.topics(),
         compare: ComparePageViewModel,
-        sentiment: SentimentPageViewModel = SentimentPageViewModel(),
+        sentiment: any WorkspaceSentimentPageState = WorkspaceFeatureSetDefaultPages.sentiment(),
         keyword: KeywordPageViewModel = KeywordPageViewModel(),
         chiSquare: ChiSquarePageViewModel,
         plot: PlotPageViewModel = PlotPageViewModel(),
@@ -40,7 +40,7 @@ struct WorkspaceFeatureSet {
         kwic: KWICPageViewModel,
         collocate: CollocatePageViewModel,
         locator: LocatorPageViewModel,
-        evidenceWorkbench: EvidenceWorkbenchViewModel = EvidenceWorkbenchViewModel(),
+        evidenceWorkbench: any WorkspaceEvidenceWorkbenchState = WorkspaceFeatureSetDefaultPages.evidenceWorkbench(),
         settings: WorkspaceSettingsViewModel
     ) {
         self.sidebar = sidebar

@@ -142,7 +142,56 @@ extension MainWorkspaceViewModel {
             )
         }
 
+        if let evidenceDossierDocument = currentEvidenceDossierDocument {
+            documents.append(evidenceDossierDocument)
+        }
+
+        if let sentimentExplainerDocument = currentSentimentExplainerDocument {
+            documents.append(sentimentExplainerDocument)
+        }
+
         return documents
+    }
+
+    var currentEvidenceDossierDocument: AnalysisReportBundleTextDocument? {
+        guard let document = try? EvidenceMarkdownPacketSupport.document(
+            items: evidenceWorkbench.items,
+            grouping: evidenceWorkbench.groupingMode
+        ) else {
+            return nil
+        }
+        return AnalysisReportBundleTextDocument(
+            relativePath: "reading/evidence-dossier.md",
+            description: "Current evidence workbench dossier export.",
+            document: document
+        )
+    }
+
+    var currentSentimentExplainerDocument: AnalysisReportBundleTextDocument? {
+        switch selectedTab {
+        case .compare:
+            guard let explainer = compare.scene?.sentimentExplainer else { return nil }
+            return AnalysisReportBundleTextDocument(
+                relativePath: "reading/sentiment-explainer.txt",
+                description: "Current compare sentiment explainer export.",
+                document: PlainTextExportDocument(
+                    suggestedName: "sentiment-explainer.txt",
+                    text: explainer.exportMetadataLines(in: .system).joined(separator: "\n")
+                )
+            )
+        case .topics:
+            guard let explainer = topics.scene?.sentimentExplainer else { return nil }
+            return AnalysisReportBundleTextDocument(
+                relativePath: "reading/sentiment-explainer.txt",
+                description: "Current topics sentiment explainer export.",
+                document: PlainTextExportDocument(
+                    suggestedName: "sentiment-explainer.txt",
+                    text: explainer.exportMetadataLines(in: .system).joined(separator: "\n")
+                )
+            )
+        case .stats, .word, .tokenize, .sentiment, .keyword, .chiSquare, .plot, .ngram, .cluster, .kwic, .collocate, .locator, .library, .settings:
+            return nil
+        }
     }
 
     var currentReadingExportDocument: AnalysisReportBundleTextDocument? {
@@ -193,16 +242,15 @@ extension MainWorkspaceViewModel {
                 document: document
             )
         case .sentiment:
-            guard let result = sentiment.result else { return nil }
-            let lines = [
-                "WordZ Sentiment Summary",
-                "",
-                "Source: \(result.request.source.rawValue)",
-                "Unit: \(result.request.unit.rawValue)",
-                "Positive: \(result.overallSummary.positiveCount)",
-                "Neutral: \(result.overallSummary.neutralCount)",
-                "Negative: \(result.overallSummary.negativeCount)"
-            ]
+            guard let presentationResult = sentiment.presentationResult else { return nil }
+            let lines = SentimentExportSupport.summaryLines(
+                presentationResult: presentationResult,
+                additionalLines: sentiment.exportMetadataLines(
+                    annotationSummary: annotationSummary(in: .system),
+                    languageMode: .system
+                ),
+                languageMode: .system
+            )
             return AnalysisReportBundleTextDocument(
                 relativePath: "reading/sentiment-summary.txt",
                 description: "Current sentiment summary export.",

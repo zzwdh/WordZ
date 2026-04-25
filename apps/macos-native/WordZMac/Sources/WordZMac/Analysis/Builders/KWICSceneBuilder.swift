@@ -6,6 +6,7 @@ struct KWICSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         leftWindow: Int,
         rightWindow: Int,
         sortMode: KWICSortMode,
@@ -21,6 +22,7 @@ struct KWICSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationState: annotationState,
             leftWindow: leftWindow,
             rightWindow: rightWindow,
             sortMode: sortMode,
@@ -38,6 +40,7 @@ struct KWICSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         leftWindow: Int,
         rightWindow: Int,
         sortMode: KWICSortMode,
@@ -108,7 +111,8 @@ struct KWICSceneBuilder {
             additionalLines: [
                 "\(wordZText("左窗口", "Left Window", mode: languageMode)): \(leftWindow)",
                 "\(wordZText("右窗口", "Right Window", mode: languageMode)): \(rightWindow)",
-                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))"
+                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))",
+                annotationState.summary(in: languageMode)
             ]
         )
 
@@ -116,6 +120,7 @@ struct KWICSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationSummary: annotationState.summary(in: languageMode),
             leftWindow: leftWindow,
             rightWindow: rightWindow,
             sorting: KWICSortingSceneModel(
@@ -142,7 +147,7 @@ struct KWICSceneBuilder {
             filteredRows: sortedRows.count,
             visibleRows: visibleRows.count,
             rows: visibleRows,
-            tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot(rows: tableRows),
             exportMetadataLines: exportMetadataLines,
             searchError: ""
         )

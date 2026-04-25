@@ -1,6 +1,31 @@
 import Foundation
 
 extension KeywordPageViewModel {
+    func estimatedSceneBuildRowCount(
+        result: KeywordSuiteResult?,
+        activeTab: KeywordSuiteTab,
+        listMode: KeywordSavedListViewMode,
+        primarySavedList: KeywordSavedList?,
+        secondarySavedList: KeywordSavedList?,
+        savedLists: [KeywordSavedList]
+    ) -> Int {
+        switch activeTab {
+        case .words:
+            result?.words.count ?? 0
+        case .terms:
+            result?.terms.count ?? 0
+        case .ngrams:
+            result?.ngrams.count ?? 0
+        case .lists:
+            switch listMode {
+            case .pairwiseDiff:
+                (primarySavedList?.rows.count ?? 0) + (secondarySavedList?.rows.count ?? 0)
+            case .keywordDatabase:
+                savedLists.reduce(0) { $0 + $1.rows.count }
+            }
+        }
+    }
+
     func normalizeSelections() {
         let validCorpusIDs = Set(availableCorpora.map(\.id))
         let validCorpusSetIDs = Set(availableCorpusSets.map(\.id))
@@ -64,30 +89,103 @@ extension KeywordPageViewModel {
 
     func rebuildScene() {
         guard result != nil || activeTab == .lists else {
+            invalidatePendingSceneBuilds()
             scene = nil
             selectedRowID = nil
             return
         }
 
-        scene = sceneBuilder.build(
-            result: result,
-            activeTab: activeTab,
-            listMode: savedListViewMode,
-            primarySavedList: selectedSavedList,
-            secondarySavedList: comparisonSavedList,
-            savedLists: savedLists,
-            configuration: suiteConfiguration,
-            focusSelectionSummary: focusSelectionSummary,
-            referenceSelectionSummary: referenceSelectionSummary,
-            hasPendingRunChanges: hasPendingRunChanges,
-            sortMode: sortMode,
-            pageSize: pageSize,
-            currentPage: currentPage,
-            visibleColumns: visibleColumns,
-            languageMode: WordZLocalization.shared.effectiveMode
+        let revision = beginSceneBuildPass()
+        let resultSnapshot = result
+        let activeTabSnapshot = activeTab
+        let listModeSnapshot = savedListViewMode
+        let primarySavedListSnapshot = selectedSavedList
+        let secondarySavedListSnapshot = comparisonSavedList
+        let savedListsSnapshot = savedLists
+        let configurationSnapshot = suiteConfiguration
+        let annotationStateSnapshot = workspaceAnnotationState
+        let focusSelectionSummarySnapshot = focusSelectionSummary
+        let referenceSelectionSummarySnapshot = referenceSelectionSummary
+        let hasPendingRunChangesSnapshot = hasPendingRunChanges
+        let sortSnapshot = sortMode
+        let pageSizeSnapshot = pageSize
+        let currentPageSnapshot = currentPage
+        let visibleColumnsSnapshot = visibleColumns
+        let languageModeSnapshot = WordZLocalization.shared.effectiveMode
+        let rowCount = estimatedSceneBuildRowCount(
+            result: resultSnapshot,
+            activeTab: activeTabSnapshot,
+            listMode: listModeSnapshot,
+            primarySavedList: primarySavedListSnapshot,
+            secondarySavedList: secondarySavedListSnapshot,
+            savedLists: savedListsSnapshot
         )
-        currentPage = scene?.pagination.currentPage ?? 1
-        syncSelectedRow()
+
+        let applyScene: (KeywordSceneModel) -> Void = { nextScene in
+            self.scene = nextScene
+            self.currentPage = nextScene.pagination.currentPage
+            self.syncSelectedRow(within: nextScene.rows)
+        }
+
+        guard rowCount >= LargeResultSceneBuildSupport.asyncThreshold else {
+            let nextScene = AnalysisPerformanceTelemetry.measureSceneBuild(
+                context: .init(page: "keyword", rowCount: rowCount, revision: revision, isAsync: false)
+            ) {
+                sceneBuilder.build(
+                    result: resultSnapshot,
+                    activeTab: activeTabSnapshot,
+                    listMode: listModeSnapshot,
+                    primarySavedList: primarySavedListSnapshot,
+                    secondarySavedList: secondarySavedListSnapshot,
+                    savedLists: savedListsSnapshot,
+                    configuration: configurationSnapshot,
+                    annotationState: annotationStateSnapshot,
+                    focusSelectionSummary: focusSelectionSummarySnapshot,
+                    referenceSelectionSummary: referenceSelectionSummarySnapshot,
+                    hasPendingRunChanges: hasPendingRunChangesSnapshot,
+                    sortMode: sortSnapshot,
+                    pageSize: pageSizeSnapshot,
+                    currentPage: currentPageSnapshot,
+                    visibleColumns: visibleColumnsSnapshot,
+                    languageMode: languageModeSnapshot
+                )
+            }
+            applyScene(nextScene)
+            return
+        }
+
+        AnalysisSceneBuildScheduling.schedule(
+            owner: self,
+            context: .init(page: "keyword", rowCount: rowCount, revision: revision, isAsync: true),
+            build: { [sceneBuilder] in
+                try Task.checkCancellation()
+                let nextScene = sceneBuilder.build(
+                    result: resultSnapshot,
+                    activeTab: activeTabSnapshot,
+                    listMode: listModeSnapshot,
+                    primarySavedList: primarySavedListSnapshot,
+                    secondarySavedList: secondarySavedListSnapshot,
+                    savedLists: savedListsSnapshot,
+                    configuration: configurationSnapshot,
+                    annotationState: annotationStateSnapshot,
+                    focusSelectionSummary: focusSelectionSummarySnapshot,
+                    referenceSelectionSummary: referenceSelectionSummarySnapshot,
+                    hasPendingRunChanges: hasPendingRunChangesSnapshot,
+                    sortMode: sortSnapshot,
+                    pageSize: pageSizeSnapshot,
+                    currentPage: currentPageSnapshot,
+                    visibleColumns: visibleColumnsSnapshot,
+                    languageMode: languageModeSnapshot
+                )
+                try Task.checkCancellation()
+                return nextScene
+            },
+            apply: { nextScene in
+                guard self.isCurrentSceneBuild(revision) else { return false }
+                applyScene(nextScene)
+                return true
+            }
+        )
     }
 
     func syncSelectedRow() {

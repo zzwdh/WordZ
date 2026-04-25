@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CompareView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: ComparePageViewModel
     let isBusy: Bool
     let onAction: (ComparePageAction) -> Void

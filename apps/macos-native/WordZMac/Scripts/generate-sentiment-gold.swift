@@ -8,6 +8,7 @@ struct GoldExample: Codable {
     let domain: String
     let label: String
     let text: String
+    let tags: [String]?
 }
 
 struct GoldManifest: Codable {
@@ -16,16 +17,20 @@ struct GoldManifest: Codable {
     let countsBySplit: [String: Int]
     let countsByDomain: [String: Int]
     let countsByLabel: [String: Int]
+    let countsByTag: [String: Int]?
     let notes: String
 }
 
 enum ScriptFailure: LocalizedError {
     case missingArgument(String)
+    case invalidInputDataset
 
     var errorDescription: String? {
         switch self {
         case .missingArgument(let name):
             return "Missing required argument: \(name)"
+        case .invalidInputDataset:
+            return "The input dataset is empty or malformed."
         }
     }
 }
@@ -42,53 +47,81 @@ private let labels = ["positive", "neutral", "negative"]
 enum SentimentGoldGenerator {
     static func run(arguments: [String]) throws {
         let options = try parseOptions(arguments)
-        let examples = buildExamples()
+        let examples = try loadExamples(using: options)
         let manifest = GoldManifest(
-            version: "v2",
+            version: options.version,
             totalExamples: examples.count,
             countsBySplit: counts(for: examples, keyPath: \.split),
             countsByDomain: counts(for: examples, keyPath: \.domain),
             countsByLabel: counts(for: examples, keyPath: \.label),
-            notes: "Templated English-tuned starter gold pack for benchmark/calibration. Replace or augment with manually adjudicated corpus examples for production evaluation."
+            countsByTag: tagCounts(for: examples),
+            notes: options.notes
         )
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
-        let outputURL = URL(fileURLWithPath: options.outputPath)
         let manifestURL = URL(fileURLWithPath: options.manifestPath)
+        if let outputPath = options.outputPath {
+            let outputURL = URL(fileURLWithPath: outputPath)
+            try FileManager.default.createDirectory(
+                at: outputURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try encoder.encode(examples).write(to: outputURL)
+            print("Generated \(examples.count) examples at \(outputURL.path)")
+        }
         try FileManager.default.createDirectory(
-            at: outputURL.deletingLastPathComponent(),
+            at: manifestURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try encoder.encode(examples).write(to: outputURL)
         try encoder.encode(manifest).write(to: manifestURL)
 
-        print("Generated \(examples.count) examples at \(outputURL.path)")
         print("Wrote manifest to \(manifestURL.path)")
     }
 
-    private static func parseOptions(_ arguments: [String]) throws -> (outputPath: String, manifestPath: String) {
+    private static func parseOptions(_ arguments: [String]) throws -> (
+        outputPath: String?,
+        inputPath: String?,
+        manifestPath: String,
+        version: String,
+        notes: String
+    ) {
         var outputPath: String?
+        var inputPath: String?
         var manifestPath: String?
+        var version = "v2"
+        var notes = defaultNotes(for: version, templated: true)
         var index = 0
         while index < arguments.count {
             switch arguments[index] {
             case "--output":
                 index += 1
                 outputPath = safeArgument(at: index, in: arguments)
+            case "--input":
+                index += 1
+                inputPath = safeArgument(at: index, in: arguments)
             case "--manifest":
                 index += 1
                 manifestPath = safeArgument(at: index, in: arguments)
+            case "--version":
+                index += 1
+                version = safeArgument(at: index, in: arguments) ?? version
+                notes = defaultNotes(for: version, templated: inputPath == nil)
+            case "--notes":
+                index += 1
+                notes = safeArgument(at: index, in: arguments) ?? notes
             default:
                 break
             }
             index += 1
         }
 
-        guard let outputPath else { throw ScriptFailure.missingArgument("--output") }
         guard let manifestPath else { throw ScriptFailure.missingArgument("--manifest") }
-        return (outputPath, manifestPath)
+        guard outputPath != nil || inputPath != nil else {
+            throw ScriptFailure.missingArgument("--output or --input")
+        }
+        return (outputPath, inputPath, manifestPath, version, notes)
     }
 
     private static func safeArgument(at index: Int, in arguments: [String]) -> String? {
@@ -102,6 +135,44 @@ enum SentimentGoldGenerator {
     ) -> [String: Int] {
         Dictionary(grouping: examples, by: { $0[keyPath: keyPath] })
             .mapValues(\.count)
+    }
+
+    private static func tagCounts(for examples: [GoldExample]) -> [String: Int]? {
+        let counts = examples
+            .flatMap { $0.tags ?? [] }
+            .reduce(into: [String: Int]()) { partial, tag in
+                partial[tag, default: 0] += 1
+            }
+        return counts.isEmpty ? nil : counts
+    }
+
+    private static func loadExamples(
+        using options: (outputPath: String?, inputPath: String?, manifestPath: String, version: String, notes: String)
+    ) throws -> [GoldExample] {
+        if let inputPath = options.inputPath {
+            let inputURL = URL(fileURLWithPath: inputPath)
+            let data = try Data(contentsOf: inputURL)
+            let examples = try JSONDecoder().decode([GoldExample].self, from: data)
+            guard !examples.isEmpty else {
+                throw ScriptFailure.invalidInputDataset
+            }
+            return examples
+        }
+        return buildExamples()
+    }
+
+    private static func defaultNotes(
+        for version: String,
+        templated: Bool
+    ) -> String {
+        let normalizedVersion = version.lowercased()
+        if normalizedVersion == "v3" || normalizedVersion == "3" {
+            return "Manually adjudicated English news-oriented benchmark focused on procedural neutrality, quoted language, reported speech, commentary, and stance framing."
+        }
+        if templated {
+            return "Templated English-tuned starter gold pack for benchmark/calibration. Replace or augment with manually adjudicated corpus examples for production evaluation."
+        }
+        return "Curated sentiment benchmark fixture."
     }
 
     private static func buildExamples() -> [GoldExample] {
@@ -120,7 +191,8 @@ enum SentimentGoldGenerator {
                             split: split.name,
                             domain: domain,
                             label: label,
-                            text: text
+                            text: text,
+                            tags: nil
                         )
                     })
                     offset += split.count

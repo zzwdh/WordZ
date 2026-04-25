@@ -1,12 +1,18 @@
 import Foundation
+import WordZEngine
 
 @MainActor
-final class NativeWorkspaceRepository: WorkspaceRepository, TopicProgressReportingRepository, LibraryImportProgressReportingRepository, LibraryCorpusCleaningProgressReportingRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository {
+final class NativeWorkspaceRepository: WorkspaceRepository, TopicProgressReportingRepository, LibraryImportProgressReportingRepository, LibraryCorpusCleaningProgressReportingRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, MetadataFilteringLibraryRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository {
     let core: NativeWorkspaceRepositoryCore
 
     init(rootURL: URL = EnginePaths.defaultUserDataURL()) {
         self.core = NativeWorkspaceRepositoryCore(rootURL: rootURL)
     }
+}
+
+struct StoredSentenceSearchCacheKey: Hashable {
+    let textDigest: String
+    let phraseSignature: String
 }
 
 actor NativeWorkspaceRepositoryCore {
@@ -35,6 +41,7 @@ actor NativeWorkspaceRepositoryCore {
     var storedTokenPositionIndexesByCorpusID: [String: StoredTokenPositionIndexArtifact] = [:]
     var storedTokenPositionIndexesByTextDigest: [String: StoredTokenPositionIndexArtifact] = [:]
     var storedCorpusIDsByTextDigest: [String: String] = [:]
+    var storedSentenceSearchCandidateIDsByKey: [StoredSentenceSearchCacheKey: Set<Int>] = [:]
 
     init(rootURL: URL) {
         self.rootURL = rootURL

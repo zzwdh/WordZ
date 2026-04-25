@@ -37,6 +37,11 @@ struct LibraryManagementView: View {
             placement: .toolbar,
             prompt: t("搜索语料、文件夹或语料集", "Search corpora, folders, or corpus sets")
         )
+        .task(id: viewModel.normalizedSearchQuery) {
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard !Task.isCancelled else { return }
+            onAction(.refresh)
+        }
         .nativeLibrarySearchPresentation()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .modifier(libraryManagementPresentationModifier)

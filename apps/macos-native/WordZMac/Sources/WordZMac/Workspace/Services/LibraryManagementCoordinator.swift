@@ -16,9 +16,31 @@ final class LibraryManagementCoordinator: LibraryManagementCoordinating {
         self.sessionStore = sessionStore
     }
     func refreshLibraryState(into library: LibraryManagementViewModel, sidebar: LibrarySidebarViewModel) async throws {
-        let nextLibrary = try await repository.listLibrary(folderId: "all")
+        let folderID = library.selectedFolderID ?? "all"
+        let metadataFilterState = sidebar.metadataFilterState
+        let sidebarLibrary: LibrarySnapshot
+        if let repository = repository as? any MetadataFilteringLibraryRepository {
+            sidebarLibrary = try await repository.listLibrary(
+                folderId: folderID,
+                metadataFilterState: metadataFilterState
+            )
+        } else {
+            sidebarLibrary = try await self.repository.listLibrary(folderId: folderID)
+        }
+
+        let nextLibrary: LibrarySnapshot
+        if !library.normalizedSearchQuery.isEmpty,
+           let repository = repository as? any FullTextSearchingLibraryRepository {
+            nextLibrary = try await repository.listLibrary(
+                folderId: folderID,
+                metadataFilterState: metadataFilterState,
+                searchQuery: library.normalizedSearchQuery
+            )
+        } else {
+            nextLibrary = sidebarLibrary
+        }
         let nextRecycle = try await repository.listRecycleBin()
-        sidebar.librarySnapshot = nextLibrary
+        sidebar.librarySnapshot = sidebarLibrary
         library.applyLibrarySnapshot(nextLibrary)
         library.applyRecycleSnapshot(nextRecycle)
         library.syncSidebarSelection(sidebar.selectedCorpusID)

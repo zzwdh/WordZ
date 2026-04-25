@@ -2,29 +2,55 @@ import Foundation
 
 extension NativeCorpusStore {
     func listLibrary(folderId: String = "all") throws -> LibrarySnapshot {
+        try listLibrary(folderId: folderId, metadataFilterState: .empty)
+    }
+
+    func listLibrary(
+        folderId: String = "all",
+        metadataFilterState: CorpusMetadataFilterState
+    ) throws -> LibrarySnapshot {
         let folders = try loadFolders()
-        let corpora = try loadCorpora()
+        let corpora = try loadCorpora(
+            folderId: folderId,
+            metadataFilterState: metadataFilterState
+        )
         let corpusSets = try loadCorpusSets()
-        let filtered = folderId == "all" || folderId.isEmpty
-            ? corpora
-            : corpora.filter { $0.folderId == folderId }
         return LibrarySnapshot(
             folders: folders.map(\.libraryItem),
-            corpora: filtered.map(\.libraryItem),
+            corpora: corpora.map(\.libraryItem),
+            corpusSets: corpusSets.map(\.libraryItem)
+        )
+    }
+
+    func listLibrary(
+        folderId: String = "all",
+        metadataFilterState: CorpusMetadataFilterState,
+        searchQuery: String
+    ) throws -> LibrarySnapshot {
+        let folders = try loadFolders()
+        let corpora = try libraryCatalogStore.loadCorpora(
+            folderId: folderId,
+            metadataFilterState: metadataFilterState,
+            searchQuery: searchQuery
+        )
+        let corpusSets = try loadCorpusSets()
+        return LibrarySnapshot(
+            folders: folders.map(\.libraryItem),
+            corpora: corpora.map(\.libraryItem),
             corpusSets: corpusSets.map(\.libraryItem)
         )
     }
 
     func openSavedCorpus(corpusId: String) throws -> OpenedCorpus {
         let corpora = try loadCorpora()
-        guard let record = corpora.first(where: { $0.id == corpusId }) else {
+        guard let existingRecord = corpora.first(where: { $0.id == corpusId }) else {
             throw NSError(
                 domain: "WordZMac.NativeCorpusStore",
                 code: 404,
                 userInfo: [NSLocalizedDescriptionKey: "未找到语料：\(corpusId)"]
             )
         }
-        let storageURL = corporaDirectoryURL.appendingPathComponent(record.storageFileName)
+        let (record, storageURL) = try resolvedStorage(for: existingRecord)
         guard fileManager.fileExists(atPath: storageURL.path) else {
             throw NSError(
                 domain: "WordZMac.NativeCorpusStore",
@@ -44,14 +70,14 @@ extension NativeCorpusStore {
 
     func loadCorpusInfo(corpusId: String) throws -> CorpusInfoSummary {
         let corpora = try loadCorpora()
-        guard let record = corpora.first(where: { $0.id == corpusId }) else {
+        guard let existingRecord = corpora.first(where: { $0.id == corpusId }) else {
             throw NSError(
                 domain: "WordZMac.NativeCorpusStore",
                 code: 404,
                 userInfo: [NSLocalizedDescriptionKey: "未找到语料：\(corpusId)"]
             )
         }
-        let storageURL = corporaDirectoryURL.appendingPathComponent(record.storageFileName)
+        let (record, storageURL) = try resolvedStorage(for: existingRecord)
         guard fileManager.fileExists(atPath: storageURL.path) else {
             throw NSError(
                 domain: "WordZMac.NativeCorpusStore",

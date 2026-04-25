@@ -31,6 +31,42 @@ extension NativeWorkspaceRepositoryCore {
         return try storage.listLibrary(folderId: folderId)
     }
 
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState
+    ) throws -> LibrarySnapshot {
+        try ensureReady()
+        if let store = storage as? any MetadataFilteringLibraryStore {
+            return try store.listLibrary(
+                folderId: folderId,
+                metadataFilterState: metadataFilterState
+            )
+        }
+        return try storage.listLibrary(folderId: folderId)
+    }
+
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState,
+        searchQuery: String
+    ) throws -> LibrarySnapshot {
+        try ensureReady()
+        if let store = storage as? any FullTextSearchingLibraryStore {
+            return try store.listLibrary(
+                folderId: folderId,
+                metadataFilterState: metadataFilterState,
+                searchQuery: searchQuery
+            )
+        }
+        if let store = storage as? any MetadataFilteringLibraryStore {
+            return try store.listLibrary(
+                folderId: folderId,
+                metadataFilterState: metadataFilterState
+            )
+        }
+        return try storage.listLibrary(folderId: folderId)
+    }
+
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) throws -> LibraryImportResult {
         try importCorpusPaths(paths, folderId: folderId, preserveHierarchy: preserveHierarchy, progress: nil)
     }
@@ -88,15 +124,27 @@ extension NativeWorkspaceRepositoryCore {
     func openSavedCorpus(corpusId: String) throws -> OpenedCorpus {
         try ensureReady()
         if let cached = openedCorpusCache[corpusId] {
+            cacheStoredCorpusID(for: corpusId, text: cached.content)
             try cacheStoredFrequencyArtifact(for: corpusId, text: cached.content)
             try cacheStoredTokenizedArtifact(for: corpusId, text: cached.content)
             return cached
         }
         let openedCorpus = try storage.openSavedCorpus(corpusId: corpusId)
         openedCorpusCache[corpusId] = openedCorpus
+        cacheStoredCorpusID(for: corpusId, text: openedCorpus.content)
         try cacheStoredFrequencyArtifact(for: corpusId, text: openedCorpus.content)
         try cacheStoredTokenizedArtifact(for: corpusId, text: openedCorpus.content)
         return openedCorpus
+    }
+
+    func loadStoredFrequencyArtifact(corpusId: String) throws -> StoredFrequencyArtifact? {
+        try ensureReady()
+        return try storedFrequencyArtifact(for: corpusId)
+    }
+
+    func loadStoredTokenizedArtifact(corpusId: String) throws -> StoredTokenizedArtifact? {
+        try ensureReady()
+        return try storedTokenizedArtifact(for: corpusId)
     }
 
     func loadCorpusInfo(corpusId: String) throws -> CorpusInfoSummary {
@@ -451,6 +499,54 @@ extension NativeWorkspaceRepositoryCore {
             )
         }
         try store.replaceEvidenceItems(items)
+    }
+
+    func listSentimentReviewSamples() throws -> [SentimentReviewSample] {
+        try ensureReady()
+        guard let store = storage as? any SentimentReviewSampleManagingStorage else {
+            throw NSError(
+                domain: "WordZMac.NativeWorkspaceRepository",
+                code: 36,
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持情感审校样本。"]
+            )
+        }
+        return try store.listSentimentReviewSamples()
+    }
+
+    func saveSentimentReviewSample(_ sample: SentimentReviewSample) throws -> SentimentReviewSample {
+        try ensureReady()
+        guard let store = storage as? any SentimentReviewSampleManagingStorage else {
+            throw NSError(
+                domain: "WordZMac.NativeWorkspaceRepository",
+                code: 37,
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持情感审校样本。"]
+            )
+        }
+        return try store.saveSentimentReviewSample(sample)
+    }
+
+    func deleteSentimentReviewSample(sampleID: String) throws {
+        try ensureReady()
+        guard let store = storage as? any SentimentReviewSampleManagingStorage else {
+            throw NSError(
+                domain: "WordZMac.NativeWorkspaceRepository",
+                code: 38,
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持情感审校样本。"]
+            )
+        }
+        try store.deleteSentimentReviewSample(sampleID: sampleID)
+    }
+
+    func replaceSentimentReviewSamples(_ samples: [SentimentReviewSample]) throws {
+        try ensureReady()
+        guard let store = storage as? any SentimentReviewSampleManagingStorage else {
+            throw NSError(
+                domain: "WordZMac.NativeWorkspaceRepository",
+                code: 39,
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持情感审校样本。"]
+            )
+        }
+        try store.replaceSentimentReviewSamples(samples)
     }
 
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) throws {

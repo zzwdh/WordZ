@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WordView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: WordPageViewModel
     let isBusy: Bool
     let onAction: (WordPageAction) -> Void

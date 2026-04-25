@@ -1,8 +1,9 @@
 import Foundation
 
 @MainActor
-final class EvidenceWorkbenchViewModel: ObservableObject {
+package final class EvidenceWorkbenchViewModel: ObservableObject {
     @Published var items: [EvidenceItem] = []
+    @Published var groupingMode: EvidenceWorkbenchGroupingMode = .section
     @Published var selectedItemID: String? {
         didSet {
             guard oldValue != selectedItemID else { return }
@@ -16,42 +17,65 @@ final class EvidenceWorkbenchViewModel: ObservableObject {
             syncEditorState()
         }
     }
+    @Published var sectionDraft = ""
+    @Published var claimDraft = ""
+    @Published var tagsDraft = ""
     @Published var noteDraft = ""
+
+    package static func makeFeaturePage() -> EvidenceWorkbenchViewModel {
+        EvidenceWorkbenchViewModel()
+    }
+
+    init() {}
 
     var filteredItems: [EvidenceItem] {
         items.filter { reviewFilter.includes($0.reviewStatus) }
     }
 
-    var selectedItem: EvidenceItem? {
-        guard let selectedItemID else { return filteredItems.first }
-        return filteredItems.first(where: { $0.id == selectedItemID }) ?? filteredItems.first
+    var hasUnsavedDetailChanges: Bool {
+        normalizedText(sectionDraft) != normalizedText(selectedItem?.sectionTitle) ||
+            normalizedText(claimDraft) != normalizedText(selectedItem?.claim) ||
+            normalizedTags(from: tagsDraft) != normalizedTags(selectedItem?.tags ?? []) ||
+            normalizedText(noteDraft) != normalizedText(selectedItem?.note)
     }
 
     var hasUnsavedNoteChanges: Bool {
-        normalizedNote(noteDraft) != normalizedNote(selectedItem?.note)
+        hasUnsavedDetailChanges
     }
 
-    func applyItems(_ items: [EvidenceItem]) {
-        self.items = items
-        normalizeSelection()
-        syncEditorState()
-    }
-
-    func normalizeSelection() {
-        let filteredIDs = Set(filteredItems.map(\.id))
-        if let selectedItemID, filteredIDs.contains(selectedItemID) {
-            return
-        }
-        selectedItemID = filteredItems.first?.id
-    }
-
-    func syncEditorState() {
-        noteDraft = selectedItem?.note ?? ""
+    var currentDraft: EvidenceCaptureDraft {
+        EvidenceCaptureDraft(
+            sectionTitle: sectionDraft,
+            claim: claimDraft,
+            tagsText: tagsDraft,
+            note: noteDraft
+        )
     }
 
     func normalizedNote(_ value: String?) -> String? {
+        normalizedText(value)
+    }
+
+    func normalizedText(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    func normalizedTags(from rawValue: String) -> [String] {
+        var seen = Set<String>()
+        return rawValue
+            .split(separator: ",")
+            .compactMap { raw in
+                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return nil }
+                let key = trimmed.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                guard seen.insert(key).inserted else { return nil }
+                return trimmed
+            }
+    }
+
+    func normalizedTags(_ values: [String]) -> [String] {
+        normalizedTags(from: values.joined(separator: ", "))
     }
 }

@@ -353,7 +353,7 @@ final class NativeTopicEngineTests: XCTestCase {
         let model = TopicEmbeddingModel(
             manifest: .fallback,
             providerLabel: "bundled-local-embedding",
-            providerRevision: "wordz-topics-english::3::bundled-local-embedding::test",
+            providerRevision: "wordz-topics-english::4::bundled-local-embedding::test",
             isPrimaryProvider: true,
             expectedDimensions: 384
         ) { _ in nil }
@@ -397,7 +397,7 @@ final class NativeTopicEngineTests: XCTestCase {
         let model = TopicEmbeddingModel(
             manifest: .fallback,
             providerLabel: "bundled-local-embedding",
-            providerRevision: "wordz-topics-english::3::bundled-local-embedding::test",
+            providerRevision: "wordz-topics-english::4::bundled-local-embedding::test",
             isPrimaryProvider: true,
             expectedDimensions: 384
         ) { _ in nil }
@@ -421,6 +421,52 @@ final class NativeTopicEngineTests: XCTestCase {
         XCTAssertNil(reduced.explainedVariance)
         XCTAssertEqual(reduced.vectors.count, vectors.count)
         XCTAssertEqual(reduced.vectors.first?.count, 384)
+    }
+
+    func testClusterVectorsPrefersThreeThemePartitionForSmallExactCorpus() async throws {
+        let engine = NativeTopicEngine()
+        let slices = [
+            TopicTextSlice(id: "security-1", paragraphIndex: 1, text: "Security teams coordinated vulnerability disclosure timelines.", tokens: ["security", "team", "coordinate", "vulnerability", "disclosure"], keywordTerms: ["security", "vulnerability", "disclosure"], keywordBigrams: ["security vulnerability"]),
+            TopicTextSlice(id: "security-2", paragraphIndex: 2, text: "Incident responders traced malware loaders through gateway servers.", tokens: ["incident", "responder", "trace", "malware", "loader", "gateway", "server"], keywordTerms: ["incident", "malware", "loader", "gateway"], keywordBigrams: ["malware loader", "gateway server"]),
+            TopicTextSlice(id: "security-3", paragraphIndex: 3, text: "Researchers compared exploit chains and sandbox telemetry.", tokens: ["researcher", "compare", "exploit", "chain", "sandbox", "telemetry"], keywordTerms: ["exploit", "sandbox", "telemetry"], keywordBigrams: ["exploit chain", "sandbox telemetry"]),
+            TopicTextSlice(id: "climate-1", paragraphIndex: 4, text: "Climate scientists measured glacier melt and carbon emissions.", tokens: ["climate", "scientist", "measure", "glacier", "melt", "carbon", "emission"], keywordTerms: ["climate", "glacier", "carbon", "emission"], keywordBigrams: ["glacier melt", "carbon emission"]),
+            TopicTextSlice(id: "climate-2", paragraphIndex: 5, text: "Environmental agencies tracked renewable adoption and methane reductions.", tokens: ["environmental", "agency", "track", "renewable", "adoption", "methane", "reduction"], keywordTerms: ["renewable", "methane", "reduction"], keywordBigrams: ["renewable adoption", "methane reduction"]),
+            TopicTextSlice(id: "climate-3", paragraphIndex: 6, text: "Researchers modeled ocean warming and drought risk.", tokens: ["researcher", "model", "ocean", "warming", "drought", "risk"], keywordTerms: ["ocean", "warming", "drought", "risk"], keywordBigrams: ["ocean warming", "drought risk"]),
+            TopicTextSlice(id: "finance-1", paragraphIndex: 7, text: "Equity analysts reviewed earnings guidance and cash flow.", tokens: ["equity", "analyst", "review", "earnings", "guidance", "cash", "flow"], keywordTerms: ["equity", "earnings", "cash flow"], keywordBigrams: ["earnings guidance", "cash flow"]),
+            TopicTextSlice(id: "finance-2", paragraphIndex: 8, text: "Investors monitored inflation expectations and credit spreads.", tokens: ["investor", "monitor", "inflation", "expectation", "credit", "spread"], keywordTerms: ["inflation", "credit", "spread"], keywordBigrams: ["inflation expectation", "credit spread"]),
+            TopicTextSlice(id: "finance-3", paragraphIndex: 9, text: "Market strategists compared valuation multiples and dividend outlooks.", tokens: ["market", "strategist", "compare", "valuation", "multiple", "dividend", "outlook"], keywordTerms: ["market", "valuation", "dividend"], keywordBigrams: ["valuation multiple", "dividend outlook"]),
+            TopicTextSlice(id: "outlier-1", paragraphIndex: 10, text: "Coffee beans cooled on the desk beside a notebook.", tokens: ["coffee", "bean", "cool", "desk", "notebook"], keywordTerms: ["coffee", "bean", "desk"], keywordBigrams: ["coffee bean"])
+        ]
+        let vectors = [
+            [1.00, 0.06, 0.05],
+            [0.97, 0.10, 0.04],
+            [0.95, 0.14, 0.05],
+            [0.08, 1.00, 0.07],
+            [0.07, 0.96, 0.11],
+            [0.10, 0.94, 0.15],
+            [0.05, 0.08, 1.00],
+            [0.06, 0.10, 0.96],
+            [0.09, 0.06, 0.94],
+            [0.38, 0.35, 0.27]
+        ].map(normalizedVector)
+
+        let clustered = await engine.clusterVectors(
+            vectors,
+            slices: slices,
+            minTopicSize: 2
+        )
+
+        XCTAssertGreaterThanOrEqual(clustered.validClusters.count, 3)
+        XCTAssertLessThanOrEqual(clustered.outlierIndices.count, 2)
+
+        let keywordUniverse = Set(
+            clustered.validClusters.flatMap { cluster in
+                cluster.memberIndices.flatMap { slices[$0].keywordTerms }
+            }
+        )
+        XCTAssertTrue(keywordUniverse.contains(where: { ["security", "malware", "exploit"].contains($0) }))
+        XCTAssertTrue(keywordUniverse.contains(where: { ["climate", "glacier", "renewable", "ocean"].contains($0) }))
+        XCTAssertTrue(keywordUniverse.contains(where: { ["equity", "inflation", "market", "valuation"].contains($0) }))
     }
 
     func testNativeTopicEngineProcessesThreeHundredSliceBenchmarkCorpus() async throws {
@@ -506,4 +552,11 @@ final class NativeTopicEngineTests: XCTestCase {
         XCTAssertEqual(clustered.strategy, .approximateRefined)
         XCTAssertTrue(clustered.warnings.contains(where: { $0.contains("近似聚类") }))
     }
+
+}
+
+private func normalizedVector(_ vector: [Double]) -> [Double] {
+    let magnitude = sqrt(vector.reduce(0.0) { $0 + ($1 * $1) })
+    guard magnitude > 0 else { return vector }
+    return vector.map { $0 / magnitude }
 }

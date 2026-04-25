@@ -12,6 +12,20 @@ struct TopicTrainingCorpus: Decodable {
     let documents: [TopicTrainingDocument]
 }
 
+struct TopicBenchmarkFixtureBundle: Decodable {
+    let corpora: [TopicBenchmarkCorpus]
+}
+
+struct TopicBenchmarkCorpus: Decodable {
+    let id: String
+    let documents: [TopicBenchmarkDocument]
+}
+
+struct TopicBenchmarkDocument: Decodable {
+    let label: String
+    let text: String
+}
+
 struct TopicLocalEmbeddingResource: Encodable {
     let revision: String
     let dimensions: Int
@@ -63,13 +77,17 @@ enum ScriptError: LocalizedError {
 
 enum TrainTopicModelScript {
     private static let dimensions = 384
-    private static let maxUnigrams = 1200
-    private static let maxBigrams = 400
+    private static let maxUnigrams = 320
+    private static let maxBigrams = 128
     private static let sparseDimensionsPerTerm = 6
-    private static let powerIterationLimit = 96
+    private static let maximumLearnedComponents = 32
+    private static let powerIterationLimit = 64
     private static let powerIterationTolerance = 1e-7
     private static let zeroTolerance = 1e-9
     private static let tokenRegex = try! NSRegularExpression(pattern: "[a-z]+")
+    private static let minimumUnigramFrequency = 1
+    private static let minimumBigramFrequency = 1
+    private static let minimumDocumentFrequency = 1
 
     private static let defaultStopwords: Set<String> = [
         "a", "about", "across", "after", "against", "all", "also", "an", "and", "any",
@@ -94,8 +112,12 @@ enum TrainTopicModelScript {
             throw ScriptError.invalidDataset
         }
 
+        let benchmarkDocuments = loadBenchmarkDocuments(root: repositoryRoot)
         let repoDocuments = loadRepositoryDocuments(root: repositoryRoot)
-        let preparedDocuments = (corpus.documents + repoDocuments).map(prepareDocument)
+        let preparedDocuments = uniqueDocuments(
+            corpus.documents + benchmarkDocuments + repoDocuments
+        )
+        .map(prepareDocument)
         guard !preparedDocuments.isEmpty else {
             throw ScriptError.invalidDataset
         }
@@ -112,12 +134,16 @@ enum TrainTopicModelScript {
         let selectedUnigrams = rankTerms(
             stats: unigramStats,
             documentCount: preparedDocuments.count,
-            cap: Self.maxUnigrams
+            cap: Self.maxUnigrams,
+            minimumFrequency: Self.minimumUnigramFrequency,
+            minimumDocumentFrequency: Self.minimumDocumentFrequency
         )
         let selectedBigrams = rankTerms(
             stats: bigramStats,
             documentCount: preparedDocuments.count,
-            cap: Self.maxBigrams
+            cap: Self.maxBigrams,
+            minimumFrequency: Self.minimumBigramFrequency,
+            minimumDocumentFrequency: Self.minimumDocumentFrequency
         )
 
         let tokenEmbeddings = computeSparseEmbeddings(
@@ -162,9 +188,60 @@ enum TrainTopicModelScript {
 
         print("Generated topic model \(options.revision)")
         print("Documents: \(preparedDocuments.count)")
+        print("Benchmark docs: \(benchmarkDocuments.count)")
+        print("Repository docs: \(repoDocuments.count)")
         print("Unigrams: \(tokenEmbeddings.count)")
         print("Bigrams: \(bigramEmbeddings.count)")
         print("Output: \(outputURL.path)")
+    }
+
+    private static func uniqueDocuments(_ documents: [TopicTrainingDocument]) -> [TopicTrainingDocument] {
+        var seen = Set<String>()
+        var unique: [TopicTrainingDocument] = []
+        unique.reserveCapacity(documents.count)
+
+        for document in documents {
+            let normalized = document.text
+                .lowercased()
+                .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalized.isEmpty, seen.insert(normalized).inserted else {
+                continue
+            }
+            unique.append(document)
+        }
+
+        return unique
+    }
+
+    private static func loadBenchmarkDocuments(root: URL) -> [TopicTrainingDocument] {
+        let fixtureURL = root
+            .appendingPathComponent("Tests", isDirectory: true)
+            .appendingPathComponent("WordZMacTests", isDirectory: true)
+            .appendingPathComponent("Fixtures", isDirectory: true)
+            .appendingPathComponent("Topics", isDirectory: true)
+            .appendingPathComponent("topic-benchmark-v2-baselines.json")
+
+        guard let data = try? Data(contentsOf: fixtureURL),
+              let bundle = try? JSONDecoder().decode(TopicBenchmarkFixtureBundle.self, from: data) else {
+            return []
+        }
+
+        var counter = 0
+        var documents: [TopicTrainingDocument] = []
+        for corpus in bundle.corpora {
+            for document in corpus.documents {
+                counter += 1
+                documents.append(
+                    TopicTrainingDocument(
+                        id: "benchmark-\(counter)",
+                        label: document.label,
+                        text: document.text
+                    )
+                )
+            }
+        }
+        return documents
     }
 
     private static func loadRepositoryDocuments(root: URL) -> [TopicTrainingDocument] {
@@ -175,15 +252,43 @@ enum TrainTopicModelScript {
             "Sources/WordZMac/App/README.md"
         ]
 
-        return candidatePaths.enumerated().compactMap { index, relativePath in
+        var counter = 0
+        var documents: [TopicTrainingDocument] = []
+
+        for relativePath in candidatePaths {
             let url = root.appendingPathComponent(relativePath)
-            guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-            return TopicTrainingDocument(
-                id: "repo-\(index + 1)",
-                label: "repo",
-                text: text
-            )
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            for paragraph in repositoryParagraphs(from: text) {
+                counter += 1
+                documents.append(
+                    TopicTrainingDocument(
+                        id: "repo-\(counter)",
+                        label: "software-repo",
+                        text: paragraph
+                    )
+                )
+            }
         }
+
+        return documents
+    }
+
+    private static func repositoryParagraphs(from text: String) -> [String] {
+        let stripped = text
+            .replacingOccurrences(of: "```[\\s\\S]*?```", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "`", with: " ")
+            .replacingOccurrences(of: "[#>*_\\-\\[\\]\\(\\)]", with: " ", options: .regularExpression)
+
+        return stripped
+            .components(separatedBy: CharacterSet.newlines)
+            .map {
+                $0.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { line in
+                let tokenCount = tokenize(line).count
+                return tokenCount >= 10 && tokenCount <= 72
+            }
     }
 
     private static func prepareDocument(_ document: TopicTrainingDocument) -> PreparedDocument {
@@ -238,14 +343,20 @@ enum TrainTopicModelScript {
     private static func rankTerms(
         stats: [String: TermStats],
         documentCount: Int,
-        cap: Int
+        cap: Int,
+        minimumFrequency: Int,
+        minimumDocumentFrequency: Int
     ) -> [String] {
         stats
-            .map { term, stat -> (String, Double) in
+            .compactMap { term, stat -> (String, Double)? in
+                let contrast = contrastiveScore(stat.labelHistogram)
+                guard stat.frequency >= minimumFrequency else { return nil }
+                guard stat.documentFrequency >= minimumDocumentFrequency || contrast >= 0.72 else {
+                    return nil
+                }
                 let df = Double(max(1, stat.documentFrequency))
                 let idf = log(1 + (Double(documentCount) / df))
-                let contrast = contrastiveScore(stat.labelHistogram)
-                let score = Double(stat.frequency) * idf * (1 + contrast)
+                let score = sqrt(Double(stat.frequency)) * idf * (1 + (contrast * 1.8))
                 return (term, score)
             }
             .sorted { lhs, rhs in
@@ -283,7 +394,8 @@ enum TrainTopicModelScript {
         let effectiveDimensions = min(
             dimensions,
             terms.count,
-            max(1, documents.count - 1)
+            max(1, documents.count - 1),
+            Self.maximumLearnedComponents
         )
         let eigenpairs = leadingEigenpairs(
             covarianceMatrix: covarianceMatrix(from: matrix),
@@ -497,8 +609,8 @@ enum TrainTopicModelScript {
     private static func parseOptions(arguments: [String]) throws -> CLIOptions {
         var datasetPath: String?
         var outputPath: String?
-        var version = "3"
-        var revision = "2026-04-local-v3"
+        var version = "4"
+        var revision = "2026-04-local-v4"
 
         var index = 0
         while index < arguments.count {

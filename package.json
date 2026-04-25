@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.3.0",
+  "version": "1.3.8",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -68,10 +68,10 @@
       "channel": "stable"
     },
     "releaseNotes": [
-      "原文阅读体验升级：新增 Source Reader 原文阅读器，支持从 KWIC、Locator、Plot 直接定位命中句与上下文，并在应用内完成阅读、复制引文与证据整理。",
-      "研究工作流闭环增强：Compare、Keyword、Collocate 结果统一支持 Open in KWIC，研究报告 bundle 现在可附带当前阅读文档与方法线索，复现实验更顺手。",
-      "语料与预设工作流继续补强：支持命名语料集、元数据筛选与批量编辑、分析预设保存/应用/删除，让 target、reference 与子语料管理更稳定。",
-      "macOS 原生体验与回归硬化：新增独立窗口路由、菜单与工具栏联动，窗口/场景同步更稳，完整测试套件已覆盖并通过。"
+      "证据工作流升级：Evidence Workbench 支持证据捕获、分组整理、dossier 草稿与 Markdown 导出，Source Reader 可以把阅读片段带回研究上下文。",
+      "情感分析工作流增强：新增情感审阅样本、配置档案、用户词典包导入导出、cross-analysis/export 支撑，并补齐基准与 gold 数据回归。",
+      "主题与工作区架构收口：Topics 代码按领域重组，feature workflow 协议、运行任务监督与页面状态抽象落地，WorkspaceFeature 不再依赖具体页面 ViewModel。",
+      "原生工程与发布链路硬化：WordZEngine/WordZAnalysis/WordZShared 拆出真实 target，新增架构守卫、发布元数据检查、打包/上传脚本和更完整的回归测试。"
     ]
   },
   "license": "MIT",

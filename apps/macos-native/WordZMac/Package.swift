@@ -22,6 +22,7 @@ let package = Package(
             name: "WordZWorkspaceCore",
             dependencies: [
                 "WordZAnalysis",
+                "WordZEngine",
                 "WordZHost",
                 "WordZWindowing",
                 "WordZShared"
@@ -41,36 +42,14 @@ let package = Package(
                 "Storage/README.md",
                 "ViewModels/README.md",
                 "Views/README.md",
-                "Workspace/README.md",
-                "Resources/AnalysisSupport/WordZAnalysisResources.swift",
-                "Resources/SharedSupport/WordZSharedResources.swift"
+                "Workspace/README.md"
             ]
         ),
         .target(
             name: "WordZShared",
-            path: "Sources/WordZMac",
-            exclude: [
-                "Analysis",
-                "App",
-                "Diagnostics",
-                "Engine",
-                "Export",
-                "Host",
-                "Models",
-                "Shared",
-                "Storage",
-                "ViewModels",
-                "Views",
-                "Workspace",
-                "README.md",
-                "Resources/AnalysisSupport",
-                "Resources/README.md",
-                "Resources/Sentiment",
-                "Resources/TopicLocalEmbeddingModel.json",
-                "Resources/TopicModelManifest.json"
-            ],
+            path: "Sources/WordZShared",
             sources: [
-                "Resources/SharedSupport/WordZSharedResources.swift"
+                "WordZSharedResources.swift"
             ],
             resources: [
                 .process("Resources/en.lproj"),
@@ -79,28 +58,9 @@ let package = Package(
         ),
         .target(
             name: "WordZAnalysis",
-            path: "Sources/WordZMac",
-            exclude: [
-                "App",
-                "Diagnostics",
-                "Engine",
-                "Export",
-                "Host",
-                "Models",
-                "Shared",
-                "Storage",
-                "ViewModels",
-                "Views",
-                "Workspace",
-                "Analysis",
-                "README.md",
-                "Resources/en.lproj",
-                "Resources/README.md",
-                "Resources/SharedSupport",
-                "Resources/zh-Hans.lproj",
-            ],
+            path: "Sources/WordZAnalysis",
             sources: [
-                "Resources/AnalysisSupport/WordZAnalysisResources.swift"
+                "WordZAnalysisResources.swift"
             ],
             resources: [
                 .copy("Resources/Sentiment"),
@@ -197,7 +157,11 @@ let package = Package(
         ),
         .testTarget(
             name: "WordZWorkspaceCoreTests",
-            dependencies: ["WordZWorkspaceCore"],
+            dependencies: [
+                "WordZWorkspaceCore",
+                "WordZWorkspaceFeature",
+                "WordZEngine"
+            ],
             path: "Tests/WordZMacTests",
             resources: [
                 .copy("Fixtures")

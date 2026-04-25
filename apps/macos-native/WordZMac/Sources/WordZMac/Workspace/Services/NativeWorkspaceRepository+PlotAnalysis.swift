@@ -85,6 +85,7 @@ extension NativeWorkspaceRepositoryCore {
         exactLookup: StoredTokenPositionIndexArtifact.Lookup?
     ) async throws -> PlotDocumentDistribution {
         let documentKey = DocumentCacheKey(text: entry.content)
+        cacheStoredCorpusID(for: entry.corpusId, text: entry.content)
         try cacheStoredTokenizedArtifact(for: entry.corpusId, text: entry.content)
 
         if let positionIndex = try storedTokenPositionIndex(for: entry.corpusId),
@@ -104,6 +105,18 @@ extension NativeWorkspaceRepositoryCore {
 
         if let artifact = storedTokenizedArtifactsByTextDigest[documentKey.textDigest] {
             let analysisRuntime = self.analysisRuntime
+            let matcher = SearchTextMatcher(query: query, options: searchOptions)
+            if let candidateSentenceIDs = try storedSentenceCandidateIDs(
+                forTextDigest: documentKey.textDigest,
+                matcher: matcher
+            ) {
+                return try await analysisRuntime.runPlot(
+                    artifact: artifact,
+                    candidateSentenceIDs: candidateSentenceIDs,
+                    keyword: query,
+                    searchOptions: searchOptions
+                )
+            }
             return try await analysisRuntime.runPlot(
                 artifact: artifact,
                 keyword: query,

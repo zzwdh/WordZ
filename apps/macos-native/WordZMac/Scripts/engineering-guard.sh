@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PACKAGE_PATH="${PACKAGE_PATH:-${ROOT_DIR}}"
-FILTER="${1:-CompositionTests|SceneSyncPlanTests|RootContentSceneTests|EngineeringGuardrailTests|MainWorkspaceViewModelTests}"
+FILTER="${1:-CompositionTests|WorkspaceFeatureRegistryTests|WorkspaceActionDispatcherTests|RootContentSceneTests|EngineeringGuardrailTests|FeatureActivationRegressionTests|WorkspaceWorkflowChainTests}"
 GUARD_HOME="${ROOT_DIR}/.build/guard-home"
 GUARD_CACHE="${GUARD_HOME}/.cache"
 GUARD_CLANG_MODULE_CACHE="${ROOT_DIR}/.build/guard-clang-module-cache"

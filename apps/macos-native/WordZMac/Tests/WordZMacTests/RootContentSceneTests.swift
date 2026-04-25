@@ -29,10 +29,11 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertEqual(workspace.rootScene.tabs.count, WorkspaceDetailTab.mainWorkspaceTabs.count)
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .library }))
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .settings }))
-        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 21)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 22)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first?.action, .refresh)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .showLibrary })?.isEnabled, true)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .openSelected })?.isEnabled, true)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .annotationControls })?.isEnabled, true)
     }
 
     func testMainWorkspaceCommandContextSharesToolbarSceneModel() async {
@@ -69,10 +70,95 @@ final class RootContentSceneTests: XCTestCase {
 
         XCTAssertTrue(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
 
+        workspace.sentiment.apply(makeSentimentResult())
+        workspace.sentiment.selectedRowID = "sentiment-positive"
+        workspace.selectedTab = .sentiment
+        workspace.syncSceneGraph()
+
+        XCTAssertTrue(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
+
+        workspace.topics.query = "hacker"
+        await workspace.runTopics()
+        workspace.topics.selectedRowID = "paragraph-1"
+        workspace.selectedTab = .topics
+        workspace.syncSceneGraph()
+
+        XCTAssertTrue(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
+
         workspace.selectedTab = .stats
         workspace.syncSceneGraph()
 
         XCTAssertFalse(workspace.commandContext(for: .mainWorkspace).canOpenSourceView)
+    }
+
+    func testWorkspaceCommandContextsExposeAnnotationControlsOnlyWhereSupported() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+
+        let mainContext = workspace.commandContext(for: .mainWorkspace)
+        let sourceReaderContext = workspace.commandContext(for: .sourceReader)
+        let libraryContext = workspace.commandContext(for: .library)
+
+        XCTAssertTrue(mainContext.canConfigureAnnotation)
+        XCTAssertEqual(mainContext.toolbar?.item(for: .annotationControls)?.isEnabled, true)
+        XCTAssertTrue(sourceReaderContext.canConfigureAnnotation)
+        XCTAssertFalse(sourceReaderContext.canOpenSourceView)
+        XCTAssertFalse(libraryContext.canConfigureAnnotation)
+    }
+
+    func testEvidenceWorkbenchCommandContextTracksDossierGroupActions() async {
+        let repository = FakeWorkspaceRepository()
+        repository.evidenceItems = [
+            makeEvidenceItem(
+                id: "evidence-intro-1",
+                sourceKind: .kwic,
+                reviewStatus: .keep,
+                sectionTitle: "Intro"
+            ),
+            makeEvidenceItem(
+                id: "evidence-body-1",
+                sourceKind: .locator,
+                reviewStatus: .keep,
+                sectionTitle: "Body"
+            ),
+            makeEvidenceItem(
+                id: "evidence-body-2",
+                sourceKind: .plot,
+                reviewStatus: .keep,
+                sectionTitle: "Body"
+            ),
+            makeEvidenceItem(
+                id: "evidence-conclusion-1",
+                sourceKind: .topics,
+                reviewStatus: .keep,
+                sectionTitle: "Conclusion"
+            )
+        ]
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        await workspace.refreshEvidenceItems()
+        workspace.evidenceWorkbench.reviewFilter = .keep
+        workspace.evidenceWorkbench.groupingMode = .section
+        workspace.evidenceWorkbench.selectedItemID = "evidence-body-2"
+
+        let splitContext = workspace.commandContext(for: .evidenceWorkbench)
+        XCTAssertTrue(splitContext.canMoveEvidenceGroupUp)
+        XCTAssertTrue(splitContext.canMoveEvidenceGroupDown)
+        XCTAssertTrue(splitContext.canSplitEvidenceGroup)
+        XCTAssertTrue(splitContext.canRenameEvidenceGroup)
+        XCTAssertTrue(splitContext.canMergeEvidenceGroup)
+        XCTAssertTrue(splitContext.canExportEvidenceDossier)
+        XCTAssertTrue(splitContext.canExportEvidenceJSON)
+
+        workspace.evidenceWorkbench.selectedItemID = "evidence-body-1"
+
+        let unsplittableContext = workspace.commandContext(for: .evidenceWorkbench)
+        XCTAssertTrue(unsplittableContext.canRenameEvidenceGroup)
+        XCTAssertTrue(unsplittableContext.canMergeEvidenceGroup)
+        XCTAssertFalse(unsplittableContext.canSplitEvidenceGroup)
     }
 
     func testMainWorkspaceCommandContextAppliesSceneViewMenuState() async {

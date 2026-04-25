@@ -188,9 +188,12 @@ struct CompareSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationSummary: String
     let referenceSummary: String
     let methodSummary: String
     let methodNotes: [String]
+    let sentimentSummary: CompareSentimentSummary?
+    let sentimentExplainer: CompareSentimentExplainer?
     let exportMetadataLines: [String]
     let sorting: CompareSortingSceneModel
     let pagination: ResultPaginationSceneModel
@@ -199,8 +202,12 @@ struct CompareSceneModel: Equatable {
     let filteredRows: Int
     let visibleRows: Int
     let rows: [CompareSceneRow]
-    let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let searchError: String
+
+    var tableRows: [NativeTableRowDescriptor] {
+        tableSnapshot.rows
+    }
 
     func column(for key: CompareColumnKey) -> NativeTableColumnDescriptor? {
         table.column(id: key.rawValue)

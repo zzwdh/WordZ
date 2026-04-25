@@ -1,6 +1,6 @@
 import Foundation
 
-final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, CorpusCleaningProgressReportingLibraryStore, CorpusSetManagingLibraryStore {
+final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, CorpusCleaningProgressReportingLibraryStore, CorpusSetManagingLibraryStore, FullTextSearchingLibraryStore {
     let rootURL: URL
     let fileManager: FileManager
     let encoder: JSONEncoder
@@ -13,76 +13,46 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     var cachedKeywordSavedLists: [KeywordSavedList]?
     var cachedConcordanceSavedSets: [ConcordanceSavedSet]?
     var cachedEvidenceItems: [EvidenceItem]?
+    var cachedSentimentReviewSamples: [SentimentReviewSample]?
     var cachedRecycleEntries: [NativeRecycleRecord]?
     var cachedWorkspaceSnapshot: NativePersistedWorkspaceSnapshot?
     var cachedUISettings: NativePersistedUISettings?
 
     var corporaDirectoryURL: URL { rootURL.appendingPathComponent("corpora", isDirectory: true) }
     var recycleDirectoryURL: URL { rootURL.appendingPathComponent("recycle", isDirectory: true) }
-    var foldersURL: URL { rootURL.appendingPathComponent("folders.json") }
-    var corporaURL: URL { rootURL.appendingPathComponent("corpora.json") }
-    var corpusSetsURL: URL { rootURL.appendingPathComponent("corpus-sets.json") }
-    var recycleURL: URL { rootURL.appendingPathComponent("recycle.json") }
-    var analysisPresetsURL: URL { rootURL.appendingPathComponent("analysis-presets.json") }
-    var keywordSavedListsURL: URL { rootURL.appendingPathComponent("keyword-saved-lists.json") }
-    var concordanceSavedSetsURL: URL { rootURL.appendingPathComponent("concordance-saved-sets.json") }
-    var evidenceItemsURL: URL { rootURL.appendingPathComponent("evidence-items.json") }
-    var workspaceURL: URL { rootURL.appendingPathComponent("workspace-state.json") }
-    var uiSettingsURL: URL { rootURL.appendingPathComponent("ui-settings.json") }
-    var manifestStore: CorpusManifestStore {
-        CorpusManifestStore(
+    var libraryDatabaseURL: URL { rootURL.appendingPathComponent("library.db") }
+    var workspaceDatabaseURL: URL { rootURL.appendingPathComponent("workspace.db") }
+    var libraryCatalogStore: LibraryCatalogStore {
+        LibraryCatalogStore(
             fileManager: fileManager,
             encoder: encoder,
             decoder: decoder,
-            foldersURL: foldersURL,
-            corporaURL: corporaURL,
-            corpusSetsURL: corpusSetsURL,
-            recycleURL: recycleURL,
-            corporaDirectoryURL: corporaDirectoryURL,
-            recycleDirectoryURL: recycleDirectoryURL,
-            migrator: CorpusStorageMigrator(fileManager: fileManager)
+            databaseURL: libraryDatabaseURL,
+            corporaDirectoryURL: corporaDirectoryURL
         )
     }
-    var snapshotStore: NativeWorkspaceSnapshotStore {
-        NativeWorkspaceSnapshotStore(
+    var workspaceDatabaseStore: WorkspaceStateStore {
+        WorkspaceStateStore(
             fileManager: fileManager,
             encoder: encoder,
             decoder: decoder,
-            workspaceURL: workspaceURL,
-            uiSettingsURL: uiSettingsURL
+            databaseURL: workspaceDatabaseURL
         )
     }
-    var analysisPresetStore: NativeAnalysisPresetStore {
-        NativeAnalysisPresetStore(
-            fileManager: fileManager,
-            encoder: encoder,
-            decoder: decoder,
-            presetsURL: analysisPresetsURL
+    var storageMigrationCoordinator: StorageMigrationCoordinator {
+        StorageMigrationCoordinator(
+            catalogStore: libraryCatalogStore,
+            workspaceStore: workspaceDatabaseStore
         )
     }
-    var keywordSavedListStore: NativeKeywordSavedListStore {
-        NativeKeywordSavedListStore(
+    var storageMutationCoordinator: StorageMutationCoordinator {
+        StorageMutationCoordinator(
             fileManager: fileManager,
-            encoder: encoder,
-            decoder: decoder,
-            listsURL: keywordSavedListsURL
+            stagingRootURL: rootURL
         )
     }
-    var concordanceSavedSetStore: NativeConcordanceSavedSetStore {
-        NativeConcordanceSavedSetStore(
-            fileManager: fileManager,
-            encoder: encoder,
-            decoder: decoder,
-            setsURL: concordanceSavedSetsURL
-        )
-    }
-    var evidenceItemStore: NativeEvidenceItemStore {
-        NativeEvidenceItemStore(
-            fileManager: fileManager,
-            encoder: encoder,
-            decoder: decoder,
-            itemsURL: evidenceItemsURL
-        )
+    var shardMigrator: CorpusShardMigrator {
+        CorpusShardMigrator(fileManager: fileManager)
     }
 
     init(rootURL: URL, fileManager: FileManager = .default) {

@@ -25,6 +25,7 @@ extension RootContentView {
 
     var workspaceMainPane: some View {
         currentDetailView
+            .environmentObject(viewModel.lexicalAutocomplete)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // Keep the main workspace on the stable window background until the
         // 26-specific detail pane treatment is tuned. The adaptive glass path

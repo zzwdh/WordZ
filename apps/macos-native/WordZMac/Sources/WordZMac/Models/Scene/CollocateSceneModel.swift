@@ -264,6 +264,7 @@ struct CollocateSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationSummary: String
     let focusMetric: CollocateAssociationMetric
     let methodSummary: String
     let focusMetricSummary: String

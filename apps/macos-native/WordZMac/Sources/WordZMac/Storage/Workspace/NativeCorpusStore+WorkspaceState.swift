@@ -8,7 +8,7 @@ extension NativeCorpusStore {
     func saveWorkspaceSnapshot(_ draft: WorkspaceStateDraft) throws {
         let persisted = NativePersistedWorkspaceSnapshot(draft: draft)
         cachedWorkspaceSnapshot = persisted
-        try snapshotStore.saveWorkspaceSnapshot(persisted)
+        try workspaceDatabaseStore.saveWorkspaceSnapshot(persisted)
     }
 
     func loadUISettings() throws -> UISettingsSnapshot {
@@ -24,6 +24,6 @@ extension NativeCorpusStore {
             recentCorpusSetIDs: snapshot.recentCorpusSetIDs
         )
         cachedUISettings = persisted
-        try snapshotStore.saveUISettings(persisted)
+        try workspaceDatabaseStore.saveUISettings(persisted)
     }
 }

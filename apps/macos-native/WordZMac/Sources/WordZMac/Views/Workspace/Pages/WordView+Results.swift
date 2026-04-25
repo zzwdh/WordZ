@@ -13,6 +13,9 @@ extension WordView {
                 Text(scene.definitionSummary)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                Text(scene.annotationSummary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 if !scene.searchError.isEmpty {
                     Text(scene.searchError)
                         .font(.caption)

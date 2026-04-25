@@ -36,7 +36,6 @@ extension NativeCorpusDatabaseSupport {
     static func insertDocument(
         rawText: String,
         cleanedText: String,
-        tokenizedSentencesJSON: String,
         metadata: NativeStoredCorpusMetadata,
         into db: OpaquePointer?
     ) throws {
@@ -99,7 +98,7 @@ extension NativeCorpusDatabaseSupport {
         sqlite3_bind_int(statement, 21, Int32(metadata.originalCharacterCount))
         sqlite3_bind_int(statement, 22, Int32(metadata.cleanedCharacterCount))
         bindText(metadata.cleanedTextDigest, to: statement, index: 23)
-        bindText(tokenizedSentencesJSON, to: statement, index: 24)
+        bindText("", to: statement, index: 24)
         bindText(rawText, to: statement, index: 25)
         bindText(cleanedText, to: statement, index: 26)
         bindText(cleanedText, to: statement, index: 27)
@@ -112,17 +111,6 @@ extension NativeCorpusDatabaseSupport {
     static func encodeCleaningRuleHits(_ ruleHits: [LibraryCorpusCleaningRuleHit]) -> String {
         guard !ruleHits.isEmpty else { return "[]" }
         let jsonObject = ruleHits.map(\.jsonObject)
-        guard JSONSerialization.isValidJSONObject(jsonObject),
-              let data = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
-              let text = String(data: data, encoding: .utf8) else {
-            return "[]"
-        }
-        return text
-    }
-
-    static func encodeTokenizedSentences(_ sentences: [TokenizedSentence]) -> String {
-        guard !sentences.isEmpty else { return "[]" }
-        let jsonObject = sentences.map(\.jsonObject)
         guard JSONSerialization.isValidJSONObject(jsonObject),
               let data = try? JSONSerialization.data(withJSONObject: jsonObject, options: []),
               let text = String(data: data, encoding: .utf8) else {
@@ -172,6 +160,105 @@ extension NativeCorpusDatabaseSupport {
         }
     }
 
+    static func insertCleaningRuleHits(_ ruleHits: [LibraryCorpusCleaningRuleHit], into db: OpaquePointer?) throws {
+        guard !ruleHits.isEmpty else { return }
+        let statement = try prepare(
+            """
+            INSERT INTO cleaning_rule_hit (
+                rule_id,
+                hit_count,
+                position
+            ) VALUES (?, ?, ?);
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(statement) }
+
+        for (position, ruleHit) in ruleHits.enumerated() {
+            sqlite3_reset(statement)
+            sqlite3_clear_bindings(statement)
+            bindText(ruleHit.id, to: statement, index: 1)
+            sqlite3_bind_int(statement, 2, Int32(ruleHit.count))
+            sqlite3_bind_int(statement, 3, Int32(position))
+
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw databaseError(on: db, message: "无法写入清洗命中")
+            }
+        }
+    }
+
+    static func insertSentences(_ sentences: [ParsedSentence], into db: OpaquePointer?) throws {
+        guard !sentences.isEmpty else { return }
+        let statement = try prepare(
+            """
+            INSERT INTO sentence (
+                sentence_id,
+                paragraph_id,
+                text,
+                token_count
+            ) VALUES (?, ?, ?, ?);
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(statement) }
+
+        for sentence in sentences {
+            sqlite3_reset(statement)
+            sqlite3_clear_bindings(statement)
+            sqlite3_bind_int(statement, 1, Int32(sentence.sentenceId))
+            sqlite3_bind_int(statement, 2, Int32(sentence.paragraphId))
+            bindText(sentence.text, to: statement, index: 3)
+            sqlite3_bind_int(statement, 4, Int32(sentence.tokens.count))
+
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw databaseError(on: db, message: "无法写入句子索引")
+            }
+        }
+    }
+
+    static func rebuildSentenceSearchIndex(into db: OpaquePointer?) throws {
+        try execute("INSERT INTO sentence_fts(sentence_fts) VALUES('rebuild');", on: db)
+    }
+
+    static func insertTokens(from sentences: [ParsedSentence], into db: OpaquePointer?) throws {
+        guard !sentences.isEmpty else { return }
+        let statement = try prepare(
+            """
+            INSERT INTO token (
+                sentence_id,
+                token_index,
+                paragraph_id,
+                original_term,
+                normalized_term,
+                lemma,
+                lexical_class,
+                script
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(statement) }
+
+        for sentence in sentences {
+            for token in sentence.tokens {
+                sqlite3_reset(statement)
+                sqlite3_clear_bindings(statement)
+                sqlite3_bind_int(statement, 1, Int32(token.sentenceId))
+                sqlite3_bind_int(statement, 2, Int32(token.tokenIndex))
+                sqlite3_bind_int(statement, 3, Int32(sentence.paragraphId))
+                bindText(token.original, to: statement, index: 4)
+                bindText(token.normalized, to: statement, index: 5)
+                bindText(token.annotations.lemma ?? "", to: statement, index: 6)
+                bindText(token.annotations.lexicalClass?.rawValue ?? "", to: statement, index: 7)
+                bindText(token.annotations.script.rawValue, to: statement, index: 8)
+
+                guard sqlite3_step(statement) == SQLITE_DONE else {
+                    throw databaseError(on: db, message: "无法写入 token 索引")
+                }
+            }
+        }
+    }
+
     static func insertTokenPositions(_ sentences: [TokenizedSentence], into db: OpaquePointer?) throws {
         let statement = try prepare(
             """
@@ -199,6 +286,28 @@ extension NativeCorpusDatabaseSupport {
                     throw databaseError(on: db, message: "无法写入位置索引")
                 }
             }
+        }
+    }
+
+    static func recordSchemaMigration(version: Int, description: String, into db: OpaquePointer?) throws {
+        let statement = try prepare(
+            """
+            INSERT OR REPLACE INTO schema_migrations (
+                version,
+                applied_at,
+                description
+            ) VALUES (?, ?, ?);
+            """,
+            on: db
+        )
+        defer { sqlite3_finalize(statement) }
+
+        sqlite3_bind_int(statement, 1, Int32(version))
+        bindText(NativeDateFormatting.iso8601String(from: Date()), to: statement, index: 2)
+        bindText(description, to: statement, index: 3)
+
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw databaseError(on: db, message: "无法记录语料分片迁移")
         }
     }
 }

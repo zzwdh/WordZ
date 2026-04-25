@@ -16,12 +16,20 @@ struct SentimentAnalysisCoordinator {
         case .coreML:
             if let coreMLAnalyzer {
                 do {
-                    return try coreMLAnalyzer.analyze(request)
+                    let modelResult = try coreMLAnalyzer.analyze(request)
+                    guard request.resolvedDomainPackID == .news else {
+                        return modelResult
+                    }
+                    let lexiconResult = analyzeWithLexicon(request)
+                    return mergeHybridResult(
+                        modelResult: modelResult,
+                        lexiconResult: lexiconResult
+                    )
                 } catch {
-                    return analyzeWithLexicon(request)
+                    return analyzeWithLexiconFallback(request)
                 }
             }
-            return analyzeWithLexicon(request)
+            return analyzeWithLexiconFallback(request)
         }
     }
 
@@ -32,13 +40,141 @@ struct SentimentAnalysisCoordinator {
             return SentimentResultAggregation.makeRunResult(
                 request: request,
                 backendKind: .lexicon,
-                backendRevision: "lexicon-rules-v2",
+                backendRevision: "lexicon-rules-v3",
                 resourceRevision: "sentiment-pack-unavailable",
                 supportsEvidenceHits: true,
                 rows: [],
                 lexiconVersion: ""
             )
         }
+    }
+
+    private func analyzeWithLexiconFallback(_ request: SentimentRunRequest) -> SentimentRunResult {
+        let result = analyzeWithLexicon(request)
+        let fallbackRows = result.rows.map { row in
+            var diagnostics = row.diagnostics
+            diagnostics.inferencePath = .fallback
+            return SentimentRowResult(
+                id: row.id,
+                sourceID: row.sourceID,
+                sourceTitle: row.sourceTitle,
+                groupID: row.groupID,
+                groupTitle: row.groupTitle,
+                text: row.text,
+                positivityScore: row.positivityScore,
+                negativityScore: row.negativityScore,
+                neutralityScore: row.neutralityScore,
+                finalLabel: row.finalLabel,
+                netScore: row.netScore,
+                evidence: row.evidence,
+                evidenceCount: row.evidenceCount,
+                mixedEvidence: row.mixedEvidence,
+                diagnostics: diagnostics,
+                sentenceID: row.sentenceID,
+                tokenIndex: row.tokenIndex
+            )
+        }
+        return SentimentRunResult(
+            request: result.request,
+            backendKind: result.backendKind,
+            backendRevision: result.backendRevision,
+            resourceRevision: result.resourceRevision,
+            providerID: result.providerID,
+            providerFamily: result.providerFamily,
+            supportsEvidenceHits: result.supportsEvidenceHits,
+            rows: fallbackRows,
+            overallSummary: result.overallSummary,
+            groupSummaries: result.groupSummaries,
+            lexiconVersion: result.lexiconVersion,
+            activeRuleProfileRevision: result.activeRuleProfileRevision,
+            activePackIDs: result.activePackIDs,
+            calibrationProfileRevision: result.calibrationProfileRevision,
+            userLexiconBundleIDs: result.userLexiconBundleIDs
+        )
+    }
+
+    private func mergeHybridResult(
+        modelResult: SentimentRunResult,
+        lexiconResult: SentimentRunResult
+    ) -> SentimentRunResult {
+        let lexiconRowsByID = Dictionary(uniqueKeysWithValues: lexiconResult.rows.map { ($0.id, $0) })
+        var usedHybridRow = false
+        let mergedRows = modelResult.rows.map { modelRow in
+            guard let lexiconRow = lexiconRowsByID[modelRow.id],
+                  shouldUseHybridRow(modelRow: modelRow, lexiconRow: lexiconRow) else {
+                return modelRow
+            }
+            usedHybridRow = true
+            return hybridRow(lexiconRow: lexiconRow, modelRow: modelRow)
+        }
+
+        guard usedHybridRow else {
+            return modelResult
+        }
+
+        return SentimentResultAggregation.makeRunResult(
+            request: modelResult.request,
+            backendKind: .coreML,
+            backendRevision: modelResult.backendRevision,
+            resourceRevision: modelResult.resourceRevision,
+            providerID: modelResult.providerID,
+            providerFamily: modelResult.providerFamily,
+            supportsEvidenceHits: true,
+            rows: mergedRows,
+            lexiconVersion: lexiconResult.lexiconVersion,
+            activeRuleProfileRevision: modelResult.activeRuleProfileRevision,
+            activePackIDs: lexiconResult.activePackIDs,
+            calibrationProfileRevision: modelResult.calibrationProfileRevision,
+            userLexiconBundleIDs: modelResult.userLexiconBundleIDs
+        )
+    }
+
+    private func shouldUseHybridRow(
+        modelRow: SentimentRowResult,
+        lexiconRow: SentimentRowResult
+    ) -> Bool {
+        let hasAttributedSpeechSignal = lexiconRow.diagnostics.reviewFlags.contains(.quoted)
+            || lexiconRow.diagnostics.reviewFlags.contains(.reported)
+        let lowConfidence = (modelRow.diagnostics.confidence ?? 1.0) < 0.62
+        let lowMargin = (modelRow.diagnostics.topMargin ?? 1.0) < 0.16
+        return hasAttributedSpeechSignal || lowConfidence || lowMargin
+    }
+
+    private func hybridRow(
+        lexiconRow: SentimentRowResult,
+        modelRow: SentimentRowResult
+    ) -> SentimentRowResult {
+        var diagnostics = lexiconRow.diagnostics
+        diagnostics.inferencePath = .hybrid
+        diagnostics.providerID = modelRow.diagnostics.providerID
+        diagnostics.providerFamily = modelRow.diagnostics.providerFamily
+        diagnostics.modelRevision = modelRow.diagnostics.modelRevision
+        diagnostics.modelInputKind = modelRow.diagnostics.modelInputKind
+        diagnostics.confidence = modelRow.diagnostics.confidence
+        diagnostics.topMargin = modelRow.diagnostics.topMargin
+        diagnostics.scopeNotes = Array(
+            Set(diagnostics.scopeNotes + ["hybrid_news_guardrail"])
+        ).sorted()
+
+        return SentimentRowResult(
+            id: lexiconRow.id,
+            sourceID: lexiconRow.sourceID,
+            sourceTitle: lexiconRow.sourceTitle,
+            groupID: lexiconRow.groupID,
+            groupTitle: lexiconRow.groupTitle,
+            text: lexiconRow.text,
+            positivityScore: lexiconRow.positivityScore,
+            negativityScore: lexiconRow.negativityScore,
+            neutralityScore: lexiconRow.neutralityScore,
+            finalLabel: lexiconRow.finalLabel,
+            netScore: lexiconRow.netScore,
+            evidence: lexiconRow.evidence,
+            evidenceCount: lexiconRow.evidenceCount,
+            mixedEvidence: lexiconRow.mixedEvidence,
+            diagnostics: diagnostics,
+            sentenceID: lexiconRow.sentenceID,
+            tokenIndex: lexiconRow.tokenIndex
+        )
     }
 }
 
@@ -48,9 +184,15 @@ enum SentimentResultAggregation {
         backendKind: SentimentBackendKind,
         backendRevision: String,
         resourceRevision: String,
+        providerID: String? = nil,
+        providerFamily: SentimentModelProviderFamily? = nil,
         supportsEvidenceHits: Bool,
         rows: [SentimentRowResult],
-        lexiconVersion: String
+        lexiconVersion: String,
+        activeRuleProfileRevision: String? = nil,
+        activePackIDs: [SentimentDomainPackID] = [],
+        calibrationProfileRevision: String? = nil,
+        userLexiconBundleIDs: [String] = []
     ) -> SentimentRunResult {
         let overallSummary = makeSummary(
             id: "overall",
@@ -82,11 +224,17 @@ enum SentimentResultAggregation {
             backendKind: backendKind,
             backendRevision: backendRevision,
             resourceRevision: resourceRevision,
+            providerID: providerID,
+            providerFamily: providerFamily,
             supportsEvidenceHits: supportsEvidenceHits,
             rows: rows,
             overallSummary: overallSummary,
             groupSummaries: groupSummaries,
-            lexiconVersion: lexiconVersion
+            lexiconVersion: lexiconVersion,
+            activeRuleProfileRevision: activeRuleProfileRevision,
+            activePackIDs: activePackIDs,
+            calibrationProfileRevision: calibrationProfileRevision,
+            userLexiconBundleIDs: userLexiconBundleIDs
         )
     }
 
@@ -122,4 +270,3 @@ enum SentimentResultAggregation {
         )
     }
 }
-

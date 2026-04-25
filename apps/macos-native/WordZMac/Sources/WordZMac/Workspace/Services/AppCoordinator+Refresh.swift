@@ -1,4 +1,5 @@
 import Foundation
+import WordZEngine
 
 private let lifecycleLogger = WordZTelemetry.logger(category: "Lifecycle")
 

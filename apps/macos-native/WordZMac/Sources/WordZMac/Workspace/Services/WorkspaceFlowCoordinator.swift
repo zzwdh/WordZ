@@ -6,7 +6,10 @@ final class WorkspaceFlowCoordinator {
     let sessionWorkflow: WorkspaceSessionWorkflowService
     let libraryWorkflow: WorkspaceLibraryWorkflowService
     let analysisWorkflow: WorkspaceAnalysisWorkflowService
-    let evidenceWorkflow: WorkspaceEvidenceWorkflowService
+    let sentimentWorkflow: any WorkspaceSentimentWorkflowServing
+    let topicsWorkflow: any WorkspaceTopicsWorkflowServing
+    let evidenceWorkflow: any WorkspaceEvidenceWorkflowServing
+    let sentimentReviewWorkflow: WorkspaceSentimentReviewWorkflowService
     let exportWorkflow: WorkspaceExportWorkflowService
 
     init(
@@ -22,7 +25,8 @@ final class WorkspaceFlowCoordinator {
         libraryCoordinator: any LibraryCoordinating,
         libraryManagementCoordinator: any LibraryManagementCoordinating,
         exportCoordinator: any WorkspaceExportCoordinating,
-        taskCenter: NativeTaskCenter
+        taskCenter: NativeTaskCenter,
+        featureWorkflowFactory: (any WorkspaceFeatureWorkflowBuilding)? = nil
     ) {
         self.persistenceWorkflow = WorkspacePersistenceWorkflowService(
             repository: repository,
@@ -60,12 +64,20 @@ final class WorkspaceFlowCoordinator {
             taskCenter: taskCenter,
             persistenceWorkflow: self.persistenceWorkflow
         )
-        self.evidenceWorkflow = WorkspaceEvidenceWorkflowService(
+        let featureWorkflows = (featureWorkflowFactory ?? WorkspaceFeatureWorkflowFactory()).make(
             repository: repository,
             sessionStore: sessionStore,
             dialogService: dialogService,
             hostActionService: hostActionService,
-            exportCoordinator: exportCoordinator
+            exportCoordinator: exportCoordinator,
+            taskCenter: taskCenter,
+            analysisWorkflow: self.analysisWorkflow
+        )
+        self.sentimentWorkflow = featureWorkflows.sentiment
+        self.topicsWorkflow = featureWorkflows.topics
+        self.evidenceWorkflow = featureWorkflows.evidence
+        self.sentimentReviewWorkflow = WorkspaceSentimentReviewWorkflowService(
+            repository: repository
         )
         self.exportWorkflow = WorkspaceExportWorkflowService(
             sceneStore: sceneStore,

@@ -42,7 +42,7 @@ struct NativeStoredCorpusDatabaseDocument: Equatable {
 }
 
 enum NativeCorpusDatabaseSupport {
-    static let currentSchemaVersion = 7
+    static let currentSchemaVersion = 8
     static let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     static func writeDocument(
@@ -94,32 +94,64 @@ enum NativeCorpusDatabaseSupport {
             cleanedTextDigest: documentKey.textDigest
         )
 
-        try? FileManager.default.removeItem(at: url)
-        let db = try openDatabase(at: url, flags: SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE)
-        defer { sqlite3_close(db) }
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+        let stagedURL = stagedDatabaseURL(for: url)
+        try? fileManager.removeItem(at: stagedURL)
+        defer { try? fileManager.removeItem(at: stagedURL) }
 
-        try configureDatabase(on: db)
-        try ensureDocumentSchema(on: db)
-
-        try execute("BEGIN IMMEDIATE TRANSACTION;", on: db)
         do {
-            try execute("DELETE FROM corpus_document;", on: db)
-            try execute("DELETE FROM token_frequency;", on: db)
-            try execute("DELETE FROM token_position;", on: db)
-            try insertDocument(
-                rawText: resolvedRawText,
-                cleanedText: document.text,
-                tokenizedSentencesJSON: encodeTokenizedSentences(tokenizedArtifact.sentences),
-                metadata: metadata,
-                into: db
-            )
-            try insertFrequencyRows(analysis.frequencyRows, into: db)
-            try insertTokenPositions(tokenizedArtifact.sentences, into: db)
-            try execute("COMMIT;", on: db)
-        } catch {
-            try? execute("ROLLBACK;", on: db)
-            throw error
+            let db = try openDatabase(at: stagedURL, flags: SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE)
+            defer { sqlite3_close(db) }
+
+            try configureDatabase(on: db)
+            try ensureDocumentSchema(on: db)
+
+            try execute("BEGIN IMMEDIATE TRANSACTION;", on: db)
+            do {
+                try execute("DELETE FROM corpus_document;", on: db)
+                try execute("DELETE FROM token_frequency;", on: db)
+                try execute("DELETE FROM token_position;", on: db)
+                try execute("DELETE FROM cleaning_rule_hit;", on: db)
+                try execute("DELETE FROM sentence;", on: db)
+                try execute("DELETE FROM token;", on: db)
+                try execute("DELETE FROM schema_migrations;", on: db)
+                try insertDocument(
+                    rawText: resolvedRawText,
+                    cleanedText: document.text,
+                    metadata: metadata,
+                    into: db
+                )
+                try insertCleaningRuleHits(metadata.cleaningRuleHits, into: db)
+                try insertSentences(parsedIndex.document.sentences, into: db)
+                try rebuildSentenceSearchIndex(into: db)
+                try insertTokens(from: parsedIndex.document.sentences, into: db)
+                try insertFrequencyRows(analysis.frequencyRows, into: db)
+                try insertTokenPositions(tokenizedArtifact.sentences, into: db)
+                try recordSchemaMigration(
+                    version: currentSchemaVersion,
+                    description: "Write corpus shard",
+                    into: db
+                )
+                try validateStagedDocument(
+                    on: db,
+                    metadata: metadata,
+                    sentenceCount: parsedIndex.document.sentences.count,
+                    tokenCount: parsedIndex.document.tokens.count,
+                    cleaningRuleHitCount: metadata.cleaningRuleHits.count
+                )
+                try execute("COMMIT;", on: db)
+            } catch {
+                try? execute("ROLLBACK;", on: db)
+                throw error
+            }
         }
+
+        try SQLiteDatabase.atomicReplaceItem(at: url, with: stagedURL, fileManager: fileManager)
     }
 
     static func updateMetadata(at url: URL, metadataProfile: CorpusMetadataProfile) throws {
@@ -267,5 +299,42 @@ enum NativeCorpusDatabaseSupport {
 
     static func preferredStoredText(cleanedText: String, legacyText: String) -> String {
         cleanedText.isEmpty ? legacyText : cleanedText
+    }
+
+    static func stagedDatabaseURL(for destinationURL: URL) -> URL {
+        destinationURL.deletingLastPathComponent()
+            .appendingPathComponent(".\(destinationURL.lastPathComponent).staged-\(UUID().uuidString)")
+    }
+
+    static func validateStagedDocument(
+        on db: OpaquePointer?,
+        metadata: NativeStoredCorpusMetadata,
+        sentenceCount: Int,
+        tokenCount: Int,
+        cleaningRuleHitCount: Int
+    ) throws {
+        let storedDocumentCount = try scalarInt("SELECT COUNT(*) FROM corpus_document;", on: db)
+        let storedSentenceCount = try scalarInt("SELECT COUNT(*) FROM sentence;", on: db)
+        let storedSentenceSearchCount = try scalarInt("SELECT COUNT(*) FROM sentence_fts;", on: db)
+        let storedTokenCount = try scalarInt("SELECT COUNT(*) FROM token;", on: db)
+        let storedCleaningRuleHitCount = try scalarInt("SELECT COUNT(*) FROM cleaning_rule_hit;", on: db)
+        let storedSchemaVersion = try scalarInt(
+            "SELECT schema_version FROM corpus_document WHERE id = 1 LIMIT 1;",
+            on: db
+        )
+        let storedDigest = try scalarText(
+            "SELECT cleaned_text_digest FROM corpus_document WHERE id = 1 LIMIT 1;",
+            on: db
+        )
+
+        guard storedDocumentCount == 1,
+              storedSentenceCount == sentenceCount,
+              storedSentenceSearchCount == sentenceCount,
+              storedTokenCount == tokenCount,
+              storedCleaningRuleHitCount == cleaningRuleHitCount,
+              storedSchemaVersion == metadata.schemaVersion,
+              storedDigest == metadata.cleanedTextDigest else {
+            throw databaseError(on: db, message: "语料分片校验失败")
+        }
     }
 }

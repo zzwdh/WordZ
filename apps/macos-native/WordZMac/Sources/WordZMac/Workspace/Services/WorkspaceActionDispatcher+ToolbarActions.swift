@@ -12,6 +12,8 @@ extension WorkspaceActionDispatcher {
             launch { await self.workspace.openSelectedCorpus() }
         case .openSourceReader:
             NativeAppCommandCenter.post(.openSourceReader)
+        case .annotationControls:
+            break
         case .previewCurrentCorpus:
             launch { await self.workspace.quickLookCurrentCorpus() }
         case .shareCurrentContent:

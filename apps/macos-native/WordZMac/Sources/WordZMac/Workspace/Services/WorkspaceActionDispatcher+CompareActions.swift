@@ -10,6 +10,14 @@ extension WorkspaceActionDispatcher {
             launch { await self.workspace.openCompareKWIC() }
         case .openCollocate:
             launch { await self.workspace.openCompareCollocate() }
+        case .openSentiment:
+            launch { await self.workspace.openCompareSentiment() }
+        case .openSentimentExemplar(let rowID):
+            launch { await self.workspace.openCompareSentiment(preferredRowID: rowID) }
+        case .openSentimentSourceReader(let rowID):
+            launch { await self.workspace.openCompareSentiment(preferredRowID: rowID, openSourceReaderAfterSelection: true) }
+        case .openTopics:
+            launch { await self.workspace.openCompareTopics() }
         case .saveCorpusSet:
             launch { await self.workspace.saveCompareCorpusSet(preferredWindowRoute: self.preferredWindowRoute) }
         case .analyzeInKeywordSuite:

@@ -2,9 +2,25 @@ import AppKit
 import SwiftUI
 import XCTest
 @testable import WordZWorkspaceCore
+@testable import WordZWorkspaceFeature
 
 @MainActor
 final class WorkspaceFeatureRegistryTests: XCTestCase {
+    func testWorkspaceFeatureModuleActivatesVerticalsForTopicsSentimentAndEvidence() {
+        XCTAssertEqual(
+            WordZWorkspaceFeatureModule.activatedVerticals.map(\.rawValue),
+            ["topics", "sentiment", "evidence"]
+        )
+    }
+
+    func testWorkspaceFeaturePageFactoryBuildsConcreteMigratedPages() {
+        let bundle = WordZWorkspaceFeaturePageFactory.makePageBundle()
+
+        XCTAssertEqual(ObjectIdentifier(type(of: bundle.topics)), ObjectIdentifier(TopicsPageViewModel.self))
+        XCTAssertEqual(ObjectIdentifier(type(of: bundle.sentiment)), ObjectIdentifier(SentimentPageViewModel.self))
+        XCTAssertEqual(ObjectIdentifier(type(of: bundle.evidenceWorkbench)), ObjectIdentifier(EvidenceWorkbenchViewModel.self))
+    }
+
     func testRegistryMaintainsStableMainRouteOrderAndIdentifiers() {
         XCTAssertEqual(
             WorkspaceFeatureRegistry.descriptors.map(\.route.rawValue),

@@ -222,6 +222,11 @@ final class SceneBuildersTests: XCTestCase {
     }
 
     func testCompareSceneBuilderBuildsSelectionSummariesAndSortedRows() {
+        let annotationState = WorkspaceAnnotationState(
+            profile: .lemmaPreferred,
+            lexicalClasses: [.noun],
+            scripts: [.latin]
+        )
         let scene = CompareSceneBuilder().build(
             selection: [
                 CompareSelectableCorpusSceneItem(id: "corpus-1", title: "A", subtitle: "Default", isSelected: true),
@@ -231,6 +236,15 @@ final class SceneBuildersTests: XCTestCase {
             query: "a",
             searchOptions: SearchOptionsState(words: false, caseSensitive: false, regex: false),
             stopwordFilter: .default,
+            annotationState: annotationState,
+            sentimentSummary: CompareSentimentSummary(
+                focusTerm: "alpha",
+                headline: "Compare x Sentiment",
+                scopeSummary: "Target Corpora: A · Reference Corpora: B",
+                targetDistribution: "Target: +1 / =0 / -0",
+                referenceDistribution: "Reference: +0 / =1 / -0",
+                note: "Alpha remains positive in the target corpus."
+            ),
             sortMode: .alphabeticalAscending,
             pageSize: .fifty,
             currentPage: 1,
@@ -245,6 +259,14 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertTrue(scene.columnTitle(for: CompareColumnKey.keyness).contains("Keyness"))
         XCTAssertFalse(scene.isColumnVisible(CompareColumnKey.range))
         XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Selected Corpora") || $0.contains("所选语料") }))
+        XCTAssertEqual(scene.annotationSummary, annotationState.summary(in: .system))
+        XCTAssertEqual(scene.sentimentSummary?.focusTerm, "alpha")
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: {
+            $0.contains(annotationState.summary(in: .system))
+        }))
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: {
+            $0.contains("Compare x Sentiment")
+        }))
     }
 
     func testCompareSceneBuilderRecomputesAndResortsForFixedReferenceCorpus() {

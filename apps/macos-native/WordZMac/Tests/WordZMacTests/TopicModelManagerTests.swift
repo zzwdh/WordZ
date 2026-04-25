@@ -2,10 +2,10 @@ import XCTest
 @testable import WordZWorkspaceCore
 
 final class TopicModelManagerTests: XCTestCase {
-    func testFallbackManifestDefaultsToBundledLocalV3() {
-        XCTAssertEqual(TopicModelManifest.fallback.version, "3")
+    func testFallbackManifestDefaultsToBundledLocalV4() {
+        XCTAssertEqual(TopicModelManifest.fallback.version, "4")
         XCTAssertEqual(TopicModelManifest.fallback.dimensions, 384)
-        XCTAssertEqual(TopicModelManifest.fallback.revision, "2026-04-local-v3")
+        XCTAssertEqual(TopicModelManifest.fallback.revision, "2026-04-local-v4")
         XCTAssertEqual(TopicModelManifest.fallback.providers?.first?.dimensions, 384)
     }
 

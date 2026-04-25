@@ -18,4 +18,6 @@ enum KeywordSavedListExportScope {
 enum CompareDrilldownTarget {
     case kwic
     case collocate
+    case sentiment
+    case topics
 }

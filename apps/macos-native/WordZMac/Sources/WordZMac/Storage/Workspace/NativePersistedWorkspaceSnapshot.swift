@@ -9,6 +9,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let searchQuery: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationProfile: WorkspaceAnnotationProfile
+    let annotationLexicalClasses: [TokenLexicalClass]
+    let annotationScripts: [TokenScript]
     let tokenizeLanguagePreset: TokenizeLanguagePreset
     let tokenizeLemmaStrategy: TokenLemmaStrategy
     let compareReferenceCorpusID: String
@@ -17,6 +20,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let sentimentUnit: SentimentAnalysisUnit
     let sentimentContextBasis: SentimentContextBasis
     let sentimentBackend: SentimentBackendKind
+    let sentimentDomainPackID: SentimentDomainPackID
+    let sentimentRuleProfileID: String
+    let sentimentCalibrationProfileID: String
     let sentimentChartKind: SentimentChartKind
     let sentimentThresholdPreset: SentimentThresholdPreset
     let sentimentDecisionThreshold: Double
@@ -24,6 +30,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let sentimentNeutralBias: Double
     let sentimentRowFilterQuery: String
     let sentimentLabelFilter: SentimentLabel?
+    let sentimentReviewFilter: SentimentReviewFilter
+    let sentimentReviewStatusFilter: SentimentReviewStatusFilter
+    let sentimentShowOnlyHardCases: Bool
+    let sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile
+    let sentimentImportedLexiconBundles: [SentimentUserLexiconBundle]
     let sentimentSelectedCorpusIDs: [String]
     let sentimentReferenceCorpusID: String
     let keywordActiveTab: KeywordSuiteTab
@@ -75,6 +86,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case searchQuery
         case searchOptions
         case stopwordFilter
+        case annotationProfile
+        case annotationLexicalClasses
+        case annotationScripts
         case tokenizeLanguagePreset
         case tokenizeLemmaStrategy
         case compareReferenceCorpusID
@@ -83,6 +97,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case sentimentUnit
         case sentimentContextBasis
         case sentimentBackend
+        case sentimentDomainPackID
+        case sentimentRuleProfileID
+        case sentimentCalibrationProfileID
         case sentimentChartKind
         case sentimentThresholdPreset
         case sentimentDecisionThreshold
@@ -90,6 +107,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case sentimentNeutralBias
         case sentimentRowFilterQuery
         case sentimentLabelFilter
+        case sentimentReviewFilter
+        case sentimentReviewStatusFilter
+        case sentimentShowOnlyHardCases
+        case sentimentWorkspaceCalibrationProfile
+        case sentimentImportedLexiconBundles
         case sentimentSelectedCorpusIDs
         case sentimentReferenceCorpusID
         case keywordActiveTab
@@ -144,6 +166,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         searchQuery: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationProfile: WorkspaceAnnotationProfile = .surface,
+        annotationLexicalClasses: [TokenLexicalClass] = [],
+        annotationScripts: [TokenScript] = [],
         tokenizeLanguagePreset: TokenizeLanguagePreset,
         tokenizeLemmaStrategy: TokenLemmaStrategy,
         compareReferenceCorpusID: String,
@@ -152,6 +177,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         sentimentUnit: SentimentAnalysisUnit = .sentence,
         sentimentContextBasis: SentimentContextBasis = .visibleContext,
         sentimentBackend: SentimentBackendKind = .lexicon,
+        sentimentDomainPackID: SentimentDomainPackID = .mixed,
+        sentimentRuleProfileID: String = SentimentRuleProfile.default.id,
+        sentimentCalibrationProfileID: String = SentimentCalibrationProfile.default.id,
         sentimentChartKind: SentimentChartKind = .distributionBar,
         sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
         sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
@@ -159,6 +187,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
         sentimentRowFilterQuery: String = "",
         sentimentLabelFilter: SentimentLabel? = nil,
+        sentimentReviewFilter: SentimentReviewFilter = .all,
+        sentimentReviewStatusFilter: SentimentReviewStatusFilter = .all,
+        sentimentShowOnlyHardCases: Bool = false,
+        sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile = .workspaceDefault,
+        sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
         sentimentSelectedCorpusIDs: [String] = [],
         sentimentReferenceCorpusID: String = "",
         keywordActiveTab: KeywordSuiteTab,
@@ -209,6 +242,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.searchQuery = searchQuery
         self.searchOptions = searchOptions
         self.stopwordFilter = stopwordFilter
+        self.annotationProfile = annotationProfile
+        self.annotationLexicalClasses = annotationLexicalClasses
+        self.annotationScripts = annotationScripts
         self.tokenizeLanguagePreset = tokenizeLanguagePreset
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
@@ -217,6 +253,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.sentimentUnit = sentimentUnit
         self.sentimentContextBasis = sentimentContextBasis
         self.sentimentBackend = sentimentBackend
+        self.sentimentDomainPackID = sentimentDomainPackID
+        self.sentimentRuleProfileID = sentimentRuleProfileID
+        self.sentimentCalibrationProfileID = sentimentCalibrationProfileID
         self.sentimentChartKind = sentimentChartKind
         self.sentimentThresholdPreset = sentimentThresholdPreset
         self.sentimentDecisionThreshold = sentimentDecisionThreshold
@@ -224,6 +263,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.sentimentNeutralBias = sentimentNeutralBias
         self.sentimentRowFilterQuery = sentimentRowFilterQuery
         self.sentimentLabelFilter = sentimentLabelFilter
+        self.sentimentReviewFilter = sentimentReviewFilter
+        self.sentimentReviewStatusFilter = sentimentReviewStatusFilter
+        self.sentimentShowOnlyHardCases = sentimentShowOnlyHardCases
+        self.sentimentWorkspaceCalibrationProfile = sentimentWorkspaceCalibrationProfile
+        self.sentimentImportedLexiconBundles = sentimentImportedLexiconBundles
         self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
         self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
         self.keywordActiveTab = keywordActiveTab
@@ -277,6 +321,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             searchQuery: draft.searchQuery,
             searchOptions: draft.searchOptions,
             stopwordFilter: draft.stopwordFilter,
+            annotationProfile: draft.annotationProfile,
+            annotationLexicalClasses: draft.annotationLexicalClasses,
+            annotationScripts: draft.annotationScripts,
             tokenizeLanguagePreset: draft.tokenizeLanguagePreset,
             tokenizeLemmaStrategy: draft.tokenizeLemmaStrategy,
             compareReferenceCorpusID: draft.compareReferenceCorpusID,
@@ -285,6 +332,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             sentimentUnit: draft.sentimentUnit,
             sentimentContextBasis: draft.sentimentContextBasis,
             sentimentBackend: draft.sentimentBackend,
+            sentimentDomainPackID: draft.sentimentDomainPackID,
+            sentimentRuleProfileID: draft.sentimentRuleProfileID,
+            sentimentCalibrationProfileID: draft.sentimentCalibrationProfileID,
             sentimentChartKind: draft.sentimentChartKind,
             sentimentThresholdPreset: draft.sentimentThresholdPreset,
             sentimentDecisionThreshold: draft.sentimentDecisionThreshold,
@@ -292,6 +342,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             sentimentNeutralBias: draft.sentimentNeutralBias,
             sentimentRowFilterQuery: draft.sentimentRowFilterQuery,
             sentimentLabelFilter: draft.sentimentLabelFilter,
+            sentimentReviewFilter: draft.sentimentReviewFilter,
+            sentimentReviewStatusFilter: draft.sentimentReviewStatusFilter,
+            sentimentShowOnlyHardCases: draft.sentimentShowOnlyHardCases,
+            sentimentWorkspaceCalibrationProfile: draft.sentimentWorkspaceCalibrationProfile,
+            sentimentImportedLexiconBundles: draft.sentimentImportedLexiconBundles,
             sentimentSelectedCorpusIDs: draft.sentimentSelectedCorpusIDs,
             sentimentReferenceCorpusID: draft.sentimentReferenceCorpusID,
             keywordActiveTab: draft.keywordActiveTab,
@@ -346,6 +401,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.searchQuery = try container.decodeIfPresent(String.self, forKey: .searchQuery) ?? ""
         self.searchOptions = try container.decodeIfPresent(SearchOptionsState.self, forKey: .searchOptions) ?? .default
         self.stopwordFilter = try container.decodeIfPresent(StopwordFilterState.self, forKey: .stopwordFilter) ?? .default
+        self.annotationProfile = try container.decodeIfPresent(WorkspaceAnnotationProfile.self, forKey: .annotationProfile) ?? .surface
+        self.annotationLexicalClasses = try container.decodeIfPresent([TokenLexicalClass].self, forKey: .annotationLexicalClasses) ?? []
+        self.annotationScripts = try container.decodeIfPresent([TokenScript].self, forKey: .annotationScripts) ?? []
         self.tokenizeLanguagePreset = try container.decodeIfPresent(TokenizeLanguagePreset.self, forKey: .tokenizeLanguagePreset) ?? .mixedChineseEnglish
         self.tokenizeLemmaStrategy = try container.decodeIfPresent(TokenLemmaStrategy.self, forKey: .tokenizeLemmaStrategy) ?? .normalizedSurface
         self.compareReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .compareReferenceCorpusID) ?? ""
@@ -354,6 +412,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.sentimentUnit = try container.decodeIfPresent(SentimentAnalysisUnit.self, forKey: .sentimentUnit) ?? .sentence
         self.sentimentContextBasis = try container.decodeIfPresent(SentimentContextBasis.self, forKey: .sentimentContextBasis) ?? .visibleContext
         self.sentimentBackend = try container.decodeIfPresent(SentimentBackendKind.self, forKey: .sentimentBackend) ?? .lexicon
+        self.sentimentDomainPackID = try container.decodeIfPresent(SentimentDomainPackID.self, forKey: .sentimentDomainPackID) ?? .mixed
+        self.sentimentRuleProfileID = try container.decodeIfPresent(String.self, forKey: .sentimentRuleProfileID) ?? SentimentRuleProfile.default.id
+        self.sentimentCalibrationProfileID = try container.decodeIfPresent(String.self, forKey: .sentimentCalibrationProfileID) ?? SentimentCalibrationProfile.default.id
         self.sentimentChartKind = try container.decodeIfPresent(SentimentChartKind.self, forKey: .sentimentChartKind) ?? .distributionBar
         self.sentimentThresholdPreset = try container.decodeIfPresent(SentimentThresholdPreset.self, forKey: .sentimentThresholdPreset) ?? .conservative
         self.sentimentDecisionThreshold = try container.decodeIfPresent(Double.self, forKey: .sentimentDecisionThreshold) ?? SentimentThresholds.default.decisionThreshold
@@ -361,6 +422,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.sentimentNeutralBias = try container.decodeIfPresent(Double.self, forKey: .sentimentNeutralBias) ?? SentimentThresholds.default.neutralBias
         self.sentimentRowFilterQuery = try container.decodeIfPresent(String.self, forKey: .sentimentRowFilterQuery) ?? ""
         self.sentimentLabelFilter = try container.decodeIfPresent(SentimentLabel.self, forKey: .sentimentLabelFilter)
+        self.sentimentReviewFilter = try container.decodeIfPresent(SentimentReviewFilter.self, forKey: .sentimentReviewFilter) ?? .all
+        self.sentimentReviewStatusFilter = try container.decodeIfPresent(SentimentReviewStatusFilter.self, forKey: .sentimentReviewStatusFilter) ?? .all
+        self.sentimentShowOnlyHardCases = try container.decodeIfPresent(Bool.self, forKey: .sentimentShowOnlyHardCases) ?? false
+        self.sentimentWorkspaceCalibrationProfile = try container.decodeIfPresent(SentimentCalibrationProfile.self, forKey: .sentimentWorkspaceCalibrationProfile) ?? .workspaceDefault
+        self.sentimentImportedLexiconBundles = try container.decodeIfPresent([SentimentUserLexiconBundle].self, forKey: .sentimentImportedLexiconBundles) ?? []
         self.sentimentSelectedCorpusIDs = try container.decodeIfPresent([String].self, forKey: .sentimentSelectedCorpusIDs) ?? []
         self.sentimentReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .sentimentReferenceCorpusID) ?? ""
         self.keywordActiveTab = try container.decodeIfPresent(KeywordSuiteTab.self, forKey: .keywordActiveTab) ?? .words
@@ -429,6 +495,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             searchQuery: searchQuery,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationProfile: annotationProfile,
+            annotationLexicalClasses: annotationLexicalClasses,
+            annotationScripts: annotationScripts,
             tokenizeLanguagePreset: tokenizeLanguagePreset,
             tokenizeLemmaStrategy: tokenizeLemmaStrategy,
             compareReferenceCorpusID: compareReferenceCorpusID,
@@ -437,6 +506,9 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             sentimentUnit: sentimentUnit,
             sentimentContextBasis: sentimentContextBasis,
             sentimentBackend: sentimentBackend,
+            sentimentDomainPackID: sentimentDomainPackID,
+            sentimentRuleProfileID: sentimentRuleProfileID,
+            sentimentCalibrationProfileID: sentimentCalibrationProfileID,
             sentimentChartKind: sentimentChartKind,
             sentimentThresholdPreset: sentimentThresholdPreset,
             sentimentDecisionThreshold: sentimentDecisionThreshold,
@@ -444,6 +516,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             sentimentNeutralBias: sentimentNeutralBias,
             sentimentRowFilterQuery: sentimentRowFilterQuery,
             sentimentLabelFilter: sentimentLabelFilter,
+            sentimentReviewFilter: sentimentReviewFilter,
+            sentimentReviewStatusFilter: sentimentReviewStatusFilter,
+            sentimentShowOnlyHardCases: sentimentShowOnlyHardCases,
+            sentimentWorkspaceCalibrationProfile: sentimentWorkspaceCalibrationProfile,
+            sentimentImportedLexiconBundles: sentimentImportedLexiconBundles,
             sentimentSelectedCorpusIDs: sentimentSelectedCorpusIDs,
             sentimentReferenceCorpusID: sentimentReferenceCorpusID,
             keywordActiveTab: keywordActiveTab,

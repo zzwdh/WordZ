@@ -12,7 +12,7 @@ extension NativeTableView.Coordinator {
         }
 
         if !selectedRowIDs.isEmpty {
-            let indexes = IndexSet(rows.enumerated().compactMap { selectedRowIDs.contains($0.element.id) ? $0.offset : nil })
+            let indexes = IndexSet(selectedRowIDs.compactMap { rowIndexByID[$0] })
             if !indexes.isEmpty, tableView.selectedRowIndexes != indexes {
                 tableView.selectRowIndexes(indexes, byExtendingSelection: false)
                 if let first = indexes.first {
@@ -29,7 +29,7 @@ extension NativeTableView.Coordinator {
             return
         }
 
-        guard let rowIndex = rows.firstIndex(where: { $0.id == selectedRowID }) else {
+        guard let rowIndex = rowIndexByID[selectedRowID] else {
             if tableView.selectedRow != -1 {
                 tableView.deselectAll(nil)
             }
@@ -148,18 +148,14 @@ extension NativeTableView.Coordinator {
         }
 
         if !selectedRowIDs.isEmpty {
-            let fallbackIndexes = rows.enumerated().compactMap { offset, row in
-                selectedRowIDs.contains(row.id) ? offset : nil
-            }
+            let fallbackIndexes = selectedRowIDs.compactMap { rowIndexByID[$0] }.sorted()
             if !fallbackIndexes.isEmpty {
                 return fallbackIndexes
             }
         }
 
         if let selectedRowID {
-            return rows.enumerated().compactMap { offset, row in
-                row.id == selectedRowID ? offset : nil
-            }
+            return rowIndexByID[selectedRowID].map { [$0] } ?? []
         }
 
         return []

@@ -40,6 +40,7 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
         await flowCoordinator.refreshKeywordSavedLists(features: features)
         await flowCoordinator.refreshConcordanceSavedSets(features: features)
         await flowCoordinator.refreshEvidenceItems(features: features)
+        await flowCoordinator.refreshSentimentReviewSamples(features: features)
         features.sidebar.clearError()
         flowCoordinator.syncWindowDocumentState(features: features)
     }
@@ -54,7 +55,8 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
             hasExportableContent: false,
             runSentimentEnabled: features.sentiment.canRun(
                 hasOpenedCorpus: features.sidebar.selectedCorpusID != nil,
-                hasKWICRows: features.kwic.scene?.rows.isEmpty == false
+                hasKWICRows: features.kwic.scene?.rows.isEmpty == false,
+                hasTopicRows: features.topics.canAnalyzeVisibleTopicsInSentiment
             )
         )
     }

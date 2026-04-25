@@ -18,7 +18,8 @@ extension KeywordPageViewModel {
             importedReferenceListText = configuration.referenceSource.importedListText
             importedReferenceListSourceName = configuration.referenceSource.importedListSourceName
             importedReferenceListImportedAt = configuration.referenceSource.importedListImportedAt
-            unit = configuration.unit
+            annotationProfile = snapshot.annotationProfile
+            unit = snapshot.annotationProfile.keywordUnit
             direction = configuration.direction
             statistic = configuration.statistic
             languagePreset = configuration.tokenFilters.languagePreset
@@ -28,8 +29,8 @@ extension KeywordPageViewModel {
             minCombinedFrequency = "\(configuration.thresholds.minCombinedFreq)"
             maxPValue = String(configuration.thresholds.maxPValue)
             minAbsLogRatio = String(configuration.thresholds.minAbsLogRatio)
-            selectedScripts = Set(configuration.tokenFilters.scripts)
-            selectedLexicalClasses = Set(configuration.tokenFilters.lexicalClasses)
+            selectedScripts = Set(snapshot.annotationScripts)
+            selectedLexicalClasses = Set(snapshot.annotationLexicalClasses)
         }
     }
 
@@ -140,6 +141,7 @@ extension KeywordPageViewModel {
             self.importedReferenceListText = ""
             self.importedReferenceListSourceName = nil
             self.importedReferenceListImportedAt = nil
+            self.annotationProfile = .surface
             self.unit = .normalizedSurface
             self.direction = .positive
             self.statistic = .logLikelihood
@@ -166,6 +168,15 @@ extension KeywordPageViewModel {
             self.lastRunConfiguration = nil
             self.scene = nil
             self.normalizeSelections()
+        }
+    }
+
+    func applyWorkspaceAnnotationState(_ state: WorkspaceAnnotationState) {
+        applyStateChange(rebuildScene: rebuildScene) {
+            self.annotationProfile = state.profile
+            self.unit = state.profile.keywordUnit
+            self.selectedScripts = state.scriptSet
+            self.selectedLexicalClasses = state.lexicalClassSet
         }
     }
 }

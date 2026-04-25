@@ -192,24 +192,19 @@ extension NativeCorpusStore {
         nextFolders: [NativeFolderRecord],
         existingCorpora: [NativeCorpusRecord]
     ) throws {
-        var committedStorageURLs: [URL] = []
-        do {
+        try storageMutationCoordinator.perform { transaction in
+            try snapshotLibraryCatalogMutation(
+                transaction,
+                folders: existingFolders,
+                corpora: existingCorpora
+            )
             for artifact in stagedArtifacts {
                 let destinationURL = corporaDirectoryURL.appendingPathComponent(artifact.record.storageFileName)
-                try? fileManager.removeItem(at: destinationURL)
-                try fileManager.moveItem(at: artifact.stagedStorageURL, to: destinationURL)
-                committedStorageURLs.append(destinationURL)
+                try transaction.moveItem(at: artifact.stagedStorageURL, to: destinationURL)
             }
 
             try saveFolders(nextFolders)
             try saveCorpora(existingCorpora + stagedArtifacts.map(\.record))
-        } catch {
-            for url in committedStorageURLs {
-                try? fileManager.removeItem(at: url)
-            }
-            try? saveFolders(existingFolders)
-            try? saveCorpora(existingCorpora)
-            throw error
         }
     }
 }

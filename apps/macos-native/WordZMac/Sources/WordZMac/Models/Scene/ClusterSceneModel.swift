@@ -98,6 +98,7 @@ struct ClusterSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationSummary: String
     let mode: ClusterMode
     let selectedN: Int
     let minimumFrequency: Int

@@ -9,6 +9,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let searchQuery: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let annotationProfile: WorkspaceAnnotationProfile
+    let annotationLexicalClasses: [TokenLexicalClass]
+    let annotationScripts: [TokenScript]
     let tokenizeLanguagePreset: TokenizeLanguagePreset
     let tokenizeLemmaStrategy: TokenLemmaStrategy
     let compareReferenceCorpusID: String
@@ -17,6 +20,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let sentimentUnit: SentimentAnalysisUnit
     let sentimentContextBasis: SentimentContextBasis
     let sentimentBackend: SentimentBackendKind
+    let sentimentDomainPackID: SentimentDomainPackID
+    let sentimentRuleProfileID: String
+    let sentimentCalibrationProfileID: String
     let sentimentChartKind: SentimentChartKind
     let sentimentThresholdPreset: SentimentThresholdPreset
     let sentimentDecisionThreshold: Double
@@ -24,6 +30,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let sentimentNeutralBias: Double
     let sentimentRowFilterQuery: String
     let sentimentLabelFilter: SentimentLabel?
+    let sentimentReviewFilter: SentimentReviewFilter
+    let sentimentReviewStatusFilter: SentimentReviewStatusFilter
+    let sentimentShowOnlyHardCases: Bool
+    let sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile
+    let sentimentImportedLexiconBundles: [SentimentUserLexiconBundle]
     let sentimentSelectedCorpusIDs: [String]
     let sentimentReferenceCorpusID: String
     let keywordActiveTab: KeywordSuiteTab
@@ -77,6 +88,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         searchQuery: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationProfile: WorkspaceAnnotationProfile = .surface,
+        annotationLexicalClasses: [TokenLexicalClass] = [],
+        annotationScripts: [TokenScript] = [],
         tokenizeLanguagePreset: TokenizeLanguagePreset = .mixedChineseEnglish,
         tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
         compareReferenceCorpusID: String = "",
@@ -85,6 +99,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         sentimentUnit: SentimentAnalysisUnit = .sentence,
         sentimentContextBasis: SentimentContextBasis = .visibleContext,
         sentimentBackend: SentimentBackendKind = .lexicon,
+        sentimentDomainPackID: SentimentDomainPackID = .mixed,
+        sentimentRuleProfileID: String = SentimentRuleProfile.default.id,
+        sentimentCalibrationProfileID: String = SentimentCalibrationProfile.default.id,
         sentimentChartKind: SentimentChartKind = .distributionBar,
         sentimentThresholdPreset: SentimentThresholdPreset = .conservative,
         sentimentDecisionThreshold: Double = SentimentThresholds.default.decisionThreshold,
@@ -92,6 +109,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         sentimentNeutralBias: Double = SentimentThresholds.default.neutralBias,
         sentimentRowFilterQuery: String = "",
         sentimentLabelFilter: SentimentLabel? = nil,
+        sentimentReviewFilter: SentimentReviewFilter = .all,
+        sentimentReviewStatusFilter: SentimentReviewStatusFilter = .all,
+        sentimentShowOnlyHardCases: Bool = false,
+        sentimentWorkspaceCalibrationProfile: SentimentCalibrationProfile = .workspaceDefault,
+        sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
         sentimentSelectedCorpusIDs: [String] = [],
         sentimentReferenceCorpusID: String = "",
         keywordActiveTab: KeywordSuiteTab = .words,
@@ -142,6 +164,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.searchQuery = searchQuery
         self.searchOptions = searchOptions
         self.stopwordFilter = stopwordFilter
+        self.annotationProfile = annotationProfile
+        self.annotationLexicalClasses = annotationLexicalClasses
+        self.annotationScripts = annotationScripts
         self.tokenizeLanguagePreset = tokenizeLanguagePreset
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
@@ -150,6 +175,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.sentimentUnit = sentimentUnit
         self.sentimentContextBasis = sentimentContextBasis
         self.sentimentBackend = sentimentBackend
+        self.sentimentDomainPackID = sentimentDomainPackID
+        self.sentimentRuleProfileID = sentimentRuleProfileID
+        self.sentimentCalibrationProfileID = sentimentCalibrationProfileID
         self.sentimentChartKind = sentimentChartKind
         self.sentimentThresholdPreset = sentimentThresholdPreset
         self.sentimentDecisionThreshold = sentimentDecisionThreshold
@@ -157,6 +185,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.sentimentNeutralBias = sentimentNeutralBias
         self.sentimentRowFilterQuery = sentimentRowFilterQuery
         self.sentimentLabelFilter = sentimentLabelFilter
+        self.sentimentReviewFilter = sentimentReviewFilter
+        self.sentimentReviewStatusFilter = sentimentReviewStatusFilter
+        self.sentimentShowOnlyHardCases = sentimentShowOnlyHardCases
+        self.sentimentWorkspaceCalibrationProfile = sentimentWorkspaceCalibrationProfile
+        self.sentimentImportedLexiconBundles = sentimentImportedLexiconBundles
         self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
         self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
         self.keywordActiveTab = keywordActiveTab
@@ -211,6 +244,20 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.searchQuery = JSONFieldReader.string(search, key: "query")
         self.searchOptions = SearchOptionsState(json: JSONFieldReader.dictionary(search, key: "options"))
         self.stopwordFilter = StopwordFilterState(json: JSONFieldReader.dictionary(search, key: "stopwordFilter"))
+        let annotation = JSONFieldReader.dictionary(json, key: "annotation")
+        self.annotationProfile = WorkspaceAnnotationProfile(
+            rawValue: JSONFieldReader.string(annotation, key: "profile", fallback: WorkspaceAnnotationProfile.surface.rawValue)
+        ) ?? .surface
+        self.annotationLexicalClasses = JSONFieldReader.array(annotation, key: "lexicalClasses")
+            .compactMap { value in
+                guard let rawValue = value as? String else { return nil }
+                return TokenLexicalClass(rawValue: rawValue)
+            }
+        self.annotationScripts = JSONFieldReader.array(annotation, key: "scripts")
+            .compactMap { value in
+                guard let rawValue = value as? String else { return nil }
+                return TokenScript(rawValue: rawValue)
+            }
         let tokenize = JSONFieldReader.dictionary(json, key: "tokenize")
         self.tokenizeLanguagePreset = TokenizeLanguagePreset(
             rawValue: JSONFieldReader.string(tokenize, key: "languagePreset", fallback: TokenizeLanguagePreset.mixedChineseEnglish.rawValue)
@@ -234,6 +281,19 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.sentimentBackend = SentimentBackendKind(
             rawValue: JSONFieldReader.string(sentiment, key: "backend", fallback: SentimentBackendKind.lexicon.rawValue)
         ) ?? .lexicon
+        self.sentimentDomainPackID = SentimentDomainPackID(
+            rawValue: JSONFieldReader.string(sentiment, key: "domainPackID", fallback: SentimentDomainPackID.mixed.rawValue)
+        ) ?? .mixed
+        self.sentimentRuleProfileID = JSONFieldReader.string(
+            sentiment,
+            key: "ruleProfileID",
+            fallback: SentimentRuleProfile.default.id
+        )
+        self.sentimentCalibrationProfileID = JSONFieldReader.string(
+            sentiment,
+            key: "calibrationProfileID",
+            fallback: SentimentCalibrationProfile.default.id
+        )
         self.sentimentChartKind = SentimentChartKind(
             rawValue: JSONFieldReader.string(sentiment, key: "chartKind", fallback: SentimentChartKind.distributionBar.rawValue)
         ) ?? .distributionBar
@@ -258,6 +318,19 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.sentimentRowFilterQuery = JSONFieldReader.string(sentiment, key: "rowFilterQuery")
         self.sentimentLabelFilter = SentimentLabel(
             rawValue: JSONFieldReader.string(sentiment, key: "labelFilter")
+        )
+        self.sentimentReviewFilter = SentimentReviewFilter(
+            rawValue: JSONFieldReader.string(sentiment, key: "reviewFilter", fallback: SentimentReviewFilter.all.rawValue)
+        ) ?? .all
+        self.sentimentReviewStatusFilter = SentimentReviewStatusFilter(
+            rawValue: JSONFieldReader.string(sentiment, key: "reviewStatusFilter", fallback: SentimentReviewStatusFilter.all.rawValue)
+        ) ?? .all
+        self.sentimentShowOnlyHardCases = JSONFieldReader.bool(sentiment, key: "showOnlyHardCases", fallback: false)
+        self.sentimentWorkspaceCalibrationProfile = decodeSentimentCalibrationProfileFromJSONObject(
+            JSONFieldReader.dictionary(sentiment, key: "workspaceCalibrationProfile")
+        ) ?? .workspaceDefault
+        self.sentimentImportedLexiconBundles = decodeSentimentLexiconBundlesFromJSONObject(
+            JSONFieldReader.array(sentiment, key: "userLexiconBundles")
         )
         self.sentimentSelectedCorpusIDs = JSONFieldReader.array(sentiment, key: "selectedCorpusIDs").compactMap { $0 as? String }
         self.sentimentReferenceCorpusID = JSONFieldReader.string(sentiment, key: "referenceCorpusID")
@@ -348,6 +421,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             searchQuery: draft.searchQuery,
             searchOptions: draft.searchOptions,
             stopwordFilter: draft.stopwordFilter,
+            annotationProfile: draft.annotationProfile,
+            annotationLexicalClasses: draft.annotationLexicalClasses,
+            annotationScripts: draft.annotationScripts,
             tokenizeLanguagePreset: draft.tokenizeLanguagePreset,
             tokenizeLemmaStrategy: draft.tokenizeLemmaStrategy,
             compareReferenceCorpusID: draft.compareReferenceCorpusID,
@@ -356,6 +432,9 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             sentimentUnit: draft.sentimentUnit,
             sentimentContextBasis: draft.sentimentContextBasis,
             sentimentBackend: draft.sentimentBackend,
+            sentimentDomainPackID: draft.sentimentDomainPackID,
+            sentimentRuleProfileID: draft.sentimentRuleProfileID,
+            sentimentCalibrationProfileID: draft.sentimentCalibrationProfileID,
             sentimentChartKind: draft.sentimentChartKind,
             sentimentThresholdPreset: draft.sentimentThresholdPreset,
             sentimentDecisionThreshold: draft.sentimentDecisionThreshold,
@@ -363,6 +442,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             sentimentNeutralBias: draft.sentimentNeutralBias,
             sentimentRowFilterQuery: draft.sentimentRowFilterQuery,
             sentimentLabelFilter: draft.sentimentLabelFilter,
+            sentimentReviewFilter: draft.sentimentReviewFilter,
+            sentimentReviewStatusFilter: draft.sentimentReviewStatusFilter,
+            sentimentShowOnlyHardCases: draft.sentimentShowOnlyHardCases,
+            sentimentWorkspaceCalibrationProfile: draft.sentimentWorkspaceCalibrationProfile,
+            sentimentImportedLexiconBundles: draft.sentimentImportedLexiconBundles,
             sentimentSelectedCorpusIDs: draft.sentimentSelectedCorpusIDs,
             sentimentReferenceCorpusID: draft.sentimentReferenceCorpusID,
             keywordActiveTab: draft.keywordActiveTab,
@@ -406,4 +490,29 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             chiSquareUseYates: draft.chiSquareUseYates
         )
     }
+}
+
+private func decodeSentimentLexiconBundlesFromJSONObject(
+    _ values: [Any]
+) -> [SentimentUserLexiconBundle] {
+    values.compactMap { value in
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value)
+        else {
+            return nil
+        }
+        return try? JSONDecoder().decode(SentimentUserLexiconBundle.self, from: data)
+    }
+}
+
+private func decodeSentimentCalibrationProfileFromJSONObject(
+    _ value: JSONObject
+) -> SentimentCalibrationProfile? {
+    guard !value.isEmpty,
+          JSONSerialization.isValidJSONObject(value),
+          let data = try? JSONSerialization.data(withJSONObject: value)
+    else {
+        return nil
+    }
+    return try? JSONDecoder().decode(SentimentCalibrationProfile.self, from: data)
 }

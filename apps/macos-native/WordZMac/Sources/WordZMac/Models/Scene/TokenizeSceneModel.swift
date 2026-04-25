@@ -134,6 +134,7 @@ struct TokenizeSceneModel: Equatable {
     let stopwordFilter: StopwordFilterState
     let languagePreset: TokenizeLanguagePreset
     let languagePresetSummary: String
+    let annotationSummary: String
     let lemmaStrategy: TokenLemmaStrategy
     let lemmaStrategySummary: String
     let metrics: [TokenizeMetricSceneItem]

@@ -1,4 +1,5 @@
 import Foundation
+import WordZEngine
 
 extension EngineClient {
     func fetchWorkspaceState() async throws -> WorkspaceSnapshotSummary {

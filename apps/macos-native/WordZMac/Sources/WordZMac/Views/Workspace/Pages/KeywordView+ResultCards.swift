@@ -4,7 +4,7 @@ extension KeywordView {
     func keywordResultsSummaryCard(_ scene: KeywordSceneModel) -> some View {
         WorkbenchHeaderCard(
             title: t("Focus / Reference 摘要", "Focus / Reference Summary"),
-            subtitle: scene.configurationSummary
+            subtitle: [scene.annotationSummary, scene.configurationSummary].joined(separator: "\n")
         ) {
             HStack(spacing: 12) {
                 WorkbenchMetricCard(title: t("Focus", "Focus"), value: scene.focusSummary)

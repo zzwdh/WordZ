@@ -37,11 +37,41 @@ final class AnalysisPresetStoreTests: XCTestCase {
         XCTAssertTrue(try store.listAnalysisPresets().isEmpty)
     }
 
+    func testNativeCorpusStorePersistsAnalysisPresetAnnotationRoundTrip() throws {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wordz-analysis-preset-annotation-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        _ = try store.saveAnalysisPreset(
+            name: "Lemma Keyword",
+            draft: makeDraft(
+                currentTab: WorkspaceDetailTab.keyword.snapshotValue,
+                searchQuery: "alpha",
+                annotationProfile: .lemmaPreferred,
+                annotationLexicalClasses: [.noun],
+                annotationScripts: [.latin]
+            )
+        )
+
+        let presets = try store.listAnalysisPresets()
+        let snapshot = try XCTUnwrap(presets.first?.snapshot)
+
+        XCTAssertEqual(snapshot.annotationProfile, .lemmaPreferred)
+        XCTAssertEqual(snapshot.annotationLexicalClasses, [.noun])
+        XCTAssertEqual(snapshot.annotationScripts, [.latin])
+    }
+
     private func makeDraft(
         currentTab: String,
         searchQuery: String,
         compareSelectedCorpusIDs: [String] = [],
-        compareReferenceCorpusID: String = ""
+        compareReferenceCorpusID: String = "",
+        annotationProfile: WorkspaceAnnotationProfile = .surface,
+        annotationLexicalClasses: [TokenLexicalClass] = [],
+        annotationScripts: [TokenScript] = []
     ) -> WorkspaceStateDraft {
         WorkspaceStateDraft(
             currentTab: currentTab,
@@ -52,6 +82,9 @@ final class AnalysisPresetStoreTests: XCTestCase {
             searchQuery: searchQuery,
             searchOptions: .default,
             stopwordFilter: .default,
+            annotationProfile: annotationProfile,
+            annotationLexicalClasses: annotationLexicalClasses,
+            annotationScripts: annotationScripts,
             compareReferenceCorpusID: compareReferenceCorpusID,
             compareSelectedCorpusIDs: compareSelectedCorpusIDs,
             ngramSize: "2",

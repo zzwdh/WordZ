@@ -15,44 +15,64 @@ extension NativeCorpusStore {
     }
 
     func restoreRecycleEntry(recycleEntryId: String) throws {
-        var recycle = try loadRecycleEntries()
-        guard let index = recycle.firstIndex(where: { $0.recycleEntryId == recycleEntryId }) else {
+        let existingRecycle = try loadRecycleEntries()
+        guard let index = existingRecycle.firstIndex(where: { $0.recycleEntryId == recycleEntryId }) else {
             throw missingItemError("未找到要恢复的回收站项目。")
         }
-        let entry = recycle.remove(at: index)
+        let existingFolders = try loadFolders()
+        let existingCorpora = try loadCorpora()
+        var nextRecycle = existingRecycle
+        let entry = nextRecycle.remove(at: index)
 
-        var folders = try loadFolders()
-        if let folder = entry.folder, !folders.contains(where: { $0.id == folder.id }) {
-            folders.append(folder)
+        var nextFolders = existingFolders
+        if let folder = entry.folder, !nextFolders.contains(where: { $0.id == folder.id }) {
+            nextFolders.append(folder)
         }
 
-        var corpora = try loadCorpora()
+        var nextCorpora = existingCorpora
         for var corpus in entry.corpora {
             if let folder = entry.folder {
                 corpus.folderId = folder.id
                 corpus.folderName = folder.name
             }
-            try restoreStorageFromRecycle(for: corpus)
-            corpora.removeAll { $0.id == corpus.id }
-            corpora.append(corpus)
+            nextCorpora.removeAll { $0.id == corpus.id }
+            nextCorpora.append(corpus)
         }
 
-        try saveFolders(folders)
-        try saveCorpora(corpora)
-        try saveRecycleEntries(recycle)
+        try storageMutationCoordinator.perform { transaction in
+            try snapshotLibraryCatalogMutation(
+                transaction,
+                folders: existingFolders,
+                corpora: existingCorpora,
+                recycleEntries: existingRecycle
+            )
+            for corpus in entry.corpora {
+                try restoreStorageFromRecycle(for: corpus, transaction: transaction)
+            }
+            try saveFolders(nextFolders)
+            try saveCorpora(nextCorpora)
+            try saveRecycleEntries(nextRecycle)
+        }
     }
 
     func purgeRecycleEntry(recycleEntryId: String) throws {
-        var recycle = try loadRecycleEntries()
-        guard let index = recycle.firstIndex(where: { $0.recycleEntryId == recycleEntryId }) else {
+        let existingRecycle = try loadRecycleEntries()
+        guard let index = existingRecycle.firstIndex(where: { $0.recycleEntryId == recycleEntryId }) else {
             throw missingItemError("未找到要彻底删除的回收站项目。")
         }
-        let entry = recycle.remove(at: index)
-        for corpus in entry.corpora {
-            let recyclePath = recycleDirectoryURL.appendingPathComponent(corpus.storageFileName)
-            try? fileManager.removeItem(at: recyclePath)
+        var nextRecycle = existingRecycle
+        let entry = nextRecycle.remove(at: index)
+        try storageMutationCoordinator.perform { transaction in
+            try snapshotLibraryCatalogMutation(
+                transaction,
+                recycleEntries: existingRecycle
+            )
+            for corpus in entry.corpora {
+                let recyclePath = recycleDirectoryURL.appendingPathComponent(corpus.storageFileName)
+                try transaction.removeItem(at: recyclePath)
+            }
+            try saveRecycleEntries(nextRecycle)
         }
-        try saveRecycleEntries(recycle)
     }
 
     func backupLibrary(destinationPath: String) throws -> LibraryBackupSummary {
@@ -62,14 +82,20 @@ extension NativeCorpusStore {
         }
         let backupDir = destinationRoot.appendingPathComponent("WordZMac-backup-\(compactTimestamp())", isDirectory: true)
         try fileManager.createDirectory(at: backupDir, withIntermediateDirectories: true)
-        try copyDirectoryContents(from: rootURL, to: backupDir)
+        try backupPersistentLibraryContents(from: rootURL, to: backupDir)
 
-        let corpora = try loadCorpora()
-        let folders = try loadFolders()
+        let catalogSummary = try libraryCatalogStore.storageSummary()
+        let workspaceSummary = try workspaceDatabaseStore.storageSummary()
         return LibraryBackupSummary(json: [
             "backupDir": backupDir.path,
-            "folderCount": folders.count,
-            "corpusCount": corpora.count
+            "folderCount": catalogSummary.folderCount,
+            "corpusCount": catalogSummary.activeCorpusCount,
+            "librarySchemaVersion": catalogSummary.schemaVersion,
+            "workspaceSchemaVersion": workspaceSummary.schemaVersion,
+            "pendingShardMigrationCount": catalogSummary.pendingShardMigrationCount,
+            "quarantinedCorpusCount": catalogSummary.quarantinedCorpusCount,
+            "corpusSetCount": catalogSummary.corpusSetCount,
+            "recycleEntryCount": catalogSummary.recycleEntryCount
         ])
     }
 
@@ -86,86 +112,95 @@ extension NativeCorpusStore {
             .appendingPathComponent("restore-staging-\(compactTimestamp())", isDirectory: true)
         try fileManager.createDirectory(at: stagedRestore, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: stagedRestore) }
-        try copyDirectoryContents(from: sourceRoot, to: stagedRestore)
+        try restorePersistentLibraryContents(from: sourceRoot, to: stagedRestore)
 
         let previousBackup = rootURL.deletingLastPathComponent()
             .appendingPathComponent("restore-backup-\(compactTimestamp())", isDirectory: true)
         var hasPreviousBackup = false
         if fileManager.fileExists(atPath: rootURL.path) {
             try fileManager.createDirectory(at: previousBackup, withIntermediateDirectories: true)
-            try copyDirectoryContents(from: rootURL, to: previousBackup)
+            try backupPersistentLibraryContents(from: rootURL, to: previousBackup)
             hasPreviousBackup = true
         }
 
         do {
-            try removeDirectoryContents(at: rootURL)
-            try copyDirectoryContents(from: stagedRestore, to: rootURL)
+            try restorePersistentLibraryContents(from: stagedRestore, to: rootURL)
             invalidateCaches()
             try ensureInitialized()
         } catch {
             invalidateCaches()
             if hasPreviousBackup {
-                try? removeDirectoryContents(at: rootURL)
-                try? copyDirectoryContents(from: previousBackup, to: rootURL)
+                try? restorePersistentLibraryContents(from: previousBackup, to: rootURL)
             }
             invalidateCaches()
             throw error
         }
 
-        let corpora = try loadCorpora()
-        let folders = try loadFolders()
+        let catalogSummary = try libraryCatalogStore.storageSummary()
+        let workspaceSummary = try workspaceDatabaseStore.storageSummary()
         return LibraryRestoreSummary(json: [
             "restoredFromDir": sourceRoot.path,
             "previousLibraryBackupDir": previousBackup.path,
-            "folderCount": folders.count,
-            "corpusCount": corpora.count
+            "folderCount": catalogSummary.folderCount,
+            "corpusCount": catalogSummary.activeCorpusCount,
+            "librarySchemaVersion": catalogSummary.schemaVersion,
+            "workspaceSchemaVersion": workspaceSummary.schemaVersion,
+            "pendingShardMigrationCount": catalogSummary.pendingShardMigrationCount,
+            "quarantinedCorpusCount": catalogSummary.quarantinedCorpusCount,
+            "corpusSetCount": catalogSummary.corpusSetCount,
+            "recycleEntryCount": catalogSummary.recycleEntryCount
         ])
     }
 
     func repairLibrary() throws -> LibraryRepairSummary {
-        var corpora = try loadCorpora()
+        let existingCorpora = try loadCorpora()
         let folders = try loadFolders()
-        let checkedCorpora = corpora.count
+        let checkedCorpora = existingCorpora.count
         let checkedFolders = folders.count
 
-        var removedCorpora = 0
+        var nextCorpora = existingCorpora
+        var repairedCorpora = 0
         var quarantinedCorpora = 0
         var quarantineDirectoryURL: URL?
+        var quarantinedEntries: [LibraryCatalogStore.QuarantinedCorpusEntry] = []
 
-        corpora.removeAll { corpus in
+        nextCorpora.removeAll { corpus in
             let storageURL = corporaDirectoryURL.appendingPathComponent(corpus.storageFileName)
             let isReadable = fileManager.fileExists(atPath: storageURL.path) && isStoredCorpusReadable(at: storageURL)
-            if !isReadable {
-                removedCorpora += 1
-                if fileManager.fileExists(atPath: storageURL.path) {
-                    let activeQuarantineDirectory = quarantineDirectoryURL ?? makeRepairQuarantineDirectory()
-                    quarantineDirectoryURL = activeQuarantineDirectory
-                    let targetURL = activeQuarantineDirectory.appendingPathComponent(corpus.storageFileName)
-                    try? fileManager.removeItem(at: targetURL)
-                    do {
-                        try fileManager.moveItem(at: storageURL, to: targetURL)
-                        quarantinedCorpora += 1
-                    } catch {
-                        let fallbackURL = activeQuarantineDirectory.appendingPathComponent(
-                            "\(UUID().uuidString)-\(corpus.storageFileName)"
-                        )
-                        try? fileManager.moveItem(at: storageURL, to: fallbackURL)
-                        if fileManager.fileExists(atPath: fallbackURL.path) {
-                            quarantinedCorpora += 1
-                        }
-                    }
-                }
-            }
-            return !isReadable
+            guard !isReadable else { return false }
+
+            repairedCorpora += 1
+            let activeQuarantineDirectory = quarantineDirectoryURL ?? makeRepairQuarantineDirectory()
+            quarantineDirectoryURL = activeQuarantineDirectory
+            let quarantineURL = activeQuarantineDirectory.appendingPathComponent(corpus.storageFileName)
+            quarantinedEntries.append(
+                LibraryCatalogStore.QuarantinedCorpusEntry(
+                    record: corpus,
+                    integrityNote: "repair-quarantine:\(quarantineURL.path)",
+                    quarantineURL: quarantineURL
+                )
+            )
+            quarantinedCorpora += 1
+            return true
         }
 
-        try saveCorpora(corpora)
+        if !quarantinedEntries.isEmpty {
+            try storageMutationCoordinator.perform { transaction in
+                try snapshotLibraryCatalogMutation(transaction, corpora: existingCorpora)
+                for entry in quarantinedEntries {
+                    let sourceURL = corporaDirectoryURL.appendingPathComponent(entry.record.storageFileName)
+                    try transaction.moveItem(at: sourceURL, to: entry.quarantineURL)
+                }
+                try libraryCatalogStore.quarantineCorpora(quarantinedEntries)
+                try saveCorpora(nextCorpora)
+            }
+        }
 
         return LibraryRepairSummary(json: [
             "summary": [
-                "repairedManifest": removedCorpora > 0,
+                "repairedManifest": repairedCorpora > 0,
                 "repairedFolders": 0,
-                "repairedCorpora": removedCorpora,
+                "repairedCorpora": repairedCorpora,
                 "recoveredCorpusMeta": 0,
                 "quarantinedFolders": 0,
                 "quarantinedCorpora": quarantinedCorpora,

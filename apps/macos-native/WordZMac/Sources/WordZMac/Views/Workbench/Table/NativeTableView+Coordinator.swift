@@ -11,6 +11,8 @@ extension NativeTableView {
 
         var descriptor: NativeTableDescriptor
         var rows: [NativeTableRowDescriptor]
+        var snapshotVersion: Int?
+        var rowIndexByID: [String: Int]
         var selectedRowID: String?
         var onSelectionChange: ((String?) -> Void)?
         var onDoubleClick: ((String) -> Void)?
@@ -29,6 +31,7 @@ extension NativeTableView {
         init(
             descriptor: NativeTableDescriptor,
             rows: [NativeTableRowDescriptor],
+            snapshot: ResultTableSnapshot? = nil,
             selectedRowID: String?,
             onSelectionChange: ((String?) -> Void)?,
             onDoubleClick: ((String) -> Void)?,
@@ -41,7 +44,14 @@ extension NativeTableView {
             activationHint: String? = nil
         ) {
             self.descriptor = descriptor
-            self.rows = rows
+            let resolvedRows = snapshot?.rows ?? rows
+            self.rows = resolvedRows
+            self.snapshotVersion = snapshot?.version
+            self.rowIndexByID = snapshot?.rowIndexByID ?? Dictionary(
+                uniqueKeysWithValues: resolvedRows.enumerated().map { index, row in
+                    (row.id, index)
+                }
+            )
             self.selectedRowID = selectedRowID
             self.onSelectionChange = onSelectionChange
             self.onDoubleClick = onDoubleClick

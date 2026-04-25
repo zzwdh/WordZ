@@ -1,4 +1,5 @@
 import Foundation
+import WordZEngine
 
 @MainActor
 protocol NativeHostPreferencesStoring: AnyObject {

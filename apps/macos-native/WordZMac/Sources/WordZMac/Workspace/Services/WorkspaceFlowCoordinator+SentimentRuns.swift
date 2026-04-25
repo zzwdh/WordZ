@@ -3,9 +3,28 @@ import Foundation
 @MainActor
 extension WorkspaceFlowCoordinator {
     func runSentiment(features: WorkspaceFeatureSet) async {
-        await analysisWorkflow.runSentiment(
-            features: features,
+        if features.sentiment.source == .topicSegments {
+            await topicsWorkflow.runTopicSegmentsSentiment(
+                features: features.topicsWorkflowContext,
+                syncFeatureContexts: syncFeatureContexts
+            )
+            return
+        }
+
+        await sentimentWorkflow.runSentiment(
+            features: features.sentimentWorkflowContext,
             syncFeatureContexts: syncFeatureContexts
+        )
+    }
+
+    func importSentimentUserLexiconBundle(
+        features: WorkspaceFeatureSet,
+        preferredRoute: NativeWindowRoute? = nil
+    ) async {
+        await sentimentWorkflow.importSentimentUserLexiconBundle(
+            features: features.sentimentWorkflowContext,
+            preferredRoute: preferredRoute,
+            markWorkspaceEdited: markWorkspaceEdited
         )
     }
 
@@ -13,8 +32,8 @@ extension WorkspaceFlowCoordinator {
         features: WorkspaceFeatureSet,
         preferredRoute: NativeWindowRoute? = nil
     ) async {
-        await analysisWorkflow.exportSentimentSummary(
-            features: features,
+        await sentimentWorkflow.exportSentimentSummary(
+            features: features.sentimentWorkflowContext,
             preferredRoute: preferredRoute
         )
     }
@@ -23,8 +42,8 @@ extension WorkspaceFlowCoordinator {
         features: WorkspaceFeatureSet,
         preferredRoute: NativeWindowRoute? = nil
     ) async {
-        await analysisWorkflow.exportSentimentStructuredJSON(
-            features: features,
+        await sentimentWorkflow.exportSentimentStructuredJSON(
+            features: features.sentimentWorkflowContext,
             preferredRoute: preferredRoute
         )
     }

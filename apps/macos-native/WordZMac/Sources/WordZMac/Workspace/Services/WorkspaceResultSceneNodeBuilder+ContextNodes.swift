@@ -28,6 +28,7 @@ extension WorkspaceResultSceneNodeBuilder {
             visibleRows: scene.visibleRows,
             table: scene.table,
             tableRows: scene.tableRows,
+            tableSnapshot: scene.tableSnapshot,
             exportMetadataLines: scene.exportMetadataLines
         )
     }

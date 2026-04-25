@@ -84,6 +84,7 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
     var pageSize: ClusterPageSize = .oneHundred
     var currentPage = 1
     var visibleColumns: Set<ClusterColumnKey> = ClusterPageViewModel.defaultVisibleColumns
+    var annotationState = WorkspaceAnnotationState.default
 
     init(sceneBuilder: ClusterSceneBuilder = ClusterSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -178,6 +179,7 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
             query: normalizedQuery,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationState: annotationState,
             selectedN: selectedNValue,
             minimumFrequency: minimumFrequencyValue,
             sortMode: sortMode,
@@ -246,6 +248,12 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
         selectedRowID = nil
         visibleColumns = Self.defaultVisibleColumns
         scene = nil
+    }
+
+    func applyWorkspaceAnnotationState(_ state: WorkspaceAnnotationState) {
+        guard annotationState != state else { return }
+        annotationState = state
+        rebuildScene()
     }
 
     private func handleInputChange(rebuildScene shouldRebuildScene: Bool) {

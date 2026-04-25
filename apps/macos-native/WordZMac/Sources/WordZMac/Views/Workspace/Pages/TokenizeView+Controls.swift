@@ -20,13 +20,13 @@ extension TokenizeView {
                 WorkbenchAdaptiveControls {
                     HStack(spacing: 12) {
                         languagePresetPicker
-                        lemmaStrategyPicker
+                        annotationProfilePicker
                         Spacer(minLength: 0)
                     }
                 } compact: {
                     VStack(alignment: .leading, spacing: 12) {
                         languagePresetPicker
-                        lemmaStrategyPicker
+                        annotationProfilePicker
                     }
                 }
 
@@ -38,8 +38,12 @@ extension TokenizeView {
     }
 
     var tokenizeSearchField: some View {
-        TextField(t("搜索 token（留空显示全部）", "Search tokens (leave blank for all)"), text: $viewModel.query)
-            .textFieldStyle(.roundedBorder)
+        LexicalAutocompleteTextField(
+            title: t("搜索 token（留空显示全部）", "Search tokens (leave blank for all)"),
+            text: $viewModel.query,
+            searchOptions: viewModel.searchOptions,
+            controller: lexicalAutocompleteController
+        )
             .layoutPriority(1)
     }
 
@@ -53,11 +57,11 @@ extension TokenizeView {
         }
     }
 
-    var lemmaStrategyPicker: some View {
+    var annotationProfilePicker: some View {
         WorkbenchMenuPicker(
-            title: t("词形策略", "Lemma Strategy"),
-            selection: $viewModel.lemmaStrategy,
-            options: Array(TokenLemmaStrategy.allCases)
+            title: t("标注策略", "Annotation Profile"),
+            selection: $viewModel.annotationProfile,
+            options: Array(WorkspaceAnnotationProfile.allCases)
         ) {
             $0.title(in: languageMode)
         }
@@ -76,6 +80,6 @@ extension TokenizeView {
     }
 
     var tokenizeControlSummary: String {
-        "\(viewModel.languagePreset.title(in: languageMode)) · \(viewModel.lemmaStrategy.title(in: languageMode))"
+        "\(viewModel.languagePreset.title(in: languageMode)) · \(viewModel.annotationProfile.title(in: languageMode))"
     }
 }

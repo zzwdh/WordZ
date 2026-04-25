@@ -30,7 +30,7 @@ extension StatsPageViewModel {
     }
 
     func reset() {
-        sceneBuildRevision += 1
+        invalidatePendingSceneBuilds()
         result = nil
         resultGeneration = 0
         sceneResultGeneration = 0

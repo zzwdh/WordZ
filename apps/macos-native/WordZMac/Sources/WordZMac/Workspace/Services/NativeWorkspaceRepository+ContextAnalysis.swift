@@ -33,6 +33,21 @@ extension NativeWorkspaceRepositoryCore {
         }
         if let artifact = storedTokenizedArtifactsByTextDigest[documentKey.textDigest] {
             let analysisRuntime = self.analysisRuntime
+            if let candidateSentenceIDs = try storedSentenceCandidateIDs(
+                forTextDigest: documentKey.textDigest,
+                matcher: matcher
+            ) {
+                return try await cachedAnalysisResult(for: key) {
+                    try await analysisRuntime.runKWIC(
+                        artifact: artifact,
+                        candidateSentenceIDs: candidateSentenceIDs,
+                        keyword: keyword,
+                        leftWindow: leftWindow,
+                        rightWindow: rightWindow,
+                        searchOptions: searchOptions
+                    )
+                }
+            }
             return try await cachedAnalysisResult(for: key) {
                 try await analysisRuntime.runKWIC(
                     artifact: artifact,
@@ -91,6 +106,22 @@ extension NativeWorkspaceRepositoryCore {
         }
         if let artifact = storedTokenizedArtifactsByTextDigest[documentKey.textDigest] {
             let analysisRuntime = self.analysisRuntime
+            if let candidateSentenceIDs = try storedSentenceCandidateIDs(
+                forTextDigest: documentKey.textDigest,
+                matcher: matcher
+            ) {
+                return try await cachedAnalysisResult(for: key) {
+                    try await analysisRuntime.runCollocate(
+                        artifact: artifact,
+                        candidateSentenceIDs: candidateSentenceIDs,
+                        keyword: keyword,
+                        leftWindow: leftWindow,
+                        rightWindow: rightWindow,
+                        minFreq: minFreq,
+                        searchOptions: searchOptions
+                    )
+                }
+            }
             return try await cachedAnalysisResult(for: key) {
                 try await analysisRuntime.runCollocate(
                     artifact: artifact,
@@ -125,6 +156,17 @@ extension NativeWorkspaceRepositoryCore {
             leftWindow: leftWindow,
             rightWindow: rightWindow
         )
+        if let storedResult = try storedLocatorResult(
+            forTextDigest: documentKey.textDigest,
+            sentenceId: sentenceId,
+            nodeIndex: nodeIndex,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow
+        ) {
+            return try await cachedAnalysisResult(for: key) {
+                storedResult
+            }
+        }
         if let artifact = storedTokenizedArtifactsByTextDigest[documentKey.textDigest] {
             let analysisRuntime = self.analysisRuntime
             return try await cachedAnalysisResult(for: key) {

@@ -10,9 +10,9 @@ extension WorkspaceFeatureSet {
             stats: workspace.stats,
             word: workspace.word,
             tokenize: workspace.tokenize,
-            topics: workspace.topics,
+            topics: workspace.featurePages.topics,
             compare: workspace.compare,
-            sentiment: workspace.sentiment,
+            sentiment: workspace.featurePages.sentiment,
             keyword: workspace.keyword,
             chiSquare: workspace.chiSquare,
             plot: workspace.plot,
@@ -21,7 +21,7 @@ extension WorkspaceFeatureSet {
             kwic: workspace.kwic,
             collocate: workspace.collocate,
             locator: workspace.locator,
-            evidenceWorkbench: workspace.evidenceWorkbench,
+            evidenceWorkbench: workspace.featurePages.evidenceWorkbench,
             settings: workspace.settings
         )
     }

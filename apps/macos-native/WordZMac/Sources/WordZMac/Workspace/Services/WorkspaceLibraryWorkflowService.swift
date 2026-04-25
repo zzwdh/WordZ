@@ -427,7 +427,8 @@ final class WorkspaceLibraryWorkflowService {
 
     private func shouldTrackLibraryBusyState(for action: LibraryManagementAction) -> Bool {
         switch action {
-        case .selectFolder,
+        case .refresh,
+                .selectFolder,
                 .selectCorpusSet,
                 .selectCorpus,
                 .selectCorpusIDs,

@@ -1,0 +1,33 @@
+{
+  "revision": "sentiment-model-pack-v2",
+  "defaultProviderID": "bundled-coreml-sentiment",
+  "language": "en",
+  "labels": ["positive", "neutral", "negative"],
+  "confidenceFloor": 0.55,
+  "marginFloor": 0.12,
+  "maxCharactersPerUnit": 1600,
+  "supportsSentenceLevelAggregation": true,
+  "providers": [
+    {
+      "id": "bundled-coreml-sentiment",
+      "type": "bundled-coreml",
+      "revision": "coreml-sentiment-v2",
+      "modelResource": "SentimentTriClassifier",
+      "fileExtension": "mlmodelc",
+      "providerFamily": "embeddingLogReg",
+      "inputSchema": {
+        "kind": "denseFeatures"
+      },
+      "labelMap": {
+        "positive": "positive",
+        "neutral": "neutral",
+        "negative": "negative"
+      },
+      "sizeHintMB": 0.5,
+      "confidenceFloor": 0.55,
+      "marginFloor": 0.12,
+      "maxCharactersPerUnit": 1600,
+      "supportsSentenceLevelAggregation": true
+    }
+  ]
+}

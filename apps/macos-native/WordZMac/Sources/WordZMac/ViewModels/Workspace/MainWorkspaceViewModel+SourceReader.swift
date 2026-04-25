@@ -82,28 +82,75 @@ extension MainWorkspaceViewModel {
         clearActiveIssue()
     }
 
-    func captureCurrentSourceReaderEvidenceItem() async {
+    func captureCurrentSourceReaderEvidenceItem(
+        draft overrideDraft: EvidenceCaptureDraft? = nil
+    ) async {
         guard let origin = sourceReader.launchContext?.origin,
-              let selectedHitID = sourceReader.scene?.selectedHitID
+              let context = sourceReader.launchContext,
+              let scene = sourceReader.scene,
+              let selectedHitID = scene.selectedHitID
         else { return }
 
+        let sourceDraft = sourceReader.currentEvidenceCaptureDraft
+        let draft = mergedEvidenceCaptureDraft(base: overrideDraft, fallback: sourceDraft)
         switch origin {
         case .kwic:
             kwic.selectedRowID = selectedHitID
-            await captureCurrentKWICEvidenceItem()
+            await captureCurrentKWICEvidenceItem(draft: draft)
         case .locator:
             locator.selectedRowID = selectedHitID
-            await captureCurrentLocatorEvidenceItem()
+            await captureCurrentLocatorEvidenceItem(draft: draft)
         case .plot:
-            let message = t("Plot 来源的原文阅读暂不支持直接加入证据工作台。", "Source Reader items opened from Plot cannot be added to the evidence workbench yet.")
-            settings.setSupportStatus(message)
-            activeIssue = WorkspaceIssueBanner(
-                tone: .warning,
-                title: t("暂不支持该来源", "This Source Is Not Yet Supported"),
-                message: message,
-                recoveryAction: .refreshWorkspace
+            guard let anchor = context.hitAnchors.first(where: { $0.id == selectedHitID }),
+                  let selection = scene.selection
+            else { return }
+            await captureSourceReaderEvidenceItem(
+                sourceKind: .plot,
+                context: context,
+                anchor: anchor,
+                selection: selection,
+                draft: draft
+            )
+        case .sentiment:
+            guard let anchor = context.hitAnchors.first(where: { $0.id == selectedHitID }),
+                  let selection = scene.selection
+            else { return }
+            await captureSourceReaderEvidenceItem(
+                sourceKind: .sentiment,
+                context: context,
+                anchor: anchor,
+                selection: selection,
+                draft: draft
+            )
+        case .topics:
+            guard let anchor = context.hitAnchors.first(where: { $0.id == selectedHitID }),
+                  let selection = scene.selection
+            else { return }
+            await captureSourceReaderEvidenceItem(
+                sourceKind: .topics,
+                context: context,
+                anchor: anchor,
+                selection: selection,
+                draft: draft
             )
         }
+    }
+
+    private func mergedEvidenceCaptureDraft(
+        base: EvidenceCaptureDraft?,
+        fallback: EvidenceCaptureDraft
+    ) -> EvidenceCaptureDraft {
+        guard let base else { return fallback }
+        return EvidenceCaptureDraft(
+            sectionTitle: base.sectionTitle.isEmpty ? fallback.sectionTitle : base.sectionTitle,
+            claim: base.claim.isEmpty ? fallback.claim : base.claim,
+            tagsText: [base.tagsText, fallback.tagsText]
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                .joined(separator: ", "),
+            note: [base.note, fallback.note]
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                .joined(separator: " | ")
+        )
     }
 
     var canOpenSourceReaderCurrentContent: Bool {
@@ -114,7 +161,12 @@ extension MainWorkspaceViewModel {
             return locator.selectedSceneRow != nil && sidebar.selectedCorpusID != nil
         case .plot:
             return plot.selectedSceneRow?.markers.isEmpty == false
-        case .stats, .word, .tokenize, .topics, .compare, .sentiment, .keyword, .chiSquare, .ngram, .cluster, .collocate, .library, .settings:
+        case .sentiment:
+            return sentiment.canOpenSelectedRowSourceReader
+        case .topics:
+            return topics.selectedSceneRow != nil &&
+                (normalizedValue(topics.selectedSceneRow?.sourceID) != nil || sidebar.selectedCorpusID != nil)
+        case .stats, .word, .tokenize, .compare, .keyword, .chiSquare, .ngram, .cluster, .collocate, .library, .settings:
             return false
         }
     }
@@ -149,7 +201,11 @@ extension MainWorkspaceViewModel {
             return await currentLocatorSourceReaderLaunchContext()
         case .plot:
             return await currentPlotSourceReaderLaunchContext()
-        case .stats, .word, .tokenize, .topics, .compare, .sentiment, .keyword, .chiSquare, .ngram, .cluster, .collocate, .library, .settings:
+        case .sentiment:
+            return await currentSentimentSourceReaderLaunchContext()
+        case .topics:
+            return await currentTopicsSourceReaderLaunchContext()
+        case .stats, .word, .tokenize, .compare, .keyword, .chiSquare, .ngram, .cluster, .collocate, .library, .settings:
             return nil
         }
     }
@@ -274,6 +330,100 @@ extension MainWorkspaceViewModel {
         )
     }
 
+    private func currentSentimentSourceReaderLaunchContext() async -> SourceReaderLaunchContext? {
+        guard let result = sentiment.result,
+              let selectedRow = sentiment.selectedResultRow,
+              let sourceID = normalizedValue(selectedRow.sourceID),
+              selectedRow.sentenceID != nil
+        else { return nil }
+
+        let matchingInput = result.request.texts.first(where: { normalizedValue($0.sourceID) == sourceID })
+        let resolved = await resolveSourceReaderDocumentContext(
+            corpusID: sourceID,
+            fallbackFilePath: nil,
+            fallbackDisplayName: normalizedValue(selectedRow.sourceTitle)
+        )
+
+        let anchors = result.rows.compactMap { row -> SourceReaderHitAnchor? in
+            guard normalizedValue(row.sourceID) == sourceID,
+                  let sentenceID = row.sentenceID
+            else { return nil }
+            return SourceReaderHitAnchor(
+                id: row.id,
+                sentenceId: sentenceID,
+                tokenIndex: row.tokenIndex ?? row.evidence.first?.tokenIndex,
+                keyword: sentimentSourceReaderKeyword(for: row),
+                leftContext: nil,
+                rightContext: nil,
+                concordanceText: nil,
+                citationText: nil,
+                fullSentenceText: row.text
+            )
+        }
+
+        guard !anchors.isEmpty else { return nil }
+
+        return SourceReaderLaunchContext(
+            origin: .sentiment,
+            corpusID: sourceID,
+            corpusName: resolved.corpusName,
+            displayName: resolved.displayName,
+            filePath: resolved.filePath,
+            query: sentimentSourceReaderKeyword(for: selectedRow),
+            leftWindow: nil,
+            rightWindow: nil,
+            searchOptionsSummary: nil,
+            hitAnchors: anchors,
+            selectedHitID: selectedRow.id,
+            fallbackText: normalizedValue(matchingInput?.documentText) ?? normalizedValue(matchingInput?.text) ?? resolved.fallbackText
+        )
+    }
+
+    private func currentTopicsSourceReaderLaunchContext() async -> SourceReaderLaunchContext? {
+        guard let scene = topics.scene,
+              let selectedRow = topics.selectedSceneRow
+        else { return nil }
+
+        let corpusID = normalizedValue(selectedRow.sourceID) ?? sidebar.selectedCorpusID
+
+        let resolved = await resolveSourceReaderDocumentContext(
+            corpusID: corpusID,
+            fallbackFilePath: sessionStore.openedCorpus?.filePath,
+            fallbackDisplayName: normalizedValue(selectedRow.sourceTitle) ?? sessionStore.openedCorpus?.displayName ?? library.selectedCorpus?.name
+        )
+        guard let documentText = normalizedValue(resolved.fallbackText) else { return nil }
+
+        let parsedDocument = ParsedDocument(text: documentText)
+        let anchors = scene.segmentRows.compactMap { row -> SourceReaderHitAnchor? in
+            if let rowSourceID = normalizedValue(row.sourceID),
+               let corpusID,
+               rowSourceID != corpusID {
+                return nil
+            }
+            return topicsSourceReaderAnchor(
+                for: row,
+                scene: scene,
+                document: parsedDocument
+            )
+        }
+        guard !anchors.isEmpty else { return nil }
+
+        return SourceReaderLaunchContext(
+            origin: .topics,
+            corpusID: corpusID,
+            corpusName: resolved.corpusName,
+            displayName: resolved.displayName,
+            filePath: resolved.filePath,
+            query: topicsSourceReaderKeyword(for: selectedRow, scene: scene),
+            leftWindow: nil,
+            rightWindow: nil,
+            searchOptionsSummary: scene.searchOptions.summaryText,
+            hitAnchors: anchors,
+            selectedHitID: anchors.contains(where: { $0.id == selectedRow.id }) ? selectedRow.id : anchors.first?.id,
+            fallbackText: documentText
+        )
+    }
+
     private func resolveSourceReaderDocumentContext(
         corpusID: String?,
         fallbackFilePath: String?,
@@ -318,5 +468,101 @@ extension MainWorkspaceViewModel {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func sentimentSourceReaderKeyword(for row: SentimentRowResult) -> String {
+        if let surface = normalizedValue(row.evidence.first?.surface) {
+            return surface
+        }
+        return row.finalLabel.title(in: languageMode)
+    }
+
+    private func topicsSourceReaderAnchor(
+        for row: TopicSegmentRow,
+        scene: TopicsSceneModel,
+        document: ParsedDocument
+    ) -> SourceReaderHitAnchor? {
+        let sourceParagraphIndex = row.sourceParagraphIndex ?? row.paragraphIndex
+        let paragraphID = max(0, sourceParagraphIndex - 1)
+        guard let paragraph = document.paragraphs.first(where: { $0.paragraphId == paragraphID }),
+              let sentenceID = topicsSourceReaderSentenceID(for: row, paragraph: paragraph, document: document)
+        else { return nil }
+
+        let keyword = topicsSourceReaderKeyword(for: row, scene: scene)
+        return SourceReaderHitAnchor(
+            id: row.id,
+            sentenceId: sentenceID,
+            tokenIndex: topicsSourceReaderTokenIndex(for: keyword, sentenceID: sentenceID, document: document),
+            keyword: keyword,
+            leftContext: nil,
+            rightContext: nil,
+            concordanceText: row.text,
+            citationText: "\(t("段落", "Paragraph")) \(sourceParagraphIndex): \(row.text)",
+            fullSentenceText: row.text
+        )
+    }
+
+    private func topicsSourceReaderSentenceID(
+        for row: TopicSegmentRow,
+        paragraph: ParsedParagraph,
+        document: ParsedDocument
+    ) -> Int? {
+        let paragraphSentences = paragraph.sentenceIDs.compactMap { sentenceID in
+            document.sentences.first(where: { $0.sentenceId == sentenceID })
+        }
+        let normalizedSegment = normalizedComparisonText(row.text)
+
+        if let matchedSentence = paragraphSentences.first(where: { sentence in
+            let normalizedSentence = normalizedComparisonText(sentence.text)
+            return normalizedSegment.contains(normalizedSentence) || normalizedSentence.contains(normalizedSegment)
+        }) {
+            return matchedSentence.sentenceId
+        }
+
+        return paragraph.sentenceIDs.first
+    }
+
+    private func topicsSourceReaderTokenIndex(
+        for keyword: String,
+        sentenceID: Int,
+        document: ParsedDocument
+    ) -> Int? {
+        guard let sentence = document.sentences.first(where: { $0.sentenceId == sentenceID }) else {
+            return nil
+        }
+        let searchTerms = keyword
+            .lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+
+        for term in searchTerms {
+            if let token = sentence.tokens.first(where: {
+                $0.normalized == term || $0.normalized.contains(term)
+            }) {
+                return token.tokenIndex
+            }
+        }
+        return nil
+    }
+
+    private func topicsSourceReaderKeyword(
+        for row: TopicSegmentRow,
+        scene: TopicsSceneModel
+    ) -> String {
+        if let query = normalizedValue(scene.query) {
+            return query
+        }
+        if let keyword = scene.selectedCluster?.keywords.first?.term {
+            return keyword
+        }
+        return "\(t("主题片段", "Topic Segment")) \(row.paragraphIndex)"
+    }
+
+    private func normalizedComparisonText(_ value: String) -> String {
+        value
+            .lowercased()
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

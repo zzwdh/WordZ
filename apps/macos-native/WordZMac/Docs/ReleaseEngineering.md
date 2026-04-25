@@ -17,17 +17,23 @@
 - `Scripts/build-app.sh`
   负责生成 `.app`，并写入 `WordZMacBuildInfo.json`
 - `Scripts/package-app.sh`
-  负责生成 `.zip / .dmg`，并自动补 `checksums.txt` 与 `manifest.json`
+  负责从当前源码直接构建 `.app`，再串到统一打包链生成 `.zip / .dmg`
+- `Scripts/package-from-app.sh`
+  负责从一个现成 `.app` 重新生成 `.zip / .dmg / checksums.txt / manifest.json`，供公证后重打包复用
 - `Scripts/release-manifest.sh`
-  独立生成发布资产校验清单
+  独立生成带 release metadata 的发布资产校验清单
+- `Scripts/release-metadata-check.sh`
+  在发版前核对 `package.json` 版本、release highlights 和对应 `Release Notes` 是否齐全
 - `Scripts/verify-release.sh`
   使用 `checksums.txt` 校验 release 资产
 - `Scripts/release-smoke.sh`
   对打包后的 `.app` 做结构型 smoke 检查，确认 Info.plist、可执行文件和 `WordZMacBuildInfo.json` 一致
 - `Scripts/release-checklist.sh`
-  把单测、打包、校验和校验、原生 smoke 串成一条可重复执行的发布检查流程
+  把 metadata、单测、打包、校验、原生 smoke，以及可选的公证与上传串成一条可重复执行的发布检查流程
 - `Scripts/notarize-app.sh`
-  用 `notarytool` 提交公证并尝试 `staple`
+  用 `notarytool` 提交公证并 `staple`，支持直接输入 `.app/.dmg/.zip`，也支持对 manifest/dist 走“公证 -> 重打包 -> 刷新 manifest/checksums”
+- `Scripts/release-upload.sh`
+  按 manifest 解析 release 资产并调用 `gh release create/upload`，避免手工漏传文件
 
 ## 默认产物目录
 
@@ -38,15 +44,28 @@
 ## 建议发布顺序
 
 1. 先核对当前版本的 `Release Notes`、README 和版本审计清单，确认对外承诺与当前代码一致
-2. 运行 `package-app.sh`
-3. 运行 `verify-release.sh`
-4. 运行 `release-smoke.sh`
-5. 如果需要一次性跑完整检查，执行 `release-checklist.sh`
-6. 如果需要对外分发，执行 `notarize-app.sh`
-7. 上传 GitHub Release 资产
-8. 在干净机器或干净账户上做一次冷启动抽检
+2. 运行 `release-metadata-check.sh`，确认版本、release highlights 和 notes 文件同步
+3. 本地候选包建议直接执行 `release-checklist.sh`
+4. 如果需要对外分发，执行 `release-checklist.sh --notarize`
+5. 如果需要直接串到 GitHub Release，可执行 `release-checklist.sh --notarize --upload --draft`
+6. 在干净机器或干净账户上做一次冷启动抽检
 
-`release-checklist.sh` 负责自动化检查，但不替代公证、资产上传和 clean-machine spot check 这三步人工门槛。
+如果只想分步执行，也可以按下面顺序单独跑：
+
+1. `package-app.sh`
+2. `verify-release.sh`
+3. `release-smoke.sh`
+4. `notarize-app.sh <manifest-path>`
+5. `release-upload.sh <manifest-path>`
+
+`release-checklist.sh` 负责自动化检查，但不替代 clean-machine spot check 这道最终人工门槛。对于对外分发，仍需要准备好：
+
+- `WORDZ_MAC_NOTARY_PROFILE`
+  供 `notarytool` 使用的 keychain profile
+- `gh auth login`
+  已登录且对目标仓库有 release 写权限
+
+现在的公证链路会在 `.app` stapled 之后重新生成 `.zip / .dmg`，并在 `.dmg` stapled 之后再次刷新 `checksums.txt / manifest.json`，确保最终上传资产与 manifest 中的 SHA256 保持一致。
 
 ## 版本策略
 

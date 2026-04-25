@@ -9,6 +9,7 @@ struct KeywordSceneBuilder {
         secondarySavedList: KeywordSavedList?,
         savedLists: [KeywordSavedList],
         configuration: KeywordSuiteConfiguration,
+        annotationState: WorkspaceAnnotationState = .default,
         focusSelectionSummary: String,
         referenceSelectionSummary: String,
         hasPendingRunChanges: Bool,
@@ -91,10 +92,14 @@ struct KeywordSceneBuilder {
             configuration: configuration,
             languageMode: languageMode
         )
+        let annotationSummary = annotationState.summary(in: languageMode)
         let methodSummary = buildMethodSummary(
             activeTab: activeTab,
             listMode: listMode,
             configuration: configuration,
+            annotationState: annotationState,
+            focusSummary: focusSummary,
+            referenceSummary: referenceSummary,
             primarySavedList: primarySavedList,
             secondarySavedList: secondarySavedList,
             hasPendingRunChanges: hasPendingRunChanges,
@@ -119,6 +124,7 @@ struct KeywordSceneBuilder {
             additionalLines: [
                 "\(wordZText("Focus", "Focus", mode: languageMode)): \(focusSummary)",
                 "\(wordZText("Reference", "Reference", mode: languageMode)): \(referenceSummary)",
+                annotationSummary,
                 configurationSummary
             ]
         )
@@ -128,6 +134,7 @@ struct KeywordSceneBuilder {
             listMode: listMode,
             focusSummary: focusSummary,
             referenceSummary: referenceSummary,
+            annotationSummary: annotationSummary,
             configurationSummary: configurationSummary,
             methodSummary: methodSummary,
             methodNotes: methodNotes,
@@ -149,7 +156,7 @@ struct KeywordSceneBuilder {
             ngramsCount: result?.ngrams.count ?? 0,
             savedListsCount: savedLists.count,
             rows: sceneRows,
-            tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot(rows: tableRows),
             emptyStateTitle: buildRows.emptyTitle,
             emptyStateMessage: buildRows.emptyMessage
         )

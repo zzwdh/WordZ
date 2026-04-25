@@ -28,6 +28,9 @@ extension ComparePageViewModel {
                     query: normalizedQuery,
                     searchOptions: searchOptions,
                     stopwordFilter: stopwordFilter,
+                    annotationState: annotationState,
+                    sentimentSummary: sentimentSummary,
+                    sentimentExplainer: sentimentExplainer,
                     referenceSelection: selectedReferenceSelection,
                     referenceCorpusSets: availableCorpusSets,
                     sortMode: sortMode,
@@ -57,29 +60,40 @@ extension ComparePageViewModel {
         let visibleColumnsSnapshot = visibleColumns
         let referenceSelectionSnapshot = selectedReferenceSelection
         let referenceCorpusSetsSnapshot = availableCorpusSets
+        let annotationStateSnapshot = annotationState
+        let sentimentSummarySnapshot = sentimentSummary
+        let sentimentExplainerSnapshot = sentimentExplainer
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "compare", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
+                try Task.checkCancellation()
                 let filtered = sceneBuilder.filterRows(
                     from: resultSnapshot,
                     query: querySnapshot,
                     searchOptions: optionsSnapshot,
                     stopwordFilter: stopwordSnapshot
                 )
+                try Task.checkCancellation()
                 let derivedRows = sceneBuilder.buildDerivedRows(
                     from: filtered.rows,
                     referenceSelection: referenceSelectionSnapshot,
                     referenceCorpusSets: referenceCorpusSetsSnapshot,
                     languageMode: languageModeSnapshot
                 )
+                try Task.checkCancellation()
                 let sortedRows = sceneBuilder.sortRows(derivedRows, mode: sortSnapshot)
+                try Task.checkCancellation()
                 let nextScene = sceneBuilder.build(
                     selection: selectionSnapshot,
                     from: resultSnapshot,
                     query: querySnapshot,
                     searchOptions: optionsSnapshot,
                     stopwordFilter: stopwordSnapshot,
+                    annotationState: annotationStateSnapshot,
+                    sentimentSummary: sentimentSummarySnapshot,
+                    sentimentExplainer: sentimentExplainerSnapshot,
                     referenceSelection: referenceSelectionSnapshot,
                     referenceCorpusSets: referenceCorpusSetsSnapshot,
                     sortMode: sortSnapshot,

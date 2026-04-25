@@ -580,6 +580,28 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertTrue(library.scene.statusMessage.contains("已导入"))
     }
 
+    func testLibraryManagementCoordinatorRefreshesLibrarySearchWithoutNarrowingSidebarSnapshot() async throws {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let coordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore
+        )
+        let library = LibraryManagementViewModel()
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        library.applyBootstrap(repository.bootstrapState.librarySnapshot)
+        library.searchQuery = "Demo"
+
+        try await coordinator.refreshLibraryState(into: library, sidebar: sidebar)
+
+        XCTAssertEqual(repository.fullTextListLibraryCallCount, 1)
+        XCTAssertEqual(repository.lastListLibrarySearchQuery, "Demo")
+        XCTAssertEqual(sidebar.librarySnapshot.corpora.count, repository.librarySnapshot.corpora.count)
+        XCTAssertEqual(library.librarySnapshot.corpora.map(\.name), ["Demo Corpus"])
+    }
+
     func testLibraryManagementCoordinatorSavesAndDeletesCorpusSet() async throws {
         let repository = FakeWorkspaceRepository()
         let sessionStore = WorkspaceSessionStore()

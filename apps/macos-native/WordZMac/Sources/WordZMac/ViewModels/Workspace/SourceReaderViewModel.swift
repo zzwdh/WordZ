@@ -6,13 +6,18 @@ final class SourceReaderViewModel: ObservableObject {
     @Published private(set) var launchContext: SourceReaderLaunchContext?
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
+    @Published var captureSectionTitle = ""
+    @Published var captureClaim = ""
+    @Published var captureTagsText = ""
+    @Published var captureNote = ""
 
     private var tokenizedSentences: [TokenizedSentence] = []
     private var selectedHitID: String?
+    private var annotationState = WorkspaceAnnotationState.default
 
     var canAddEvidence: Bool {
         guard let origin = launchContext?.origin else { return false }
-        return origin == .kwic || origin == .locator
+        return origin == .kwic || origin == .locator || origin == .plot || origin == .sentiment || origin == .topics
     }
 
     var canSelectPreviousHit: Bool {
@@ -59,6 +64,7 @@ final class SourceReaderViewModel: ObservableObject {
         if let searchOptionsSummary = normalizedValue(context.searchOptionsSummary) {
             metadataLines.append("Search: \(searchOptionsSummary)")
         }
+        metadataLines.append("Annotation: \(annotationState.summary(in: .system))")
 
         let text = [
             metadataLines.joined(separator: "\n"),
@@ -74,6 +80,20 @@ final class SourceReaderViewModel: ObservableObject {
         )
     }
 
+    var currentEvidenceCaptureDraft: EvidenceCaptureDraft {
+        EvidenceCaptureDraft(
+            sectionTitle: captureSectionTitle,
+            claim: captureClaim,
+            tagsText: captureTagsText,
+            note: captureNote
+        )
+    }
+
+    var captureDraftSummary: String? {
+        let summary = currentEvidenceCaptureDraft.summary(in: WordZLocalization.shared.effectiveMode)
+        return summary.isEmpty ? nil : summary
+    }
+
     func load(
         context: SourceReaderLaunchContext,
         repository: any WorkspaceRepository
@@ -82,11 +102,11 @@ final class SourceReaderViewModel: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
 
-        let documentText = try resolvedDocumentText(for: context)
-        let tokenized = try await repository.runTokenize(text: documentText)
-
         launchContext = context
-        tokenizedSentences = tokenized.sentences
+        tokenizedSentences = try await resolvedTokenizedSentences(
+            for: context,
+            repository: repository
+        )
         selectedHitID = context.selectedHitID ?? context.hitAnchors.first?.id
         rebuildScene()
 
@@ -130,6 +150,35 @@ final class SourceReaderViewModel: ObservableObject {
         selectHit(hitItems[nextIndex].id)
     }
 
+    func applyAnnotationState(_ annotationState: WorkspaceAnnotationState) {
+        guard self.annotationState != annotationState else { return }
+        self.annotationState = annotationState
+        if launchContext != nil {
+            rebuildScene()
+        }
+    }
+
+    private func resolvedTokenizedSentences(
+        for context: SourceReaderLaunchContext,
+        repository: any WorkspaceRepository
+    ) async throws -> [TokenizedSentence] {
+        if let corpusID = normalizedValue(context.corpusID),
+           let artifactRepository = repository as? any StoredTokenizedArtifactReadingRepository {
+            do {
+                if let storedArtifact = try await artifactRepository.loadStoredTokenizedArtifact(corpusId: corpusID) {
+                    return storedArtifact.sentences
+                }
+            } catch {
+                // Fall back to live tokenization so Source Reader stays available
+                // even when the saved shard artifact cannot be reused.
+            }
+        }
+
+        let documentText = try resolvedDocumentText(for: context)
+        let tokenized = try await repository.runTokenize(text: documentText)
+        return tokenized.sentences
+    }
+
     private func rebuildScene() {
         guard let context = launchContext else {
             scene = nil
@@ -150,11 +199,13 @@ final class SourceReaderViewModel: ObservableObject {
             let sentence = sentencesByID[anchor.sentenceId]
             let resolved = resolveConcordance(anchor: anchor, context: context, sentence: sentence)
             let hit = makeHitSceneItem(anchor: anchor, context: context, sentence: sentence)
+            let annotationItems = buildAnnotationItems(anchor: anchor, sentence: sentence, languageMode: WordZLocalization.shared.effectiveMode)
             return SourceReaderSelection(
                 hit: hit,
                 leftContext: resolved.leftContext,
                 keyword: resolved.keyword,
-                rightContext: resolved.rightContext
+                rightContext: resolved.rightContext,
+                annotationItems: annotationItems
             )
         }
 
@@ -194,6 +245,7 @@ final class SourceReaderViewModel: ObservableObject {
             subtitle: subtitleParts.joined(separator: " · "),
             filePath: context.filePath,
             originSummary: originParts.joined(separator: " · "),
+            annotationSummary: annotationState.summary(in: languageMode),
             hitCountSummary: String(
                 format: wordZText("共 %d 条命中", "%d hits", mode: languageMode),
                 hitItems.count
@@ -203,6 +255,41 @@ final class SourceReaderViewModel: ObservableObject {
             sentences: sentences,
             selection: selection
         )
+    }
+
+    private func buildAnnotationItems(
+        anchor: SourceReaderHitAnchor,
+        sentence: TokenizedSentence?,
+        languageMode: AppLanguageMode
+    ) -> [SourceReaderAnnotationSceneItem] {
+        guard let sentence,
+              let tokenIndex = anchor.tokenIndex,
+              !sentence.tokens.isEmpty
+        else {
+            return []
+        }
+
+        let safeIndex = min(max(tokenIndex, 0), sentence.tokens.count - 1)
+        let token = sentence.tokens[safeIndex]
+
+        return [
+            SourceReaderAnnotationSceneItem(
+                id: "lemma",
+                title: wordZText("Lemma", "Lemma", mode: languageMode),
+                value: normalizedValue(token.annotations.lemma) ?? "—"
+            ),
+            SourceReaderAnnotationSceneItem(
+                id: "lexical-class",
+                title: wordZText("词类", "Lexical Class", mode: languageMode),
+                value: token.annotations.lexicalClass?.title(in: languageMode)
+                    ?? wordZText("未标注", "Unlabeled", mode: languageMode)
+            ),
+            SourceReaderAnnotationSceneItem(
+                id: "script",
+                title: wordZText("脚本", "Script", mode: languageMode),
+                value: token.annotations.script.title(in: languageMode)
+            )
+        ]
     }
 
     private func makeHitSceneItem(
@@ -234,9 +321,16 @@ final class SourceReaderViewModel: ObservableObject {
         citationText: String,
         fullSentenceText: String
     ) {
-        let fullSentenceText = normalizedValue(sentence?.text)
-            ?? normalizedValue(anchor.fullSentenceText)
-            ?? ""
+        let fullSentenceText: String
+        if context.origin == .topics {
+            fullSentenceText = normalizedValue(anchor.fullSentenceText)
+                ?? normalizedValue(sentence?.text)
+                ?? ""
+        } else {
+            fullSentenceText = normalizedValue(sentence?.text)
+                ?? normalizedValue(anchor.fullSentenceText)
+                ?? ""
+        }
 
         let computedContexts = computedContexts(
             for: anchor,

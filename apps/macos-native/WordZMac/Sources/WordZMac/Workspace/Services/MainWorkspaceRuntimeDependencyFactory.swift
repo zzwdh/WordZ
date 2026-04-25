@@ -1,4 +1,5 @@
 import Foundation
+import WordZEngine
 
 @MainActor
 struct MainWorkspaceRuntimeDependencyFactory: MainWorkspaceRuntimeDependencyBuilding {

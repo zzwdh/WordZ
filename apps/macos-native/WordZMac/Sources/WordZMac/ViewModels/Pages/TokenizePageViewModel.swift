@@ -28,6 +28,19 @@ final class TokenizePageViewModel: ObservableObject, AnalysisInputStateControlli
             handleInputChange(rebuildScene: true)
         }
     }
+    @Published var annotationProfile: WorkspaceAnnotationProfile = .surface {
+        didSet {
+            guard oldValue != annotationProfile else { return }
+            let nextLemmaStrategy = annotationProfile.tokenizeLemmaStrategy
+            if lemmaStrategy != nextLemmaStrategy {
+                lemmaStrategy = nextLemmaStrategy
+            } else {
+                handleInputChange(rebuildScene: true)
+            }
+            guard !isApplyingWorkspaceAnnotationProfile else { return }
+            onAnnotationProfileChange?(annotationProfile)
+        }
+    }
     @Published var languagePreset: TokenizeLanguagePreset = .mixedChineseEnglish {
         didSet {
             guard oldValue != languagePreset else { return }
@@ -45,6 +58,7 @@ final class TokenizePageViewModel: ObservableObject, AnalysisInputStateControlli
     @Published var selectedRowID: String?
 
     var onInputChange: (() -> Void)?
+    var onAnnotationProfileChange: ((WorkspaceAnnotationProfile) -> Void)?
 
     let sceneBuilder: TokenizeSceneBuilder
     var result: TokenizeResult?
@@ -64,6 +78,7 @@ final class TokenizePageViewModel: ObservableObject, AnalysisInputStateControlli
     var cachedSortedTokens: [TokenizedToken]?
     var cachedSortMode: TokenizeSortMode?
     var cachedSortLemmaStrategy = TokenLemmaStrategy.normalizedSurface
+    private var isApplyingWorkspaceAnnotationProfile = false
 
     init(sceneBuilder: TokenizeSceneBuilder = TokenizeSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
@@ -80,5 +95,13 @@ final class TokenizePageViewModel: ObservableObject, AnalysisInputStateControlli
             return row
         }
         return scene.rows.first
+    }
+
+    func applyWorkspaceAnnotationProfile(_ profile: WorkspaceAnnotationProfile) {
+        guard annotationProfile != profile || lemmaStrategy != profile.tokenizeLemmaStrategy else { return }
+        isApplyingWorkspaceAnnotationProfile = true
+        defer { isApplyingWorkspaceAnnotationProfile = false }
+        annotationProfile = profile
+        lemmaStrategy = profile.tokenizeLemmaStrategy
     }
 }

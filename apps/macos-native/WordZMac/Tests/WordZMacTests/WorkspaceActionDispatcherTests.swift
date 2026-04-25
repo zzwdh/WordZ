@@ -75,6 +75,44 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertFalse(workspace.sceneGraph.sentiment.table.isVisible(SentimentColumnKey.source.rawValue))
     }
 
+    func testDispatcherSentimentImportBundleUsesPreferredRouteAndLoadsBundle() async throws {
+        let repository = FakeWorkspaceRepository()
+        let dialogService = FakeDialogService()
+        let bundleURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dispatcher-sentiment-bundle-\(UUID().uuidString).json")
+        let bundleJSON = """
+        {
+          "manifest": {
+            "id": "dispatcher-pack",
+            "version": "1.0"
+          },
+          "entries": [
+            { "term": "corpus-savvy", "score": 1.2 }
+          ]
+        }
+        """
+        try bundleJSON.write(to: bundleURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: bundleURL) }
+        dialogService.openPathResult = bundleURL.path
+
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            dialogService: dialogService
+        )
+        await workspace.initializeIfNeeded()
+        let dispatcher = WorkspaceActionDispatcher(
+            workspace: workspace,
+            preferredWindowRoute: .mainWorkspace
+        )
+
+        dispatcher.handleSentimentAction(.importUserLexiconBundle)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(dialogService.openPathPreferredRoute, .mainWorkspace)
+        XCTAssertEqual(workspace.sentiment.importedLexiconBundles.map(\.id), ["dispatcher-pack"])
+        XCTAssertEqual(workspace.sentiment.selectedRuleProfile.importedBundleIDs, ["dispatcher-pack"])
+    }
+
     func testDispatcherCompareOpenKWICActionLaunchesWorkspaceRun() async {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)
@@ -91,6 +129,94 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertEqual(repository.runKWICCallCount, 1)
         XCTAssertEqual(workspace.kwic.keyword, "alpha")
         XCTAssertEqual(workspace.sceneGraph.activeTab, .kwic)
+    }
+
+    func testDispatcherCompareOpenSentimentActionLaunchesWorkspaceRun() async throws {
+        let referenceSet = LibraryCorpusSetItem(json: [
+            "id": "set-1",
+            "name": "Reference Set",
+            "corpusIds": ["corpus-2"],
+            "corpusNames": ["Compare Corpus"],
+            "metadataFilter": [:],
+            "createdAt": "today",
+            "updatedAt": "today"
+        ])
+        let repository = FakeWorkspaceRepository(
+            bootstrapState: makeBootstrapState(corpusSets: [referenceSet]),
+            sentimentResult: makeCompareSentimentResult()
+        )
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        workspace.compare.syncLibrarySnapshot(repository.bootstrapState.librarySnapshot)
+        workspace.compare.selectedCorpusIDs = ["corpus-1"]
+        workspace.compare.selectedReferenceSelection = .corpusSet("set-1")
+        workspace.compare.apply(makeCompareResult())
+        workspace.compare.selectedRowID = "alpha"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleCompareAction(.openSentiment)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        let request = try XCTUnwrap(repository.lastSentimentRequest)
+        XCTAssertEqual(repository.runSentimentCallCount, 1)
+        XCTAssertEqual(request.source, .corpusCompare)
+        XCTAssertEqual(
+            request.texts
+                .filter { $0.groupID == "reference" }
+                .compactMap(\.sourceID),
+            ["corpus-2"]
+        )
+        XCTAssertEqual(workspace.sentiment.source, .corpusCompare)
+        XCTAssertEqual(workspace.sceneGraph.activeTab, .sentiment)
+    }
+
+    func testDispatcherCompareOpenTopicsActionLaunchesWorkspaceRun() async throws {
+        let referenceSet = LibraryCorpusSetItem(json: [
+            "id": "set-1",
+            "name": "Reference Set",
+            "corpusIds": ["corpus-2"],
+            "corpusNames": ["Compare Corpus"],
+            "metadataFilter": [:],
+            "createdAt": "today",
+            "updatedAt": "today"
+        ])
+        let repository = FakeWorkspaceRepository(
+            bootstrapState: makeBootstrapState(corpusSets: [referenceSet]),
+            openedCorporaByID: [
+                "corpus-1": OpenedCorpus(json: [
+                    "mode": "saved",
+                    "filePath": "/tmp/compare-target-topics.txt",
+                    "displayName": "Demo Corpus",
+                    "content": "alpha target framing keeps the comparison grounded.",
+                    "sourceType": "txt"
+                ]),
+                "corpus-2": OpenedCorpus(json: [
+                    "mode": "saved",
+                    "filePath": "/tmp/compare-reference-topics.txt",
+                    "displayName": "Compare Corpus",
+                    "content": "alpha reference framing keeps the contrast visible.",
+                    "sourceType": "txt"
+                ])
+            ],
+            topicsResult: makeCompareTopicsResult()
+        )
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        workspace.compare.syncLibrarySnapshot(repository.bootstrapState.librarySnapshot)
+        workspace.compare.selectedCorpusIDs = ["corpus-1"]
+        workspace.compare.selectedReferenceSelection = .corpusSet("set-1")
+        workspace.compare.apply(makeCompareResult())
+        workspace.compare.selectedRowID = "alpha"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleCompareAction(.openTopics)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(repository.runTopicsCallCount, 1)
+        XCTAssertEqual(repository.lastRunTopicsOptions?.searchQuery, "alpha")
+        XCTAssertEqual(workspace.topics.compareDrilldownContext?.focusTerm, "alpha")
+        XCTAssertEqual(workspace.sceneGraph.activeTab, .topics)
+        XCTAssertTrue(workspace.topics.scene?.crossAnalysisSummary?.contains("alpha") == true)
     }
 
     func testDispatcherCompareSaveCorpusSetActionUsesPreferredRoute() async {
@@ -112,6 +238,60 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
         XCTAssertEqual(repository.saveCorpusSetCallCount, 1)
         XCTAssertEqual(dialogService.promptTextPreferredRoute, .mainWorkspace)
+    }
+
+    func testDispatcherTopicsOpenSentimentActionLaunchesWorkspaceRun() async {
+        let fixture = makeTopicsDispatcherFixture()
+        let repository = FakeWorkspaceRepository(
+            openedCorpus: fixture.openedCorpus,
+            topicsResult: fixture.topicsResult,
+            sentimentResult: fixture.sentimentResult
+        )
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        workspace.topics.query = ""
+        workspace.topics.apply(fixture.topicsResult)
+        workspace.selectedTab = .topics
+        workspace.syncSceneGraph()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleTopicsAction(.openSentiment(.visibleTopics))
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(repository.runSentimentCallCount, 1)
+        XCTAssertEqual(workspace.sentiment.source, .topicSegments)
+        XCTAssertEqual(workspace.sceneGraph.activeTab, .sentiment)
+    }
+
+    func testDispatcherTopicsOpenKWICActionLaunchesWorkspaceRun() async {
+        let referenceOpenedCorpus = OpenedCorpus(json: [
+            "mode": "saved",
+            "filePath": "/tmp/compare-reference-topics.txt",
+            "displayName": "Compare Corpus",
+            "content": "alpha reference framing keeps the contrast visible.",
+            "sourceType": "txt"
+        ])
+        let repository = FakeWorkspaceRepository(
+            openedCorporaByID: [
+                "corpus-2": referenceOpenedCorpus
+            ],
+            topicsResult: makeCompareTopicsResult()
+        )
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        workspace.topics.query = "alpha"
+        workspace.topics.apply(makeCompareTopicsResult())
+        workspace.topics.selectedClusterID = "topic-1"
+        workspace.topics.selectedRowID = "compare-topic-reference-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleTopicsAction(.openKWIC)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(repository.runKWICCallCount, 1)
+        XCTAssertEqual(workspace.kwic.keyword, "alpha")
+        XCTAssertEqual(workspace.sidebar.selectedCorpusID, "corpus-2")
+        XCTAssertEqual(workspace.sceneGraph.activeTab, .kwic)
     }
 
     func testDispatcherTopicsLocalActionResyncsSceneGraph() {
@@ -684,4 +864,149 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertEqual(workspace.library.selectedCorpus?.cleaningStatus, .cleanedWithChanges)
         XCTAssertTrue(workspace.library.scene.statusMessage.contains("清洗"))
     }
+}
+
+private func makeTopicsDispatcherFixture() -> (
+    openedCorpus: OpenedCorpus,
+    topicsResult: TopicAnalysisResult,
+    sentimentResult: SentimentRunResult
+) {
+    let paragraphs = [
+        "Security researchers discussed hacker communities and disclosure norms.",
+        "Hackers shared exploit mitigation strategies and coordinated fixes.",
+        "A short unrelated paragraph about coffee and weather."
+    ]
+    let documentText = paragraphs.joined(separator: "\n\n")
+    let openedCorpus = OpenedCorpus(json: [
+        "mode": "saved",
+        "filePath": "/tmp/topics-dispatcher.txt",
+        "displayName": "Topics Dispatcher Corpus",
+        "content": documentText,
+        "sourceType": "txt"
+    ])
+    let topicsResult = TopicAnalysisResult(
+        modelVersion: "wordz-topics-english-1",
+        modelProvider: "system-sentence-embedding",
+        usesFallbackProvider: false,
+        clusters: [
+            TopicClusterSummary(
+                id: "topic-1",
+                index: 1,
+                isOutlier: false,
+                size: 2,
+                keywordCandidates: [
+                    TopicKeywordCandidate(term: "security", score: 1.42),
+                    TopicKeywordCandidate(term: "hacker", score: 1.17)
+                ],
+                representativeSegmentIDs: ["paragraph-1"]
+            ),
+            TopicClusterSummary(
+                id: TopicAnalysisResult.outlierTopicID,
+                index: 0,
+                isOutlier: true,
+                size: 1,
+                keywordCandidates: [
+                    TopicKeywordCandidate(term: "coffee", score: 0.75)
+                ],
+                representativeSegmentIDs: ["paragraph-3"]
+            )
+        ],
+        segments: [
+            TopicSegmentRow(
+                id: "paragraph-1",
+                topicID: "topic-1",
+                paragraphIndex: 1,
+                text: paragraphs[0],
+                similarityScore: 0.91,
+                isOutlier: false
+            ),
+            TopicSegmentRow(
+                id: "paragraph-2",
+                topicID: "topic-1",
+                paragraphIndex: 2,
+                text: paragraphs[1],
+                similarityScore: 0.88,
+                isOutlier: false
+            ),
+            TopicSegmentRow(
+                id: "paragraph-3",
+                topicID: TopicAnalysisResult.outlierTopicID,
+                paragraphIndex: 3,
+                text: paragraphs[2],
+                similarityScore: 0,
+                isOutlier: true
+            )
+        ],
+        totalSegments: 3,
+        clusteredSegments: 2,
+        outlierCount: 1,
+        warnings: []
+    )
+    let sentimentResult = SentimentRunResult(
+        request: SentimentRunRequest(
+            source: .topicSegments,
+            unit: .sourceSentence,
+            contextBasis: .fullSentenceWhenAvailable,
+            thresholds: .default,
+            texts: [
+                SentimentInputText(
+                    id: "paragraph-1::sentence::0",
+                    sourceID: "corpus-1",
+                    sourceTitle: openedCorpus.displayName,
+                    text: paragraphs[0],
+                    sentenceID: 0,
+                    tokenIndex: 0,
+                    groupID: "topic-1",
+                    groupTitle: "Topic 1",
+                    documentText: documentText
+                ),
+                SentimentInputText(
+                    id: "paragraph-2::sentence::1",
+                    sourceID: "corpus-1",
+                    sourceTitle: openedCorpus.displayName,
+                    text: paragraphs[1],
+                    sentenceID: 1,
+                    tokenIndex: 0,
+                    groupID: "topic-1",
+                    groupTitle: "Topic 1",
+                    documentText: documentText
+                ),
+                SentimentInputText(
+                    id: "paragraph-3::sentence::2",
+                    sourceID: "corpus-1",
+                    sourceTitle: openedCorpus.displayName,
+                    text: paragraphs[2],
+                    sentenceID: 2,
+                    tokenIndex: 0,
+                    groupID: TopicAnalysisResult.outlierTopicID,
+                    groupTitle: "Outlier Topic",
+                    documentText: documentText
+                )
+            ],
+            backend: .lexicon
+        ),
+        backendKind: .lexicon,
+        backendRevision: "lexicon-v1",
+        resourceRevision: "resource-v1",
+        supportsEvidenceHits: true,
+        rows: [],
+        overallSummary: SentimentAggregateSummary(
+            id: "overall",
+            title: "Overall",
+            totalTexts: 0,
+            positiveCount: 0,
+            neutralCount: 0,
+            negativeCount: 0,
+            positiveRatio: 0,
+            neutralRatio: 0,
+            negativeRatio: 0,
+            averagePositivity: 0,
+            averageNeutrality: 0,
+            averageNegativity: 0,
+            averageNetScore: 0
+        ),
+        groupSummaries: [],
+        lexiconVersion: "lexicon-v1"
+    )
+    return (openedCorpus, topicsResult, sentimentResult)
 }

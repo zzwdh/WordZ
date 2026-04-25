@@ -1,3 +1,4 @@
+import SQLite3
 import XCTest
 @testable import WordZWorkspaceCore
 
@@ -20,6 +21,9 @@ final class WorkspaceServicesTests: XCTestCase {
             searchQuery: "keyword",
             searchOptions: SearchOptionsState(words: false, caseSensitive: true, regex: true),
             stopwordFilter: StopwordFilterState(enabled: true, mode: .include, listText: "alpha\nbeta"),
+            annotationProfile: .lemmaPreferred,
+            annotationLexicalClasses: [.noun, .verb],
+            annotationScripts: [.cjk, .latin],
             tokenizeLanguagePreset: .cjkFocused,
             tokenizeLemmaStrategy: .lemmaPreferred,
             ngramSize: "3",
@@ -50,6 +54,9 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.searchOptions, SearchOptionsState(words: false, caseSensitive: true, regex: true))
         XCTAssertEqual(draft.stopwordFilter.mode, StopwordFilterMode.include)
         XCTAssertEqual(draft.stopwordFilter.parsedWords, ["alpha", "beta"])
+        XCTAssertEqual(draft.annotationProfile, .lemmaPreferred)
+        XCTAssertEqual(draft.annotationLexicalClasses, [.noun, .verb])
+        XCTAssertEqual(draft.annotationScripts, [.cjk, .latin])
         XCTAssertEqual(draft.tokenizeLanguagePreset, .cjkFocused)
         XCTAssertEqual(draft.tokenizeLemmaStrategy, .lemmaPreferred)
         XCTAssertEqual(draft.ngramSize, "3")
@@ -66,6 +73,9 @@ final class WorkspaceServicesTests: XCTestCase {
     }
 
     func testWorkspacePersistenceBuildsDraftWithSentimentState() {
+        let importedBundle = makeSentimentUserLexiconBundle()
+        var calibration = SentimentCalibrationProfile.workspaceDefault
+        calibration.domainBiasAdjustments[SentimentDomainPackID.news.rawValue] = 0.12
         let draft = WorkspacePersistenceService().buildDraft(
             selectedTab: .sentiment,
             selectedFolderID: "folder-1",
@@ -79,6 +89,9 @@ final class WorkspaceServicesTests: XCTestCase {
             sentimentUnit: .document,
             sentimentContextBasis: .fullSentenceWhenAvailable,
             sentimentBackend: .coreML,
+            sentimentDomainPackID: .news,
+            sentimentRuleProfileID: "bundle:teaching-bundle",
+            sentimentCalibrationProfileID: SentimentCalibrationProfile.workspaceDefault.id,
             sentimentChartKind: .trendLine,
             sentimentThresholdPreset: .balanced,
             sentimentDecisionThreshold: 0.25,
@@ -86,6 +99,10 @@ final class WorkspaceServicesTests: XCTestCase {
             sentimentNeutralBias: 1.0,
             sentimentRowFilterQuery: "good",
             sentimentLabelFilter: .positive,
+            sentimentReviewFilter: .quoted,
+            sentimentShowOnlyHardCases: true,
+            sentimentWorkspaceCalibrationProfile: calibration,
+            sentimentImportedLexiconBundles: [importedBundle],
             sentimentSelectedCorpusIDs: ["corpus-1"],
             sentimentReferenceCorpusID: "corpus-2",
             ngramSize: "2",
@@ -111,6 +128,9 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.sentimentUnit, .document)
         XCTAssertEqual(draft.sentimentContextBasis, .fullSentenceWhenAvailable)
         XCTAssertEqual(draft.sentimentBackend, .coreML)
+        XCTAssertEqual(draft.sentimentDomainPackID, .news)
+        XCTAssertEqual(draft.sentimentRuleProfileID, "bundle:teaching-bundle")
+        XCTAssertEqual(draft.sentimentCalibrationProfileID, SentimentCalibrationProfile.workspaceDefault.id)
         XCTAssertEqual(draft.sentimentChartKind, .trendLine)
         XCTAssertEqual(draft.sentimentThresholdPreset, .balanced)
         XCTAssertEqual(draft.sentimentDecisionThreshold, 0.25, accuracy: 0.0001)
@@ -118,8 +138,117 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.sentimentNeutralBias, 1.0, accuracy: 0.0001)
         XCTAssertEqual(draft.sentimentRowFilterQuery, "good")
         XCTAssertEqual(draft.sentimentLabelFilter, .positive)
+        XCTAssertEqual(draft.sentimentReviewFilter, .quoted)
+        XCTAssertTrue(draft.sentimentShowOnlyHardCases)
+        XCTAssertEqual(draft.sentimentWorkspaceCalibrationProfile, calibration)
+        XCTAssertEqual(draft.sentimentImportedLexiconBundles, [importedBundle])
         XCTAssertEqual(draft.sentimentSelectedCorpusIDs, ["corpus-1"])
         XCTAssertEqual(draft.sentimentReferenceCorpusID, "corpus-2")
+    }
+
+    func testWorkspacePersistenceBuildsDraftWithSentimentReferenceCorpusSetID() {
+        let draft = WorkspacePersistenceService().buildDraft(
+            selectedTab: .sentiment,
+            selectedFolderID: "folder-1",
+            selectedCorpusSetID: "",
+            selectedCorpus: nil,
+            openedCorpus: nil,
+            searchQuery: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            sentimentSource: .corpusCompare,
+            sentimentUnit: .sentence,
+            sentimentContextBasis: .fullSentenceWhenAvailable,
+            sentimentBackend: .lexicon,
+            sentimentChartKind: .distributionBar,
+            sentimentThresholdPreset: .conservative,
+            sentimentDecisionThreshold: SentimentThresholds.default.decisionThreshold,
+            sentimentMinimumEvidence: SentimentThresholds.default.minimumEvidence,
+            sentimentNeutralBias: SentimentThresholds.default.neutralBias,
+            sentimentRowFilterQuery: "alpha",
+            sentimentLabelFilter: nil,
+            sentimentSelectedCorpusIDs: ["corpus-1"],
+            sentimentReferenceCorpusID: "set:set-1",
+            ngramSize: "2",
+            ngramPageSize: "10",
+            kwicLeftWindow: "5",
+            kwicRightWindow: "5",
+            collocateLeftWindow: "5",
+            collocateRightWindow: "5",
+            collocateMinFreq: "1",
+            topicsMinTopicSize: "2",
+            topicsIncludeOutliers: true,
+            topicsPageSize: "50",
+            topicsActiveTopicID: "",
+            chiSquareA: "",
+            chiSquareB: "",
+            chiSquareC: "",
+            chiSquareD: "",
+            chiSquareUseYates: false
+        )
+
+        XCTAssertEqual(draft.sentimentReferenceCorpusID, "set:set-1")
+    }
+
+    func testWorkspaceSnapshotRoundTripsSentimentImportedLexiconBundlesFromDraftJSON() {
+        let importedBundle = makeSentimentUserLexiconBundle(id: "roundtrip-bundle")
+        var calibration = SentimentCalibrationProfile.workspaceDefault
+        calibration.domainBiasAdjustments[SentimentDomainPackID.general.rawValue] = -0.08
+        let draft = WorkspacePersistenceService().buildDraft(
+            selectedTab: .sentiment,
+            selectedFolderID: "folder-1",
+            selectedCorpusSetID: "",
+            selectedCorpus: nil,
+            openedCorpus: nil,
+            searchQuery: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            sentimentSource: .openedCorpus,
+            sentimentUnit: .sentence,
+            sentimentContextBasis: .visibleContext,
+            sentimentBackend: .lexicon,
+            sentimentDomainPackID: .general,
+            sentimentRuleProfileID: "bundle:roundtrip-bundle",
+            sentimentCalibrationProfileID: SentimentCalibrationProfile.workspaceDefault.id,
+            sentimentChartKind: .distributionBar,
+            sentimentThresholdPreset: .conservative,
+            sentimentDecisionThreshold: SentimentThresholds.default.decisionThreshold,
+            sentimentMinimumEvidence: SentimentThresholds.default.minimumEvidence,
+            sentimentNeutralBias: SentimentThresholds.default.neutralBias,
+            sentimentRowFilterQuery: "",
+            sentimentLabelFilter: nil,
+            sentimentReviewFilter: .lowMargin,
+            sentimentShowOnlyHardCases: true,
+            sentimentWorkspaceCalibrationProfile: calibration,
+            sentimentImportedLexiconBundles: [importedBundle],
+            sentimentSelectedCorpusIDs: [],
+            sentimentReferenceCorpusID: "",
+            ngramSize: "2",
+            ngramPageSize: "10",
+            kwicLeftWindow: "5",
+            kwicRightWindow: "5",
+            collocateLeftWindow: "5",
+            collocateRightWindow: "5",
+            collocateMinFreq: "1",
+            topicsMinTopicSize: "2",
+            topicsIncludeOutliers: true,
+            topicsPageSize: "50",
+            topicsActiveTopicID: "",
+            chiSquareA: "",
+            chiSquareB: "",
+            chiSquareC: "",
+            chiSquareD: "",
+            chiSquareUseYates: false
+        )
+
+        let snapshot = WorkspaceSnapshotSummary(json: draft.asJSONObject())
+
+        XCTAssertEqual(snapshot.sentimentRuleProfileID, "bundle:roundtrip-bundle")
+        XCTAssertEqual(snapshot.sentimentCalibrationProfileID, SentimentCalibrationProfile.workspaceDefault.id)
+        XCTAssertEqual(snapshot.sentimentWorkspaceCalibrationProfile, calibration)
+        XCTAssertEqual(snapshot.sentimentImportedLexiconBundles, [importedBundle])
+        XCTAssertEqual(snapshot.sentimentReviewFilter, .lowMargin)
+        XCTAssertTrue(snapshot.sentimentShowOnlyHardCases)
     }
 
     func testWorkspacePresentationBuildsRepresentedPathAndSummary() {
@@ -194,6 +323,9 @@ final class WorkspaceServicesTests: XCTestCase {
             searchQuery: "keyword",
             searchOptions: .default,
             stopwordFilter: .default,
+            annotationProfile: .surfaceWithLemmaFallback,
+            annotationLexicalClasses: [.noun],
+            annotationScripts: [.latin],
             ngramSize: "2",
             ngramPageSize: "10",
             kwicLeftWindow: "3",
@@ -214,6 +346,9 @@ final class WorkspaceServicesTests: XCTestCase {
         store.applySavedDraft(draft)
         XCTAssertFalse(store.isDocumentEdited)
         XCTAssertEqual(store.workspaceSnapshot?.corpusIds, ["corpus-1"])
+        XCTAssertEqual(store.workspaceSnapshot?.annotationProfile, .surfaceWithLemmaFallback)
+        XCTAssertEqual(store.workspaceSnapshot?.annotationLexicalClasses, [.noun])
+        XCTAssertEqual(store.workspaceSnapshot?.annotationScripts, [.latin])
         XCTAssertEqual(store.workspaceSnapshot?.chiSquareA, "10")
         XCTAssertTrue(store.workspaceSnapshot?.chiSquareUseYates ?? false)
 
@@ -458,7 +593,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.corpora.first?.name, "Demo Corpus")
     }
 
-    func testNativeCorpusStoreReusesInMemoryManifestAfterInitialization() throws {
+    func testNativeCorpusStoreReusesInMemoryCatalogCacheAfterInitialization() throws {
         let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("wordz-native-store-\(UUID().uuidString)", isDirectory: true)
         let sourceURL = rootURL.appendingPathComponent("sample.txt")
@@ -471,10 +606,64 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(imported.importedCount, 1)
         XCTAssertEqual(try store.listLibrary().corpora.count, 1)
 
-        let corporaURL = rootURL.appendingPathComponent("corpora.json")
-        try Data("[]".utf8).write(to: corporaURL, options: .atomic)
+        try sqliteExecute(
+            "DELETE FROM corpus;",
+            databaseURL: rootURL.appendingPathComponent("library.db")
+        )
 
         XCTAssertEqual(try store.listLibrary().corpora.count, 1)
+
+        let reloadedStore = NativeCorpusStore(rootURL: rootURL)
+        try reloadedStore.ensureInitialized()
+        XCTAssertTrue(try reloadedStore.listLibrary().corpora.isEmpty)
+    }
+
+    func testNativeCorpusStoreCreatesCentralDatabasesWithoutJSONSidecars() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-central-db-\(UUID().uuidString)", isDirectory: true)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("library.db").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("workspace.db").path))
+        XCTAssertTrue(try store.listLibrary().corpora.isEmpty)
+
+        let snapshot = try store.loadWorkspaceSnapshot()
+        XCTAssertEqual(snapshot.currentTab, WorkspaceDetailTab.stats.snapshotValue)
+        XCTAssertTrue(snapshot.corpusIds.isEmpty)
+
+        let uiSettings = try store.loadUISettings()
+        XCTAssertFalse(uiSettings.debugLogging)
+        XCTAssertTrue(uiSettings.restoreWorkspace)
+
+        XCTAssertEqual(
+            try sqliteScalarInt(
+                "SELECT COUNT(*) FROM corpus;",
+                databaseURL: rootURL.appendingPathComponent("library.db")
+            ),
+            0
+        )
+        XCTAssertEqual(
+            try sqliteScalarInt(
+                "SELECT COUNT(*) FROM workspace_snapshot;",
+                databaseURL: rootURL.appendingPathComponent("workspace.db")
+            ),
+            1
+        )
+        XCTAssertEqual(
+            try sqliteScalarInt(
+                "SELECT COUNT(*) FROM ui_settings;",
+                databaseURL: rootURL.appendingPathComponent("workspace.db")
+            ),
+            1
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("folders.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("corpora.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("corpus-sets.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("recycle.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("workspace-state.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("ui-settings.json").path))
     }
 
     func testNativeCorpusStorePersistsCorpusSetRoundTrip() throws {
@@ -566,6 +755,9 @@ final class WorkspaceServicesTests: XCTestCase {
             searchOptionsSnapshot: nil,
             stopwordFilterSnapshot: nil,
             reviewStatus: .keep,
+            sectionTitle: "Section B",
+            claim: "Claim Beta",
+            tags: ["review", "keep", "review"],
             note: "keep this",
             createdAt: "2026-04-13T00:00:00Z",
             updatedAt: "2026-04-13T00:00:00Z"
@@ -587,10 +779,75 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(items.map(\.id), [first.id, savedSecond.id])
         XCTAssertEqual(items.last?.reviewStatus, .exclude)
         XCTAssertEqual(items.last?.note, "updated")
+        XCTAssertEqual(items.last?.sectionTitle, "Section B")
+        XCTAssertEqual(items.last?.claim, "Claim Beta")
+        XCTAssertEqual(items.last?.tags, ["review", "keep"])
 
         try store.deleteEvidenceItem(itemID: first.id)
         items = try store.listEvidenceItems()
         XCTAssertEqual(items.map(\.id), [savedSecond.id])
+    }
+
+    func testNativeCorpusStorePersistsSentimentReviewSampleRoundTrip() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-sentiment-review-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        let rawResult = makeSentimentResult()
+        let first = makeSentimentReviewSample(
+            result: rawResult,
+            rowID: "sentiment-positive",
+            decision: .confirmRaw,
+            note: " confirmed raw "
+        )
+        let second = makeSentimentReviewSample(
+            result: rawResult,
+            rowID: "sentiment-negative",
+            decision: .overridePositive,
+            note: "manual override",
+            timestamp: "2026-04-18T12:05:00Z"
+        )
+
+        _ = try store.saveSentimentReviewSample(first)
+        var savedSecond = try store.saveSentimentReviewSample(second)
+
+        var samples = try store.listSentimentReviewSamples()
+        XCTAssertEqual(samples.count, 2)
+        XCTAssertEqual(samples.first?.id, second.id)
+        XCTAssertEqual(samples.last?.reviewNote, "confirmed raw")
+
+        savedSecond = SentimentReviewSample(
+            id: savedSecond.id,
+            matchKey: savedSecond.matchKey,
+            decision: .overrideNeutral,
+            rawLabel: savedSecond.rawLabel,
+            rawScores: savedSecond.rawScores,
+            reviewNote: " retagged neutral ",
+            createdAt: savedSecond.createdAt,
+            updatedAt: "2026-04-18T12:10:00Z",
+            backendKind: savedSecond.backendKind,
+            backendRevision: savedSecond.backendRevision,
+            domainPackID: savedSecond.domainPackID,
+            ruleProfileID: savedSecond.ruleProfileID,
+            calibrationProfileRevision: savedSecond.calibrationProfileRevision,
+            activePackIDs: savedSecond.activePackIDs
+        )
+        _ = try store.saveSentimentReviewSample(savedSecond)
+
+        try store.replaceSentimentReviewSamples([first, savedSecond])
+
+        samples = try store.listSentimentReviewSamples()
+        XCTAssertEqual(samples.count, 2)
+        XCTAssertEqual(samples.last?.decision, .overrideNeutral)
+        XCTAssertEqual(samples.last?.reviewNote, "retagged neutral")
+
+        try store.deleteSentimentReviewSample(sampleID: first.id)
+
+        samples = try store.listSentimentReviewSamples()
+        XCTAssertEqual(samples.map(\.id), [savedSecond.id])
     }
 
     func testNativeCorpusStoreImportsCorporaIntoDBStorageFiles() throws {
@@ -604,10 +861,8 @@ final class WorkspaceServicesTests: XCTestCase {
         try store.ensureInitialized()
         let imported = try store.importCorpusPaths([sourceURL.path], folderId: "", preserveHierarchy: false)
         let corpus = try XCTUnwrap(imported.importedItems.first)
-
-        let manifestData = try Data(contentsOf: rootURL.appendingPathComponent("corpora.json"))
-        let manifest = try JSONSerialization.jsonObject(with: manifestData) as? [[String: Any]]
-        let storageFileName = try XCTUnwrap(manifest?.first?["storageFileName"] as? String)
+        let record = try XCTUnwrap(store.loadCorpora().first(where: { $0.id == corpus.id }))
+        let storageFileName = record.storageFileName
         XCTAssertTrue(storageFileName.hasSuffix(".db"))
         XCTAssertEqual(corpus.representedPath, sourceURL.path)
         XCTAssertTrue(
@@ -663,6 +918,135 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(updated.metadata.tags, ["课堂", "基础"])
         XCTAssertEqual(info.metadata.yearLabel, "2024")
         XCTAssertEqual(info.metadata.tagsText, "课堂, 基础")
+    }
+
+    func testNativeCorpusStoreListsLibraryWithSQLMetadataFilter() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-metadata-filter-\(UUID().uuidString)", isDirectory: true)
+        let textbookURL = rootURL.appendingPathComponent("textbook.txt")
+        let newsURL = rootURL.appendingPathComponent("news.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta gamma".write(to: textbookURL, atomically: true, encoding: .utf8)
+        try "delta epsilon zeta".write(to: newsURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths(
+            [textbookURL.path, newsURL.path],
+            folderId: "",
+            preserveHierarchy: false
+        )
+        let textbookCorpus = try XCTUnwrap(imported.importedItems.first)
+        let newsCorpus = try XCTUnwrap(imported.importedItems.last)
+
+        _ = try store.updateCorpusMetadata(
+            corpusId: textbookCorpus.id,
+            metadata: CorpusMetadataProfile(
+                sourceLabel: "教材",
+                yearLabel: "2021 / 2024",
+                genreLabel: "教学",
+                tags: ["课堂", "重点"]
+            )
+        )
+        _ = try store.updateCorpusMetadata(
+            corpusId: newsCorpus.id,
+            metadata: CorpusMetadataProfile(
+                sourceLabel: "新闻",
+                yearLabel: "2020",
+                genreLabel: "报道",
+                tags: ["新闻"]
+            )
+        )
+
+        let filtered = try store.listLibrary(
+            folderId: "all",
+            metadataFilterState: CorpusMetadataFilterState(
+                sourceQuery: "教材",
+                yearFrom: "2024",
+                yearTo: "2024",
+                genreQuery: "教学",
+                tagsQuery: "课堂, 重点"
+            )
+        )
+
+        XCTAssertEqual(filtered.corpora.map(\.id), [textbookCorpus.id])
+        XCTAssertEqual(filtered.corpora.first?.metadata.sourceLabel, "教材")
+        XCTAssertEqual(filtered.corpora.first?.metadata.tags, ["课堂", "重点"])
+        XCTAssertEqual(
+            try sqliteScalarInt(
+                "SELECT COUNT(*) FROM corpus_year WHERE corpus_id = '\(textbookCorpus.id)' AND year_value = 2024;",
+                databaseURL: rootURL.appendingPathComponent("library.db")
+            ),
+            1
+        )
+    }
+
+    func testNativeCorpusStoreListsLibraryWithCorpusSearchFTS() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-corpus-search-fts-\(UUID().uuidString)", isDirectory: true)
+        let textbookURL = rootURL.appendingPathComponent("textbook.txt")
+        let interviewURL = rootURL.appendingPathComponent("interview.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta gamma".write(to: textbookURL, atomically: true, encoding: .utf8)
+        try "delta epsilon zeta".write(to: interviewURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths(
+            [textbookURL.path, interviewURL.path],
+            folderId: "",
+            preserveHierarchy: false
+        )
+        let textbookCorpus = try XCTUnwrap(imported.importedItems.first)
+        let interviewCorpus = try XCTUnwrap(imported.importedItems.last)
+
+        _ = try store.updateCorpusMetadata(
+            corpusId: textbookCorpus.id,
+            metadata: CorpusMetadataProfile(
+                sourceLabel: "Teaching Corpus",
+                yearLabel: "2024",
+                genreLabel: "Lesson",
+                tags: ["Classroom", "Practice"]
+            )
+        )
+        _ = try store.updateCorpusMetadata(
+            corpusId: interviewCorpus.id,
+            metadata: CorpusMetadataProfile(
+                sourceLabel: "Interview Archive",
+                yearLabel: "2023",
+                genreLabel: "人物访谈",
+                tags: ["Dialogue"]
+            )
+        )
+
+        let sourceSearch = try store.listLibrary(
+            folderId: "all",
+            metadataFilterState: .empty,
+            searchQuery: "teach"
+        )
+        XCTAssertEqual(sourceSearch.corpora.map(\.id), [textbookCorpus.id])
+
+        let tagSearch = try store.listLibrary(
+            folderId: "all",
+            metadataFilterState: .empty,
+            searchQuery: "Class"
+        )
+        XCTAssertEqual(tagSearch.corpora.map(\.id), [textbookCorpus.id])
+
+        let fallbackSearch = try store.listLibrary(
+            folderId: "all",
+            metadataFilterState: .empty,
+            searchQuery: "访谈"
+        )
+        XCTAssertEqual(fallbackSearch.corpora.map(\.id), [interviewCorpus.id])
+
+        XCTAssertEqual(
+            try sqliteScalarInt(
+                "SELECT COUNT(*) FROM corpus_search_fts;",
+                databaseURL: rootURL.appendingPathComponent("library.db")
+            ),
+            2
+        )
     }
 
     func testNativeCorpusStoreImportsGB18030TextWithoutMojibake() throws {
@@ -778,51 +1162,29 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(try store.listLibrary().corpora.count, 3)
     }
 
-    func testNativeCorpusStoreMigratesLegacyTXTStorageToDB() throws {
+    func testNativeCorpusStorePersistsCatalogStateInLibraryDatabase() throws {
         let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("wordz-native-migrate-\(UUID().uuidString)", isDirectory: true)
-        let corporaDir = rootURL.appendingPathComponent("corpora", isDirectory: true)
-        try FileManager.default.createDirectory(at: corporaDir, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: rootURL.appendingPathComponent("recycle", isDirectory: true), withIntermediateDirectories: true)
-        try "alpha beta".write(
-            to: corporaDir.appendingPathComponent("legacy-corpus.txt"),
-            atomically: true,
-            encoding: .utf8
-        )
-        try Data("""
-        [{
-          "id":"corpus-1",
-          "name":"Legacy Corpus",
-          "folderId":"",
-          "folderName":"未分类",
-          "sourceType":"txt",
-          "representedPath":"/tmp/legacy.txt",
-          "storageFileName":"legacy-corpus.txt"
-        }]
-        """.utf8).write(to: rootURL.appendingPathComponent("corpora.json"), options: .atomic)
-        try Data("[]".utf8).write(to: rootURL.appendingPathComponent("folders.json"), options: .atomic)
-        try Data("[]".utf8).write(to: rootURL.appendingPathComponent("recycle.json"), options: .atomic)
+            .appendingPathComponent("wordz-native-persisted-catalog-\(UUID().uuidString)", isDirectory: true)
+        let sourceURL = rootURL.appendingPathComponent("sample.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta".write(to: sourceURL, atomically: true, encoding: .utf8)
 
         let store = NativeCorpusStore(rootURL: rootURL)
         try store.ensureInitialized()
+        let imported = try store.importCorpusPaths([sourceURL.path], folderId: "", preserveHierarchy: false)
+        let corpus = try XCTUnwrap(imported.importedItems.first)
 
-        let opened = try store.openSavedCorpus(corpusId: "corpus-1")
-        XCTAssertEqual(opened.displayName, "Legacy Corpus")
-        XCTAssertTrue(
-            FileManager.default.fileExists(
-                atPath: corporaDir.appendingPathComponent("legacy-corpus.db").path
-            )
+        XCTAssertEqual(
+            try sqliteScalarInt(
+                "SELECT COUNT(*) FROM corpus WHERE id = '\(corpus.id)' AND storage_status = 'available';",
+                databaseURL: rootURL.appendingPathComponent("library.db")
+            ),
+            1
         )
-        XCTAssertFalse(
-            FileManager.default.fileExists(
-                atPath: corporaDir.appendingPathComponent("legacy-corpus.txt").path
-            )
-        )
-        let migratedDocument = try XCTUnwrap(
-            try NativeCorpusDatabaseSupport.readDocument(at: corporaDir.appendingPathComponent("legacy-corpus.db"))
-        )
-        XCTAssertEqual(migratedDocument.text, "alpha beta")
-        XCTAssertEqual(migratedDocument.metadata.sourceType, "txt")
+
+        let reloadedStore = NativeCorpusStore(rootURL: rootURL)
+        try reloadedStore.ensureInitialized()
+        XCTAssertEqual(try reloadedStore.listLibrary().corpora.map(\.id), [corpus.id])
     }
 
     func testNativeCorpusStorePersistsExpandedWorkspaceSnapshot() throws {
@@ -839,6 +1201,9 @@ final class WorkspaceServicesTests: XCTestCase {
             searchQuery: "cloud-1*",
             searchOptions: .default,
             stopwordFilter: .default,
+            annotationProfile: .surfaceWithLemmaFallback,
+            annotationLexicalClasses: [.noun, .verb],
+            annotationScripts: [.cjk, .latin],
             tokenizeLanguagePreset: .latinFocused,
             tokenizeLemmaStrategy: .lemmaPreferred,
             compareReferenceCorpusID: "corpus-2",
@@ -864,6 +1229,9 @@ final class WorkspaceServicesTests: XCTestCase {
 
         let snapshot = try store.loadWorkspaceSnapshot()
         XCTAssertEqual(snapshot.currentTab, WorkspaceDetailTab.word.snapshotValue)
+        XCTAssertEqual(snapshot.annotationProfile, .surfaceWithLemmaFallback)
+        XCTAssertEqual(snapshot.annotationLexicalClasses, [.noun, .verb])
+        XCTAssertEqual(snapshot.annotationScripts, [.cjk, .latin])
         XCTAssertEqual(snapshot.tokenizeLanguagePreset, .latinFocused)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .lemmaPreferred)
         XCTAssertEqual(snapshot.compareReferenceCorpusID, "corpus-2")
@@ -878,37 +1246,20 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertTrue(snapshot.chiSquareUseYates)
     }
 
-    func testNativeCorpusStoreLoadsLegacyWorkspaceSnapshotWithDefaultsForNewFields() throws {
+    func testNativeCorpusStoreLoadsDefaultWorkspaceSnapshotWhenNoSnapshotWasSaved() throws {
         let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("wordz-native-legacy-workspace-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-        let legacyWorkspaceURL = rootURL.appendingPathComponent("workspace-state.json")
-        let legacyJSON = """
-        {
-          "currentTab": "kwic",
-          "currentLibraryFolderId": "folder-1",
-          "corpusIds": ["corpus-1"],
-          "corpusNames": ["Demo Corpus"],
-          "searchQuery": "keyword",
-          "searchOptions": { "words": true, "caseSensitive": false, "regex": false },
-          "stopwordFilter": { "enabled": false, "mode": "exclude", "listText": "" },
-          "ngramSize": "2",
-          "ngramPageSize": "10",
-          "kwicLeftWindow": "3",
-          "kwicRightWindow": "4",
-          "collocateLeftWindow": "5",
-          "collocateRightWindow": "6",
-          "collocateMinFreq": "2"
-        }
-        """
-        try legacyJSON.write(to: legacyWorkspaceURL, atomically: true, encoding: .utf8)
+            .appendingPathComponent("wordz-native-default-workspace-\(UUID().uuidString)", isDirectory: true)
 
         let store = NativeCorpusStore(rootURL: rootURL)
         try store.ensureInitialized()
         let snapshot = try store.loadWorkspaceSnapshot()
 
-        XCTAssertEqual(snapshot.currentTab, "kwic")
+        XCTAssertEqual(snapshot.currentTab, WorkspaceDetailTab.stats.snapshotValue)
+        XCTAssertEqual(snapshot.searchQuery, "")
         XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
+        XCTAssertEqual(snapshot.annotationProfile, .surface)
+        XCTAssertTrue(snapshot.annotationLexicalClasses.isEmpty)
+        XCTAssertTrue(snapshot.annotationScripts.isEmpty)
         XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertEqual(snapshot.topicsMinTopicSize, "2")
@@ -916,6 +1267,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertTrue(snapshot.topicsIncludeOutliers)
         XCTAssertEqual(snapshot.chiSquareA, "")
         XCTAssertFalse(snapshot.chiSquareUseYates)
+        XCTAssertEqual(snapshot.sentimentReviewStatusFilter, .all)
     }
 
     func testWorkspaceSnapshotParsesSearchOptionsAndStopwordFilter() {
@@ -939,6 +1291,9 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.searchOptions, SearchOptionsState(words: false, caseSensitive: true, regex: true))
         XCTAssertEqual(snapshot.stopwordFilter.mode, .include)
         XCTAssertEqual(snapshot.stopwordFilter.parsedWords, ["foo", "bar"])
+        XCTAssertEqual(snapshot.annotationProfile, .surface)
+        XCTAssertTrue(snapshot.annotationLexicalClasses.isEmpty)
+        XCTAssertTrue(snapshot.annotationScripts.isEmpty)
         XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
@@ -946,6 +1301,57 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.topicsPageSize, "50")
         XCTAssertEqual(snapshot.chiSquareA, "")
         XCTAssertFalse(snapshot.chiSquareUseYates)
+    }
+
+    func testWorkspaceStateDraftSerializesAnnotationPayload() {
+        let draft = WorkspaceStateDraft(
+            currentTab: WorkspaceDetailTab.keyword.snapshotValue,
+            currentLibraryFolderId: "folder-1",
+            corpusIds: ["corpus-1"],
+            corpusNames: ["Demo Corpus"],
+            searchQuery: "lemma",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            annotationProfile: .lemmaPreferred,
+            annotationLexicalClasses: [.adjective, .noun],
+            annotationScripts: [.latin],
+            ngramSize: "2",
+            ngramPageSize: "10",
+            kwicLeftWindow: "3",
+            kwicRightWindow: "4",
+            collocateLeftWindow: "5",
+            collocateRightWindow: "6",
+            collocateMinFreq: "2",
+            topicsMinTopicSize: "2",
+            topicsIncludeOutliers: true,
+            topicsPageSize: "50",
+            topicsActiveTopicID: "",
+            chiSquareA: "",
+            chiSquareB: "",
+            chiSquareC: "",
+            chiSquareD: "",
+            chiSquareUseYates: false
+        )
+
+        let annotation = draft.asJSONObject()["annotation"] as? [String: Any]
+
+        XCTAssertEqual(annotation?["profile"] as? String, WorkspaceAnnotationProfile.lemmaPreferred.rawValue)
+        XCTAssertEqual(annotation?["lexicalClasses"] as? [String], ["adjective", "noun"])
+        XCTAssertEqual(annotation?["scripts"] as? [String], ["latin"])
+    }
+
+    func testWorkspaceSnapshotParsesAnnotationPayloadWhenPresent() {
+        let snapshot = WorkspaceSnapshotSummary(json: [
+            "annotation": [
+                "profile": "surfaceWithLemmaFallback",
+                "lexicalClasses": ["verb", "noun"],
+                "scripts": ["latin", "cjk"]
+            ]
+        ])
+
+        XCTAssertEqual(snapshot.annotationProfile, .surfaceWithLemmaFallback)
+        XCTAssertEqual(snapshot.annotationLexicalClasses, [.verb, .noun])
+        XCTAssertEqual(snapshot.annotationScripts, [.latin, .cjk])
     }
 
     @MainActor
@@ -1185,5 +1591,31 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertTrue(csvPath.hasSuffix(".csv"))
         XCTAssertEqual(try String(contentsOfFile: textPath, encoding: .utf8), "alpha beta\n")
         XCTAssertTrue(try String(contentsOfFile: csvPath, encoding: .utf8).contains("\"alpha\""))
+    }
+
+    private func sqliteScalarInt(_ sql: String, databaseURL: URL) throws -> Int {
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(databaseURL.path, &db), SQLITE_OK)
+        defer { sqlite3_close(db) }
+
+        var statement: OpaquePointer?
+        XCTAssertEqual(sqlite3_prepare_v2(db, sql, -1, &statement, nil), SQLITE_OK)
+        defer { sqlite3_finalize(statement) }
+        XCTAssertEqual(sqlite3_step(statement), SQLITE_ROW)
+        return Int(sqlite3_column_int64(statement, 0))
+    }
+
+    private func sqliteExecute(_ sql: String, databaseURL: URL) throws {
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(databaseURL.path, &db), SQLITE_OK)
+        defer { sqlite3_close(db) }
+
+        var errorMessage: UnsafeMutablePointer<CChar>?
+        XCTAssertEqual(
+            sqlite3_exec(db, sql, nil, nil, &errorMessage),
+            SQLITE_OK,
+            errorMessage.map { String(cString: $0) } ?? ""
+        )
+        sqlite3_free(errorMessage)
     }
 }

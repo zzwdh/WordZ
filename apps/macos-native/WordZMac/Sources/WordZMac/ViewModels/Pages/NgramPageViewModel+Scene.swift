@@ -12,8 +12,7 @@ extension NgramPageViewModel {
             scene = nil
             return
         }
-        sceneBuildRevision += 1
-        let revision = sceneBuildRevision
+        let revision = beginSceneBuildPass()
         let languageModeSnapshot = WordZLocalization.shared.effectiveMode
         let rowCount = result.rows.count
 
@@ -52,15 +51,19 @@ extension NgramPageViewModel {
         let visibleColumnsSnapshot = visibleColumns
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "ngram", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
+                try Task.checkCancellation()
                 let filtered = sceneBuilder.filterRows(
                     from: resultSnapshot,
                     query: querySnapshot,
                     searchOptions: optionsSnapshot,
                     stopwordFilter: stopwordSnapshot
                 )
+                try Task.checkCancellation()
                 let sortedRows = sceneBuilder.sortRows(filtered.rows, mode: sortSnapshot)
+                try Task.checkCancellation()
                 let nextScene = sceneBuilder.build(
                     from: resultSnapshot,
                     query: querySnapshot,
@@ -79,7 +82,7 @@ extension NgramPageViewModel {
             },
             apply: { payload in
                 let (filteredRows, filteredError, sortedRows, nextScene) = payload
-                guard revision == self.sceneBuildRevision else { return false }
+                guard self.isCurrentSceneBuild(revision) else { return false }
                 self.cachedFilteredRows = filteredRows
                 self.cachedFilteredError = filteredError
                 self.cachedFilterQuery = querySnapshot

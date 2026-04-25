@@ -6,18 +6,64 @@ struct SentimentSceneBuilder {
         thresholdPreset: SentimentThresholdPreset,
         filterQuery: String,
         labelFilter: SentimentLabel?,
+        reviewFilter: SentimentReviewFilter = .all,
+        reviewStatusFilter: SentimentReviewStatusFilter = .all,
+        showOnlyHardCases: Bool = false,
         sortMode: SentimentSortMode,
         pageSize: SentimentPageSize,
         currentPage: Int,
         visibleColumns: Set<SentimentColumnKey>,
         selectedRowID: String?,
         chartKind: SentimentChartKind,
+        additionalMetadataLines: [String] = [],
+        languageMode: AppLanguageMode = .system
+    ) -> SentimentSceneModel {
+        build(
+            from: SentimentReviewOverlaySupport.makePresentationResult(
+                rawResult: result,
+                reviewSamples: []
+            ),
+            thresholdPreset: thresholdPreset,
+            filterQuery: filterQuery,
+            labelFilter: labelFilter,
+            reviewFilter: reviewFilter,
+            reviewStatusFilter: reviewStatusFilter,
+            showOnlyHardCases: showOnlyHardCases,
+            sortMode: sortMode,
+            pageSize: pageSize,
+            currentPage: currentPage,
+            visibleColumns: visibleColumns,
+            selectedRowID: selectedRowID,
+            chartKind: chartKind,
+            additionalMetadataLines: additionalMetadataLines,
+            languageMode: languageMode
+        )
+    }
+
+    func build(
+        from presentationResult: SentimentPresentationResult,
+        thresholdPreset: SentimentThresholdPreset,
+        filterQuery: String,
+        labelFilter: SentimentLabel?,
+        reviewFilter: SentimentReviewFilter = .all,
+        reviewStatusFilter: SentimentReviewStatusFilter = .all,
+        showOnlyHardCases: Bool = false,
+        sortMode: SentimentSortMode,
+        pageSize: SentimentPageSize,
+        currentPage: Int,
+        visibleColumns: Set<SentimentColumnKey>,
+        selectedRowID: String?,
+        chartKind: SentimentChartKind,
+        additionalMetadataLines: [String] = [],
         languageMode: AppLanguageMode = .system
     ) -> SentimentSceneModel {
         let filteredRows = filterRows(
-            result.rows,
+            presentationResult.effectiveRows,
             query: filterQuery,
-            labelFilter: labelFilter
+            labelFilter: labelFilter,
+            reviewFilter: reviewFilter,
+            reviewStatusFilter: reviewStatusFilter,
+            showOnlyHardCases: showOnlyHardCases
         )
         let sortedRows = sortRows(filteredRows, mode: sortMode)
         let pagination = buildPagination(
@@ -34,47 +80,60 @@ struct SentimentSceneBuilder {
                 values: [
                     SentimentColumnKey.source.rawValue: row.groupTitle.isEmpty ? row.sourceTitle : "\(row.groupTitle) · \(row.sourceTitle)",
                     SentimentColumnKey.text.rawValue: row.text,
-                    SentimentColumnKey.positivity.rawValue: formatPercent(row.positivityScore),
-                    SentimentColumnKey.neutrality.rawValue: formatPercent(row.neutralityScore),
-                    SentimentColumnKey.negativity.rawValue: formatPercent(row.negativityScore),
-                    SentimentColumnKey.finalLabel.rawValue: row.finalLabel.title(in: languageMode),
-                    SentimentColumnKey.netScore.rawValue: format(row.netScore),
+                    SentimentColumnKey.positivity.rawValue: formatPercent(row.rawPositivityScore),
+                    SentimentColumnKey.neutrality.rawValue: formatPercent(row.rawNeutralityScore),
+                    SentimentColumnKey.negativity.rawValue: formatPercent(row.rawNegativityScore),
+                    SentimentColumnKey.finalLabel.rawValue: row.effectiveLabel.title(in: languageMode),
+                    SentimentColumnKey.rawLabel.rawValue: row.rawLabel.title(in: languageMode),
+                    SentimentColumnKey.reviewStatus.rawValue: row.reviewStatus.title(in: languageMode),
+                    SentimentColumnKey.netScore.rawValue: format(row.rawNetScore),
                     SentimentColumnKey.evidence.rawValue: row.evidencePreview
                 ]
             )
         }
 
         let filteredSceneRows = sortedRows.map(makeSceneRow)
-        let positiveExamples = filteredSceneRows.filter { $0.finalLabel == .positive }.prefix(5)
-        let neutralExamples = filteredSceneRows.filter { $0.finalLabel == .neutral }.prefix(5)
-        let negativeExamples = filteredSceneRows.filter { $0.finalLabel == .negative }.prefix(5)
+        let positiveExamples = filteredSceneRows.filter { $0.effectiveLabel == .positive }.prefix(5)
+        let neutralExamples = filteredSceneRows.filter { $0.effectiveLabel == .neutral }.prefix(5)
+        let negativeExamples = filteredSceneRows.filter { $0.effectiveLabel == .negative }.prefix(5)
         let exportMetadataLines = buildMetadataLines(
-            result: result,
+            presentationResult: presentationResult,
             thresholdPreset: thresholdPreset,
+            additionalMetadataLines: additionalMetadataLines,
             languageMode: languageMode
         )
 
+        let rawResult = presentationResult.rawResult
+        let effectiveSummary = presentationResult.effectiveOverallSummary
+
         return SentimentSceneModel(
-            source: result.request.source,
-            unit: result.request.unit,
-            contextBasis: result.request.contextBasis,
-            backend: result.backendKind,
-            backendRevision: result.backendRevision,
-            resourceRevision: result.resourceRevision,
-            supportsEvidenceHits: result.supportsEvidenceHits,
+            source: rawResult.request.source,
+            unit: rawResult.request.unit,
+            contextBasis: rawResult.request.contextBasis,
+            backend: rawResult.backendKind,
+            domainPackID: rawResult.request.resolvedDomainPackID,
+            ruleProfileID: rawResult.request.ruleProfile.id,
+            backendRevision: rawResult.backendRevision,
+            resourceRevision: rawResult.resourceRevision,
+            supportsEvidenceHits: rawResult.supportsEvidenceHits,
             thresholdPreset: thresholdPreset,
-            thresholds: result.request.thresholds,
+            thresholds: rawResult.request.thresholds,
             chartKind: chartKind,
             filterQuery: filterQuery,
             labelFilter: labelFilter,
-            summary: result.overallSummary,
-            groupSummaries: result.groupSummaries,
+            reviewFilter: reviewFilter,
+            reviewStatusFilter: reviewStatusFilter,
+            showOnlyHardCases: showOnlyHardCases,
+            activePackIDs: rawResult.activePackIDs,
+            summary: effectiveSummary,
+            groupSummaries: presentationResult.effectiveGroupSummaries,
+            reviewSummary: presentationResult.reviewSummary,
             sorting: SentimentSortingSceneModel(
                 selectedSort: sortMode,
                 selectedPageSize: pageSize
             ),
             pagination: pagination,
-            totalRows: result.rows.count,
+            totalRows: presentationResult.effectiveRows.count,
             filteredRows: filteredRows.count,
             visibleRows: sceneRows.count,
             selectedRowID: selectedRowID,
@@ -85,26 +144,26 @@ struct SentimentSceneBuilder {
             chartSegments: [
                 SentimentChartSegment(
                     label: .positive,
-                    count: result.overallSummary.positiveCount,
-                    ratio: result.overallSummary.positiveRatio
+                    count: effectiveSummary.positiveCount,
+                    ratio: effectiveSummary.positiveRatio
                 ),
                 SentimentChartSegment(
                     label: .neutral,
-                    count: result.overallSummary.neutralCount,
-                    ratio: result.overallSummary.neutralRatio
+                    count: effectiveSummary.neutralCount,
+                    ratio: effectiveSummary.neutralRatio
                 ),
                 SentimentChartSegment(
                     label: .negative,
-                    count: result.overallSummary.negativeCount,
-                    ratio: result.overallSummary.negativeRatio
+                    count: effectiveSummary.negativeCount,
+                    ratio: effectiveSummary.negativeRatio
                 )
             ],
-            trendPoints: Array(result.rows.prefix(60).enumerated().map { offset, row in
+            trendPoints: Array(presentationResult.effectiveRows.prefix(60).enumerated().map { offset, row in
                 SentimentTrendPoint(
                     index: offset + 1,
-                    label: row.finalLabel,
-                    netScore: row.netScore,
-                    title: row.sourceTitle
+                    label: row.effectiveLabel,
+                    netScore: row.effectiveScores.netScore,
+                    title: row.rawRow.sourceTitle
                 )
             }),
             table: NativeTableDescriptor(
@@ -128,92 +187,132 @@ struct SentimentSceneBuilder {
     }
 
     private func filterRows(
-        _ rows: [SentimentRowResult],
+        _ rows: [SentimentEffectiveRow],
         query: String,
-        labelFilter: SentimentLabel?
-    ) -> [SentimentRowResult] {
+        labelFilter: SentimentLabel?,
+        reviewFilter: SentimentReviewFilter,
+        reviewStatusFilter: SentimentReviewStatusFilter,
+        showOnlyHardCases: Bool
+    ) -> [SentimentEffectiveRow] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return rows.filter { row in
-            let matchesLabel = labelFilter.map { row.finalLabel == $0 } ?? true
+            let rawRow = row.rawRow
+            let matchesLabel = labelFilter.map { row.effectiveLabel == $0 } ?? true
+            let matchesReview = reviewFilter.includes(rawRow)
+            let matchesReviewStatus = reviewStatusFilter.includes(row)
+            let matchesHardCase = showOnlyHardCases
+                ? rawRow.diagnostics.reviewFlags.isEmpty == false || rawRow.mixedEvidence
+                : true
             let matchesQuery: Bool
             if trimmedQuery.isEmpty {
                 matchesQuery = true
             } else {
                 let haystacks = [
-                    row.text,
-                    row.sourceTitle,
-                    row.groupTitle ?? "",
-                    row.evidence.map(\.surface).joined(separator: " "),
-                    row.diagnostics.ruleSummary ?? "",
-                    row.diagnostics.scopeNotes.joined(separator: " ")
+                    rawRow.text,
+                    rawRow.sourceTitle,
+                    rawRow.groupTitle ?? "",
+                    rawRow.evidence.map(\.surface).joined(separator: " "),
+                    rawRow.diagnostics.ruleSummary ?? "",
+                    rawRow.diagnostics.scopeNotes.joined(separator: " "),
+                    rawRow.diagnostics.ruleTraces.flatMap(\.appliedSteps).map(\.note).joined(separator: " "),
+                    row.reviewNote ?? "",
+                    row.reviewStatus.title(in: .english),
+                    row.rawLabel.rawValue,
+                    row.effectiveLabel.rawValue
                 ].map { $0.localizedLowercase }
                 matchesQuery = haystacks.contains { $0.contains(trimmedQuery.localizedLowercase) }
             }
-            return matchesLabel && matchesQuery
+            return matchesLabel && matchesReview && matchesReviewStatus && matchesHardCase && matchesQuery
         }
     }
 
-    private func sortRows(_ rows: [SentimentRowResult], mode: SentimentSortMode) -> [SentimentRowResult] {
+    private func sortRows(_ rows: [SentimentEffectiveRow], mode: SentimentSortMode) -> [SentimentEffectiveRow] {
         switch mode {
         case .original:
             return rows
         case .positivityDescending:
-            return rows.sorted { compare($0, $1, value: \.positivityScore, descending: true) }
+            return rows.sorted { compare($0.rawRow.positivityScore, $1.rawRow.positivityScore, lhs: $0, rhs: $1) }
         case .neutralityDescending:
-            return rows.sorted { compare($0, $1, value: \.neutralityScore, descending: true) }
+            return rows.sorted { compare($0.rawRow.neutralityScore, $1.rawRow.neutralityScore, lhs: $0, rhs: $1) }
         case .negativityDescending:
-            return rows.sorted { compare($0, $1, value: \.negativityScore, descending: true) }
+            return rows.sorted { compare($0.rawRow.negativityScore, $1.rawRow.negativityScore, lhs: $0, rhs: $1) }
         case .netScoreDescending:
-            return rows.sorted { compare($0, $1, value: \.netScore, descending: true) }
+            return rows.sorted { compare($0.rawRow.netScore, $1.rawRow.netScore, lhs: $0, rhs: $1) }
         case .labelAscending:
             return rows.sorted {
-                if $0.finalLabel.rawValue == $1.finalLabel.rawValue {
-                    return $0.sourceTitle.localizedCaseInsensitiveCompare($1.sourceTitle) == .orderedAscending
+                if $0.effectiveLabel.rawValue == $1.effectiveLabel.rawValue {
+                    return $0.rawRow.sourceTitle.localizedCaseInsensitiveCompare($1.rawRow.sourceTitle) == .orderedAscending
                 }
-                return $0.finalLabel.rawValue < $1.finalLabel.rawValue
+                return $0.effectiveLabel.rawValue < $1.effectiveLabel.rawValue
+            }
+        case .reviewStatusAscending:
+            return rows.sorted {
+                if reviewStatusRank($0.reviewStatus) == reviewStatusRank($1.reviewStatus) {
+                    return $0.rawRow.text.localizedCaseInsensitiveCompare($1.rawRow.text) == .orderedAscending
+                }
+                return reviewStatusRank($0.reviewStatus) < reviewStatusRank($1.reviewStatus)
             }
         case .sourceAscending:
             return rows.sorted {
-                let sourceCompare = $0.sourceTitle.localizedCaseInsensitiveCompare($1.sourceTitle)
+                let sourceCompare = $0.rawRow.sourceTitle.localizedCaseInsensitiveCompare($1.rawRow.sourceTitle)
                 if sourceCompare == .orderedSame {
-                    return $0.text.localizedCaseInsensitiveCompare($1.text) == .orderedAscending
+                    return $0.rawRow.text.localizedCaseInsensitiveCompare($1.rawRow.text) == .orderedAscending
                 }
                 return sourceCompare == .orderedAscending
             }
         }
     }
 
-    private func compare(
-        _ lhs: SentimentRowResult,
-        _ rhs: SentimentRowResult,
-        value: KeyPath<SentimentRowResult, Double>,
-        descending: Bool
-    ) -> Bool {
-        let left = lhs[keyPath: value]
-        let right = rhs[keyPath: value]
-        if left == right {
-            return lhs.text.localizedCaseInsensitiveCompare(rhs.text) == .orderedAscending
+    private func reviewStatusRank(_ status: SentimentReviewStatus) -> Int {
+        switch status {
+        case .overridden:
+            return 0
+        case .confirmed:
+            return 1
+        case .unreviewed:
+            return 2
         }
-        return descending ? left > right : left < right
     }
 
-    private func makeSceneRow(_ row: SentimentRowResult) -> SentimentSceneRow {
+    private func compare(
+        _ lhsValue: Double,
+        _ rhsValue: Double,
+        lhs: SentimentEffectiveRow,
+        rhs: SentimentEffectiveRow
+    ) -> Bool {
+        if lhsValue == rhsValue {
+            return lhs.rawRow.text.localizedCaseInsensitiveCompare(rhs.rawRow.text) == .orderedAscending
+        }
+        return lhsValue > rhsValue
+    }
+
+    private func makeSceneRow(_ row: SentimentEffectiveRow) -> SentimentSceneRow {
         SentimentSceneRow(
             id: row.id,
-            sourceTitle: row.sourceTitle,
-            groupTitle: row.groupTitle ?? "",
-            text: row.text,
-            positivityScore: row.positivityScore,
-            neutralityScore: row.neutralityScore,
-            negativityScore: row.negativityScore,
-            finalLabel: row.finalLabel,
-            netScore: row.netScore,
-            evidenceCount: row.evidenceCount,
-            evidencePreview: evidencePreview(for: row),
-            evidence: row.evidence,
-            diagnostics: row.diagnostics,
-            sentenceID: row.sentenceID,
-            tokenIndex: row.tokenIndex
+            sourceTitle: row.rawRow.sourceTitle,
+            groupTitle: row.rawRow.groupTitle ?? "",
+            text: row.rawRow.text,
+            rawPositivityScore: row.rawRow.positivityScore,
+            rawNeutralityScore: row.rawRow.neutralityScore,
+            rawNegativityScore: row.rawRow.negativityScore,
+            rawLabel: row.rawRow.finalLabel,
+            rawNetScore: row.rawRow.netScore,
+            effectivePositivityScore: row.effectiveScores.positivityScore,
+            effectiveNeutralityScore: row.effectiveScores.neutralityScore,
+            effectiveNegativityScore: row.effectiveScores.negativityScore,
+            effectiveLabel: row.effectiveLabel,
+            effectiveNetScore: row.effectiveScores.netScore,
+            evidenceCount: row.rawRow.evidenceCount,
+            evidencePreview: evidencePreview(for: row.rawRow),
+            evidence: row.rawRow.evidence,
+            diagnostics: row.rawRow.diagnostics,
+            sentenceID: row.rawRow.sentenceID,
+            tokenIndex: row.rawRow.tokenIndex,
+            reviewDecision: row.reviewDecision,
+            reviewStatus: row.reviewStatus,
+            reviewNote: row.reviewNote,
+            reviewedAt: row.reviewedAt,
+            reviewSampleID: row.reviewSampleID
         )
     }
 
@@ -222,6 +321,18 @@ struct SentimentSceneBuilder {
             return row.evidence.prefix(3).map { hit in
                 "\(hit.surface) (\(format(hit.adjustedScore)))"
             }.joined(separator: ", ")
+        }
+        if !row.diagnostics.ruleTraces.isEmpty {
+            return row.diagnostics.ruleTraces
+                .prefix(2)
+                .map { trace in
+                    let steps = trace.appliedSteps
+                        .map(\.tag)
+                        .filter { $0 != "cueMatched" }
+                        .joined(separator: "/")
+                    return steps.isEmpty ? trace.cueSurface : "\(trace.cueSurface) [\(steps)]"
+                }
+                .joined(separator: ", ")
         }
         if let confidence = row.diagnostics.confidence {
             if let topMargin = row.diagnostics.topMargin {
@@ -236,31 +347,51 @@ struct SentimentSceneBuilder {
     }
 
     private func buildMetadataLines(
-        result: SentimentRunResult,
+        presentationResult: SentimentPresentationResult,
         thresholdPreset: SentimentThresholdPreset,
+        additionalMetadataLines: [String],
         languageMode: AppLanguageMode
     ) -> [String] {
+        let rawResult = presentationResult.rawResult
         var lines = [
-            "\(wordZText("来源", "Source", mode: languageMode)): \(result.request.source.title(in: languageMode))",
-            "\(wordZText("单位", "Unit", mode: languageMode)): \(result.request.unit.title(in: languageMode))",
-            "\(wordZText("上下文", "Context", mode: languageMode)): \(result.request.contextBasis.title(in: languageMode))",
-            "\(wordZText("后端", "Backend", mode: languageMode)): \(result.backendKind.title(in: languageMode))",
-            "\(wordZText("后端版本", "Backend Revision", mode: languageMode)): \(result.backendRevision)",
-            "\(wordZText("资源版本", "Resource Revision", mode: languageMode)): \(result.resourceRevision)",
+            "\(wordZText("来源", "Source", mode: languageMode)): \(rawResult.request.source.title(in: languageMode))",
+            "\(wordZText("单位", "Unit", mode: languageMode)): \(rawResult.request.unit.title(in: languageMode))",
+            "\(wordZText("上下文", "Context", mode: languageMode)): \(rawResult.request.contextBasis.title(in: languageMode))",
+            "\(wordZText("后端", "Backend", mode: languageMode)): \(rawResult.backendKind.title(in: languageMode))",
+            "\(wordZText("后端版本", "Backend Revision", mode: languageMode)): \(rawResult.backendRevision)",
+            "\(wordZText("资源版本", "Resource Revision", mode: languageMode)): \(rawResult.resourceRevision)",
+            "\(wordZText("规则包", "Domain Pack", mode: languageMode)): \(rawResult.request.domainPackSummary(in: languageMode))",
+            "\(wordZText("规则配置", "Rule Profile", mode: languageMode)): \(rawResult.request.ruleProfile.title)",
+            "\(wordZText("校准版本", "Calibration Revision", mode: languageMode)): \(rawResult.calibrationProfileRevision)",
             "\(wordZText("阈值预设", "Threshold Preset", mode: languageMode)): \(thresholdPreset.title(in: languageMode))",
-            "\(wordZText("决策阈值", "Decision Threshold", mode: languageMode)): \(format(result.request.thresholds.decisionThreshold))",
-            "\(wordZText("最小证据", "Minimum Evidence", mode: languageMode)): \(format(result.request.thresholds.minimumEvidence))",
-            "\(wordZText("中性偏置", "Neutral Bias", mode: languageMode)): \(format(result.request.thresholds.neutralBias))"
+            "\(wordZText("决策阈值", "Decision Threshold", mode: languageMode)): \(format(rawResult.request.thresholds.decisionThreshold))",
+            "\(wordZText("最小证据", "Minimum Evidence", mode: languageMode)): \(format(rawResult.request.thresholds.minimumEvidence))",
+            "\(wordZText("中性偏置", "Neutral Bias", mode: languageMode)): \(format(rawResult.request.thresholds.neutralBias))",
+            "\(wordZText("已审校样本", "Reviewed Samples", mode: languageMode)): \(presentationResult.reviewSummary.reviewedCount)",
+            "\(wordZText("人工改标", "Overrides", mode: languageMode)): \(presentationResult.reviewSummary.overriddenCount)",
+            "\(wordZText("确认原判", "Confirmed Raw", mode: languageMode)): \(presentationResult.reviewSummary.confirmedRawCount)"
         ]
 
-        if !result.lexiconVersion.isEmpty {
-            lines.append("Lexicon: \(result.lexiconVersion)")
+        if !rawResult.lexiconVersion.isEmpty {
+            lines.append("Lexicon: \(rawResult.lexiconVersion)")
+        }
+        if !rawResult.activePackIDs.isEmpty {
+            lines.append(
+                "\(wordZText("激活规则包", "Active Packs", mode: languageMode)): \(rawResult.activePackIDs.map { $0.title(in: languageMode) }.joined(separator: ", "))"
+            )
+        }
+        if !rawResult.userLexiconBundleIDs.isEmpty {
+            lines.append(
+                "\(wordZText("用户词典", "User Lexicon Bundles", mode: languageMode)): \(rawResult.userLexiconBundleIDs.joined(separator: ", "))"
+            )
         }
 
+        lines.append(contentsOf: additionalMetadataLines)
+
         lines.append(
-            "\(wordZText("总体", "Overall", mode: languageMode)): +\(result.overallSummary.positiveCount) / =\(result.overallSummary.neutralCount) / -\(result.overallSummary.negativeCount)"
+            "\(wordZText("总体", "Overall", mode: languageMode)): +\(presentationResult.effectiveOverallSummary.positiveCount) / =\(presentationResult.effectiveOverallSummary.neutralCount) / -\(presentationResult.effectiveOverallSummary.negativeCount)"
         )
-        for group in result.groupSummaries {
+        for group in presentationResult.effectiveGroupSummaries {
             lines.append("\(group.title): +\(group.positiveCount) / =\(group.neutralCount) / -\(group.negativeCount)")
         }
         return lines
@@ -310,10 +441,10 @@ struct SentimentSceneBuilder {
     }
 
     private func sliceRows(
-        _ rows: [SentimentRowResult],
+        _ rows: [SentimentEffectiveRow],
         currentPage: Int,
         pageSize: SentimentPageSize
-    ) -> ArraySlice<SentimentRowResult> {
+    ) -> ArraySlice<SentimentEffectiveRow> {
         guard let rowLimit = pageSize.rowLimit else {
             return rows[rows.startIndex..<rows.endIndex]
         }
@@ -327,7 +458,7 @@ struct SentimentSceneBuilder {
 
     private func presentation(for key: SentimentColumnKey) -> NativeTableColumnPresentation {
         switch key {
-        case .source, .finalLabel:
+        case .source, .finalLabel, .rawLabel, .reviewStatus:
             return .label
         case .text, .evidence:
             return .summary
@@ -338,7 +469,7 @@ struct SentimentSceneBuilder {
 
     private func widthPolicy(for key: SentimentColumnKey) -> NativeTableColumnWidthPolicy {
         switch key {
-        case .source, .finalLabel:
+        case .source, .finalLabel, .rawLabel, .reviewStatus:
             return .standard
         case .text, .evidence:
             return .summary

@@ -63,6 +63,38 @@ final class EngineIntegrationTests: XCTestCase {
     }
 
     @MainActor
+    func testNativeWorkspaceRepositoryLoadsStoredFrequencyArtifact() async throws {
+        let repository = NativeWorkspaceRepository()
+        let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            ".wordz-native-user-data-frequency-artifact-test",
+            isDirectory: true
+        )
+        let importURL = userDataURL.appendingPathComponent("sample.txt")
+
+        try? FileManager.default.removeItem(at: userDataURL)
+        try FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
+        try "Alpha alpha beta.\nAlpha gamma.".write(to: importURL, atomically: true, encoding: .utf8)
+
+        do {
+            try await repository.start(userDataURL: userDataURL)
+            _ = try await repository.importCorpusPaths([importURL.path], folderId: "", preserveHierarchy: false)
+            let library = try await repository.listLibrary(folderId: "all")
+            let corpus = try XCTUnwrap(library.corpora.first)
+            let artifactRepository = repository as any StoredFrequencyArtifactReadingRepository
+
+            let artifact = try await artifactRepository.loadStoredFrequencyArtifact(corpusId: corpus.id)
+
+            XCTAssertEqual(artifact?.tokenCount, 5)
+            XCTAssertEqual(artifact?.topWord, "alpha")
+            XCTAssertEqual(artifact?.frequencyRows.first?.count, 3)
+        } catch {
+            XCTFail("Native stored frequency artifact loading failed: \(error.localizedDescription)")
+        }
+
+        await repository.stop()
+    }
+
+    @MainActor
     func testNativeWorkspaceRepositoryPreparesStoredCompareCorporaOnlyWhenContentMatchesStoredDigest() async throws {
         let repository = NativeWorkspaceRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -335,6 +367,303 @@ final class EngineIntegrationTests: XCTestCase {
             XCTAssertEqual(afterCachedDocuments, 0)
         } catch {
             XCTFail("Native KWIC position index fast path failed: \(error.localizedDescription)")
+        }
+
+        await repository.stop()
+    }
+
+    @MainActor
+    func testNativeWorkspaceRepositoryRunLocatorUsesStoredShardContextWithoutRuntimeParse() async throws {
+        let repository = NativeWorkspaceRepository()
+        let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            ".wordz-native-user-data-locator-shard-test",
+            isDirectory: true
+        )
+        let importURL = userDataURL.appendingPathComponent("sample.txt")
+
+        try? FileManager.default.removeItem(at: userDataURL)
+        try FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
+        try "Alpha beta gamma.\nDelta alpha.\nOmega zeta.".write(
+            to: importURL,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        do {
+            try await repository.start(userDataURL: userDataURL)
+            _ = try await repository.importCorpusPaths([importURL.path], folderId: "", preserveHierarchy: false)
+            let library = try await repository.listLibrary(folderId: "all")
+            let corpus = try XCTUnwrap(library.corpora.first)
+            let opened = try await repository.openSavedCorpus(corpusId: corpus.id)
+            let digest = DocumentCacheKey(text: opened.content).textDigest
+
+            let storedResult = try await repository.core.storedLocatorResult(
+                forTextDigest: digest,
+                sentenceId: 1,
+                nodeIndex: 1,
+                leftWindow: 1,
+                rightWindow: 1
+            )
+            XCTAssertEqual(storedResult?.rows.map(\.sentenceId), [0, 1, 2])
+            XCTAssertEqual(storedResult?.rows[1].leftWords, "Delta")
+            XCTAssertEqual(storedResult?.rows[1].nodeWord, "alpha")
+
+            let beforeCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(beforeCachedDocuments, 0)
+
+            let result = try await repository.runLocator(
+                text: opened.content,
+                sentenceId: 1,
+                nodeIndex: 1,
+                leftWindow: 1,
+                rightWindow: 1
+            )
+
+            XCTAssertEqual(result.sentenceCount, 3)
+            XCTAssertEqual(result.rows.map(\.sentenceId), [0, 1, 2])
+            XCTAssertEqual(result.rows[1].leftWords, "Delta")
+            XCTAssertEqual(result.rows[1].nodeWord, "alpha")
+
+            let afterCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(afterCachedDocuments, 0)
+        } catch {
+            XCTFail("Native Locator shard fast path failed: \(error.localizedDescription)")
+        }
+
+        await repository.stop()
+    }
+
+    @MainActor
+    func testNativeWorkspaceRepositoryRunPlotPhraseExactCachesSentenceCandidatesWithoutRuntimeParse() async throws {
+        let repository = NativeWorkspaceRepository()
+        let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            ".wordz-native-user-data-plot-sentence-candidates-test",
+            isDirectory: true
+        )
+        let importURL = userDataURL.appendingPathComponent("sample.txt")
+
+        try? FileManager.default.removeItem(at: userDataURL)
+        try FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
+        try "Alpha beta gamma.\nAlpha delta theta.\nAlpha beta again.".write(
+            to: importURL,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        do {
+            try await repository.start(userDataURL: userDataURL)
+            _ = try await repository.importCorpusPaths([importURL.path], folderId: "", preserveHierarchy: false)
+            let library = try await repository.listLibrary(folderId: "all")
+            let corpus = try XCTUnwrap(library.corpora.first)
+            let opened = try await repository.openSavedCorpus(corpusId: corpus.id)
+            let digest = DocumentCacheKey(text: opened.content).textDigest
+            let phraseOptions = SearchOptionsState(matchMode: .phraseExact)
+            let phraseTokens = SearchTextMatcher(query: "alpha beta", options: phraseOptions).phraseTokens
+            let cacheKey = StoredSentenceSearchCacheKey(
+                textDigest: digest,
+                phraseSignature: phraseTokens.joined(separator: "\u{1F}")
+            )
+
+            let request = PlotRunRequest(
+                entries: [
+                    PlotCorpusEntry(
+                        corpusId: corpus.id,
+                        displayName: corpus.name,
+                        filePath: corpus.representedPath,
+                        content: opened.content
+                    )
+                ],
+                query: "alpha beta",
+                searchOptions: phraseOptions,
+                scope: .singleCorpus
+            )
+
+            let beforeCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(beforeCachedDocuments, 0)
+
+            let result = try await repository.runPlot(request)
+
+            XCTAssertEqual(result.rows.first?.frequency, 2)
+            XCTAssertEqual(result.rows.first?.hitMarkers.map(\.sentenceId), [0, 2])
+            let cachedSentenceIDs = await repository.core.storedSentenceSearchCandidateIDsByKey[cacheKey]
+            XCTAssertEqual(cachedSentenceIDs, Set([0, 2]))
+
+            let afterCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(afterCachedDocuments, 0)
+        } catch {
+            XCTFail("Native Plot sentence candidate fast path failed: \(error.localizedDescription)")
+        }
+
+        await repository.stop()
+    }
+
+    @MainActor
+    func testNativeWorkspaceRepositoryRunKWICPhraseExactCachesSentenceCandidates() async throws {
+        let repository = NativeWorkspaceRepository()
+        let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            ".wordz-native-user-data-kwic-sentence-candidates-test",
+            isDirectory: true
+        )
+        let importURL = userDataURL.appendingPathComponent("sample.txt")
+
+        try? FileManager.default.removeItem(at: userDataURL)
+        try FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
+        try "Alpha beta gamma.\nAlpha delta theta.\nAlpha beta again.".write(
+            to: importURL,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        do {
+            try await repository.start(userDataURL: userDataURL)
+            _ = try await repository.importCorpusPaths([importURL.path], folderId: "", preserveHierarchy: false)
+            let library = try await repository.listLibrary(folderId: "all")
+            let corpus = try XCTUnwrap(library.corpora.first)
+            let opened = try await repository.openSavedCorpus(corpusId: corpus.id)
+            let digest = DocumentCacheKey(text: opened.content).textDigest
+            let phraseOptions = SearchOptionsState(matchMode: .phraseExact)
+            let phraseTokens = SearchTextMatcher(query: "alpha beta", options: phraseOptions).phraseTokens
+            let cacheKey = StoredSentenceSearchCacheKey(
+                textDigest: digest,
+                phraseSignature: phraseTokens.joined(separator: "\u{1F}")
+            )
+
+            let beforeCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(beforeCachedDocuments, 0)
+
+            let result = try await repository.runKWIC(
+                text: opened.content,
+                keyword: "alpha beta",
+                leftWindow: 1,
+                rightWindow: 1,
+                searchOptions: phraseOptions
+            )
+
+            XCTAssertEqual(result.rows.count, 2)
+            let cachedSentenceIDs = await repository.core.storedSentenceSearchCandidateIDsByKey[cacheKey]
+            XCTAssertEqual(cachedSentenceIDs, Set([0, 2]))
+
+            let afterCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(afterCachedDocuments, 0)
+        } catch {
+            XCTFail("Native KWIC sentence candidate fast path failed: \(error.localizedDescription)")
+        }
+
+        await repository.stop()
+    }
+
+    @MainActor
+    func testNativeWorkspaceRepositoryRunCollocatePhraseExactUsesStoredSentenceCandidates() async throws {
+        let repository = NativeWorkspaceRepository()
+        let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            ".wordz-native-user-data-collocate-sentence-candidates-test",
+            isDirectory: true
+        )
+        let importURL = userDataURL.appendingPathComponent("sample.txt")
+
+        try? FileManager.default.removeItem(at: userDataURL)
+        try FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
+        try "Alpha beta gamma.\nAlpha delta theta.\nAlpha beta again.".write(
+            to: importURL,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        do {
+            try await repository.start(userDataURL: userDataURL)
+            _ = try await repository.importCorpusPaths([importURL.path], folderId: "", preserveHierarchy: false)
+            let library = try await repository.listLibrary(folderId: "all")
+            let corpus = try XCTUnwrap(library.corpora.first)
+            let opened = try await repository.openSavedCorpus(corpusId: corpus.id)
+            let digest = DocumentCacheKey(text: opened.content).textDigest
+            let phraseOptions = SearchOptionsState(matchMode: .phraseExact)
+            let phraseTokens = SearchTextMatcher(query: "alpha beta", options: phraseOptions).phraseTokens
+            let cacheKey = StoredSentenceSearchCacheKey(
+                textDigest: digest,
+                phraseSignature: phraseTokens.joined(separator: "\u{1F}")
+            )
+
+            let result = try await repository.runCollocate(
+                text: opened.content,
+                keyword: "alpha beta",
+                leftWindow: 1,
+                rightWindow: 1,
+                minFreq: 1,
+                searchOptions: phraseOptions
+            )
+
+            XCTAssertEqual(result.rows.first(where: { $0.word == "gamma" })?.total, 1)
+            XCTAssertEqual(result.rows.first(where: { $0.word == "again" })?.total, 1)
+            XCTAssertNil(result.rows.first(where: { $0.word == "delta" }))
+            let cachedSentenceIDs = await repository.core.storedSentenceSearchCandidateIDsByKey[cacheKey]
+            XCTAssertEqual(cachedSentenceIDs, Set([0, 2]))
+        } catch {
+            XCTFail("Native Collocate sentence candidate fast path failed: \(error.localizedDescription)")
+        }
+
+        await repository.stop()
+    }
+
+    @MainActor
+    func testSourceReaderViewModelUsesStoredTokenizedArtifactForSavedCorpusWithoutReadingSourceFile() async throws {
+        let repository = NativeWorkspaceRepository()
+        let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            ".wordz-native-user-data-source-reader-artifact-test",
+            isDirectory: true
+        )
+        let importURL = userDataURL.appendingPathComponent("reader.txt")
+
+        try? FileManager.default.removeItem(at: userDataURL)
+        try FileManager.default.createDirectory(at: userDataURL, withIntermediateDirectories: true)
+        try "Alpha beta gamma.\nDelta alpha.".write(to: importURL, atomically: true, encoding: .utf8)
+
+        do {
+            try await repository.start(userDataURL: userDataURL)
+            _ = try await repository.importCorpusPaths([importURL.path], folderId: "", preserveHierarchy: false)
+            let library = try await repository.listLibrary(folderId: "all")
+            let corpus = try XCTUnwrap(library.corpora.first)
+            let viewModel = SourceReaderViewModel()
+
+            let beforeCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(beforeCachedDocuments, 0)
+
+            try await viewModel.load(
+                context: SourceReaderLaunchContext(
+                    origin: .kwic,
+                    corpusID: corpus.id,
+                    corpusName: corpus.name,
+                    displayName: corpus.name,
+                    filePath: userDataURL.appendingPathComponent("missing-source.txt").path,
+                    query: "alpha",
+                    leftWindow: 1,
+                    rightWindow: 1,
+                    searchOptionsSummary: "Phrase",
+                    hitAnchors: [
+                        SourceReaderHitAnchor(
+                            id: "1-1",
+                            sentenceId: 1,
+                            tokenIndex: 1,
+                            keyword: "alpha",
+                            leftContext: "Delta",
+                            rightContext: "",
+                            concordanceText: "Delta alpha",
+                            citationText: "\(corpus.name) · Sentence 2",
+                            fullSentenceText: nil
+                        )
+                    ],
+                    selectedHitID: "1-1",
+                    fallbackText: nil
+                ),
+                repository: repository
+            )
+
+            XCTAssertEqual(viewModel.scene?.sentences.count, 2)
+            XCTAssertEqual(viewModel.scene?.selection?.hit.fullSentenceText, "Delta alpha.")
+
+            let afterCachedDocuments = await repository.core.analysisRuntime.cachedDocumentCountForTesting
+            XCTAssertEqual(afterCachedDocuments, 0)
+        } catch {
+            XCTFail("Source Reader stored artifact fast path failed: \(error.localizedDescription)")
         }
 
         await repository.stop()

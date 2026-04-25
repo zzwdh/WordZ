@@ -42,6 +42,7 @@ final class WordPageViewModel: ObservableObject, AnalysisInputStateControlling, 
     var currentPage = 1
     var visibleColumns: Set<WordColumnKey> = WordPageViewModel.defaultVisibleColumns
     var definition = FrequencyMetricDefinition.default
+    var annotationState = WorkspaceAnnotationState.default
     var cachedDisplayableRows: [FrequencyRow]?
     var cachedFilteredRows: [FrequencyRow]?
     var cachedFilteredError = ""
@@ -57,5 +58,11 @@ final class WordPageViewModel: ObservableObject, AnalysisInputStateControlling, 
 
     init(sceneBuilder: WordSceneBuilder = WordSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
+    }
+
+    func applyWorkspaceAnnotationState(_ state: WorkspaceAnnotationState) {
+        guard annotationState != state else { return }
+        annotationState = state
+        rebuildScene()
     }
 }

@@ -27,6 +27,7 @@ extension KWICPageViewModel {
                     query: normalizedKeyword,
                     searchOptions: searchOptions,
                     stopwordFilter: stopwordFilter,
+                    annotationState: annotationState,
                     leftWindow: leftWindowValue,
                     rightWindow: rightWindowValue,
                     sortMode: sortMode,
@@ -47,6 +48,7 @@ extension KWICPageViewModel {
         let keywordSnapshot = normalizedKeyword
         let searchOptionsSnapshot = searchOptions
         let stopwordSnapshot = stopwordFilter
+        let annotationStateSnapshot = annotationState
         let leftWindowSnapshot = leftWindowValue
         let rightWindowSnapshot = rightWindowValue
         let sortSnapshot = sortMode
@@ -55,18 +57,23 @@ extension KWICPageViewModel {
         let visibleColumnsSnapshot = visibleColumns
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "kwic", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
+                try Task.checkCancellation()
                 let filteredRows = sceneBuilder.filterRows(
                     from: resultSnapshot.rows,
                     stopwordFilter: stopwordSnapshot
                 )
+                try Task.checkCancellation()
                 let sortedRows = sceneBuilder.sortRows(filteredRows, mode: sortSnapshot)
+                try Task.checkCancellation()
                 let nextScene = sceneBuilder.build(
                     from: resultSnapshot,
                     query: keywordSnapshot,
                     searchOptions: searchOptionsSnapshot,
                     stopwordFilter: stopwordSnapshot,
+                    annotationState: annotationStateSnapshot,
                     leftWindow: leftWindowSnapshot,
                     rightWindow: rightWindowSnapshot,
                     sortMode: sortSnapshot,

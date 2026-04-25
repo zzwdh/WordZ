@@ -8,8 +8,7 @@ extension StatsPageViewModel {
             onSceneChange?()
             return
         }
-        sceneBuildRevision += 1
-        let revision = sceneBuildRevision
+        let revision = beginSceneBuildPass()
         let resultGenerationSnapshot = resultGeneration
         let resultSnapshot = result
         let definitionSnapshot = definition
@@ -43,13 +42,16 @@ extension StatsPageViewModel {
         }
 
         AnalysisSceneBuildScheduling.schedule(
+            owner: self,
             context: .init(page: "stats", rowCount: rowCount, revision: revision, isAsync: true),
             build: { [sceneBuilder] in
+                try Task.checkCancellation()
                 let sortedRows = sceneBuilder.sortedRows(
                     from: resultSnapshot.frequencyRows,
                     mode: sortSnapshot,
                     definition: definitionSnapshot
                 )
+                try Task.checkCancellation()
                 let nextScene = sceneBuilder.build(
                     from: resultSnapshot,
                     definition: definitionSnapshot,
@@ -64,7 +66,7 @@ extension StatsPageViewModel {
             },
             apply: { payload in
                 let (sortedRows, nextScene) = payload
-                guard revision == self.sceneBuildRevision else { return false }
+                guard self.isCurrentSceneBuild(revision) else { return false }
                 self.cachedSortedRows = sortedRows
                 self.cachedSortMode = sortSnapshot
                 self.cachedDefinition = definitionSnapshot

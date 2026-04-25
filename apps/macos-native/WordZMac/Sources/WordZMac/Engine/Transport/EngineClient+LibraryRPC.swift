@@ -1,4 +1,5 @@
 import Foundation
+import WordZEngine
 
 extension EngineClient {
     func fetchAppInfo() async throws -> AppInfoSummary {
@@ -7,9 +8,19 @@ extension EngineClient {
     }
 
     func listLibrary(folderId: String = "all") async throws -> LibrarySnapshot {
+        try await listLibrary(folderId: folderId, metadataFilterState: .empty)
+    }
+
+    func listLibrary(
+        folderId: String = "all",
+        metadataFilterState: CorpusMetadataFilterState
+    ) async throws -> LibrarySnapshot {
         let result = try await invokeResult(
             method: EngineContracts.Method.libraryList,
-            params: ["folderId": folderId]
+            params: [
+                "folderId": folderId,
+                "metadataFilter": metadataFilterState.jsonObject
+            ]
         )
         return LibrarySnapshot(json: result)
     }

@@ -21,3 +21,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 build/release-notes.generated.md
+.wordz-native-user-data-corpus-info-test/
+apps/macos-native/WordZMac/.codex/
+**/__pycache__/
+*.pyc

@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class NgramPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling {
+final class NgramPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisSceneBuildRevisionControlling {
     static let defaultVisibleColumns: Set<NgramColumnKey> = [.phrase, .count]
     var isApplyingState = false
     var isApplyingInputState: Bool { isApplyingState }

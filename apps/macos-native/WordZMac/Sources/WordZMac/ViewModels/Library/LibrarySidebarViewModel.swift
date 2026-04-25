@@ -18,6 +18,7 @@ final class LibrarySidebarViewModel: ObservableObject {
         didSet {
             guard oldValue != selectedCorpusID else { return }
             syncScene()
+            onSelectionStateChange?()
             if !isApplyingMetadataFilterSelection && suppressedSelectionChangeDepth == 0 {
                 onSelectionChange?()
             }
@@ -47,6 +48,7 @@ final class LibrarySidebarViewModel: ObservableObject {
     @Published private(set) var recentCorpusSetIDs: [String] = []
 
     var onSelectionChange: (() -> Void)?
+    var onSelectionStateChange: (() -> Void)?
     var onMetadataFilterChange: ((Bool) -> Void)?
 
     var context = WorkspaceSceneContext.empty

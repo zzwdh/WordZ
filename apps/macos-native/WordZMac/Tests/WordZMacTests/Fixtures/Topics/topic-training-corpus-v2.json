@@ -1,0 +1,259 @@
+{
+  "documents": [
+    {
+      "id": "security-disclosure-1",
+      "label": "security-disclosure",
+      "text": "Security analysts coordinated browser patch validation, disclosure timelines, and vendor advisories after reviewing exploit telemetry."
+    },
+    {
+      "id": "security-disclosure-2",
+      "label": "security-disclosure",
+      "text": "Researchers compared exploit chains, remediation notes, and disclosure checklists to prioritize gateway patch coverage."
+    },
+    {
+      "id": "security-disclosure-3",
+      "label": "security-disclosure",
+      "text": "Incident teams summarized vulnerability windows, release notes, and coordinated disclosure guidance for enterprise admins."
+    },
+    {
+      "id": "security-disclosure-4",
+      "label": "security-disclosure",
+      "text": "Defenders tracked advisory drafts, mitigation steps, and browser update sequencing during the disclosure review."
+    },
+    {
+      "id": "security-phishing-1",
+      "label": "security-phishing",
+      "text": "Threat hunters cataloged credential phishing templates, cloned gateway login pages, and lure domains reused across campaigns."
+    },
+    {
+      "id": "security-phishing-2",
+      "label": "security-phishing",
+      "text": "Researchers monitored phishing kits, single sign on lures, and harvested credentials targeting remote workers."
+    },
+    {
+      "id": "security-phishing-3",
+      "label": "security-phishing",
+      "text": "Operators rotated phishing infrastructure, refreshed fake portal branding, and updated credential theft messages overnight."
+    },
+    {
+      "id": "security-phishing-4",
+      "label": "security-phishing",
+      "text": "Security responders mapped lure delivery patterns, credential collection pages, and repeated phishing campaign operators."
+    },
+    {
+      "id": "security-malware-1",
+      "label": "security-malware",
+      "text": "Incident responders traced malware loaders, rotating command servers, and forensic artifacts from the first compromised endpoint."
+    },
+    {
+      "id": "security-malware-2",
+      "label": "security-malware",
+      "text": "Reverse engineers linked malware samples, loader behavior, and beacon traffic to the same intrusion cluster."
+    },
+    {
+      "id": "security-malware-3",
+      "label": "security-malware",
+      "text": "Defenders compared endpoint evidence, persistence tricks, and command infrastructure while reconstructing the intrusion path."
+    },
+    {
+      "id": "security-malware-4",
+      "label": "security-malware",
+      "text": "Analysts correlated sandbox artifacts, malware telemetry, and command beacons to isolate the operator toolchain."
+    },
+    {
+      "id": "climate-emissions-1",
+      "label": "climate-emissions",
+      "text": "Climate researchers measured carbon emissions, methane leakage, and industrial decarbonization targets across utility regions."
+    },
+    {
+      "id": "climate-emissions-2",
+      "label": "climate-emissions",
+      "text": "Policy teams reviewed emissions budgets, renewable buildout plans, and carbon market rules in coastal states."
+    },
+    {
+      "id": "climate-emissions-3",
+      "label": "climate-emissions",
+      "text": "Environmental agencies tracked renewable adoption, carbon intensity, and grid transition milestones for annual reporting."
+    },
+    {
+      "id": "climate-emissions-4",
+      "label": "climate-emissions",
+      "text": "Analysts compared methane reduction projects, clean energy investment, and decarbonization schedules across ports."
+    },
+    {
+      "id": "climate-weather-1",
+      "label": "climate-weather",
+      "text": "Meteorologists studied atmospheric circulation, glacier retreat, and regional temperature anomalies during the summer survey."
+    },
+    {
+      "id": "climate-weather-2",
+      "label": "climate-weather",
+      "text": "Researchers modeled ocean warming, drought pressure, and rainfall deficits to forecast seasonal climate stress."
+    },
+    {
+      "id": "climate-weather-3",
+      "label": "climate-weather",
+      "text": "Scientists compared wildfire smoke exposure, heat waves, and precipitation swings across mountain communities."
+    },
+    {
+      "id": "climate-weather-4",
+      "label": "climate-weather",
+      "text": "Field teams tracked flood risk, snowpack decline, and coastal warming while updating regional climate baselines."
+    },
+    {
+      "id": "climate-adaptation-1",
+      "label": "climate-adaptation",
+      "text": "Regional planners reviewed flood barriers, drought adaptation budgets, and agricultural resilience programs after the dry season."
+    },
+    {
+      "id": "climate-adaptation-2",
+      "label": "climate-adaptation",
+      "text": "Public agencies mapped cooling shelters, wildfire evacuation plans, and climate resilience grants for vulnerable districts."
+    },
+    {
+      "id": "climate-adaptation-3",
+      "label": "climate-adaptation",
+      "text": "Infrastructure teams prioritized seawall maintenance, drainage upgrades, and heat response planning in coastal towns."
+    },
+    {
+      "id": "climate-adaptation-4",
+      "label": "climate-adaptation",
+      "text": "Water managers coordinated drought restrictions, reservoir planning, and conservation guidance during the climate response briefing."
+    },
+    {
+      "id": "finance-equity-1",
+      "label": "finance-equity",
+      "text": "Equity analysts reviewed earnings guidance, margin expansion, and valuation multiples after the quarterly release."
+    },
+    {
+      "id": "finance-equity-2",
+      "label": "finance-equity",
+      "text": "Portfolio managers compared revenue durability, dividend outlooks, and sector rotation across large cap holdings."
+    },
+    {
+      "id": "finance-equity-3",
+      "label": "finance-equity",
+      "text": "Investors modeled cash flow, valuation sensitivity, and capital allocation scenarios for software shares."
+    },
+    {
+      "id": "finance-equity-4",
+      "label": "finance-equity",
+      "text": "Research desks tracked earnings revisions, price targets, and margin forecasts before the market open."
+    },
+    {
+      "id": "finance-macro-1",
+      "label": "finance-macro",
+      "text": "Macro strategists monitored inflation expectations, bond volatility, and central bank commentary after the policy meeting."
+    },
+    {
+      "id": "finance-macro-2",
+      "label": "finance-macro",
+      "text": "Analysts rebalanced treasury exposure, rate sensitivity, and duration hedges as inflation data surprised investors."
+    },
+    {
+      "id": "finance-macro-3",
+      "label": "finance-macro",
+      "text": "Trading teams reviewed yield curves, recession signals, and liquidity conditions while repricing macro risk."
+    },
+    {
+      "id": "finance-macro-4",
+      "label": "finance-macro",
+      "text": "Portfolio committees debated policy rates, funding costs, and inflation persistence in the asset allocation review."
+    },
+    {
+      "id": "finance-credit-1",
+      "label": "finance-credit",
+      "text": "Credit researchers tracked default risk, bank funding costs, and liquidity buffers as lending conditions tightened."
+    },
+    {
+      "id": "finance-credit-2",
+      "label": "finance-credit",
+      "text": "Analysts compared bond spreads, refinancing pressure, and covenant quality across leveraged issuers."
+    },
+    {
+      "id": "finance-credit-3",
+      "label": "finance-credit",
+      "text": "Bank strategists reviewed credit losses, capital ratios, and loan demand while stress testing portfolios."
+    },
+    {
+      "id": "finance-credit-4",
+      "label": "finance-credit",
+      "text": "Fixed income teams studied downgrade risk, liquidity strains, and funding markets after the banking selloff."
+    },
+    {
+      "id": "security-general-1",
+      "label": "security-general",
+      "text": "Security leaders reviewed phishing campaigns, malware telemetry, and disclosure timelines while coordinating incident response priorities."
+    },
+    {
+      "id": "security-general-2",
+      "label": "security-general",
+      "text": "Researchers connected exploit advisories, phishing infrastructure, and malware artifacts to map the broader security threat landscape."
+    },
+    {
+      "id": "security-general-3",
+      "label": "security-general",
+      "text": "Defenders compared intrusion reports, credential theft activity, patch readiness, and command servers across security investigations."
+    },
+    {
+      "id": "climate-general-1",
+      "label": "climate-general",
+      "text": "Climate teams combined emissions tracking, drought forecasts, and warming oceans to explain regional environmental pressure."
+    },
+    {
+      "id": "climate-general-2",
+      "label": "climate-general",
+      "text": "Researchers summarized renewable transition plans, rainfall anomalies, and flood adaptation priorities in the climate briefing."
+    },
+    {
+      "id": "climate-general-3",
+      "label": "climate-general",
+      "text": "Public agencies linked carbon reduction goals, wildfire exposure, and resilience spending across climate programs."
+    },
+    {
+      "id": "finance-general-1",
+      "label": "finance-general",
+      "text": "Finance teams reviewed earnings quality, inflation pressure, and credit conditions before updating portfolio strategy."
+    },
+    {
+      "id": "finance-general-2",
+      "label": "finance-general",
+      "text": "Analysts connected valuation changes, bond market moves, and bank funding stress in the weekly finance outlook."
+    },
+    {
+      "id": "finance-general-3",
+      "label": "finance-general",
+      "text": "Portfolio committees compared dividend prospects, interest rates, and default risk while repricing finance sector exposure."
+    },
+    {
+      "id": "software-workspace-1",
+      "label": "software-workspace",
+      "text": "Swift developers organized package targets, workspace analysis modules, and macOS release tasks for the native app."
+    },
+    {
+      "id": "software-workspace-2",
+      "label": "software-workspace",
+      "text": "Engine maintainers documented corpus metadata flows, analysis pipelines, and export reports for the research workspace."
+    },
+    {
+      "id": "software-workspace-3",
+      "label": "software-workspace",
+      "text": "Build engineers reviewed package manifests, notarization steps, and packaging scripts before publishing the desktop binary."
+    },
+    {
+      "id": "software-workspace-4",
+      "label": "software-workspace",
+      "text": "Workspace authors tuned embedding models, topic summaries, and metadata tables for the reading workflow."
+    },
+    {
+      "id": "software-workspace-5",
+      "label": "software-workspace",
+      "text": "Native app maintainers audited command routing, window scenes, and telemetry hooks for the desktop shell."
+    },
+    {
+      "id": "software-workspace-6",
+      "label": "software-workspace",
+      "text": "Researchers exported corpus reports, keyword tables, and topic summaries to compare document collections in the project workspace."
+    }
+  ]
+}

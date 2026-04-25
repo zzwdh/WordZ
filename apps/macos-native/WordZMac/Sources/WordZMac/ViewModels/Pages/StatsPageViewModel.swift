@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class StatsPageViewModel: ObservableObject, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling {
+final class StatsPageViewModel: ObservableObject, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisSceneBuildRevisionControlling {
     static let defaultVisibleColumns: Set<StatsColumnKey> = [.word, .count, .normFrequency, .range]
 
     @Published var scene: StatsSceneModel?

@@ -6,6 +6,7 @@ struct ClusterSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         selectedN: Int,
         minimumFrequency: Int,
         sortMode: ClusterSortMode,
@@ -30,6 +31,7 @@ struct ClusterSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationState: annotationState,
             selectedN: selectedN,
             minimumFrequency: minimumFrequency,
             sortMode: sortMode,
@@ -51,6 +53,7 @@ struct ClusterSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         selectedN: Int,
         minimumFrequency: Int,
         sortMode: ClusterSortMode,
@@ -110,13 +113,15 @@ struct ClusterSceneBuilder {
             "\(wordZText("排序", "Sort", mode: languageMode)): \(sortMode.title(in: languageMode))",
             "\(wordZText("区分大小写", "Case Sensitive", mode: languageMode)): \(caseSensitive ? wordZText("是", "Yes", mode: languageMode) : wordZText("否", "No", mode: languageMode))",
             "\(wordZText("标点处理", "Punctuation", mode: languageMode)): \(punctuationMode.title(in: languageMode))",
-            "\(wordZText("停用词", "Stopwords", mode: languageMode)): \(stopwordFilter.summaryText(in: languageMode))"
+            "\(wordZText("停用词", "Stopwords", mode: languageMode)): \(stopwordFilter.summaryText(in: languageMode))",
+            annotationState.summary(in: languageMode)
         ]
 
         return ClusterSceneModel(
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationSummary: annotationState.summary(in: languageMode),
             mode: result.mode,
             selectedN: selectedN,
             minimumFrequency: minimumFrequency,

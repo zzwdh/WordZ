@@ -4,6 +4,8 @@ enum SourceReaderOriginFeature: String, Equatable, Sendable {
     case kwic
     case locator
     case plot
+    case sentiment
+    case topics
 
     func title(in mode: AppLanguageMode) -> String {
         switch self {
@@ -13,6 +15,10 @@ enum SourceReaderOriginFeature: String, Equatable, Sendable {
             return wordZText("定位器", "Locator", mode: mode)
         case .plot:
             return "Plot"
+        case .sentiment:
+            return wordZText("情感", "Sentiment", mode: mode)
+        case .topics:
+            return wordZText("主题", "Topics", mode: mode)
         }
     }
 }
@@ -54,6 +60,12 @@ struct SourceReaderHitSceneItem: Identifiable, Equatable {
     let fullSentenceText: String
 }
 
+struct SourceReaderAnnotationSceneItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let value: String
+}
+
 struct SourceReaderSentenceSceneItem: Identifiable, Equatable {
     let id: String
     let sentenceId: Int
@@ -68,6 +80,7 @@ struct SourceReaderSelection: Equatable {
     let leftContext: String
     let keyword: String
     let rightContext: String
+    let annotationItems: [SourceReaderAnnotationSceneItem]
 }
 
 struct SourceReaderSceneModel: Equatable {
@@ -75,6 +88,7 @@ struct SourceReaderSceneModel: Equatable {
     let subtitle: String
     let filePath: String
     let originSummary: String
+    let annotationSummary: String
     let hitCountSummary: String
     let hitItems: [SourceReaderHitSceneItem]
     let selectedHitID: String?

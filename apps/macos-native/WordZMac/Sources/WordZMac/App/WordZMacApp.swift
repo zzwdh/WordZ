@@ -32,11 +32,10 @@ package enum WordZCoreAppScenes {
         }
         .nativeWindowScenePresentation(.library)
 
-        Window("Evidence Workbench", id: NativeWindowRoute.evidenceWorkbench.id) {
-            EvidenceWorkbenchWindowView(workspace: workspace)
-                .wordZLocalizedEnvironment(localization)
-        }
-        .nativeWindowScenePresentation(.evidenceWorkbench)
+        evidenceWorkbenchWindow(
+            workspace: workspace,
+            localization: localization
+        )
 
         Window("Source Reader", id: NativeWindowRoute.sourceReader.id) {
             SourceReaderWindowView(workspace: workspace)

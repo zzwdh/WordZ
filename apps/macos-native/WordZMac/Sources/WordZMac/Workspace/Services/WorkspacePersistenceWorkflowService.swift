@@ -10,6 +10,7 @@ final class WorkspacePersistenceWorkflowService {
     let sessionStore: WorkspaceSessionStore
     let hostPreferencesStore: any NativeHostPreferencesStoring
     let hostActionService: any NativeHostActionServicing
+    let persistenceActor: WorkspacePersistenceActor
 
     init(
         repository: any WorkspaceRepository,
@@ -29,10 +30,16 @@ final class WorkspacePersistenceWorkflowService {
         self.sessionStore = sessionStore
         self.hostPreferencesStore = hostPreferencesStore
         self.hostActionService = hostActionService
+        self.persistenceActor = WorkspacePersistenceActor(
+            saveOperation: { draft in
+                try await repository.saveWorkspaceState(draft)
+            }
+        )
     }
 
     func persistWorkspaceState(
         features: WorkspaceFeatureSet,
+        strategy: WorkspacePersistenceStrategy = .immediate,
         refreshPresentationAfterSave: Bool = true,
         syncWindowAfterSave: Bool = true,
         syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
@@ -41,10 +48,11 @@ final class WorkspacePersistenceWorkflowService {
         let draft = currentWorkspaceDraft(features: features)
 
         Task {
-            do {
-                try await repository.saveWorkspaceState(draft)
-                await MainActor.run {
-                    self.sessionStore.applySavedDraft(draft)
+            await self.persistenceActor.schedule(
+                draft: draft,
+                strategy: strategy,
+                onPersisted: { savedDraft in
+                    self.sessionStore.applySavedDraft(savedDraft)
                     if refreshPresentationAfterSave {
                         self.applyWorkspacePresentation(
                             features: features,
@@ -54,17 +62,21 @@ final class WorkspacePersistenceWorkflowService {
                     if syncWindowAfterSave {
                         self.syncWindowDocumentState(features: features)
                     }
-                }
-            } catch {
-                await MainActor.run {
+                },
+                onError: { error in
                     features.sidebar.setError(error.localizedDescription)
                 }
-            }
+            )
         }
     }
 
     func currentWorkspaceDraft(features: WorkspaceFeatureSet) -> WorkspaceStateDraft {
         let searchState = makeSearchPersistenceState(features: features)
+        let annotationState = WorkspaceAnnotationState(
+            profile: features.tokenize.annotationProfile,
+            lexicalClasses: Array(features.keyword.selectedLexicalClasses).sorted { $0.rawValue < $1.rawValue },
+            scripts: Array(features.keyword.selectedScripts).sorted { $0.rawValue < $1.rawValue }
+        )
         return workspacePersistence.buildDraft(
             selectedTab: features.shell.selectedTab,
             selectedFolderID: features.library.selectedFolderID ?? "all",
@@ -74,6 +86,9 @@ final class WorkspacePersistenceWorkflowService {
             searchQuery: searchState.query,
             searchOptions: searchState.options,
             stopwordFilter: searchState.stopwordFilter,
+            annotationProfile: annotationState.profile,
+            annotationLexicalClasses: annotationState.lexicalClasses,
+            annotationScripts: annotationState.scripts,
             tokenizeLanguagePreset: features.tokenize.languagePreset,
             tokenizeLemmaStrategy: features.tokenize.lemmaStrategy,
             compareReferenceCorpusID: features.compare.selectedReferenceCorpusIDSnapshot,
@@ -82,6 +97,9 @@ final class WorkspacePersistenceWorkflowService {
             sentimentUnit: features.sentiment.unit,
             sentimentContextBasis: features.sentiment.contextBasis,
             sentimentBackend: features.sentiment.backend,
+            sentimentDomainPackID: features.sentiment.selectedDomainPackID,
+            sentimentRuleProfileID: features.sentiment.selectedRuleProfileID,
+            sentimentCalibrationProfileID: features.sentiment.selectedCalibrationProfileID,
             sentimentChartKind: features.sentiment.chartKind,
             sentimentThresholdPreset: features.sentiment.thresholdPreset,
             sentimentDecisionThreshold: features.sentiment.decisionThreshold,
@@ -89,6 +107,11 @@ final class WorkspacePersistenceWorkflowService {
             sentimentNeutralBias: features.sentiment.neutralBias,
             sentimentRowFilterQuery: features.sentiment.rowFilterQuery,
             sentimentLabelFilter: features.sentiment.labelFilter,
+            sentimentReviewFilter: features.sentiment.reviewFilter,
+            sentimentReviewStatusFilter: features.sentiment.reviewStatusFilter,
+            sentimentShowOnlyHardCases: features.sentiment.showOnlyHardCases,
+            sentimentWorkspaceCalibrationProfile: features.sentiment.workspaceCalibrationProfile,
+            sentimentImportedLexiconBundles: features.sentiment.importedLexiconBundles,
             sentimentSelectedCorpusIDs: Array(features.sentiment.selectedCorpusIDs).sorted(),
             sentimentReferenceCorpusID: features.sentiment.selectedReferenceCorpusID,
             keywordActiveTab: features.keyword.activeTab,

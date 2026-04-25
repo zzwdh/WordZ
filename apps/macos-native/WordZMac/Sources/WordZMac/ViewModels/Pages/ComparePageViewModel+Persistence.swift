@@ -6,6 +6,7 @@ extension ComparePageViewModel {
             self.rebuildReferenceOptions()
             self.rebuildScene()
         }) {
+            clearSentimentCrossAnalysis()
             query = snapshot.searchQuery
             searchOptions = snapshot.searchOptions
             stopwordFilter = snapshot.stopwordFilter
@@ -60,6 +61,7 @@ extension ComparePageViewModel {
         if previousSelection != selectedCorpusIDs {
             result = nil
             currentPage = 1
+            clearSentimentCrossAnalysis()
             invalidateCaches()
         }
         rebuildScene()
@@ -67,6 +69,7 @@ extension ComparePageViewModel {
 
     func apply(_ result: CompareResult) {
         applyStateChange(rebuildScene: rebuildScene) {
+            clearSentimentCrossAnalysis()
             self.result = result
             currentPage = 1
             invalidateCaches()
@@ -75,6 +78,7 @@ extension ComparePageViewModel {
 
     func reset() {
         resetState(cancelPendingSceneBuilds: invalidatePendingSceneBuilds) {
+            clearSentimentCrossAnalysis()
             self.query = ""
             self.searchOptions = .default
             self.stopwordFilter = .default

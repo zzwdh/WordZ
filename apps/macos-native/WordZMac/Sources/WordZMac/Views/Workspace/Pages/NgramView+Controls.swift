@@ -35,8 +35,12 @@ extension NgramView {
     }
 
     var searchField: some View {
-        TextField(t("搜索词（留空显示全部）", "Search term (leave blank for all)"), text: $viewModel.query)
-            .textFieldStyle(.roundedBorder)
+        LexicalAutocompleteTextField(
+            title: t("搜索词（留空显示全部）", "Search term (leave blank for all)"),
+            text: $viewModel.query,
+            searchOptions: viewModel.searchOptions,
+            controller: lexicalAutocompleteController
+        )
     }
 
     var ngramSizeField: some View {

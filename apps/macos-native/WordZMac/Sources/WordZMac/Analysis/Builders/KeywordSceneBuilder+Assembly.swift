@@ -96,6 +96,9 @@ extension KeywordSceneBuilder {
         activeTab: KeywordSuiteTab,
         listMode: KeywordSavedListViewMode,
         configuration: KeywordSuiteConfiguration,
+        annotationState: WorkspaceAnnotationState,
+        focusSummary: String,
+        referenceSummary: String,
         primarySavedList: KeywordSavedList?,
         secondarySavedList: KeywordSavedList?,
         hasPendingRunChanges: Bool,
@@ -146,10 +149,16 @@ extension KeywordSceneBuilder {
             }
         }
 
+        let scopeSummary = [
+            "\(wordZText("Focus", "Focus", mode: languageMode)): \(focusSummary)",
+            "\(wordZText("Reference", "Reference", mode: languageMode)): \(referenceSummary)",
+            annotationState.summary(in: languageMode)
+        ].joined(separator: " ")
+
         guard hasPendingRunChanges, activeTab != .lists else {
-            return baseSummary
+            return baseSummary + " " + scopeSummary
         }
-        return baseSummary + " " + wordZText(
+        return baseSummary + " " + scopeSummary + " " + wordZText(
             "输入参数已修改，当前表格仍基于上次运行结果。",
             "Inputs changed, but the current table still reflects the last completed run.",
             mode: languageMode

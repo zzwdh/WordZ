@@ -1,0 +1,434 @@
+[
+  {
+    "id": "news-train-pos-1",
+    "split": "train",
+    "domain": "news",
+    "label": "positive",
+    "text": "Editors hailed the transit plan as a breakthrough for commuters.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-train-pos-2",
+    "split": "train",
+    "domain": "news",
+    "label": "positive",
+    "text": "Regulators approved the safe design and residents welcomed the relief.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-train-pos-3",
+    "split": "train",
+    "domain": "news",
+    "label": "positive",
+    "text": "The cleanup effort won praise after crews restored stable power overnight.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-train-pos-4",
+    "split": "train",
+    "domain": "news",
+    "label": "positive",
+    "text": "The board applauded the rescue package because it was effective for small lenders.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-train-pos-5",
+    "split": "train",
+    "domain": "news",
+    "label": "positive",
+    "text": "Voters backed the agreement and merchants praised the safe loading rules.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-train-pos-6",
+    "split": "train",
+    "domain": "news",
+    "label": "positive",
+    "text": "The weekend accord reassured shop owners and brought relief to downtown blocks.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-train-neu-1",
+    "split": "train",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The agency issued the notice before noon after the hearing.",
+    "tags": ["procedural"]
+  },
+  {
+    "id": "news-train-neu-2",
+    "split": "train",
+    "domain": "news",
+    "label": "neutral",
+    "text": "According to court records, the filing was delivered to both parties on Tuesday.",
+    "tags": ["procedural"]
+  },
+  {
+    "id": "news-train-neu-3",
+    "split": "train",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The court filing used the word \"supported\" in one footnote.",
+    "tags": ["quoted"]
+  },
+  {
+    "id": "news-train-neu-4",
+    "split": "train",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The draft memo included the phrase \"costly\" in a sidebar.",
+    "tags": ["quoted"]
+  },
+  {
+    "id": "news-train-neu-5",
+    "split": "train",
+    "domain": "news",
+    "label": "neutral",
+    "text": "Officials described the proposal as supported by several trade groups.",
+    "tags": ["reported"]
+  },
+  {
+    "id": "news-train-neu-6",
+    "split": "train",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The minister stated that the repairs were costly to maintain.",
+    "tags": ["reported"]
+  },
+  {
+    "id": "news-train-neg-1",
+    "split": "train",
+    "domain": "news",
+    "label": "negative",
+    "text": "The ethics scandal deepened as lawmakers condemned the flawed procurement process.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-train-neg-2",
+    "split": "train",
+    "domain": "news",
+    "label": "negative",
+    "text": "A major shortfall and mounting backlash left the budget plan under fire.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-train-neg-3",
+    "split": "train",
+    "domain": "news",
+    "label": "negative",
+    "text": "Residents faced chaotic service cuts after the vulnerable grid failed again.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-train-neg-4",
+    "split": "train",
+    "domain": "news",
+    "label": "negative",
+    "text": "The disputed land sale triggered outrage and renewed scrutiny across the district.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-train-neg-5",
+    "split": "train",
+    "domain": "news",
+    "label": "negative",
+    "text": "The crisis worsened overnight, exposing a serious risk to clinic staffing.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-train-neg-6",
+    "split": "train",
+    "domain": "news",
+    "label": "negative",
+    "text": "The damaging memo fueled turmoil and left the minister under fire.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-validation-pos-1",
+    "split": "validation",
+    "domain": "news",
+    "label": "positive",
+    "text": "The rescue vote brought relief after regulators approved a stable funding bridge.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-validation-pos-2",
+    "split": "validation",
+    "domain": "news",
+    "label": "positive",
+    "text": "The health team earned praise when the new clinic plan became effective statewide.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-validation-pos-3",
+    "split": "validation",
+    "domain": "news",
+    "label": "positive",
+    "text": "The approved rail schedule reassured parents and welcomed a calmer commute.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-validation-pos-4",
+    "split": "validation",
+    "domain": "news",
+    "label": "positive",
+    "text": "The harbor agreement was a successful deal that brought relief to exporters.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-validation-pos-5",
+    "split": "validation",
+    "domain": "news",
+    "label": "positive",
+    "text": "The mayor celebrated the safe river upgrade and residents praised the faster response.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-validation-pos-6",
+    "split": "validation",
+    "domain": "news",
+    "label": "positive",
+    "text": "The final budget backed local clinics and reassured staff with stable funding.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-validation-neu-1",
+    "split": "validation",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The agency released the statement before noon and scheduled a second briefing.",
+    "tags": ["procedural"]
+  },
+  {
+    "id": "news-validation-neu-2",
+    "split": "validation",
+    "domain": "news",
+    "label": "neutral",
+    "text": "In a court filing, the company listed the sites affected by the order.",
+    "tags": ["procedural"]
+  },
+  {
+    "id": "news-validation-neu-3",
+    "split": "validation",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The report used the word \"supported\" beside the vote totals.",
+    "tags": ["quoted"]
+  },
+  {
+    "id": "news-validation-neu-4",
+    "split": "validation",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The appendix repeated the term \"stable\" in a summary box.",
+    "tags": ["quoted"]
+  },
+  {
+    "id": "news-validation-neu-5",
+    "split": "validation",
+    "domain": "news",
+    "label": "neutral",
+    "text": "Officials said the plan was supported by neighborhood leaders.",
+    "tags": ["reported"]
+  },
+  {
+    "id": "news-validation-neu-6",
+    "split": "validation",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The governor described the repairs as costly after the storm briefing.",
+    "tags": ["reported"]
+  },
+  {
+    "id": "news-validation-neg-1",
+    "split": "validation",
+    "domain": "news",
+    "label": "negative",
+    "text": "The audit exposed a flawed contract and sparked backlash at city hall.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-validation-neg-2",
+    "split": "validation",
+    "domain": "news",
+    "label": "negative",
+    "text": "The shortfall left the transit agency vulnerable and under fire from unions.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-validation-neg-3",
+    "split": "validation",
+    "domain": "news",
+    "label": "negative",
+    "text": "A worsening scandal pushed the governor into a damaging week of scrutiny.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-validation-neg-4",
+    "split": "validation",
+    "domain": "news",
+    "label": "negative",
+    "text": "Residents condemned the chaotic rollout as a serious risk to local clinics.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-validation-neg-5",
+    "split": "validation",
+    "domain": "news",
+    "label": "negative",
+    "text": "The disputed recall effort fueled outrage and turmoil across the district.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-validation-neg-6",
+    "split": "validation",
+    "domain": "news",
+    "label": "negative",
+    "text": "The crisis deepened after a setback left the school budget under fire.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-test-pos-1",
+    "split": "test",
+    "domain": "news",
+    "label": "positive",
+    "text": "The approved housing package brought relief and reassured first-time buyers.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-test-pos-2",
+    "split": "test",
+    "domain": "news",
+    "label": "positive",
+    "text": "Editors welcomed the safe bus plan as a breakthrough for families.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-test-pos-3",
+    "split": "test",
+    "domain": "news",
+    "label": "positive",
+    "text": "The board backed the stable refinancing deal and praised the lower fees.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-test-pos-4",
+    "split": "test",
+    "domain": "news",
+    "label": "positive",
+    "text": "A successful harbor accord brought relief to exporters across the region.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-test-pos-5",
+    "split": "test",
+    "domain": "news",
+    "label": "positive",
+    "text": "The cleanup milestone restored safe drinking water and reassured nearby towns.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-test-pos-6",
+    "split": "test",
+    "domain": "news",
+    "label": "positive",
+    "text": "The final transit budget earned praise and backed more stable late-night service.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-test-neu-1",
+    "split": "test",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The agency issued the order before noon and posted the notice online.",
+    "tags": ["procedural"]
+  },
+  {
+    "id": "news-test-neu-2",
+    "split": "test",
+    "domain": "news",
+    "label": "neutral",
+    "text": "According to court records, the filing was returned to the clerk on Monday.",
+    "tags": ["procedural"]
+  },
+  {
+    "id": "news-test-neu-3",
+    "split": "test",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The poster used the word \"supported\" above the timetable.",
+    "tags": ["quoted"]
+  },
+  {
+    "id": "news-test-neu-4",
+    "split": "test",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The draft release repeated the term \"stable\" in a pull quote.",
+    "tags": ["quoted"]
+  },
+  {
+    "id": "news-test-neu-5",
+    "split": "test",
+    "domain": "news",
+    "label": "neutral",
+    "text": "Officials described the repairs as costly during the afternoon briefing.",
+    "tags": ["reported"]
+  },
+  {
+    "id": "news-test-neu-6",
+    "split": "test",
+    "domain": "news",
+    "label": "neutral",
+    "text": "The spokesperson stated that the route was supported by local carriers.",
+    "tags": ["reported"]
+  },
+  {
+    "id": "news-test-neg-1",
+    "split": "test",
+    "domain": "news",
+    "label": "negative",
+    "text": "The flawed bridge plan drew backlash and left the agency under fire.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-test-neg-2",
+    "split": "test",
+    "domain": "news",
+    "label": "negative",
+    "text": "A damaging shortfall pushed the hospital network into crisis.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-test-neg-3",
+    "split": "test",
+    "domain": "news",
+    "label": "negative",
+    "text": "Residents faced chaotic service after the disputed rollout triggered outrage.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-test-neg-4",
+    "split": "test",
+    "domain": "news",
+    "label": "negative",
+    "text": "The vulnerable grid created a major risk during the heat wave.",
+    "tags": ["stance"]
+  },
+  {
+    "id": "news-test-neg-5",
+    "split": "test",
+    "domain": "news",
+    "label": "negative",
+    "text": "The scandal deepened as lawmakers condemned the fraught land deal.",
+    "tags": ["commentary"]
+  },
+  {
+    "id": "news-test-neg-6",
+    "split": "test",
+    "domain": "news",
+    "label": "negative",
+    "text": "The setback renewed scrutiny and turmoil across the governor's office.",
+    "tags": ["stance"]
+  }
+]

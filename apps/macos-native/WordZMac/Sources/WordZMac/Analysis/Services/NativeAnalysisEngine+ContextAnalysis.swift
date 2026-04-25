@@ -71,20 +71,20 @@ extension NativeAnalysisEngine {
         var keywordFreq = 0
 
         for sentence in document.sentences {
-            for token in sentence.tokens where matcher.matches(token.original) {
+            for match in kwicMatches(in: sentence, matcher: matcher) {
                 keywordFreq += 1
 
-                let leftStart = max(0, token.tokenIndex - safeLeft)
-                if leftStart < token.tokenIndex {
-                    for neighbor in sentence.tokens[leftStart..<token.tokenIndex] {
+                let leftStart = max(0, match.startIndex - safeLeft)
+                if leftStart < match.startIndex {
+                    for neighbor in sentence.tokens[leftStart..<match.startIndex] {
                         totalByWord[neighbor.normalized, default: 0] += 1
                         leftByWord[neighbor.normalized, default: 0] += 1
                     }
                 }
 
-                let rightEnd = min(sentence.tokens.count, token.tokenIndex + safeRight + 1)
-                if token.tokenIndex + 1 < rightEnd {
-                    for neighbor in sentence.tokens[(token.tokenIndex + 1)..<rightEnd] {
+                let rightEnd = min(sentence.tokens.count, match.endIndex + safeRight + 1)
+                if match.endIndex + 1 < rightEnd {
+                    for neighbor in sentence.tokens[(match.endIndex + 1)..<rightEnd] {
                         totalByWord[neighbor.normalized, default: 0] += 1
                         rightByWord[neighbor.normalized, default: 0] += 1
                     }
@@ -253,6 +253,44 @@ extension NativeAnalysisEngine {
         return KWICResult(json: ["rows": rows])
     }
 
+    func runKWIC(
+        artifact: StoredTokenizedArtifact,
+        candidateSentenceIDs: Set<Int>,
+        keyword: String,
+        leftWindow: Int,
+        rightWindow: Int,
+        searchOptions: SearchOptionsState
+    ) throws -> KWICResult {
+        let matcher = SearchTextMatcher(query: keyword, options: searchOptions)
+        if !matcher.error.isEmpty {
+            throw NSError(
+                domain: "WordZMac.NativeAnalysisEngine",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: matcher.error]
+            )
+        }
+
+        let safeLeft = max(0, leftWindow)
+        let safeRight = max(0, rightWindow)
+        var rows: [JSONObject] = []
+
+        for sentence in artifact.sentences where candidateSentenceIDs.contains(sentence.sentenceId) {
+            for match in kwicMatches(in: sentence, matcher: matcher) {
+                rows.append(
+                    kwicRow(
+                        tokens: sentence.tokens,
+                        match: match,
+                        sentenceId: sentence.sentenceId,
+                        leftWindow: safeLeft,
+                        rightWindow: safeRight
+                    )
+                )
+            }
+        }
+
+        return KWICResult(json: ["rows": rows])
+    }
+
     func runCollocate(
         artifact: StoredTokenizedArtifact,
         positions: [StoredTokenPosition],
@@ -355,20 +393,102 @@ extension NativeAnalysisEngine {
         var keywordFreq = 0
 
         for sentence in artifact.sentences {
-            for token in sentence.tokens where matcher.matches(token.original) {
+            for match in kwicMatches(in: sentence, matcher: matcher) {
                 keywordFreq += 1
 
-                let leftStart = max(0, token.tokenIndex - safeLeft)
-                if leftStart < token.tokenIndex {
-                    for neighbor in sentence.tokens[leftStart..<token.tokenIndex] {
+                let leftStart = max(0, match.startIndex - safeLeft)
+                if leftStart < match.startIndex {
+                    for neighbor in sentence.tokens[leftStart..<match.startIndex] {
                         totalByWord[neighbor.normalized, default: 0] += 1
                         leftByWord[neighbor.normalized, default: 0] += 1
                     }
                 }
 
-                let rightEnd = min(sentence.tokens.count, token.tokenIndex + safeRight + 1)
-                if token.tokenIndex + 1 < rightEnd {
-                    for neighbor in sentence.tokens[(token.tokenIndex + 1)..<rightEnd] {
+                let rightEnd = min(sentence.tokens.count, match.endIndex + safeRight + 1)
+                if match.endIndex + 1 < rightEnd {
+                    for neighbor in sentence.tokens[(match.endIndex + 1)..<rightEnd] {
+                        totalByWord[neighbor.normalized, default: 0] += 1
+                        rightByWord[neighbor.normalized, default: 0] += 1
+                    }
+                }
+            }
+        }
+
+        let rows = totalByWord
+            .filter { $0.value >= safeMinFreq }
+            .map { word, total in
+                let wordFreq = frequency[word, default: 0]
+                let observed = Double(total)
+                let expected = (Double(keywordFreq) * Double(wordFreq)) / Double(tokenCount)
+                let mutualInformation = expected > 0 && observed > 0
+                    ? log2(observed / expected)
+                    : 0
+                let tScore = observed > 0
+                    ? (observed - expected) / sqrt(observed)
+                    : 0
+                let logDice = (keywordFreq + wordFreq) > 0 && observed > 0
+                    ? 14 + log2((2 * observed) / Double(keywordFreq + wordFreq))
+                    : 0
+                return [
+                    "word": word,
+                    "total": total,
+                    "left": leftByWord[word, default: 0],
+                    "right": rightByWord[word, default: 0],
+                    "wordFreq": wordFreq,
+                    "keywordFreq": keywordFreq,
+                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0,
+                    "logDice": logDice,
+                    "mutualInformation": mutualInformation,
+                    "tScore": tScore
+                ] as JSONObject
+            }
+
+        return CollocateResult(items: rows)
+    }
+
+    func runCollocate(
+        artifact: StoredTokenizedArtifact,
+        candidateSentenceIDs: Set<Int>,
+        keyword: String,
+        leftWindow: Int,
+        rightWindow: Int,
+        minFreq: Int,
+        searchOptions: SearchOptionsState
+    ) throws -> CollocateResult {
+        let matcher = SearchTextMatcher(query: keyword, options: searchOptions)
+        if !matcher.error.isEmpty {
+            throw NSError(
+                domain: "WordZMac.NativeAnalysisEngine",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: matcher.error]
+            )
+        }
+
+        let frequency = artifact.frequencyMap
+        let tokenCount = max(artifact.tokenCount, 1)
+        let safeLeft = max(0, leftWindow)
+        let safeRight = max(0, rightWindow)
+        let safeMinFreq = max(1, minFreq)
+        var totalByWord: [String: Int] = [:]
+        var leftByWord: [String: Int] = [:]
+        var rightByWord: [String: Int] = [:]
+        var keywordFreq = 0
+
+        for sentence in artifact.sentences where candidateSentenceIDs.contains(sentence.sentenceId) {
+            for match in kwicMatches(in: sentence, matcher: matcher) {
+                keywordFreq += 1
+
+                let leftStart = max(0, match.startIndex - safeLeft)
+                if leftStart < match.startIndex {
+                    for neighbor in sentence.tokens[leftStart..<match.startIndex] {
+                        totalByWord[neighbor.normalized, default: 0] += 1
+                        leftByWord[neighbor.normalized, default: 0] += 1
+                    }
+                }
+
+                let rightEnd = min(sentence.tokens.count, match.endIndex + safeRight + 1)
+                if match.endIndex + 1 < rightEnd {
+                    for neighbor in sentence.tokens[(match.endIndex + 1)..<rightEnd] {
                         totalByWord[neighbor.normalized, default: 0] += 1
                         rightByWord[neighbor.normalized, default: 0] += 1
                     }

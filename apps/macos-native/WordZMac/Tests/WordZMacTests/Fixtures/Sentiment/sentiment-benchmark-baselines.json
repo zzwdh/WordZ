@@ -1,0 +1,24 @@
+{
+  "mixed-baseline" : {
+    "accuracy" : 0.8333333333333334,
+    "datasetVersion" : "sentiment-gold-v2",
+    "exampleCount" : 72,
+    "macroF1" : 0.834149403640929,
+    "neutralFalsePositiveRate" : 0.22916666666666666,
+    "requiredSliceKeys" : []
+  },
+  "news-focused" : {
+    "accuracy" : 0.9444444444444444,
+    "datasetVersion" : "sentiment-gold-v3",
+    "exampleCount" : 18,
+    "macroF1" : 0.9440559440559441,
+    "neutralFalsePositiveRate" : 0,
+    "requiredSliceKeys" : [
+      "commentary",
+      "procedural",
+      "quoted",
+      "reported",
+      "stance"
+    ]
+  }
+}

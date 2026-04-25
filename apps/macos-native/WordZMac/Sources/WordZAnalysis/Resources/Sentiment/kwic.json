@@ -1,0 +1,12 @@
+[
+  { "term": "worthwhile", "score": 1.4, "category": "corePositive", "domainTags": ["kwic"], "matchMode": "either" },
+  { "term": "well worth", "score": 1.7, "category": "corePositive", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "easy to follow", "score": 1.5, "category": "corePositive", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "too expensive", "score": -1.4, "category": "coreNegative", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "a concern", "score": -1.1, "category": "newsEvaluative", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "highly effective", "score": 1.9, "category": "corePositive", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "barely useful", "score": -0.8, "category": "weakEvaluative", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "difficult to justify", "score": -1.5, "category": "coreNegative", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "hard to interpret", "score": -1.4, "category": "coreNegative", "domainTags": ["kwic"], "matchMode": "surface" },
+  { "term": "hard to interpret reliably", "score": -1.7, "category": "coreNegative", "domainTags": ["kwic"], "matchMode": "surface" }
+]

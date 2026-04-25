@@ -225,6 +225,51 @@ final class TopicsSceneBuilderTests: XCTestCase {
         XCTAssertEqual(scene.visibleSegments, 1)
         XCTAssertEqual(scene.tableRows.first?.values[TopicsColumnKey.excerpt.rawValue], "Operators rotated infrastructure across campaigns.")
     }
+
+    func testTopicsSceneBuilderAddsCompareCrossAnalysisSummaryAndContrastColumn() throws {
+        let librarySnapshot = makeBootstrapState().librarySnapshot
+        let targetCorpus = try XCTUnwrap(librarySnapshot.corpora.first(where: { $0.id == "corpus-1" }))
+        let referenceCorpus = try XCTUnwrap(librarySnapshot.corpora.first(where: { $0.id == "corpus-2" }))
+        let result = makeCompareTopicsResult()
+        let annotationState = WorkspaceAnnotationState(
+            profile: .lemmaPreferred,
+            lexicalClasses: [.noun],
+            scripts: [.latin]
+        )
+        let scene = TopicsSceneBuilder().build(
+            from: result,
+            query: "alpha",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            annotationState: annotationState,
+            compareDrilldownContext: TopicsCompareDrilldownContext(
+                focusTerm: "alpha",
+                targetCorpora: [targetCorpus],
+                referenceCorpora: [referenceCorpus]
+            ),
+            minTopicSize: 2,
+            keywordDisplayCount: 5,
+            includeOutliers: true,
+            selectedClusterID: "topic-1",
+            sortMode: .relevanceDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: Set(TopicsColumnKey.allCases),
+            languageMode: .english
+        )
+
+        XCTAssertTrue(scene.crossAnalysisSummary?.contains("Focus Term: alpha") == true)
+        XCTAssertEqual(scene.clusters.first?.contrastText, "Target 1 · Reference 1 · Balanced")
+        XCTAssertEqual(scene.selectedCluster?.contrastSummary, "Target 1 · Reference 1 · Balanced")
+        XCTAssertNotNil(scene.summaryTable.column(id: "contrast"))
+        XCTAssertEqual(scene.summaryRows.first?.values["contrast"], "Target 1 · Reference 1 · Balanced")
+        XCTAssertTrue(scene.summaryExportSnapshot?.metadataLines.contains(where: {
+            $0.contains("Cross Analysis: Compare x Topics")
+        }) ?? false)
+        XCTAssertTrue(scene.summaryExportSnapshot?.metadataLines.contains(where: {
+            $0.contains(annotationState.summary(in: .english))
+        }) ?? false)
+    }
 }
 
 private func makeKeywordRichTopicAnalysisResult() -> TopicAnalysisResult {

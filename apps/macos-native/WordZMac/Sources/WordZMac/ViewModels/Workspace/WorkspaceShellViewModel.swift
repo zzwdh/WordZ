@@ -12,9 +12,11 @@ final class WorkspaceShellViewModel: ObservableObject {
     @Published var isBusy = false {
         didSet { syncScene() }
     }
+    @Published private(set) var blockingOperationCount = 0
     @Published private(set) var scene = WorkspaceShellSceneModel(
         workspaceSummary: WorkspaceSceneContext.empty.workspaceSummary,
         buildSummary: WorkspaceSceneContext.empty.buildSummary,
+        annotationSummary: WorkspaceAnnotationState.default.summary(in: .system),
         toolbar: WorkspaceToolbarSceneModel(items: [])
     )
 
@@ -26,6 +28,7 @@ final class WorkspaceShellViewModel: ObservableObject {
     private var hasLocatorSource = false
     private var hasExportableContent = false
     private var runSentimentEnabled = false
+    private var annotationState = WorkspaceAnnotationState.default
     private var context = WorkspaceSceneContext.empty
     private var suppressedTabChangeDepth = 0
 
@@ -85,17 +88,34 @@ final class WorkspaceShellViewModel: ObservableObject {
         syncScene()
     }
 
+    func applyAnnotationState(_ annotationState: WorkspaceAnnotationState) {
+        guard self.annotationState != annotationState else { return }
+        self.annotationState = annotationState
+        syncScene()
+    }
+
+    func setBlockingOperationCount(_ count: Int) {
+        let nextCount = max(0, count)
+        guard blockingOperationCount != nextCount || isBusy != (nextCount > 0) else {
+            return
+        }
+        blockingOperationCount = nextCount
+        isBusy = nextCount > 0
+    }
+
     private func syncScene() {
         let actionEnabled = !isBusy
         scene = WorkspaceShellSceneModel(
             workspaceSummary: context.workspaceSummary,
             buildSummary: context.buildSummary,
+            annotationSummary: annotationState.summary(in: languageMode),
             toolbar: WorkspaceToolbarSceneModel(
                 items: [
                     WorkspaceToolbarActionItem(action: .refresh, title: wordZText("刷新", "Refresh", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .showLibrary, title: wordZText("语料库", "Library", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .openSelected, title: wordZText("打开选中", "Open Selected", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .openSourceReader, title: wordZText("原文视图", "Open Source View", mode: languageMode), isEnabled: actionEnabled && hasSourceReaderContext),
+                    WorkspaceToolbarActionItem(action: .annotationControls, title: wordZText("标注", "Annotation", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .previewCurrentCorpus, title: wordZText("快速预览", "Quick Look", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
                     WorkspaceToolbarActionItem(action: .shareCurrentContent, title: wordZText("分享当前", "Share Current", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
                     WorkspaceToolbarActionItem(action: .runStats, title: wordZText("统计", "Stats", mode: languageMode), isEnabled: actionEnabled && hasSelection),

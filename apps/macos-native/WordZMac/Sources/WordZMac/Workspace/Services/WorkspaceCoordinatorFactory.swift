@@ -2,6 +2,12 @@ import Foundation
 
 @MainActor
 struct WorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
+    let featureWorkflowFactory: (any WorkspaceFeatureWorkflowBuilding)?
+
+    init(featureWorkflowFactory: (any WorkspaceFeatureWorkflowBuilding)? = nil) {
+        self.featureWorkflowFactory = featureWorkflowFactory
+    }
+
     func make(
         repository: any WorkspaceRepository,
         workspacePersistence: WorkspacePersistenceService,
@@ -39,7 +45,8 @@ struct WorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
             libraryCoordinator: resolvedLibraryCoordinator,
             libraryManagementCoordinator: libraryManagementCoordinator,
             exportCoordinator: exportCoordinator,
-            taskCenter: taskCenter
+            taskCenter: taskCenter,
+            featureWorkflowFactory: featureWorkflowFactory
         )
         let bootstrapApplier = WorkspaceBootstrapApplier(
             sceneStore: sceneStore,

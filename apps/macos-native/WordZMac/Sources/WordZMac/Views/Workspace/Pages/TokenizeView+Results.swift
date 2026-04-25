@@ -151,13 +151,13 @@ extension TokenizeView {
                     HStack(spacing: 12) {
                         Label(row.lexicalClass, systemImage: "tag")
                         Label(row.script, systemImage: "character.textbox")
-                        Text(scene.lemmaStrategySummary)
+                        Text(scene.annotationSummary)
                             .foregroundStyle(.secondary)
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Label(row.lexicalClass, systemImage: "tag")
                         Label(row.script, systemImage: "character.textbox")
-                        Text(scene.lemmaStrategySummary)
+                        Text(scene.annotationSummary)
                             .foregroundStyle(.secondary)
                     }
                 }

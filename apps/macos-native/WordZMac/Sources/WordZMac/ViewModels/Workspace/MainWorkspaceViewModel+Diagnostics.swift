@@ -1,4 +1,5 @@
 import Foundation
+import WordZEngine
 
 @MainActor
 extension MainWorkspaceViewModel {
@@ -53,6 +54,8 @@ extension MainWorkspaceViewModel {
         let redactedTaskHistory = taskCenter.persistedHistory().map { $0.redactedForDiagnostics() }
         let engineEntryPath = (try? EnginePaths.engineEntryURL().path) ?? ""
         let startupCrashLogURL = EnginePaths.startupCrashLogURL()
+        let storageSnapshot = makeDiagnosticsStorageSnapshot(userDataDirectory: settings.scene.userDataDirectory)?
+            .redactedForDiagnostics()
 
         let context = NativeDiagnosticsBundleContext(
             generatedAt: generatedAt,
@@ -71,11 +74,11 @@ extension MainWorkspaceViewModel {
             persistedTaskCount: redactedTaskHistory.count
         ).redactedForDiagnostics()
 
-        let generatedFiles = [
+        var generatedFiles = [
             try makeJSONObjectDiagnosticsFile(
                 workspaceDraft.asJSONObject(),
-                relativePath: "persisted/workspace-state.json",
-                description: "Sanitized persisted workspace state."
+                relativePath: "persisted/workspace-snapshot.json",
+                description: "Sanitized persisted workspace snapshot."
             ),
             try makeJSONObjectDiagnosticsFile(
                 uiSettings.asJSONObject(),
@@ -88,6 +91,15 @@ extension MainWorkspaceViewModel {
                 description: "Sanitized persisted host preferences."
             )
         ]
+        if let storageSnapshot {
+            generatedFiles.append(
+                try makeJSONDiagnosticsFile(
+                    storageSnapshot,
+                    relativePath: "storage-snapshot.json",
+                    description: "Current local storage topology and migration summary."
+                )
+            )
+        }
 
         let extraFiles: [NativeDiagnosticsBundleSourceFile] = FileManager.default.fileExists(atPath: startupCrashLogURL.path)
             ? [
@@ -105,7 +117,8 @@ extension MainWorkspaceViewModel {
                 generatedAt: generatedAt,
                 buildMetadata: buildMetadata,
                 context: context,
-                hostPreferences: redactedHostPreferences
+                hostPreferences: redactedHostPreferences,
+                storageSnapshot: storageSnapshot
             ),
             buildMetadata: buildMetadata,
             context: context,
@@ -148,9 +161,10 @@ extension MainWorkspaceViewModel {
         generatedAt: String,
         buildMetadata: NativeBuildMetadata,
         context: NativeDiagnosticsBundleContext,
-        hostPreferences: NativeHostPreferencesSnapshot
+        hostPreferences: NativeHostPreferencesSnapshot,
+        storageSnapshot: NativeDiagnosticsStorageSnapshot?
     ) -> String {
-        [
+        var lines = [
             "WordZMac Diagnostics",
             "Generated At: \(generatedAt)",
             "App: \(context.appName)",
@@ -167,6 +181,94 @@ extension MainWorkspaceViewModel {
             "Recent Documents: \(hostPreferences.recentDocuments.count)",
             "Downloaded Update Path: \(hostPreferences.downloadedUpdatePath)"
         ]
-        .joined(separator: "\n")
+        if let storageSnapshot {
+            lines.append("Library DB Present: \(storageSnapshot.libraryDatabaseExists)")
+            lines.append("Workspace DB Present: \(storageSnapshot.workspaceDatabaseExists)")
+            lines.append("Library DB Schema: \(storageSnapshot.librarySchemaVersion)")
+            lines.append("Workspace DB Schema: \(storageSnapshot.workspaceSchemaVersion)")
+            lines.append("Pending Shard Migrations: \(storageSnapshot.pendingShardMigrationCount)")
+            lines.append("Quarantined Corpora: \(storageSnapshot.quarantinedCorpusCount)")
+            lines.append("Corpus Shard Files: \(storageSnapshot.corpusShardFileCount)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func makeDiagnosticsStorageSnapshot(userDataDirectory: String) -> NativeDiagnosticsStorageSnapshot? {
+        let trimmed = userDataDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let fileManager = FileManager.default
+        let rootURL = URL(fileURLWithPath: trimmed, isDirectory: true)
+        let libraryDatabaseURL = rootURL.appendingPathComponent("library.db")
+        let workspaceDatabaseURL = rootURL.appendingPathComponent("workspace.db")
+        let corporaDirectoryURL = rootURL.appendingPathComponent("corpora", isDirectory: true)
+        let recycleDirectoryURL = rootURL.appendingPathComponent("recycle", isDirectory: true)
+
+        let librarySummary: LibraryCatalogStore.StorageSummary?
+        if fileManager.fileExists(atPath: libraryDatabaseURL.path) {
+            librarySummary = try? LibraryCatalogStore(
+                fileManager: fileManager,
+                encoder: JSONEncoder(),
+                decoder: JSONDecoder(),
+                databaseURL: libraryDatabaseURL,
+                corporaDirectoryURL: corporaDirectoryURL
+            ).storageSummary()
+        } else {
+            librarySummary = nil
+        }
+
+        let workspaceSummary: WorkspaceStateStore.StorageSummary?
+        if fileManager.fileExists(atPath: workspaceDatabaseURL.path) {
+            workspaceSummary = try? WorkspaceStateStore(
+                fileManager: fileManager,
+                encoder: JSONEncoder(),
+                decoder: JSONDecoder(),
+                databaseURL: workspaceDatabaseURL
+            ).storageSummary()
+        } else {
+            workspaceSummary = nil
+        }
+
+        return NativeDiagnosticsStorageSnapshot(
+            rootPath: rootURL.path,
+            libraryDatabaseExists: fileManager.fileExists(atPath: libraryDatabaseURL.path),
+            workspaceDatabaseExists: fileManager.fileExists(atPath: workspaceDatabaseURL.path),
+            librarySchemaVersion: librarySummary?.schemaVersion ?? 0,
+            workspaceSchemaVersion: workspaceSummary?.schemaVersion ?? 0,
+            folderCount: librarySummary?.folderCount ?? 0,
+            activeCorpusCount: librarySummary?.activeCorpusCount ?? 0,
+            quarantinedCorpusCount: librarySummary?.quarantinedCorpusCount ?? 0,
+            corpusSetCount: librarySummary?.corpusSetCount ?? 0,
+            recycleEntryCount: librarySummary?.recycleEntryCount ?? 0,
+            pendingShardMigrationCount: librarySummary?.pendingShardMigrationCount ?? 0,
+            workspaceSnapshotCount: workspaceSummary?.workspaceSnapshotCount ?? 0,
+            uiSettingsCount: workspaceSummary?.uiSettingsCount ?? 0,
+            analysisPresetCount: workspaceSummary?.analysisPresetCount ?? 0,
+            keywordSavedListCount: workspaceSummary?.keywordSavedListCount ?? 0,
+            concordanceSavedSetCount: workspaceSummary?.concordanceSavedSetCount ?? 0,
+            evidenceItemCount: workspaceSummary?.evidenceItemCount ?? 0,
+            sentimentReviewSampleCount: workspaceSummary?.sentimentReviewSampleCount ?? 0,
+            corpusShardFileCount: regularFileCount(in: corporaDirectoryURL),
+            recycleFileCount: regularFileCount(in: recycleDirectoryURL),
+            libraryWALSidecarExists: FileManager.default.fileExists(atPath: libraryDatabaseURL.path + "-wal"),
+            workspaceWALSidecarExists: FileManager.default.fileExists(atPath: workspaceDatabaseURL.path + "-wal")
+        )
+    }
+
+    private func regularFileCount(in directoryURL: URL) -> Int {
+        let enumerator = FileManager.default.enumerator(
+            at: directoryURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        )
+        var count = 0
+        while let nextURL = enumerator?.nextObject() as? URL {
+            guard let values = try? nextURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  values.isRegularFile == true else {
+                continue
+            }
+            count += 1
+        }
+        return count
     }
 }

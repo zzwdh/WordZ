@@ -50,6 +50,10 @@ protocol WorkspaceRepository: AnyObject {
     func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem
     func deleteEvidenceItem(itemID: String) async throws
     func replaceEvidenceItems(_ items: [EvidenceItem]) async throws
+    func listSentimentReviewSamples() async throws -> [SentimentReviewSample]
+    func saveSentimentReviewSample(_ sample: SentimentReviewSample) async throws -> SentimentReviewSample
+    func deleteSentimentReviewSample(sampleID: String) async throws
+    func replaceSentimentReviewSamples(_ samples: [SentimentReviewSample]) async throws
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws
     func saveUISettings(_ snapshot: UISettingsSnapshot) async throws
     func stop() async
@@ -90,4 +94,31 @@ protocol CorpusSetManagingRepository: AnyObject {
         metadataFilterState: CorpusMetadataFilterState
     ) async throws -> LibraryCorpusSetItem
     func deleteCorpusSet(corpusSetID: String) async throws
+}
+
+@MainActor
+protocol MetadataFilteringLibraryRepository: AnyObject {
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState
+    ) async throws -> LibrarySnapshot
+}
+
+@MainActor
+protocol FullTextSearchingLibraryRepository: AnyObject {
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState,
+        searchQuery: String
+    ) async throws -> LibrarySnapshot
+}
+
+@MainActor
+protocol StoredTokenizedArtifactReadingRepository: AnyObject {
+    func loadStoredTokenizedArtifact(corpusId: String) async throws -> StoredTokenizedArtifact?
+}
+
+@MainActor
+protocol StoredFrequencyArtifactReadingRepository: AnyObject {
+    func loadStoredFrequencyArtifact(corpusId: String) async throws -> StoredFrequencyArtifact?
 }

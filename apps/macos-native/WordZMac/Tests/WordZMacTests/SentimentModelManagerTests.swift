@@ -9,9 +9,18 @@ final class SentimentModelManagerTests: XCTestCase {
             throw XCTSkip("Bundled sentiment model is not available in resources yet.")
         }
 
+        let availability = manager.availability()
         let model = try manager.loadModel()
+        XCTAssertTrue(availability.isAvailable)
+        XCTAssertEqual(availability.defaultProviderID, "bundled-coreml-sentiment")
         XCTAssertFalse(model.inputFeatureName.isEmpty)
         XCTAssertEqual(model.providerID, "bundled-coreml-sentiment")
+        XCTAssertEqual(model.providerFamily, .embeddingLogReg)
+        XCTAssertEqual(model.inputSchemaKind, .denseFeatures)
+        XCTAssertEqual(model.defaultConfidenceFloor, 0.55, accuracy: 0.0001)
+        XCTAssertEqual(model.defaultMarginFloor, 0.12, accuracy: 0.0001)
+        XCTAssertEqual(model.maxCharactersPerUnit, 1600)
+        XCTAssertTrue(model.supportsSentenceLevelAggregation)
         XCTAssertNotNil(model.predictedProbabilitiesName)
     }
 
@@ -42,6 +51,12 @@ final class SentimentModelManagerTests: XCTestCase {
 
         let result = try analyzer.analyze(request)
         XCTAssertEqual(result.backendKind, .coreML)
+        XCTAssertEqual(result.providerID, "bundled-coreml-sentiment")
+        XCTAssertEqual(result.providerFamily, .embeddingLogReg)
         XCTAssertEqual(result.rows.count, 2)
+        XCTAssertTrue(result.rows.allSatisfy { $0.diagnostics.providerID == "bundled-coreml-sentiment" })
+        XCTAssertTrue(result.rows.allSatisfy { $0.diagnostics.providerFamily == .embeddingLogReg })
+        XCTAssertTrue(result.rows.allSatisfy { $0.diagnostics.inferencePath == .model })
+        XCTAssertTrue(result.rows.allSatisfy { $0.diagnostics.modelInputKind == .denseFeatures })
     }
 }

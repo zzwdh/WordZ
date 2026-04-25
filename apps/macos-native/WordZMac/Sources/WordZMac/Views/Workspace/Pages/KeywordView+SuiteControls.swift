@@ -7,11 +7,7 @@ extension KeywordView {
             referenceSelectionSection
             keywordSuiteParameterControls
             thresholdSection
-
-            HStack(spacing: 12) {
-                scriptsMenu
-                lexicalClassesMenu
-            }
+            annotationSummaryCard
 
             StopwordControlsView(
                 filter: $viewModel.stopwordFilter,
@@ -24,8 +20,8 @@ extension KeywordView {
 
             Text(
                 t(
-                    "Keyword Suite 强制使用显式 Focus / Reference。Words、Terms、N-grams 共用同一套统计量、方向、阈值和语言筛选。",
-                    "Keyword Suite always uses explicit focus/reference scopes. Words, Terms, and N-grams share the same statistics, direction, thresholds, and language filters."
+                    "Keyword Suite 强制使用显式 Focus / Reference。Words、Terms、N-grams 共用同一套统计量、方向、阈值和语言筛选；annotation 的唯一主控入口在工具栏和命令菜单。",
+                    "Keyword Suite always uses explicit focus/reference scopes. Words, Terms, and N-grams share the same statistics, direction, thresholds, and language filters; annotation controls live in the toolbar and command menu."
                 )
             )
             .font(.caption)
@@ -36,7 +32,6 @@ extension KeywordView {
     var keywordSuiteParameterControls: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 12) {
-                unitPicker
                 directionPicker
                 statisticPicker
                 languagePresetPicker
@@ -44,12 +39,11 @@ extension KeywordView {
             }
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    unitPicker
                     directionPicker
-                }
-                HStack(spacing: 12) {
                     statisticPicker
                     languagePresetPicker
+                }
+                HStack(spacing: 12) {
                     runButton
                 }
             }
@@ -204,16 +198,6 @@ extension KeywordView {
         }
     }
 
-    var unitPicker: some View {
-        WorkbenchMenuPicker(
-            title: t("单位", "Unit"),
-            selection: $viewModel.unit,
-            options: Array(KeywordUnit.allCases)
-        ) {
-            $0.title(in: languageMode)
-        }
-    }
-
     var directionPicker: some View {
         WorkbenchMenuPicker(
             title: t("方向", "Direction"),
@@ -244,49 +228,23 @@ extension KeywordView {
         }
     }
 
-    var scriptsMenu: some View {
-        Menu {
-            ForEach(TokenScript.allCases) { script in
-                Button {
-                    viewModel.toggleScript(script)
-                } label: {
-                    Label(
-                        script.title(in: languageMode),
-                        systemImage: viewModel.selectedScripts.contains(script) ? "checkmark.circle.fill" : "circle"
+    var annotationSummaryCard: some View {
+        WorkbenchSectionCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(t("当前标注范围", "Current Annotation Scope"), systemImage: "slider.horizontal.3")
+                    .font(.headline)
+                Text(viewModel.annotationSummary(in: languageMode))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(
+                    t(
+                        "需要调整 lemma profile、脚本或词类时，请使用工作区工具栏中的 Annotation 菜单。",
+                        "Use the workspace toolbar Annotation menu to change the lemma profile, scripts, or lexical classes."
                     )
-                }
+                )
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
             }
-        } label: {
-            Label(
-                viewModel.selectedScripts.isEmpty
-                    ? t("全部脚本", "All Scripts")
-                    : "\(t("脚本", "Scripts")) \(viewModel.selectedScripts.count)",
-                systemImage: "character.cursor.ibeam"
-            )
         }
-        .menuStyle(.borderlessButton)
-    }
-
-    var lexicalClassesMenu: some View {
-        Menu {
-            ForEach(TokenLexicalClass.allCases) { lexicalClass in
-                Button {
-                    viewModel.toggleLexicalClass(lexicalClass)
-                } label: {
-                    Label(
-                        lexicalClass.title(in: languageMode),
-                        systemImage: viewModel.selectedLexicalClasses.contains(lexicalClass) ? "checkmark.circle.fill" : "circle"
-                    )
-                }
-            }
-        } label: {
-            Label(
-                viewModel.selectedLexicalClasses.isEmpty
-                    ? t("全部词类", "All Classes")
-                    : "\(t("词类", "Classes")) \(viewModel.selectedLexicalClasses.count)",
-                systemImage: "line.3.horizontal.decrease.circle"
-            )
-        }
-        .menuStyle(.borderlessButton)
     }
 }

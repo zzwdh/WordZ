@@ -9,7 +9,7 @@ extension ComparePageViewModel {
         switch action {
         case .run:
             return
-        case .openKWIC, .openCollocate, .saveCorpusSet:
+        case .openKWIC, .openCollocate, .openSentiment, .openSentimentExemplar, .openSentimentSourceReader, .openTopics, .saveCorpusSet:
             return
         case .analyzeInKeywordSuite:
             return

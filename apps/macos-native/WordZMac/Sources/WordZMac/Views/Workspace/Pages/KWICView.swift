@@ -3,6 +3,7 @@ import SwiftUI
 struct KWICView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @Environment(\.openWindow) private var openWindow
+    @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: KWICPageViewModel
     @ObservedObject var evidenceWorkbench: EvidenceWorkbenchViewModel
     let isBusy: Bool

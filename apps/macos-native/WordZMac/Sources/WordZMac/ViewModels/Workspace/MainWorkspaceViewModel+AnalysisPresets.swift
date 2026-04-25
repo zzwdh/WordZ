@@ -57,6 +57,7 @@ extension MainWorkspaceViewModel {
         sessionStore.beginRestore()
         flowCoordinator.resetFeatureResults(features: features)
         flowCoordinator.applyWorkspaceSnapshot(preset.snapshot, features: features)
+        restoreWorkspaceAnnotationState(from: preset.snapshot)
         flowCoordinator.applyWorkspacePresentation(features: features)
         flowCoordinator.syncWindowDocumentState(features: features)
         sessionStore.finishRestore()

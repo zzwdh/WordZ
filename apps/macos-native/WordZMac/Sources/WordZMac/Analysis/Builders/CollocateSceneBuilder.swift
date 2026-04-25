@@ -6,6 +6,7 @@ struct CollocateSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         focusMetric: CollocateAssociationMetric,
         leftWindow: Int,
         rightWindow: Int,
@@ -23,6 +24,7 @@ struct CollocateSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationState: annotationState,
             focusMetric: focusMetric,
             leftWindow: leftWindow,
             rightWindow: rightWindow,
@@ -42,6 +44,7 @@ struct CollocateSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationState: WorkspaceAnnotationState = .default,
         focusMetric: CollocateAssociationMetric,
         leftWindow: Int,
         rightWindow: Int,
@@ -129,7 +132,8 @@ struct CollocateSceneBuilder {
                 "\(wordZText("右窗口", "Right Window", mode: languageMode)): \(rightWindow)",
                 "\(wordZText("最小频次", "Minimum Frequency", mode: languageMode)): \(minFreq)",
                 "\(wordZText("重点指标", "Focus Metric", mode: languageMode)): \(focusMetric.title(in: languageMode))",
-                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))"
+                "\(wordZText("排序方式", "Sort Order", mode: languageMode)): \(sortMode.title(in: languageMode))",
+                annotationState.summary(in: languageMode)
             ]
         )
 
@@ -137,6 +141,7 @@ struct CollocateSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
+            annotationSummary: annotationState.summary(in: languageMode),
             focusMetric: focusMetric,
             methodSummary: methodSummary,
             focusMetricSummary: focusMetric.summary(in: languageMode),

@@ -7,6 +7,7 @@ enum SentimentSortMode: String, CaseIterable, Identifiable {
     case negativityDescending
     case netScoreDescending
     case labelAscending
+    case reviewStatusAscending
     case sourceAscending
 
     var id: String { rawValue }
@@ -25,6 +26,8 @@ enum SentimentSortMode: String, CaseIterable, Identifiable {
             return wordZText("净分降序", "Net Score Descending", mode: mode)
         case .labelAscending:
             return wordZText("标签分组", "Group by Label", mode: mode)
+        case .reviewStatusAscending:
+            return wordZText("审校状态分组", "Group by Review Status", mode: mode)
         case .sourceAscending:
             return wordZText("来源分组", "Group by Source", mode: mode)
         }
@@ -89,6 +92,8 @@ enum SentimentColumnKey: String, CaseIterable, Identifiable, Hashable {
     case neutrality
     case negativity
     case finalLabel
+    case rawLabel
+    case reviewStatus
     case netScore
     case evidence
 
@@ -108,6 +113,10 @@ enum SentimentColumnKey: String, CaseIterable, Identifiable, Hashable {
             return wordZText("消极分", "Negativity", mode: mode)
         case .finalLabel:
             return wordZText("最终标签", "Final Label", mode: mode)
+        case .rawLabel:
+            return wordZText("原始标签", "Raw Label", mode: mode)
+        case .reviewStatus:
+            return wordZText("审校状态", "Review Status", mode: mode)
         case .netScore:
             return wordZText("净分", "Net Score", mode: mode)
         case .evidence:
@@ -121,19 +130,35 @@ struct SentimentSceneRow: Identifiable, Equatable {
     let sourceTitle: String
     let groupTitle: String
     let text: String
-    let positivityScore: Double
-    let neutralityScore: Double
-    let negativityScore: Double
-    let finalLabel: SentimentLabel
-    let netScore: Double
+    let rawPositivityScore: Double
+    let rawNeutralityScore: Double
+    let rawNegativityScore: Double
+    let rawLabel: SentimentLabel
+    let rawNetScore: Double
+    let effectivePositivityScore: Double
+    let effectiveNeutralityScore: Double
+    let effectiveNegativityScore: Double
+    let effectiveLabel: SentimentLabel
+    let effectiveNetScore: Double
     let evidenceCount: Int
     let evidencePreview: String
     let evidence: [SentimentEvidenceHit]
     let diagnostics: SentimentRowDiagnostics
     let sentenceID: Int?
     let tokenIndex: Int?
+    let reviewDecision: SentimentReviewDecision?
+    let reviewStatus: SentimentReviewStatus
+    let reviewNote: String?
+    let reviewedAt: String?
+    let reviewSampleID: String?
 
     var mixedEvidence: Bool { diagnostics.mixedEvidence }
+    var positivityScore: Double { rawPositivityScore }
+    var neutralityScore: Double { rawNeutralityScore }
+    var negativityScore: Double { rawNegativityScore }
+    var finalLabel: SentimentLabel { effectiveLabel }
+    var netScore: Double { rawNetScore }
+    var isManuallyOverridden: Bool { reviewStatus == .overridden }
 }
 
 struct SentimentChartSegment: Identifiable, Equatable {
@@ -163,6 +188,8 @@ struct SentimentSceneModel: Equatable {
     let unit: SentimentAnalysisUnit
     let contextBasis: SentimentContextBasis
     let backend: SentimentBackendKind
+    let domainPackID: SentimentDomainPackID
+    let ruleProfileID: String
     let backendRevision: String
     let resourceRevision: String
     let supportsEvidenceHits: Bool
@@ -171,8 +198,13 @@ struct SentimentSceneModel: Equatable {
     let chartKind: SentimentChartKind
     let filterQuery: String
     let labelFilter: SentimentLabel?
+    let reviewFilter: SentimentReviewFilter
+    let reviewStatusFilter: SentimentReviewStatusFilter
+    let showOnlyHardCases: Bool
+    let activePackIDs: [SentimentDomainPackID]
     let summary: SentimentAggregateSummary
     let groupSummaries: [SentimentAggregateSummary]
+    let reviewSummary: SentimentReviewSummary
     let sorting: SentimentSortingSceneModel
     let pagination: ResultPaginationSceneModel
     let totalRows: Int

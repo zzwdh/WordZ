@@ -43,10 +43,14 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
     var pageSize: ComparePageSize = .fifty
     var currentPage = 1
     var visibleColumns: Set<CompareColumnKey> = ComparePageViewModel.defaultVisibleColumns
+    var annotationState = WorkspaceAnnotationState.default
     var availableCorpora: [LibraryCorpusItem] = []
     var availableCorpusSets: [LibraryCorpusSetItem] = []
     var selectedCorpusIDs: Set<String> = []
     var selectedReferenceSelection: CompareReferenceSelection = .automatic
+    var sentimentDrilldownContext: CompareSentimentDrilldownContext?
+    var sentimentSummary: CompareSentimentSummary?
+    var sentimentExplainer: CompareSentimentExplainer?
     var sceneBuildRevision = 0
     var cachedFilteredRows: [CompareRow]?
     var cachedFilteredError = ""
@@ -96,6 +100,10 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
         selectedReferenceSelection.corpusSetID
     }
 
+    var canOpenTopicsCrossAnalysis: Bool {
+        !selectedTargetCorpusItems().isEmpty && !selectedReferenceCorpusItems().isEmpty
+    }
+
     var selectedSceneRow: CompareSceneRow? {
         guard let scene else { return nil }
         if let selectedRowID,
@@ -118,6 +126,18 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
         return availableCorpusSets.first(where: { $0.id == selectedReferenceCorpusSetID })
     }
 
+    func selectedReferenceCorpusItems() -> [LibraryCorpusItem] {
+        switch selectedReferenceSelection {
+        case .automatic:
+            return []
+        case .corpus(let corpusID):
+            return availableCorpora.filter { $0.id == corpusID }
+        case .corpusSet:
+            let referenceIDs = Set(selectedReferenceCorpusSet()?.corpusIDs ?? [])
+            return availableCorpora.filter { referenceIDs.contains($0.id) }
+        }
+    }
+
     func selectedTargetCorpusItems() -> [LibraryCorpusItem] {
         switch selectedReferenceSelection {
         case .automatic:
@@ -128,5 +148,64 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
             let referenceIDs = selectedReferenceCorpusSet().map { Set($0.corpusIDs) } ?? []
             return selectedCorpusItems().filter { !referenceIDs.contains($0.id) }
         }
+    }
+
+    func applyWorkspaceAnnotationState(_ state: WorkspaceAnnotationState) {
+        guard annotationState != state else { return }
+        annotationState = state
+        rebuildScene()
+    }
+
+    func applySentimentDrilldownContext(_ context: CompareSentimentDrilldownContext?) {
+        let normalizedContext: CompareSentimentDrilldownContext?
+        if let context,
+           !context.focusTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            normalizedContext = context
+        } else {
+            normalizedContext = nil
+        }
+
+        guard sentimentDrilldownContext != normalizedContext || sentimentSummary != nil || sentimentExplainer != nil else { return }
+        sentimentDrilldownContext = normalizedContext
+        sentimentSummary = nil
+        sentimentExplainer = nil
+        rebuildScene()
+    }
+
+    func applyCompareSentimentPresentationResult(
+        _ result: SentimentPresentationResult,
+        languageMode: AppLanguageMode
+    ) {
+        guard let sentimentDrilldownContext else { return }
+        let nextSummary = CompareSentimentSummary.build(
+            context: sentimentDrilldownContext,
+            result: result,
+            languageMode: languageMode
+        )
+        let nextExplainer = SentimentCrossAnalysisSupport.buildCompareExplainer(
+            context: sentimentDrilldownContext,
+            presentationResult: result,
+            languageMode: languageMode
+        )
+        guard sentimentSummary != nextSummary || sentimentExplainer != nextExplainer else { return }
+        sentimentSummary = nextSummary
+        sentimentExplainer = nextExplainer
+        rebuildScene()
+    }
+
+    func applyCompareSentimentResult(
+        _ result: SentimentPresentationResult,
+        languageMode: AppLanguageMode
+    ) {
+        applyCompareSentimentPresentationResult(result, languageMode: languageMode)
+    }
+
+    func clearSentimentCrossAnalysis(rebuildScene shouldRebuildScene: Bool = false) {
+        guard sentimentDrilldownContext != nil || sentimentSummary != nil || sentimentExplainer != nil else { return }
+        sentimentDrilldownContext = nil
+        sentimentSummary = nil
+        sentimentExplainer = nil
+        guard shouldRebuildScene else { return }
+        rebuildScene()
     }
 }

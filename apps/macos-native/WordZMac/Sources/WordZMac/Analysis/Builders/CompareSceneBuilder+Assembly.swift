@@ -205,6 +205,9 @@ extension CompareSceneBuilder {
         query: String,
         searchOptions: SearchOptionsState,
         stopwordFilter: StopwordFilterState,
+        annotationSummary: String,
+        sentimentSummary: CompareSentimentSummary?,
+        sentimentExplainer: CompareSentimentExplainer?,
         referenceSummary: String,
         selectedTitles: [String],
         visibleRows: Int,
@@ -221,8 +224,10 @@ extension CompareSceneBuilder {
             stopwordFilter: stopwordFilter,
             additionalLines: [
                 "\(wordZText("参考口径", "Reference Scope", mode: languageMode)): \(referenceSummary)",
-                "\(wordZText("所选语料", "Selected Corpora", mode: languageMode)): \(selectedTitles.isEmpty ? "—" : selectedTitles.joined(separator: " · "))"
-            ]
+                "\(wordZText("所选语料", "Selected Corpora", mode: languageMode)): \(selectedTitles.isEmpty ? "—" : selectedTitles.joined(separator: " · "))",
+                annotationSummary
+            ] + (sentimentSummary?.exportMetadataLines(in: languageMode) ?? [])
+                + (sentimentExplainer?.exportMetadataLines(in: languageMode) ?? [])
         )
     }
 

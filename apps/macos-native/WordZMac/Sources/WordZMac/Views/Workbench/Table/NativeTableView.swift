@@ -5,6 +5,7 @@ struct NativeTableView: NSViewRepresentable {
     @AppStorage(WorkbenchTablePreferences.pinnedHeaderKey) private var isHeaderPinned = true
     let descriptor: NativeTableDescriptor
     let rows: [NativeTableRowDescriptor]
+    let snapshot: ResultTableSnapshot?
     var selectedRowID: String? = nil
     var onSelectionChange: ((String?) -> Void)? = nil
     var onDoubleClick: ((String) -> Void)? = nil
@@ -60,10 +61,65 @@ struct NativeTableView: NSViewRepresentable {
         }
     }
 
+    init(
+        descriptor: NativeTableDescriptor,
+        rows: [NativeTableRowDescriptor],
+        selectedRowID: String? = nil,
+        onSelectionChange: ((String?) -> Void)? = nil,
+        onDoubleClick: ((String) -> Void)? = nil,
+        onSortByColumn: ((String) -> Void)? = nil,
+        onToggleColumnFromHeader: ((String) -> Void)? = nil,
+        allowsMultipleSelection: Bool = true,
+        emptyMessage: String = "当前没有可显示的数据。",
+        accessibilityLabel: String? = nil,
+        activationHint: String? = nil
+    ) {
+        self.descriptor = descriptor
+        self.rows = rows
+        self.snapshot = nil
+        self.selectedRowID = selectedRowID
+        self.onSelectionChange = onSelectionChange
+        self.onDoubleClick = onDoubleClick
+        self.onSortByColumn = onSortByColumn
+        self.onToggleColumnFromHeader = onToggleColumnFromHeader
+        self.allowsMultipleSelection = allowsMultipleSelection
+        self.emptyMessage = emptyMessage
+        self.accessibilityLabel = accessibilityLabel
+        self.activationHint = activationHint
+    }
+
+    init(
+        descriptor: NativeTableDescriptor,
+        snapshot: ResultTableSnapshot,
+        selectedRowID: String? = nil,
+        onSelectionChange: ((String?) -> Void)? = nil,
+        onDoubleClick: ((String) -> Void)? = nil,
+        onSortByColumn: ((String) -> Void)? = nil,
+        onToggleColumnFromHeader: ((String) -> Void)? = nil,
+        allowsMultipleSelection: Bool = true,
+        emptyMessage: String = "当前没有可显示的数据。",
+        accessibilityLabel: String? = nil,
+        activationHint: String? = nil
+    ) {
+        self.descriptor = descriptor
+        self.rows = snapshot.rows
+        self.snapshot = snapshot
+        self.selectedRowID = selectedRowID
+        self.onSelectionChange = onSelectionChange
+        self.onDoubleClick = onDoubleClick
+        self.onSortByColumn = onSortByColumn
+        self.onToggleColumnFromHeader = onToggleColumnFromHeader
+        self.allowsMultipleSelection = allowsMultipleSelection
+        self.emptyMessage = emptyMessage
+        self.accessibilityLabel = accessibilityLabel
+        self.activationHint = activationHint
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             descriptor: descriptor,
             rows: rows,
+            snapshot: snapshot,
             selectedRowID: selectedRowID,
             onSelectionChange: onSelectionChange,
             onDoubleClick: onDoubleClick,
@@ -104,6 +160,7 @@ struct NativeTableView: NSViewRepresentable {
         context.coordinator.apply(
             descriptor: descriptor,
             rows: rows,
+            snapshot: snapshot,
             selectedRowID: selectedRowID,
             onSelectionChange: onSelectionChange,
             onDoubleClick: onDoubleClick,
@@ -122,6 +179,7 @@ struct NativeTableView: NSViewRepresentable {
         context.coordinator.apply(
             descriptor: descriptor,
             rows: rows,
+            snapshot: snapshot,
             selectedRowID: selectedRowID,
             onSelectionChange: onSelectionChange,
             onDoubleClick: onDoubleClick,

@@ -14,6 +14,28 @@ extension NativeWorkspaceRepository {
         try await core.listLibrary(folderId: folderId)
     }
 
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState
+    ) async throws -> LibrarySnapshot {
+        try await core.listLibrary(
+            folderId: folderId,
+            metadataFilterState: metadataFilterState
+        )
+    }
+
+    func listLibrary(
+        folderId: String,
+        metadataFilterState: CorpusMetadataFilterState,
+        searchQuery: String
+    ) async throws -> LibrarySnapshot {
+        try await core.listLibrary(
+            folderId: folderId,
+            metadataFilterState: metadataFilterState,
+            searchQuery: searchQuery
+        )
+    }
+
     func importCorpusPaths(_ paths: [String], folderId: String, preserveHierarchy: Bool) async throws -> LibraryImportResult {
         try await core.importCorpusPaths(paths, folderId: folderId, preserveHierarchy: preserveHierarchy)
     }
@@ -34,6 +56,14 @@ extension NativeWorkspaceRepository {
 
     func openSavedCorpus(corpusId: String) async throws -> OpenedCorpus {
         try await core.openSavedCorpus(corpusId: corpusId)
+    }
+
+    func loadStoredFrequencyArtifact(corpusId: String) async throws -> StoredFrequencyArtifact? {
+        try await core.loadStoredFrequencyArtifact(corpusId: corpusId)
+    }
+
+    func loadStoredTokenizedArtifact(corpusId: String) async throws -> StoredTokenizedArtifact? {
+        try await core.loadStoredTokenizedArtifact(corpusId: corpusId)
     }
 
     func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
@@ -273,6 +303,22 @@ extension NativeWorkspaceRepository {
 
     func replaceEvidenceItems(_ items: [EvidenceItem]) async throws {
         try await core.replaceEvidenceItems(items)
+    }
+
+    func listSentimentReviewSamples() async throws -> [SentimentReviewSample] {
+        try await core.listSentimentReviewSamples()
+    }
+
+    func saveSentimentReviewSample(_ sample: SentimentReviewSample) async throws -> SentimentReviewSample {
+        try await core.saveSentimentReviewSample(sample)
+    }
+
+    func deleteSentimentReviewSample(sampleID: String) async throws {
+        try await core.deleteSentimentReviewSample(sampleID: sampleID)
+    }
+
+    func replaceSentimentReviewSamples(_ samples: [SentimentReviewSample]) async throws {
+        try await core.replaceSentimentReviewSamples(samples)
     }
 
     func saveWorkspaceState(_ draft: WorkspaceStateDraft) async throws {

@@ -29,7 +29,7 @@ extension NgramPageViewModel {
     }
 
     func reset() {
-        sceneBuildRevision += 1
+        invalidatePendingSceneBuilds()
         isApplyingState = true
         defer { isApplyingState = false }
         query = ""
