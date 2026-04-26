@@ -1,6 +1,6 @@
 import Foundation
 
-enum EvidenceSourceFilter: String, CaseIterable, Identifiable, Sendable, Hashable {
+enum EvidenceSourceFilter: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case all
     case kwic
     case locator
@@ -45,7 +45,7 @@ enum EvidenceSourceFilter: String, CaseIterable, Identifiable, Sendable, Hashabl
     }
 }
 
-enum EvidenceSentimentFilter: String, CaseIterable, Identifiable, Sendable, Hashable {
+enum EvidenceSentimentFilter: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case all
     case positive
     case neutral

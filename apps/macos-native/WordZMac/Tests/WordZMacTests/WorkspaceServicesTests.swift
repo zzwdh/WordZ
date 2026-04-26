@@ -190,6 +190,63 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.sentimentReferenceCorpusID, "set:set-1")
     }
 
+    func testWorkspacePersistenceRoundTripsEvidenceFilterState() {
+        let draft = WorkspacePersistenceService().buildDraft(
+            selectedTab: .kwic,
+            selectedFolderID: "folder-1",
+            selectedCorpusSetID: "",
+            selectedCorpus: nil,
+            openedCorpus: nil,
+            searchQuery: "",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            evidenceReviewFilter: .keep,
+            evidenceSourceFilter: .sentiment,
+            evidenceSentimentFilter: .positive,
+            evidenceTagFilterQuery: "teaching, alpha",
+            evidenceCorpusFilterQuery: "archive",
+            ngramSize: "2",
+            ngramPageSize: "10",
+            kwicLeftWindow: "5",
+            kwicRightWindow: "5",
+            collocateLeftWindow: "5",
+            collocateRightWindow: "5",
+            collocateMinFreq: "1",
+            topicsMinTopicSize: "2",
+            topicsIncludeOutliers: true,
+            topicsPageSize: "50",
+            topicsActiveTopicID: "",
+            chiSquareA: "",
+            chiSquareB: "",
+            chiSquareC: "",
+            chiSquareD: "",
+            chiSquareUseYates: false
+        )
+
+        let evidence = draft.asJSONObject()["evidence"] as? [String: Any]
+        let snapshot = WorkspaceSnapshotSummary(json: draft.asJSONObject())
+        let persistedSnapshot = NativePersistedWorkspaceSnapshot(draft: draft).workspaceSnapshot
+
+        XCTAssertEqual(draft.evidenceReviewFilter, .keep)
+        XCTAssertEqual(draft.evidenceSourceFilter, .sentiment)
+        XCTAssertEqual(draft.evidenceSentimentFilter, .positive)
+        XCTAssertEqual(draft.evidenceTagFilterQuery, "teaching, alpha")
+        XCTAssertEqual(draft.evidenceCorpusFilterQuery, "archive")
+        XCTAssertEqual(evidence?["reviewFilter"] as? String, "keep")
+        XCTAssertEqual(evidence?["sourceFilter"] as? String, "sentiment")
+        XCTAssertEqual(evidence?["sentimentFilter"] as? String, "positive")
+        XCTAssertEqual(snapshot.evidenceReviewFilter, .keep)
+        XCTAssertEqual(snapshot.evidenceSourceFilter, .sentiment)
+        XCTAssertEqual(snapshot.evidenceSentimentFilter, .positive)
+        XCTAssertEqual(snapshot.evidenceTagFilterQuery, "teaching, alpha")
+        XCTAssertEqual(snapshot.evidenceCorpusFilterQuery, "archive")
+        XCTAssertEqual(persistedSnapshot.evidenceReviewFilter, .keep)
+        XCTAssertEqual(persistedSnapshot.evidenceSourceFilter, .sentiment)
+        XCTAssertEqual(persistedSnapshot.evidenceSentimentFilter, .positive)
+        XCTAssertEqual(persistedSnapshot.evidenceTagFilterQuery, "teaching, alpha")
+        XCTAssertEqual(persistedSnapshot.evidenceCorpusFilterQuery, "archive")
+    }
+
     func testWorkspaceSnapshotRoundTripsSentimentImportedLexiconBundlesFromDraftJSON() {
         let importedBundle = makeSentimentUserLexiconBundle(id: "roundtrip-bundle")
         var calibration = SentimentCalibrationProfile.workspaceDefault

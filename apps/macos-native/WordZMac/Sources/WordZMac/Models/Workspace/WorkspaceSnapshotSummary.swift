@@ -37,6 +37,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
     let sentimentImportedLexiconBundles: [SentimentUserLexiconBundle]
     let sentimentSelectedCorpusIDs: [String]
     let sentimentReferenceCorpusID: String
+    let evidenceReviewFilter: EvidenceReviewFilter
+    let evidenceSourceFilter: EvidenceSourceFilter
+    let evidenceSentimentFilter: EvidenceSentimentFilter
+    let evidenceTagFilterQuery: String
+    let evidenceCorpusFilterQuery: String
     let keywordActiveTab: KeywordSuiteTab
     let keywordSuiteConfiguration: KeywordSuiteConfiguration
     let keywordTargetCorpusID: String
@@ -116,6 +121,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
         sentimentSelectedCorpusIDs: [String] = [],
         sentimentReferenceCorpusID: String = "",
+        evidenceReviewFilter: EvidenceReviewFilter = .all,
+        evidenceSourceFilter: EvidenceSourceFilter = .all,
+        evidenceSentimentFilter: EvidenceSentimentFilter = .all,
+        evidenceTagFilterQuery: String = "",
+        evidenceCorpusFilterQuery: String = "",
         keywordActiveTab: KeywordSuiteTab = .words,
         keywordSuiteConfiguration: KeywordSuiteConfiguration = .default,
         keywordTargetCorpusID: String = "",
@@ -192,6 +202,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.sentimentImportedLexiconBundles = sentimentImportedLexiconBundles
         self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
         self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
+        self.evidenceReviewFilter = evidenceReviewFilter
+        self.evidenceSourceFilter = evidenceSourceFilter
+        self.evidenceSentimentFilter = evidenceSentimentFilter
+        self.evidenceTagFilterQuery = evidenceTagFilterQuery
+        self.evidenceCorpusFilterQuery = evidenceCorpusFilterQuery
         self.keywordActiveTab = keywordActiveTab
         self.keywordSuiteConfiguration = keywordSuiteConfiguration
         self.keywordTargetCorpusID = keywordTargetCorpusID
@@ -334,6 +349,18 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         )
         self.sentimentSelectedCorpusIDs = JSONFieldReader.array(sentiment, key: "selectedCorpusIDs").compactMap { $0 as? String }
         self.sentimentReferenceCorpusID = JSONFieldReader.string(sentiment, key: "referenceCorpusID")
+        let evidence = JSONFieldReader.dictionary(json, key: "evidence")
+        self.evidenceReviewFilter = EvidenceReviewFilter(
+            rawValue: JSONFieldReader.string(evidence, key: "reviewFilter", fallback: EvidenceReviewFilter.all.rawValue)
+        ) ?? .all
+        self.evidenceSourceFilter = EvidenceSourceFilter(
+            rawValue: JSONFieldReader.string(evidence, key: "sourceFilter", fallback: EvidenceSourceFilter.all.rawValue)
+        ) ?? .all
+        self.evidenceSentimentFilter = EvidenceSentimentFilter(
+            rawValue: JSONFieldReader.string(evidence, key: "sentimentFilter", fallback: EvidenceSentimentFilter.all.rawValue)
+        ) ?? .all
+        self.evidenceTagFilterQuery = JSONFieldReader.string(evidence, key: "tagFilterQuery")
+        self.evidenceCorpusFilterQuery = JSONFieldReader.string(evidence, key: "corpusFilterQuery")
         let keyword = JSONFieldReader.dictionary(json, key: "keyword")
         self.keywordActiveTab = KeywordSuiteTab(
             rawValue: JSONFieldReader.string(keyword, key: "activeTab", fallback: KeywordSuiteTab.words.rawValue)
@@ -449,6 +476,11 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             sentimentImportedLexiconBundles: draft.sentimentImportedLexiconBundles,
             sentimentSelectedCorpusIDs: draft.sentimentSelectedCorpusIDs,
             sentimentReferenceCorpusID: draft.sentimentReferenceCorpusID,
+            evidenceReviewFilter: draft.evidenceReviewFilter,
+            evidenceSourceFilter: draft.evidenceSourceFilter,
+            evidenceSentimentFilter: draft.evidenceSentimentFilter,
+            evidenceTagFilterQuery: draft.evidenceTagFilterQuery,
+            evidenceCorpusFilterQuery: draft.evidenceCorpusFilterQuery,
             keywordActiveTab: draft.keywordActiveTab,
             keywordSuiteConfiguration: draft.keywordSuiteConfiguration,
             keywordTargetCorpusID: draft.keywordTargetCorpusID,

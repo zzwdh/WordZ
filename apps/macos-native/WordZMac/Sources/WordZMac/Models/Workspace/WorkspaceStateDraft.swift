@@ -37,6 +37,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
     let sentimentImportedLexiconBundles: [SentimentUserLexiconBundle]
     let sentimentSelectedCorpusIDs: [String]
     let sentimentReferenceCorpusID: String
+    let evidenceReviewFilter: EvidenceReviewFilter
+    let evidenceSourceFilter: EvidenceSourceFilter
+    let evidenceSentimentFilter: EvidenceSentimentFilter
+    let evidenceTagFilterQuery: String
+    let evidenceCorpusFilterQuery: String
     let keywordActiveTab: KeywordSuiteTab
     let keywordSuiteConfiguration: KeywordSuiteConfiguration
     let keywordTargetCorpusID: String
@@ -114,6 +119,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         sentimentImportedLexiconBundles: [],
         sentimentSelectedCorpusIDs: [],
         sentimentReferenceCorpusID: "",
+        evidenceReviewFilter: .all,
+        evidenceSourceFilter: .all,
+        evidenceSentimentFilter: .all,
+        evidenceTagFilterQuery: "",
+        evidenceCorpusFilterQuery: "",
         keywordActiveTab: .words,
         keywordSuiteConfiguration: .default,
         keywordTargetCorpusID: "",
@@ -192,6 +202,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
         sentimentSelectedCorpusIDs: [String] = [],
         sentimentReferenceCorpusID: String = "",
+        evidenceReviewFilter: EvidenceReviewFilter = .all,
+        evidenceSourceFilter: EvidenceSourceFilter = .all,
+        evidenceSentimentFilter: EvidenceSentimentFilter = .all,
+        evidenceTagFilterQuery: String = "",
+        evidenceCorpusFilterQuery: String = "",
         keywordActiveTab: KeywordSuiteTab = .words,
         keywordSuiteConfiguration: KeywordSuiteConfiguration = .default,
         keywordTargetCorpusID: String = "",
@@ -268,6 +283,11 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.sentimentImportedLexiconBundles = sentimentImportedLexiconBundles
         self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
         self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
+        self.evidenceReviewFilter = evidenceReviewFilter
+        self.evidenceSourceFilter = evidenceSourceFilter
+        self.evidenceSentimentFilter = evidenceSentimentFilter
+        self.evidenceTagFilterQuery = evidenceTagFilterQuery
+        self.evidenceCorpusFilterQuery = evidenceCorpusFilterQuery
         self.keywordActiveTab = keywordActiveTab
         self.keywordSuiteConfiguration = keywordSuiteConfiguration
         self.keywordTargetCorpusID = keywordTargetCorpusID
@@ -358,6 +378,13 @@ struct WorkspaceStateDraft: Equatable, Sendable {
                 "userLexiconBundles": encodeSentimentLexiconBundlesToJSONObject(sentimentImportedLexiconBundles),
                 "selectedCorpusIDs": sentimentSelectedCorpusIDs,
                 "referenceCorpusID": sentimentReferenceCorpusID
+            ],
+            "evidence": [
+                "reviewFilter": evidenceReviewFilter.rawValue,
+                "sourceFilter": evidenceSourceFilter.rawValue,
+                "sentimentFilter": evidenceSentimentFilter.rawValue,
+                "tagFilterQuery": evidenceTagFilterQuery,
+                "corpusFilterQuery": evidenceCorpusFilterQuery
             ],
             "keyword": [
                 "activeTab": keywordActiveTab.rawValue,

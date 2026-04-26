@@ -22,7 +22,8 @@ extension WorkspaceEvidenceWorkflowService {
         do {
             let document = try EvidenceMarkdownPacketSupport.document(
                 items: features.evidenceWorkbench.filteredItems,
-                grouping: features.evidenceWorkbench.groupingMode
+                grouping: features.evidenceWorkbench.groupingMode,
+                filterSummary: features.evidenceWorkbench.exportScopeSummary(in: .system)
             )
             await exportTextDocument(
                 document,

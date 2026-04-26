@@ -77,6 +77,10 @@ protocol WorkspaceEvidenceWorkbenchState: AnyObject {
     var groupingMode: EvidenceWorkbenchGroupingMode { get }
     var selectedItemID: String? { get set }
     var reviewFilter: EvidenceReviewFilter { get }
+    var sourceFilter: EvidenceSourceFilter { get }
+    var sentimentFilter: EvidenceSentimentFilter { get }
+    var tagFilterQuery: String { get }
+    var corpusFilterQuery: String { get }
     var sectionDraft: String { get }
     var claimDraft: String { get }
     var tagsDraft: String { get }
@@ -90,6 +94,8 @@ protocol WorkspaceEvidenceWorkbenchState: AnyObject {
     func group(matchingAssignmentValue assignmentValue: String, in mode: AppLanguageMode) -> EvidenceWorkbenchGroup?
     func selectedGroup(in mode: AppLanguageMode) -> EvidenceWorkbenchGroup?
     func applyItems(_ items: [EvidenceItem])
+    func apply(_ snapshot: WorkspaceSnapshotSummary)
+    func exportScopeSummary(in mode: AppLanguageMode) -> String
     func normalizeSelection()
     func normalizedText(_ value: String?) -> String?
     func normalizedTags(from rawValue: String) -> [String]

@@ -1420,6 +1420,52 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertFalse(viewModel.hasActiveNarrowingFilters)
     }
 
+    func testEvidenceWorkbenchViewModelAppliesSnapshotFilters() {
+        var positiveSentiment = makeEvidenceItem(
+            id: "evidence-positive",
+            sourceKind: .sentiment,
+            reviewStatus: .keep,
+            tags: ["teaching", "alpha"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
+        )
+        positiveSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .positive)
+        var negativeSentiment = makeEvidenceItem(
+            id: "evidence-negative",
+            sourceKind: .sentiment,
+            reviewStatus: .keep,
+            tags: ["teaching", "beta"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
+        )
+        negativeSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .negative)
+        let snapshot = makeWorkspaceSnapshot(
+            evidenceReviewFilter: .keep,
+            evidenceSourceFilter: .sentiment,
+            evidenceSentimentFilter: .positive,
+            evidenceTagFilterQuery: "teaching",
+            evidenceCorpusFilterQuery: "archive"
+        )
+        let viewModel = EvidenceWorkbenchViewModel()
+
+        viewModel.applyItems([positiveSentiment, negativeSentiment])
+        viewModel.apply(snapshot)
+
+        let expectedScope = [
+            wordZText("审阅", "Review", mode: .system) + ": " + EvidenceReviewFilter.keep.title(in: .system),
+            wordZText("来源", "Source", mode: .system) + ": " + EvidenceSourceFilter.sentiment.title(in: .system),
+            wordZText("情感", "Sentiment", mode: .system) + ": " + EvidenceSentimentFilter.positive.title(in: .system),
+            wordZText("标签", "Tags", mode: .system) + ": teaching",
+            wordZText("语料", "Corpus", mode: .system) + ": archive"
+        ].joined(separator: " · ")
+
+        XCTAssertEqual(viewModel.reviewFilter, .keep)
+        XCTAssertEqual(viewModel.sourceFilter, .sentiment)
+        XCTAssertEqual(viewModel.sentimentFilter, .positive)
+        XCTAssertEqual(viewModel.tagFilterQuery, "teaching")
+        XCTAssertEqual(viewModel.corpusFilterQuery, "archive")
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-positive"])
+        XCTAssertEqual(viewModel.exportScopeSummary(in: .system), expectedScope)
+    }
+
     func testEvidenceWorkbenchViewModelReordersVisibleGroupForManualSorting() {
         let first = makeEvidenceItem(id: "evidence-group-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
         let hidden = makeEvidenceItem(id: "evidence-group-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")

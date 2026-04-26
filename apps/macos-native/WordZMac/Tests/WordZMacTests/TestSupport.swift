@@ -1632,6 +1632,11 @@ func makeWorkspaceSnapshot(
     sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
     sentimentSelectedCorpusIDs: [String] = [],
     sentimentReferenceCorpusID: String = "",
+    evidenceReviewFilter: EvidenceReviewFilter = .all,
+    evidenceSourceFilter: EvidenceSourceFilter = .all,
+    evidenceSentimentFilter: EvidenceSentimentFilter = .all,
+    evidenceTagFilterQuery: String = "",
+    evidenceCorpusFilterQuery: String = "",
     keywordActiveTab: KeywordSuiteTab = .words,
     keywordSuiteConfiguration: KeywordSuiteConfiguration? = nil,
     keywordTargetCorpusID: String = "",
@@ -1727,6 +1732,13 @@ func makeWorkspaceSnapshot(
             "userLexiconBundles": sentimentImportedLexiconBundles.compactMap(sentimentLexiconBundleJSONObject),
             "selectedCorpusIDs": sentimentSelectedCorpusIDs,
             "referenceCorpusID": sentimentReferenceCorpusID
+        ],
+        "evidence": [
+            "reviewFilter": evidenceReviewFilter.rawValue,
+            "sourceFilter": evidenceSourceFilter.rawValue,
+            "sentimentFilter": evidenceSentimentFilter.rawValue,
+            "tagFilterQuery": evidenceTagFilterQuery,
+            "corpusFilterQuery": evidenceCorpusFilterQuery
         ],
         "keyword": keyword,
         "frequencyMetrics": [

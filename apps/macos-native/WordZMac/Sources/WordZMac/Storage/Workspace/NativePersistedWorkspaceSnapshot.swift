@@ -37,6 +37,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
     let sentimentImportedLexiconBundles: [SentimentUserLexiconBundle]
     let sentimentSelectedCorpusIDs: [String]
     let sentimentReferenceCorpusID: String
+    let evidenceReviewFilter: EvidenceReviewFilter
+    let evidenceSourceFilter: EvidenceSourceFilter
+    let evidenceSentimentFilter: EvidenceSentimentFilter
+    let evidenceTagFilterQuery: String
+    let evidenceCorpusFilterQuery: String
     let keywordActiveTab: KeywordSuiteTab
     let keywordSuiteConfiguration: KeywordSuiteConfiguration
     let keywordTargetCorpusID: String
@@ -114,6 +119,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         case sentimentImportedLexiconBundles
         case sentimentSelectedCorpusIDs
         case sentimentReferenceCorpusID
+        case evidenceReviewFilter
+        case evidenceSourceFilter
+        case evidenceSentimentFilter
+        case evidenceTagFilterQuery
+        case evidenceCorpusFilterQuery
         case keywordActiveTab
         case keywordSuiteConfiguration
         case keywordTargetCorpusID
@@ -194,6 +204,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
         sentimentSelectedCorpusIDs: [String] = [],
         sentimentReferenceCorpusID: String = "",
+        evidenceReviewFilter: EvidenceReviewFilter = .all,
+        evidenceSourceFilter: EvidenceSourceFilter = .all,
+        evidenceSentimentFilter: EvidenceSentimentFilter = .all,
+        evidenceTagFilterQuery: String = "",
+        evidenceCorpusFilterQuery: String = "",
         keywordActiveTab: KeywordSuiteTab,
         keywordSuiteConfiguration: KeywordSuiteConfiguration,
         keywordTargetCorpusID: String,
@@ -270,6 +285,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.sentimentImportedLexiconBundles = sentimentImportedLexiconBundles
         self.sentimentSelectedCorpusIDs = sentimentSelectedCorpusIDs
         self.sentimentReferenceCorpusID = sentimentReferenceCorpusID
+        self.evidenceReviewFilter = evidenceReviewFilter
+        self.evidenceSourceFilter = evidenceSourceFilter
+        self.evidenceSentimentFilter = evidenceSentimentFilter
+        self.evidenceTagFilterQuery = evidenceTagFilterQuery
+        self.evidenceCorpusFilterQuery = evidenceCorpusFilterQuery
         self.keywordActiveTab = keywordActiveTab
         self.keywordSuiteConfiguration = keywordSuiteConfiguration
         self.keywordTargetCorpusID = keywordTargetCorpusID
@@ -349,6 +369,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             sentimentImportedLexiconBundles: draft.sentimentImportedLexiconBundles,
             sentimentSelectedCorpusIDs: draft.sentimentSelectedCorpusIDs,
             sentimentReferenceCorpusID: draft.sentimentReferenceCorpusID,
+            evidenceReviewFilter: draft.evidenceReviewFilter,
+            evidenceSourceFilter: draft.evidenceSourceFilter,
+            evidenceSentimentFilter: draft.evidenceSentimentFilter,
+            evidenceTagFilterQuery: draft.evidenceTagFilterQuery,
+            evidenceCorpusFilterQuery: draft.evidenceCorpusFilterQuery,
             keywordActiveTab: draft.keywordActiveTab,
             keywordSuiteConfiguration: draft.keywordSuiteConfiguration,
             keywordTargetCorpusID: draft.keywordTargetCorpusID,
@@ -429,6 +454,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.sentimentImportedLexiconBundles = try container.decodeIfPresent([SentimentUserLexiconBundle].self, forKey: .sentimentImportedLexiconBundles) ?? []
         self.sentimentSelectedCorpusIDs = try container.decodeIfPresent([String].self, forKey: .sentimentSelectedCorpusIDs) ?? []
         self.sentimentReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .sentimentReferenceCorpusID) ?? ""
+        self.evidenceReviewFilter = try container.decodeIfPresent(EvidenceReviewFilter.self, forKey: .evidenceReviewFilter) ?? .all
+        self.evidenceSourceFilter = try container.decodeIfPresent(EvidenceSourceFilter.self, forKey: .evidenceSourceFilter) ?? .all
+        self.evidenceSentimentFilter = try container.decodeIfPresent(EvidenceSentimentFilter.self, forKey: .evidenceSentimentFilter) ?? .all
+        self.evidenceTagFilterQuery = try container.decodeIfPresent(String.self, forKey: .evidenceTagFilterQuery) ?? ""
+        self.evidenceCorpusFilterQuery = try container.decodeIfPresent(String.self, forKey: .evidenceCorpusFilterQuery) ?? ""
         self.keywordActiveTab = try container.decodeIfPresent(KeywordSuiteTab.self, forKey: .keywordActiveTab) ?? .words
         self.keywordTargetCorpusID = try container.decodeIfPresent(String.self, forKey: .keywordTargetCorpusID) ?? ""
         self.keywordReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .keywordReferenceCorpusID) ?? ""
@@ -523,6 +553,11 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
             sentimentImportedLexiconBundles: sentimentImportedLexiconBundles,
             sentimentSelectedCorpusIDs: sentimentSelectedCorpusIDs,
             sentimentReferenceCorpusID: sentimentReferenceCorpusID,
+            evidenceReviewFilter: evidenceReviewFilter,
+            evidenceSourceFilter: evidenceSourceFilter,
+            evidenceSentimentFilter: evidenceSentimentFilter,
+            evidenceTagFilterQuery: evidenceTagFilterQuery,
+            evidenceCorpusFilterQuery: evidenceCorpusFilterQuery,
             keywordActiveTab: keywordActiveTab,
             keywordSuiteConfiguration: keywordSuiteConfiguration,
             keywordTargetCorpusID: keywordTargetCorpusID,

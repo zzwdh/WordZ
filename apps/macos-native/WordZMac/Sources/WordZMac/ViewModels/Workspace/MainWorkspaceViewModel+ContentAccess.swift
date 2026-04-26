@@ -156,7 +156,8 @@ extension MainWorkspaceViewModel {
     var currentEvidenceDossierDocument: AnalysisReportBundleTextDocument? {
         guard let document = try? EvidenceMarkdownPacketSupport.document(
             items: evidenceWorkbench.filteredItems,
-            grouping: evidenceWorkbench.groupingMode
+            grouping: evidenceWorkbench.groupingMode,
+            filterSummary: evidenceWorkbench.exportScopeSummary(in: .system)
         ) else {
             return nil
         }

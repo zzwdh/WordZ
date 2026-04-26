@@ -20,6 +20,7 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
         features.settings.applyHostPreferences(hostPreferencesStore.load())
         features.sentiment.syncLibrarySnapshot(bootstrapState.librarySnapshot)
         features.sentiment.apply(bootstrapState.workspaceSnapshot)
+        features.evidenceWorkbench.apply(bootstrapState.workspaceSnapshot)
         features.cluster.syncLibrarySnapshot(bootstrapState.librarySnapshot)
         features.plot.apply(bootstrapState.workspaceSnapshot)
         features.ngram.apply(bootstrapState.workspaceSnapshot)

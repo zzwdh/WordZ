@@ -15,7 +15,8 @@ enum EvidenceMarkdownDossierSupport {
     static func document(
         items: [EvidenceItem],
         grouping: EvidenceWorkbenchGroupingMode,
-        exportedAt: Date = Date()
+        exportedAt: Date = Date(),
+        filterSummary: String? = nil
     ) throws -> PlainTextExportDocument {
         let keptItems = items.filter { $0.reviewStatus == .keep }
         guard !keptItems.isEmpty else {
@@ -37,6 +38,9 @@ enum EvidenceMarkdownDossierSupport {
             wordZText("保留证据", "Kept Items", mode: .system) + ": \(keptItems.count)",
             wordZText("组织方式", "Grouping", mode: .system) + ": " + grouping.title(in: .system)
         ]
+        if let filterSummary = normalizedValue(filterSummary) {
+            lines.append(wordZText("导出范围", "Export Scope", mode: .system) + ": " + filterSummary)
+        }
 
         lines.append("")
         lines.append("## " + wordZText("方法摘要", "Method Summary", mode: .system))

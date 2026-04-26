@@ -44,7 +44,7 @@ enum EvidenceReviewStatus: String, CaseIterable, Identifiable, Codable, Sendable
     }
 }
 
-enum EvidenceReviewFilter: String, CaseIterable, Identifiable, Hashable {
+enum EvidenceReviewFilter: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case all
     case pending
     case keep
@@ -583,12 +583,14 @@ enum EvidenceMarkdownPacketSupport {
     static func document(
         items: [EvidenceItem],
         grouping: EvidenceWorkbenchGroupingMode = .section,
-        exportedAt: Date = Date()
+        exportedAt: Date = Date(),
+        filterSummary: String? = nil
     ) throws -> PlainTextExportDocument {
         try EvidenceMarkdownDossierSupport.document(
             items: items,
             grouping: grouping,
-            exportedAt: exportedAt
+            exportedAt: exportedAt,
+            filterSummary: filterSummary
         )
     }
 }

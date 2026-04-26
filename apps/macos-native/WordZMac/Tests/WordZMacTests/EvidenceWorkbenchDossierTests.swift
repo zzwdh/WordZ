@@ -225,6 +225,19 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertTrue(document.text.contains("Demo Corpus. Research Archive. 2026. " + wordZText("体裁", "Genre", mode: .system) + ": Interview. " + wordZText("标签", "Tags", mode: .system) + ": oral, fieldwork. WordZ. " + wordZText("证据", "Evidence", mode: .system) + ": E1, E2."))
     }
 
+    func testMarkdownDossierRecordsFilterScopeWhenProvided() throws {
+        let item = makeEvidenceItem(id: "evidence-filter-scope", reviewStatus: .keep)
+        let filterSummary = wordZText("审阅", "Review", mode: .system) + ": " + EvidenceReviewFilter.keep.title(in: .system)
+
+        let document = try EvidenceMarkdownDossierSupport.document(
+            items: [item],
+            grouping: .section,
+            filterSummary: filterSummary
+        )
+
+        XCTAssertTrue(document.text.contains(wordZText("导出范围", "Export Scope", mode: .system) + ": " + filterSummary))
+    }
+
     func testMarkdownDossierPreservesManualSectionOrderFromWorkbenchSequence() throws {
         let sectionB = makeEvidenceItem(
             id: "evidence-section-b",
