@@ -140,12 +140,12 @@ struct EvidenceWorkbenchWindowView: View {
                     Button(t("导出 Dossier", "Export Dossier")) {
                         Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
                     }
-                    .disabled(!workbench.items.contains(where: { $0.reviewStatus == .keep }))
+                    .disabled(!workbench.hasVisibleKeptItems)
 
                     Button(t("导出 JSON", "Export JSON")) {
                         Task { await workspace.exportEvidenceJSON(preferredWindowRoute: .evidenceWorkbench) }
                     }
-                    .disabled(workbench.items.isEmpty)
+                    .disabled(workbench.filteredItems.isEmpty)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "ellipsis.circle")
@@ -186,57 +186,106 @@ struct EvidenceWorkbenchWindowView: View {
     }
 
     private var headerSection: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(t("研究 dossier 工作台", "Research Dossier Workbench"))
-                    .font(.title3.weight(.semibold))
-                Text(
-                    String(
-                        format: t(
-                            "当前筛选下共有 %d 条证据，已组织为 %d 组。",
-                            "%d evidence items are currently visible across %d groups."
-                        ),
-                        workbench.filteredItems.count,
-                        workbench.groupedItems(in: languageMode).count
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(t("研究 dossier 工作台", "Research Dossier Workbench"))
+                        .font(.title3.weight(.semibold))
+                    Text(
+                        String(
+                            format: t(
+                                "当前筛选下共有 %d 条证据，已组织为 %d 组。",
+                                "%d evidence items are currently visible across %d groups."
+                            ),
+                            workbench.filteredItems.count,
+                            workbench.groupedItems(in: languageMode).count
+                        )
                     )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Picker(
-                t("筛选", "Filter"),
-                selection: $workbench.reviewFilter
-            ) {
-                ForEach(EvidenceReviewFilter.allCases) { filter in
-                    Text(filter.title(in: languageMode))
-                        .tag(filter)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
-            }
-            .pickerStyle(.menu)
 
-            Picker(
-                t("组织方式", "Grouping"),
-                selection: $workbench.groupingMode
-            ) {
-                ForEach(EvidenceWorkbenchGroupingMode.allCases) { grouping in
-                    Text(grouping.title(in: languageMode))
-                        .tag(grouping)
+                Spacer()
+
+                Picker(
+                    t("组织方式", "Grouping"),
+                    selection: $workbench.groupingMode
+                ) {
+                    ForEach(EvidenceWorkbenchGroupingMode.allCases) { grouping in
+                        Text(grouping.title(in: languageMode))
+                            .tag(grouping)
+                    }
                 }
-            }
-            .pickerStyle(.menu)
+                .pickerStyle(.menu)
 
-            Button(t("导出 Dossier", "Export Dossier")) {
-                Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
-            }
-            .disabled(!workbench.items.contains(where: { $0.reviewStatus == .keep }))
+                Button(t("导出 Dossier", "Export Dossier")) {
+                    Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
+                }
+                .disabled(!workbench.hasVisibleKeptItems)
 
-            Button(t("导出 JSON", "Export JSON")) {
-                Task { await workspace.exportEvidenceJSON(preferredWindowRoute: .evidenceWorkbench) }
+                Button(t("导出 JSON", "Export JSON")) {
+                    Task { await workspace.exportEvidenceJSON(preferredWindowRoute: .evidenceWorkbench) }
+                }
+                .disabled(workbench.filteredItems.isEmpty)
             }
-            .disabled(workbench.items.isEmpty)
+
+            HStack(spacing: 10) {
+                Picker(
+                    t("审校状态", "Review Status"),
+                    selection: $workbench.reviewFilter
+                ) {
+                    ForEach(EvidenceReviewFilter.allCases) { filter in
+                        Text(filter.title(in: languageMode))
+                            .tag(filter)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 128)
+
+                Picker(
+                    t("来源", "Source"),
+                    selection: $workbench.sourceFilter
+                ) {
+                    ForEach(EvidenceSourceFilter.allCases) { filter in
+                        Text(filter.title(in: languageMode))
+                            .tag(filter)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 136)
+
+                Picker(
+                    t("情感", "Sentiment"),
+                    selection: $workbench.sentimentFilter
+                ) {
+                    ForEach(EvidenceSentimentFilter.allCases) { filter in
+                        Text(filter.title(in: languageMode))
+                            .tag(filter)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 136)
+
+                TextField(t("标签筛选", "Filter Tags"), text: $workbench.tagFilterQuery)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+
+                TextField(t("语料筛选", "Filter Corpus"), text: $workbench.corpusFilterQuery)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 170)
+
+                if workbench.hasActiveNarrowingFilters {
+                    Button {
+                        workbench.clearFilters()
+                    } label: {
+                        Image(systemName: "xmark.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(t("清除筛选", "Clear Filters"))
+                }
+
+                Spacer()
+            }
         }
         .padding(20)
     }

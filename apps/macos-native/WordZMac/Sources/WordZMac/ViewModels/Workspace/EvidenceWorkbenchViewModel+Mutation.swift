@@ -390,7 +390,7 @@ extension EvidenceWorkbenchViewModel {
         reordered.reserveCapacity(items.count)
 
         for item in items {
-            guard reviewFilter.includes(item.reviewStatus) else {
+            guard includesInActiveFilters(item) else {
                 reordered.append(item)
                 continue
             }

@@ -21,7 +21,7 @@ extension WorkspaceEvidenceWorkflowService {
     ) async {
         do {
             let document = try EvidenceMarkdownPacketSupport.document(
-                items: features.evidenceWorkbench.items,
+                items: features.evidenceWorkbench.filteredItems,
                 grouping: features.evidenceWorkbench.groupingMode
             )
             await exportTextDocument(
@@ -40,7 +40,8 @@ extension WorkspaceEvidenceWorkflowService {
         features: WorkspaceEvidenceWorkflowContext,
         preferredRoute: NativeWindowRoute? = nil
     ) async {
-        guard !features.evidenceWorkbench.items.isEmpty else {
+        let exportItems = features.evidenceWorkbench.filteredItems
+        guard !exportItems.isEmpty else {
             features.sidebar.setError(wordZText("当前没有可导出的证据条目。", "There are no evidence items to export.", mode: .system))
             return
         }
@@ -55,7 +56,7 @@ extension WorkspaceEvidenceWorkflowService {
         }
 
         do {
-            let data = try EvidenceTransferSupport.exportData(items: features.evidenceWorkbench.items)
+            let data = try EvidenceTransferSupport.exportData(items: exportItems)
             try data.write(to: URL(fileURLWithPath: path), options: .atomic)
             features.library.setStatus(wordZText("已导出证据 JSON 到", "Exported evidence JSON to", mode: .system) + " " + path)
             features.sidebar.clearError()

@@ -17,6 +17,34 @@ package final class EvidenceWorkbenchViewModel: ObservableObject {
             syncEditorState()
         }
     }
+    @Published var sourceFilter: EvidenceSourceFilter = .all {
+        didSet {
+            guard oldValue != sourceFilter else { return }
+            normalizeSelection()
+            syncEditorState()
+        }
+    }
+    @Published var sentimentFilter: EvidenceSentimentFilter = .all {
+        didSet {
+            guard oldValue != sentimentFilter else { return }
+            normalizeSelection()
+            syncEditorState()
+        }
+    }
+    @Published var tagFilterQuery = "" {
+        didSet {
+            guard normalizedLookupKey(oldValue) != normalizedLookupKey(tagFilterQuery) else { return }
+            normalizeSelection()
+            syncEditorState()
+        }
+    }
+    @Published var corpusFilterQuery = "" {
+        didSet {
+            guard normalizedLookupKey(oldValue) != normalizedLookupKey(corpusFilterQuery) else { return }
+            normalizeSelection()
+            syncEditorState()
+        }
+    }
     @Published var sectionDraft = ""
     @Published var claimDraft = ""
     @Published var tagsDraft = ""
@@ -31,7 +59,37 @@ package final class EvidenceWorkbenchViewModel: ObservableObject {
     init() {}
 
     var filteredItems: [EvidenceItem] {
-        items.filter { reviewFilter.includes($0.reviewStatus) }
+        items.filter { includesInActiveFilters($0) }
+    }
+
+    var hasActiveNarrowingFilters: Bool {
+        reviewFilter != .all ||
+            sourceFilter != .all ||
+            sentimentFilter != .all ||
+            normalizedText(tagFilterQuery) != nil ||
+            normalizedText(corpusFilterQuery) != nil
+    }
+
+    var hasVisibleKeptItems: Bool {
+        filteredItems.contains { $0.reviewStatus == .keep }
+    }
+
+    func clearFilters() {
+        reviewFilter = .all
+        sourceFilter = .all
+        sentimentFilter = .all
+        tagFilterQuery = ""
+        corpusFilterQuery = ""
+        normalizeSelection()
+        syncEditorState()
+    }
+
+    func includesInActiveFilters(_ item: EvidenceItem) -> Bool {
+        reviewFilter.includes(item.reviewStatus) &&
+            sourceFilter.includes(item) &&
+            sentimentFilter.includes(item) &&
+            matchesTagFilter(item) &&
+            matchesCorpusFilter(item)
     }
 
     var hasUnsavedDetailChanges: Bool {
@@ -83,5 +141,42 @@ package final class EvidenceWorkbenchViewModel: ObservableObject {
 
     func normalizedTags(_ values: [String]) -> [String] {
         normalizedTags(from: values.joined(separator: ", "))
+    }
+
+    func normalizedLookupKey(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+
+    private func matchesTagFilter(_ item: EvidenceItem) -> Bool {
+        let requestedTags = normalizedTags(from: tagFilterQuery)
+        guard !requestedTags.isEmpty else { return true }
+        let itemTagKeys = Set(item.tags.map(normalizedLookupKey))
+        return requestedTags
+            .map(normalizedLookupKey)
+            .allSatisfy { itemTagKeys.contains($0) }
+    }
+
+    private func matchesCorpusFilter(_ item: EvidenceItem) -> Bool {
+        guard let query = normalizedText(corpusFilterQuery) else { return true }
+        let lookupKey = normalizedLookupKey(query)
+        return corpusSearchFields(for: item)
+            .map(normalizedLookupKey)
+            .contains { $0.contains(lookupKey) }
+    }
+
+    private func corpusSearchFields(for item: EvidenceItem) -> [String] {
+        var fields = [
+            item.corpusID,
+            item.corpusName,
+            item.savedSetName ?? ""
+        ]
+        if let metadata = item.corpusMetadata {
+            fields.append(metadata.sourceLabel)
+            fields.append(metadata.yearLabel)
+            fields.append(metadata.genreLabel)
+            fields.append(metadata.tagsText)
+        }
+        return fields.filter { !$0.isEmpty }
     }
 }

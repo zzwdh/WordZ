@@ -2829,6 +2829,42 @@ func makeEvidenceItem(
     )
 }
 
+func makeEvidenceSentimentMetadata(
+    label: SentimentLabel = .positive
+) -> EvidenceSentimentMetadata {
+    EvidenceSentimentMetadata(
+        source: .openedCorpus,
+        unit: .sentence,
+        contextBasis: .fullSentenceWhenAvailable,
+        backendKind: .lexicon,
+        backendRevision: "lexicon-test",
+        resourceRevision: "resource-test",
+        providerID: nil,
+        providerFamily: nil,
+        domainPackID: .general,
+        ruleProfileID: "default",
+        calibrationProfileRevision: "calibration-test",
+        activePackIDs: [.general],
+        rawLabel: label,
+        rawScores: .oneHot(for: label),
+        effectiveLabel: label,
+        effectiveScores: .oneHot(for: label),
+        reviewDecision: .confirmRaw,
+        reviewStatus: .confirmed,
+        reviewNote: nil,
+        reviewSampleID: nil,
+        reviewedAt: nil,
+        rowID: "row-\(label.rawValue)",
+        sourceID: "corpus-1",
+        sentenceID: 2,
+        tokenIndex: 3,
+        ruleSummary: nil,
+        topRuleTraceSteps: [],
+        inferencePath: .lexicon,
+        modelInputKind: nil
+    )
+}
+
 func makeRecycleSnapshot() -> RecycleBinSnapshot {
     RecycleBinSnapshot(json: [
         "entries": [[

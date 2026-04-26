@@ -51,7 +51,7 @@ extension WorkspaceEvidenceWorkflowService {
         afterSaving item: EvidenceItem,
         features: WorkspaceEvidenceWorkflowContext
     ) {
-        if features.evidenceWorkbench.reviewFilter.includes(item.reviewStatus) {
+        if features.evidenceWorkbench.filteredItems.contains(where: { $0.id == item.id }) {
             features.evidenceWorkbench.selectedItemID = item.id
         } else {
             restoreEvidenceSelection(

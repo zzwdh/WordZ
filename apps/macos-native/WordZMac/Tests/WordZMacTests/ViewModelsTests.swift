@@ -1366,6 +1366,60 @@ final class ViewModelsTests: XCTestCase {
         )
     }
 
+    func testEvidenceWorkbenchViewModelCombinesTagCorpusSourceAndSentimentFilters() {
+        var positiveSentiment = makeEvidenceItem(
+            id: "evidence-positive",
+            sourceKind: .sentiment,
+            reviewStatus: .keep,
+            tags: ["teaching", "alpha"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
+        )
+        positiveSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .positive)
+        var negativeSentiment = makeEvidenceItem(
+            id: "evidence-negative",
+            sourceKind: .sentiment,
+            reviewStatus: .keep,
+            tags: ["teaching", "beta"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
+        )
+        negativeSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .negative)
+        let locator = makeEvidenceItem(
+            id: "evidence-locator",
+            sourceKind: .locator,
+            reviewStatus: .keep,
+            tags: ["teaching", "alpha"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
+        )
+        let hiddenPending = makeEvidenceItem(
+            id: "evidence-pending",
+            sourceKind: .sentiment,
+            reviewStatus: .pending,
+            tags: ["teaching", "alpha"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
+        )
+        let viewModel = EvidenceWorkbenchViewModel()
+
+        viewModel.applyItems([positiveSentiment, negativeSentiment, locator, hiddenPending])
+        viewModel.reviewFilter = .keep
+        viewModel.sourceFilter = .sentiment
+        viewModel.sentimentFilter = .positive
+        viewModel.tagFilterQuery = "teaching, alpha"
+        viewModel.corpusFilterQuery = "archive"
+
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-positive"])
+        XCTAssertTrue(viewModel.hasActiveNarrowingFilters)
+
+        viewModel.clearFilters()
+
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), [
+            "evidence-positive",
+            "evidence-negative",
+            "evidence-locator",
+            "evidence-pending"
+        ])
+        XCTAssertFalse(viewModel.hasActiveNarrowingFilters)
+    }
+
     func testEvidenceWorkbenchViewModelReordersVisibleGroupForManualSorting() {
         let first = makeEvidenceItem(id: "evidence-group-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
         let hidden = makeEvidenceItem(id: "evidence-group-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")

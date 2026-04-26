@@ -1057,6 +1057,66 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(dialogService.savePathPreferredRoute, .mainWorkspace)
     }
 
+    func testExportEvidenceArtifactsRespectCurrentWorkbenchFilters() async throws {
+        let dialogService = FakeDialogService()
+        let markdownURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("filtered-evidence-packet-\(UUID().uuidString).md")
+        let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("filtered-evidence-bundle-\(UUID().uuidString).json")
+        defer {
+            try? FileManager.default.removeItem(at: markdownURL)
+            try? FileManager.default.removeItem(at: jsonURL)
+        }
+
+        let matching = makeEvidenceItem(
+            id: "matching-keep",
+            sourceKind: .kwic,
+            reviewStatus: .keep,
+            tags: ["export", "alpha"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive")
+        )
+        let hiddenByTag = makeEvidenceItem(
+            id: "hidden-by-tag",
+            sourceKind: .kwic,
+            reviewStatus: .keep,
+            tags: ["beta"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive")
+        )
+        let hiddenByReview = makeEvidenceItem(
+            id: "hidden-by-review",
+            sourceKind: .locator,
+            reviewStatus: .pending,
+            tags: ["export", "alpha"],
+            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive")
+        )
+        let repository = FakeWorkspaceRepository()
+        repository.evidenceItems = [matching, hiddenByTag, hiddenByReview]
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            dialogService: dialogService
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.evidenceWorkbench.reviewFilter = .keep
+        workspace.evidenceWorkbench.tagFilterQuery = "export"
+        workspace.evidenceWorkbench.corpusFilterQuery = "archive"
+
+        dialogService.savePathResult = markdownURL.path
+        await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .mainWorkspace)
+
+        let markdownText = try String(contentsOf: markdownURL, encoding: .utf8)
+        XCTAssertTrue(markdownText.contains("node"))
+        XCTAssertFalse(markdownText.contains("locator-node"))
+        XCTAssertFalse(markdownText.contains("beta"))
+
+        dialogService.savePathResult = jsonURL.path
+        await workspace.exportEvidenceJSON(preferredWindowRoute: .mainWorkspace)
+
+        let jsonData = try Data(contentsOf: jsonURL)
+        let bundle = try JSONDecoder().decode(EvidenceTransferBundle.self, from: jsonData)
+        XCTAssertEqual(bundle.items.map(\.id), ["matching-keep"])
+    }
+
     func testExportSelectedKeywordSavedListJSONWritesTransferBundle() async throws {
         let dialogService = FakeDialogService()
         let exportURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
