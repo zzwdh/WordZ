@@ -2747,6 +2747,9 @@ func makeEvidenceItem(
     sectionTitle: String? = nil,
     claim: String? = nil,
     tags: [String] = [],
+    citationFormat: EvidenceCitationFormat = .citationLine,
+    citationStyle: EvidenceCitationStyle = .plain,
+    corpusMetadata: CorpusMetadataProfile? = nil,
     note: String? = nil
 ) -> EvidenceItem {
     let savedSetID: String?
@@ -2801,6 +2804,7 @@ func makeEvidenceItem(
         savedSetName: savedSetName,
         corpusID: "corpus-1",
         corpusName: "Demo Corpus",
+        corpusMetadata: corpusMetadata,
         sentenceId: 2,
         sentenceTokenIndex: 3,
         leftContext: "left context",
@@ -2808,6 +2812,8 @@ func makeEvidenceItem(
         rightContext: "right context",
         fullSentenceText: "left context node right context",
         citationText: "Sentence 3: left context node right context",
+        citationFormat: citationFormat,
+        citationStyle: citationStyle,
         query: query,
         leftWindow: 5,
         rightWindow: 5,

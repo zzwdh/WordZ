@@ -10,7 +10,7 @@ extension WorkspaceEvidenceWorkflowService {
             features.sidebar.setError(wordZText("未找到要复制的证据条目。", "The evidence item could not be found.", mode: .system))
             return
         }
-        hostActionService.copyTextToClipboard(item.citationText)
+        hostActionService.copyTextToClipboard(item.styledCitationText)
         features.library.setStatus(wordZText("已复制证据引文。", "Copied the evidence citation.", mode: .system))
         features.sidebar.clearError()
     }

@@ -67,6 +67,8 @@ enum EvidenceMarkdownDossierSupport {
                 if !item.tags.isEmpty {
                     lines.append("- " + wordZText("标签", "Tags", mode: .system) + ": " + item.tags.joined(separator: ", "))
                 }
+                lines.append("- " + wordZText("引文格式", "Citation Format", mode: .system) + ": " + item.citationFormat.title(in: .system))
+                lines.append("- " + wordZText("引用样式", "Citation Style", mode: .system) + ": " + item.citationStyle.title(in: .system))
                 lines.append("")
                 lines.append("#### " + wordZText("索引行", "Concordance", mode: .system))
                 lines.append(item.concordanceText)
@@ -75,7 +77,7 @@ enum EvidenceMarkdownDossierSupport {
                 lines.append(item.fullSentenceText)
                 lines.append("")
                 lines.append("#### " + wordZText("引文", "Citation", mode: .system))
-                lines.append(item.citationText)
+                lines.append(item.styledCitationText)
                 if let note = normalizedValue(item.note) {
                     lines.append("")
                     lines.append("#### " + wordZText("备注", "Note", mode: .system))

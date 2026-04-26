@@ -80,6 +80,8 @@ extension EvidenceWorkbenchViewModel {
         sectionDraft = selectedItem?.sectionTitle ?? ""
         claimDraft = selectedItem?.claim ?? ""
         tagsDraft = selectedItem?.tagSummaryText ?? ""
+        citationFormatDraft = selectedItem?.citationFormat ?? .citationLine
+        citationStyleDraft = selectedItem?.citationStyle ?? .plain
         noteDraft = selectedItem?.note ?? ""
     }
 

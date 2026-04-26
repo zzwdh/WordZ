@@ -35,10 +35,14 @@ extension WorkspaceEvidenceWorkflowService {
         let nextSectionTitle = features.evidenceWorkbench.normalizedText(features.evidenceWorkbench.sectionDraft)
         let nextClaim = features.evidenceWorkbench.normalizedText(features.evidenceWorkbench.claimDraft)
         let nextTags = features.evidenceWorkbench.normalizedTags(from: features.evidenceWorkbench.tagsDraft)
+        let nextCitationFormat = features.evidenceWorkbench.citationFormatDraft
+        let nextCitationStyle = features.evidenceWorkbench.citationStyleDraft
         let nextNote = features.evidenceWorkbench.normalizedText(features.evidenceWorkbench.noteDraft)
         if features.evidenceWorkbench.normalizedText(selectedItem.sectionTitle) == nextSectionTitle &&
             features.evidenceWorkbench.normalizedText(selectedItem.claim) == nextClaim &&
             features.evidenceWorkbench.normalizedTags(selectedItem.tags) == nextTags &&
+            selectedItem.citationFormat == nextCitationFormat &&
+            selectedItem.citationStyle == nextCitationStyle &&
             features.evidenceWorkbench.normalizedText(selectedItem.note) == nextNote
         {
             features.library.setStatus(wordZText("证据整理字段没有变化。", "The evidence details are already up to date.", mode: .system))
@@ -49,6 +53,8 @@ extension WorkspaceEvidenceWorkflowService {
         selectedItem.sectionTitle = nextSectionTitle
         selectedItem.claim = nextClaim
         selectedItem.tags = nextTags
+        selectedItem.citationFormat = nextCitationFormat
+        selectedItem.citationStyle = nextCitationStyle
         selectedItem.note = nextNote
         await saveEvidenceItem(
             selectedItem,

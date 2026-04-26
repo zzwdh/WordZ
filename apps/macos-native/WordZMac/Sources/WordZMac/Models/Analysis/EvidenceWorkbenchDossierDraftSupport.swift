@@ -52,17 +52,23 @@ struct EvidenceCaptureDraft: Equatable, Sendable {
     var sectionTitle: String
     var claim: String
     var tagsText: String
+    var citationFormat: EvidenceCitationFormat
+    var citationStyle: EvidenceCitationStyle
     var note: String
 
     init(
         sectionTitle: String = "",
         claim: String = "",
         tagsText: String = "",
+        citationFormat: EvidenceCitationFormat = .citationLine,
+        citationStyle: EvidenceCitationStyle = .plain,
         note: String = ""
     ) {
         self.sectionTitle = sectionTitle
         self.claim = claim
         self.tagsText = tagsText
+        self.citationFormat = citationFormat
+        self.citationStyle = citationStyle
         self.note = note
     }
 
@@ -86,6 +92,8 @@ struct EvidenceCaptureDraft: Equatable, Sendable {
         normalizedSectionTitle == nil &&
             normalizedClaim == nil &&
             normalizedTags.isEmpty &&
+            citationFormat == .citationLine &&
+            citationStyle == .plain &&
             normalizedNote == nil
     }
 
@@ -99,6 +107,12 @@ struct EvidenceCaptureDraft: Equatable, Sendable {
         }
         if !normalizedTags.isEmpty {
             parts.append(wordZText("标签", "Tags", mode: mode) + ": " + normalizedTags.joined(separator: ", "))
+        }
+        if citationFormat != .citationLine {
+            parts.append(wordZText("引文格式", "Citation Format", mode: mode) + ": " + citationFormat.title(in: mode))
+        }
+        if citationStyle != .plain {
+            parts.append(wordZText("引用样式", "Citation Style", mode: mode) + ": " + citationStyle.title(in: mode))
         }
         if normalizedNote != nil {
             parts.append(wordZText("附备注", "With note", mode: mode))

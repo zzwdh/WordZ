@@ -20,6 +20,8 @@ package final class EvidenceWorkbenchViewModel: ObservableObject {
     @Published var sectionDraft = ""
     @Published var claimDraft = ""
     @Published var tagsDraft = ""
+    @Published var citationFormatDraft: EvidenceCitationFormat = .citationLine
+    @Published var citationStyleDraft: EvidenceCitationStyle = .plain
     @Published var noteDraft = ""
 
     package static func makeFeaturePage() -> EvidenceWorkbenchViewModel {
@@ -36,6 +38,8 @@ package final class EvidenceWorkbenchViewModel: ObservableObject {
         normalizedText(sectionDraft) != normalizedText(selectedItem?.sectionTitle) ||
             normalizedText(claimDraft) != normalizedText(selectedItem?.claim) ||
             normalizedTags(from: tagsDraft) != normalizedTags(selectedItem?.tags ?? []) ||
+            citationFormatDraft != (selectedItem?.citationFormat ?? .citationLine) ||
+            citationStyleDraft != (selectedItem?.citationStyle ?? .plain) ||
             normalizedText(noteDraft) != normalizedText(selectedItem?.note)
     }
 
@@ -48,6 +52,8 @@ package final class EvidenceWorkbenchViewModel: ObservableObject {
             sectionTitle: sectionDraft,
             claim: claimDraft,
             tagsText: tagsDraft,
+            citationFormat: citationFormatDraft,
+            citationStyle: citationStyleDraft,
             note: noteDraft
         )
     }

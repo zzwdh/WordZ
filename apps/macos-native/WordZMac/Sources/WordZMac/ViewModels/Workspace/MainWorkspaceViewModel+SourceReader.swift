@@ -147,6 +147,8 @@ extension MainWorkspaceViewModel {
             tagsText: [base.tagsText, fallback.tagsText]
                 .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                 .joined(separator: ", "),
+            citationFormat: base.citationFormat == .citationLine ? fallback.citationFormat : base.citationFormat,
+            citationStyle: base.citationStyle == .plain ? fallback.citationStyle : base.citationStyle,
             note: [base.note, fallback.note]
                 .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
                 .joined(separator: " | ")

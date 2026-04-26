@@ -89,6 +89,9 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertNil(item.sectionTitle)
         XCTAssertNil(item.claim)
         XCTAssertTrue(item.tags.isEmpty)
+        XCTAssertEqual(item.citationFormat, .citationLine)
+        XCTAssertEqual(item.citationStyle, .plain)
+        XCTAssertNil(item.corpusMetadata)
         XCTAssertEqual(item.note, "legacy note")
     }
 
@@ -100,6 +103,10 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             savedSetName: "Lesson Set",
             corpusID: "corpus-1",
             corpusName: "Demo Corpus",
+            corpusMetadata: CorpusMetadataProfile(
+                sourceLabel: "Course Reader",
+                yearLabel: "2024"
+            ),
             sentenceId: 1,
             sentenceTokenIndex: 2,
             leftContext: "left",
@@ -107,6 +114,8 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             rightContext: "right",
             fullSentenceText: "left keyword-a right",
             citationText: "Sentence 2: left keyword-a right",
+            citationFormat: .fullSentence,
+            citationStyle: .apa,
             query: "keyword-a",
             leftWindow: 5,
             rightWindow: 5,
@@ -156,6 +165,17 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertTrue(document.text.contains("Section A"))
         XCTAssertTrue(document.text.contains("Claim Alpha"))
         XCTAssertTrue(document.text.contains("teaching, pattern"))
+        let citationFormatLine = wordZText("引文格式", "Citation Format", mode: .system) +
+            ": " +
+            EvidenceCitationFormat.fullSentence.title(in: .system)
+        let citationStyleLine = wordZText("引用样式", "Citation Style", mode: .system) +
+            ": " +
+            EvidenceCitationStyle.apa.title(in: .system)
+        let citationHeading = "#### " + wordZText("引文", "Citation", mode: .system)
+        XCTAssertTrue(document.text.contains(citationFormatLine))
+        XCTAssertTrue(document.text.contains(citationStyleLine))
+        XCTAssertTrue(document.text.contains(citationHeading + "\nDemo Corpus. (2024). left keyword-a right [Sentence 2, Course Reader]. WordZ evidence export."))
+        XCTAssertFalse(document.text.contains(citationHeading + "\nSentence 2: left keyword-a right"))
         XCTAssertTrue(document.text.contains("Use this in the handout."))
         XCTAssertFalse(document.text.contains("pending-only"))
     }
@@ -227,6 +247,10 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             savedSetName: nil,
             corpusID: "corpus-1",
             corpusName: "Demo Corpus",
+            corpusMetadata: CorpusMetadataProfile(
+                sourceLabel: "Research Archive",
+                yearLabel: "2026"
+            ),
             sentenceId: 1,
             sentenceTokenIndex: 2,
             leftContext: "left",
@@ -234,6 +258,8 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             rightContext: "right",
             fullSentenceText: "left good right",
             citationText: "Sentence 2: left good right",
+            citationFormat: .concordance,
+            citationStyle: .mla,
             query: "good",
             leftWindow: 0,
             rightWindow: 0,
@@ -295,6 +321,9 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
 
         XCTAssertEqual(decoded.sentimentMetadata?.effectiveLabel, .neutral)
         XCTAssertEqual(decoded.sentimentMetadata?.reviewStatus, .overridden)
+        XCTAssertEqual(decoded.citationFormat, EvidenceCitationFormat.concordance)
+        XCTAssertEqual(decoded.citationStyle, EvidenceCitationStyle.mla)
+        XCTAssertEqual(decoded.corpusMetadata?.sourceLabel, "Research Archive")
         XCTAssertEqual(decoded.crossAnalysisMetadata?.originKind, .compareSentiment)
         XCTAssertEqual(decoded.crossAnalysisMetadata?.focusTerm, "alpha")
     }

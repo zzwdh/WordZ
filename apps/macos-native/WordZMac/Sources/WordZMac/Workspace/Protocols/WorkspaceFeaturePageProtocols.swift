@@ -80,6 +80,8 @@ protocol WorkspaceEvidenceWorkbenchState: AnyObject {
     var sectionDraft: String { get }
     var claimDraft: String { get }
     var tagsDraft: String { get }
+    var citationFormatDraft: EvidenceCitationFormat { get }
+    var citationStyleDraft: EvidenceCitationStyle { get }
     var noteDraft: String { get }
     var filteredItems: [EvidenceItem] { get }
     var selectedItem: EvidenceItem? { get }

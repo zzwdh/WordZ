@@ -57,7 +57,10 @@ struct EvidenceWorkbenchDetailPanel: View {
 
                     detailBlock(
                         title: t("引文", "Citation"),
-                        content: item.citationText
+                        content: item.styledCitationText(
+                            format: workbench.citationFormatDraft,
+                            style: workbench.citationStyleDraft
+                        )
                     )
 
                     VStack(alignment: .leading, spacing: 10) {
@@ -82,6 +85,36 @@ struct EvidenceWorkbenchDetailPanel: View {
                             text: $workbench.tagsDraft
                         )
                         .textFieldStyle(.roundedBorder)
+
+                        Picker(
+                            t("引文格式", "Citation Format"),
+                            selection: $workbench.citationFormatDraft
+                        ) {
+                            ForEach(EvidenceCitationFormat.allCases) { format in
+                                Text(format.title(in: languageMode))
+                                    .tag(format)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text(workbench.citationFormatDraft.summary(in: languageMode))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Picker(
+                            t("引用样式", "Citation Style"),
+                            selection: $workbench.citationStyleDraft
+                        ) {
+                            ForEach(EvidenceCitationStyle.allCases) { style in
+                                Text(style.title(in: languageMode))
+                                    .tag(style)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text(workbench.citationStyleDraft.summary(in: languageMode))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
                         if let summary = workbench.currentDraft.summary(in: languageMode).nilIfEmpty {
                             Text(summary)

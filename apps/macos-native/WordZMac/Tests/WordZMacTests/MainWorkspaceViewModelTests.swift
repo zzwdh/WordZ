@@ -471,12 +471,18 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
         if let itemID {
             await workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: .keep)
+            workspace.evidenceWorkbench.citationFormatDraft = .fullSentence
+            workspace.evidenceWorkbench.citationStyleDraft = .apa
             workspace.evidenceWorkbench.noteDraft = "reviewed sentence"
             await workspace.saveSelectedEvidenceNote()
         }
 
         XCTAssertEqual(repository.evidenceItems.first?.reviewStatus, .keep)
+        XCTAssertEqual(repository.evidenceItems.first?.citationFormat, .fullSentence)
+        XCTAssertEqual(repository.evidenceItems.first?.citationStyle, .apa)
         XCTAssertEqual(repository.evidenceItems.first?.note, "reviewed sentence")
+        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.citationFormat, .fullSentence)
+        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.citationStyle, .apa)
         XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.note, "reviewed sentence")
     }
 

@@ -76,30 +76,33 @@ extension WorkspaceEvidenceWorkflowService {
     func evidenceCorpusMetadata(
         features: WorkspaceEvidenceWorkflowContext,
         fallbackSet: ConcordanceSavedSet?
-    ) -> (id: String, name: String)? {
+    ) -> (id: String, name: String, metadata: CorpusMetadataProfile?)? {
         if let corpus = currentEvidenceScopeCorpus(features: features) {
-            return (corpus.id, corpus.name)
+            return (corpus.id, corpus.name, corpus.metadata)
         }
         if let fallbackSet {
-            return (fallbackSet.corpusID, fallbackSet.corpusName)
+            let metadata = features.sidebar.librarySnapshot.corpora.first(where: { $0.id == fallbackSet.corpusID })?.metadata
+            return (fallbackSet.corpusID, fallbackSet.corpusName, metadata)
         }
         guard let corpusID = features.sidebar.selectedCorpusID ?? sessionStore.openedCorpusSourceID else {
             return nil
         }
-        let corpusName = features.sidebar.librarySnapshot.corpora.first(where: { $0.id == corpusID })?.name
+        let corpus = features.sidebar.librarySnapshot.corpora.first(where: { $0.id == corpusID })
+        let corpusName = corpus?.name
             ?? wordZText("未命名语料", "Untitled Corpus", mode: .system)
-        return (corpusID, corpusName)
+        return (corpusID, corpusName, corpus?.metadata)
     }
 
     func sourceReaderCorpusMetadata(
         context: SourceReaderLaunchContext,
         features: WorkspaceEvidenceWorkflowContext
-    ) -> (id: String, name: String)? {
+    ) -> (id: String, name: String, metadata: CorpusMetadataProfile?)? {
         if let corpusID = normalizedValue(context.corpusID) {
+            let corpus = features.sidebar.librarySnapshot.corpora.first(where: { $0.id == corpusID })
             let corpusName = normalizedValue(context.corpusName)
-                ?? features.sidebar.librarySnapshot.corpora.first(where: { $0.id == corpusID })?.name
+                ?? corpus?.name
                 ?? wordZText("未命名语料", "Untitled Corpus", mode: .system)
-            return (corpusID, corpusName)
+            return (corpusID, corpusName, corpus?.metadata)
         }
         return evidenceCorpusMetadata(features: features, fallbackSet: nil)
     }
