@@ -161,10 +161,7 @@ extension KWICView {
                     Button {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     } label: {
-                        Label(t("加入证据工作台", "Add to Evidence Workbench"), systemImage: "text.badge.plus")
-                    }
-                    Button(t("保存语料集", "Save Corpus Set")) {
-                        onAction(.saveCorpusSet)
+                        Label(t("加入摘录", "Add to Clips"), systemImage: "text.badge.plus")
                     }
                     Menu(t("阅读导出", "Reading Export")) {
                         Button(t("Copy Current · 索引行", "Copy Current · Concordance")) {
@@ -222,7 +219,7 @@ extension KWICView {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Text(t("证据工作台", "Evidence Workbench"))
+                    Text(t("摘录", "Clips"))
                         .font(.headline)
                     Spacer()
                     Picker(
@@ -243,7 +240,7 @@ extension KWICView {
                     }
                     .disabled(viewModel.selectedSceneRow == nil)
 
-                    Button(t("打开独立窗口", "Open Window")) {
+                    Button(t("查看摘录", "View Clips")) {
                         openEvidenceWorkbenchWindow()
                     }
                 }
@@ -251,8 +248,8 @@ extension KWICView {
                 if evidenceWorkbench.filteredItems.isEmpty {
                     Text(
                         t(
-                            "把当前 KWIC 行加入证据工作台后，这里会显示可复查、可标记、可备注的研究摘录。",
-                            "Add the current KWIC row to start a reviewable, annotatable evidence notebook here."
+                            "把当前 KWIC 行加入摘录后，这里会显示可复查、可标记、可备注的分析片段。",
+                            "Add the current KWIC row to collect reviewable, annotatable analysis clips here."
                         )
                     )
                     .font(.caption)

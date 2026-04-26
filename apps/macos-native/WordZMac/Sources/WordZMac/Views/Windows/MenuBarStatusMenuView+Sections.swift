@@ -84,7 +84,6 @@ extension MenuBarStatusMenuView {
     var windowMenuSection: some View {
         Menu(t("窗口", "Windows")) {
             windowMenuButton(.library)
-            windowMenuButton(.evidenceWorkbench)
             windowMenuButton(.taskCenter)
             Divider()
             Button(t("设置…", "Settings…")) {

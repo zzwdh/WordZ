@@ -7,7 +7,7 @@ extension StatsView {
             systemImage: "chart.bar.doc.horizontal",
             message: t("统计会先给你一个整体轮廓：词项规模、词汇密度、标准频次与分布范围。完成这一步后，再进入词表、对比和阅读会更清楚。", "Stats gives you the overall shape first: scale, lexical density, normalized frequency, and distribution range. That baseline makes later word, compare, and reading work much clearer."),
             suggestions: [
-                t("如果已经设置了元数据筛选，统计会只针对当前匹配的语料。", "If metadata filters are active, stats only runs on the currently matched corpora."),
+                t("默认先用全部语料跑一遍，得到最稳定的概览。", "Start with all corpora for the most stable overview."),
                 t("先跑统计，再决定是否需要更细的分词、对比或 KWIC 阅读。", "Run stats first, then decide whether you need tokenization, comparison, or KWIC reading.")
             ]
         )

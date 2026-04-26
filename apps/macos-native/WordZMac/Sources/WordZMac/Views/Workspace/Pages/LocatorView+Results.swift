@@ -135,10 +135,7 @@ extension LocatorView {
                     Button {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     } label: {
-                        Label(t("加入证据工作台", "Add to Evidence Workbench"), systemImage: "text.badge.plus")
-                    }
-                    Button(t("保存语料集", "Save Corpus Set")) {
-                        onAction(.saveCorpusSet)
+                        Label(t("加入摘录", "Add to Clips"), systemImage: "text.badge.plus")
                     }
                     Menu(t("阅读导出", "Reading Export")) {
                         Button(t("Copy Current · 索引行", "Copy Current · Concordance")) {
@@ -196,7 +193,7 @@ extension LocatorView {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    Text(t("证据工作台", "Evidence Workbench"))
+                    Text(t("摘录", "Clips"))
                         .font(.headline)
                     Spacer()
                     Picker(
@@ -217,7 +214,7 @@ extension LocatorView {
                     }
                     .disabled(viewModel.selectedSceneRow == nil)
 
-                    Button(t("打开独立窗口", "Open Window")) {
+                    Button(t("查看摘录", "View Clips")) {
                         openEvidenceWorkbenchWindow()
                     }
                 }
@@ -225,8 +222,8 @@ extension LocatorView {
                 if evidenceWorkbench.filteredItems.isEmpty {
                     Text(
                         t(
-                            "把当前定位句加入证据工作台后，这里会显示可复查、可标记、可备注的研究证据。",
-                            "Add the current locator sentence to start a reviewable, annotatable evidence notebook here."
+                            "把当前定位句加入摘录后，这里会显示可复查、可标记、可备注的分析片段。",
+                            "Add the current locator sentence to collect reviewable, annotatable analysis clips here."
                         )
                     )
                     .font(.caption)

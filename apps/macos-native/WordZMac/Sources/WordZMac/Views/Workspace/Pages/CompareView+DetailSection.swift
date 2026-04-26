@@ -66,9 +66,6 @@ extension CompareView {
                         onAction(.openTopics)
                     }
                     .disabled(!viewModel.canOpenTopicsCrossAnalysis || isBusy)
-                    Button(t("保存语料集", "Save Corpus Set")) {
-                        onAction(.saveCorpusSet)
-                    }
                     Button(t("转到 Keyword Suite", "Analyze in Keyword Suite")) {
                         onAction(.analyzeInKeywordSuite)
                     }

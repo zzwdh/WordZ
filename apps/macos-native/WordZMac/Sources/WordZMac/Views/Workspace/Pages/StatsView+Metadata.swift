@@ -6,12 +6,12 @@ extension StatsView {
             VStack(alignment: .leading, spacing: 12) {
                 WorkbenchInlineActionStrip {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(t("Metadata Filters", "Metadata Filters"))
+                        Text(t("统计范围", "Stats Scope"))
                             .font(.headline)
                         Text(
                             t(
-                                "当前分析会复用语料库窗口里的 metadata 筛选范围。这里保留摘要和样本预览，具体条件统一回到 Library 调整。",
-                                "Analysis reuses the metadata filter scope from the Library window. This page keeps the summary and sample preview only; edit the full filters back in Library."
+                                "统计默认面向当前语料库。若已经设置高级范围，这里只显示摘要和样本预览。",
+                                "Stats runs on the current library by default. If an advanced scope is active, this area only shows the summary and sample preview."
                             )
                         )
                         .font(.caption)
@@ -20,14 +20,11 @@ extension StatsView {
                     }
                 } actions: {
                     HStack(spacing: 8) {
-                        Button(t("调整筛选", "Adjust Filters")) {
-                            openWindow(id: NativeWindowRoute.library.id)
+                        if sidebar.hasAnyMetadataFilterInput {
+                            Button(t("清除范围", "Clear Scope")) {
+                                sidebar.clearMetadataFilters()
+                            }
                         }
-
-                        Button(t("清除筛选", "Clear Filters")) {
-                            sidebar.clearMetadataFilters()
-                        }
-                        .disabled(!sidebar.hasAnyMetadataFilterInput)
 
                         Button(t("开始统计", "Run Stats")) { onAction(.run) }
                             .buttonStyle(.borderedProminent)
@@ -36,7 +33,7 @@ extension StatsView {
                 }
 
                 HStack(spacing: 10) {
-                    Text(sidebar.metadataFilterState.summaryText(in: languageMode) ?? t("未应用筛选条件", "No filters applied"))
+                    Text(sidebar.metadataFilterState.summaryText(in: languageMode) ?? t("全部语料", "All corpora"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("·")
@@ -51,8 +48,8 @@ extension StatsView {
                 if sidebar.metadataFilterState.isEmpty {
                     Text(
                         t(
-                            "未设置条件时，会显示当前库中的全部语料。需要缩小范围时，点击“调整筛选”到 Library 打开完整筛选面板。",
-                            "When no filters are set, every corpus in the current library stays available. Use Adjust Filters to open the full editor in Library only when you need a narrower scope."
+                            "当前使用完整语料库，更适合展示和快速概览。",
+                            "The full library is active, which is better for presentation and quick overview."
                         )
                     )
                     .font(.caption)

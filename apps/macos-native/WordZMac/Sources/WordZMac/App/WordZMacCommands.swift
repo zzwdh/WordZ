@@ -163,11 +163,8 @@ struct WordZMacCommands: Commands {
             windowButton(.library)
                 .keyboardShortcut("1", modifiers: [.command])
 
-            windowButton(.evidenceWorkbench)
-                .keyboardShortcut("2", modifiers: [.command])
-
             windowButton(.taskCenter)
-                .keyboardShortcut("3", modifiers: [.command])
+                .keyboardShortcut("2", modifiers: [.command])
 
             Divider()
 
@@ -287,7 +284,7 @@ struct WordZMacCommands: Commands {
 
             Divider()
 
-            Button(t("导出 Dossier", "Export Dossier")) {
+            Button(t("导出摘录", "Export Clips")) {
                 performFocusedCommand("exportEvidenceDossier") { context in
                     await exportEvidenceDossier(using: context)
                 }

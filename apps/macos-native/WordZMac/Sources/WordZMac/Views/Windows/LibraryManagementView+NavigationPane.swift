@@ -4,7 +4,7 @@ extension LibraryManagementView {
     var navigationPane: some View {
         NativeWindowSection(
             title: t("导航", "Navigation"),
-            subtitle: t("浏览文件夹、语料集和回收站", "Browse folders, corpus sets, and recycle items")
+            subtitle: t("浏览文件夹和回收站", "Browse folders and recycle items")
         ) {
             List(selection: navigationSelectionBinding) {
                 Section {
@@ -16,8 +16,6 @@ extension LibraryManagementView {
                 }
 
                 foldersNavigationSection
-                recentCorpusSetsNavigationSection
-                savedCorpusSetsNavigationSection
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -58,66 +56,6 @@ extension LibraryManagementView {
         }
     }
 
-    private var recentCorpusSetsNavigationSection: some View {
-        Section {
-            if viewModel.scene.recentCorpusSets.isEmpty {
-                Text(
-                    t(
-                        "开始应用或保存语料集后，这里会显示最近使用记录。",
-                        "Applied or newly saved corpus sets will appear here for quick reuse."
-                    )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            } else {
-                ForEach(viewModel.scene.recentCorpusSets) { corpusSet in
-                    corpusSetNavigationRow(corpusSet)
-                        .tag(Optional(LibraryManagementNavigationSelection.recentCorpusSet(corpusSet.id)))
-                }
-            }
-        } header: {
-            navigationSectionHeader(
-                title: t("最近使用", "Recent"),
-                summary: viewModel.scene.recentCorpusSetsSummary
-            )
-        }
-    }
-
-    private var savedCorpusSetsNavigationSection: some View {
-        Section {
-            if viewModel.scene.corpusSets.isEmpty {
-                Text(
-                    t(
-                        "当前还没有已保存语料集。可先筛选或多选语料，再点击“保存当前语料集”。",
-                        "No saved corpus sets yet. Filter or multi-select corpora first, then save the current set."
-                    )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            } else {
-                ForEach(viewModel.scene.corpusSets) { corpusSet in
-                    corpusSetNavigationRow(corpusSet)
-                        .tag(Optional(LibraryManagementNavigationSelection.savedCorpusSet(corpusSet.id)))
-                }
-            }
-        } header: {
-            navigationSectionHeader(
-                title: t("已保存语料集", "Saved Corpus Sets"),
-                summary: viewModel.scene.corpusSetsSummary
-            ) {
-                Button(t("保存当前语料集", "Save Current Corpus Set")) { onAction(.saveCurrentCorpusSet) }
-                    .disabled(viewModel.saveableCorpusSetMembers.isEmpty)
-                if viewModel.scene.selectedCorpusSetID != nil {
-                    Divider()
-                    Button(t("更新为当前语料集", "Update with Current Scope")) { onAction(.saveCurrentCorpusSet) }
-                    Button(t("删除语料集", "Delete Corpus Set"), role: .destructive) { onAction(.deleteSelectedCorpusSet) }
-                }
-            }
-        }
-    }
-
     private var navigationSelectionBinding: Binding<LibraryManagementNavigationSelection?> {
         Binding(
             get: { viewModel.scene.navigationSelection },
@@ -135,29 +73,6 @@ extension LibraryManagementView {
                 }
             }
         )
-    }
-
-    private func corpusSetNavigationRow(_ corpusSet: LibraryManagementCorpusSetSceneItem) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(corpusSet.title)
-            Text("\(corpusSet.subtitle) · \(corpusSet.filterSummary)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-        }
-        .contextMenu {
-            Button(t("应用语料集", "Apply Corpus Set")) {
-                onAction(.selectCorpusSet(corpusSet.id))
-            }
-            Button(t("更新为当前语料集", "Update with Current Scope")) {
-                onAction(.selectCorpusSet(corpusSet.id))
-                onAction(.saveCurrentCorpusSet)
-            }
-            Button(t("删除语料集", "Delete Corpus Set"), role: .destructive) {
-                onAction(.selectCorpusSet(corpusSet.id))
-                onAction(.deleteSelectedCorpusSet)
-            }
-        }
     }
 
     private func navigationSectionHeader<Actions: View>(

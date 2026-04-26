@@ -74,7 +74,7 @@ struct SourceReaderWindowView: View {
                         }
                         .disabled(sourceReader.currentCitationText == nil)
 
-                        Button(t("加入证据工作台", "Add to Evidence Workbench")) {
+                        Button(t("加入摘录", "Add to Clips")) {
                             Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
                         }
                         .disabled(!sourceReader.canAddEvidence)

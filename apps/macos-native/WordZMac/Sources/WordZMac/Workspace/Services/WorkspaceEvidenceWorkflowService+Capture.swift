@@ -69,7 +69,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已加入证据工作台。", "Added the row to the evidence workbench.", mode: .system),
+            successMessage: wordZText("已加入摘录。", "Added the row to clips.", mode: .system),
             features: features
         )
     }
@@ -125,7 +125,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已加入证据工作台。", "Added the sentence to the evidence workbench.", mode: .system),
+            successMessage: wordZText("已加入摘录。", "Added the sentence to clips.", mode: .system),
             features: features
         )
     }
@@ -186,7 +186,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已从原文阅读器加入证据工作台。", "Added the source reader hit to the evidence workbench.", mode: .system),
+            successMessage: wordZText("已从原文阅读器加入摘录。", "Added the source reader hit to clips.", mode: .system),
             features: features
         )
     }

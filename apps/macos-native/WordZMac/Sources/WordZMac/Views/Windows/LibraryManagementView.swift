@@ -24,7 +24,6 @@ struct LibraryManagementView: View {
                     preserveHierarchy: $viewModel.preserveHierarchy,
                     languageMode: languageMode,
                     canTriggerCleaning: canTriggerCleaning,
-                    canSaveCurrentCorpusSet: !viewModel.saveableCorpusSetMembers.isEmpty,
                     cleaningToolbarTitle: cleaningToolbarTitle,
                     cleaningToolbarAction: cleaningToolbarAction,
                     overflowActions: viewModel.scene.overflowActions,
@@ -35,7 +34,7 @@ struct LibraryManagementView: View {
         .searchable(
             text: $viewModel.searchQuery,
             placement: .toolbar,
-            prompt: t("搜索语料、文件夹或语料集", "Search corpora, folders, or corpus sets")
+            prompt: t("搜索语料或文件夹", "Search corpora or folders")
         )
         .task(id: viewModel.normalizedSearchQuery) {
             try? await Task.sleep(nanoseconds: 180_000_000)

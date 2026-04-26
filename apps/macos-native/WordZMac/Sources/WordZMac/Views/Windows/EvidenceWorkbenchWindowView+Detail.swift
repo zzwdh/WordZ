@@ -64,7 +64,7 @@ struct EvidenceWorkbenchDetailPanel: View {
                     )
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(t("dossier 整理", "Dossier Organization"))
+                        Text(t("摘录信息", "Clip Details"))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
 
@@ -335,7 +335,7 @@ struct EvidenceWorkbenchDetailPanel: View {
                         Button(t("复制引文", "Copy Citation")) {
                             onCopyCitation(item.id)
                         }
-                        Button(t("导出 Dossier", "Export Dossier")) {
+                        Button(t("导出摘录", "Export Clips")) {
                             onExportMarkdown()
                         }
                         .disabled(!workbench.items.contains(where: { $0.reviewStatus == .keep }))
@@ -362,8 +362,8 @@ struct EvidenceWorkbenchDetailPanel: View {
                     .font(.title3.weight(.semibold))
                 Text(
                     t(
-                        "先从 KWIC、定位器或原文阅读器把带 provenance 的命中加入工作台，这里就会形成可分组、可整理、可导出的研究 dossier。",
-                        "Add provenance-backed hits from KWIC, Locator, or Source Reader to start a grouped, editable, exportable research dossier."
+                        "先从 KWIC、定位器或原文阅读器加入摘录，这里会显示可复查、可备注、可导出的分析材料。",
+                        "Add clips from KWIC, Locator, or Source Reader to collect reviewable, annotatable, exportable analysis material."
                     )
                 )
                 .foregroundStyle(.secondary)

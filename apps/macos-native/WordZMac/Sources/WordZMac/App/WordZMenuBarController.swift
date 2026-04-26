@@ -327,12 +327,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
         )
         menu.addItem(
             actionItem(
-                windowTitle(.evidenceWorkbench),
-                action: .openWindow(.evidenceWorkbench)
-            )
-        )
-        menu.addItem(
-            actionItem(
                 windowTitle(.taskCenter),
                 action: .openWindow(.taskCenter)
             )

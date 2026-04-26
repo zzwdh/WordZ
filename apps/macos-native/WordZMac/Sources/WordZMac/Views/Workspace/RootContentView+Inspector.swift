@@ -18,21 +18,9 @@ extension RootContentView {
     var workspaceScopeInspectorSection: some View {
         NativeWindowSection(
             title: wordZText("语料范围", "Corpus Scope", mode: languageMode),
-            subtitle: viewModel.sidebar.scene.selectedCorpusSetSummary
+            subtitle: wordZText("选择当前分析的目标语料和参照语料", "Choose target and reference corpora for the current analysis", mode: languageMode)
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                inspectorPicker(
-                    title: wordZText("语料集", "Corpus Set", mode: languageMode),
-                    selection: corpusSetSelectionBinding
-                ) {
-                    Text(wordZText("全部语料", "All Corpora", mode: languageMode))
-                        .tag(noneSelectionID)
-                    ForEach(viewModel.sidebar.scene.corpusSets) { item in
-                        Text(item.title)
-                            .tag(item.id)
-                    }
-                }
-
                 inspectorPicker(
                     title: wordZText("目标语料", "Target Corpus", mode: languageMode),
                     selection: targetCorpusSelectionBinding
@@ -145,19 +133,6 @@ extension RootContentView {
             .pickerStyle(.menu)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    var corpusSetSelectionBinding: Binding<String> {
-        Binding(
-            get: {
-                viewModel.sidebar.scene.corpusSets.first(where: \.isSelected)?.id ?? noneSelectionID
-            },
-            set: { nextValue in
-                dispatcher.handleSidebarAction(
-                    .applyCorpusSet(nextValue == noneSelectionID ? nil : nextValue)
-                )
-            }
-        )
     }
 
     var targetCorpusSelectionBinding: Binding<String> {

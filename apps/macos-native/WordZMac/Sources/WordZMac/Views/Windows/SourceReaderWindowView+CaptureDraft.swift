@@ -7,7 +7,7 @@ struct SourceReaderCaptureDraftCard: View {
     var body: some View {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text(t("加入 Workbench 时附带", "Attach When Adding to Workbench"))
+                Text(t("加入摘录时附带", "Attach When Adding to Clips"))
                     .font(.headline)
 
                 TextField(
@@ -44,8 +44,8 @@ struct SourceReaderCaptureDraftCard: View {
                 } else {
                     Text(
                         t(
-                            "这些字段会随当前命中一并写入 Evidence Workbench，适合先在阅读时完成 dossier 初步整理。",
-                            "These fields are stored together with the current hit when you add it to the workbench, so you can organize the dossier while reading."
+                            "这些字段会随当前命中一并写入摘录，适合阅读时先补充章节、论点和备注。",
+                            "These fields are stored together with the current hit when you add it to clips, so you can capture section, claim, and note details while reading."
                         )
                     )
                     .font(.caption)

@@ -4,6 +4,7 @@ struct EvidenceWorkbenchWindowView: View {
     @Environment(\.wordZLanguageMode) private var languageMode
     @ObservedObject var workspace: MainWorkspaceViewModel
     @ObservedObject private var workbench: EvidenceWorkbenchViewModel
+    @State private var showsAdvancedFilters = false
 
     init(workspace: MainWorkspaceViewModel) {
         self.workspace = workspace
@@ -137,7 +138,7 @@ struct EvidenceWorkbenchWindowView: View {
 
                     Divider()
 
-                    Button(t("导出 Dossier", "Export Dossier")) {
+                    Button(t("导出摘录", "Export Clips")) {
                         Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
                     }
                     .disabled(!workbench.hasVisibleKeptItems)
@@ -189,7 +190,7 @@ struct EvidenceWorkbenchWindowView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(t("研究 dossier 工作台", "Research Dossier Workbench"))
+                    Text(t("摘录", "Clips"))
                         .font(.title3.weight(.semibold))
                     Text(
                         String(
@@ -218,7 +219,16 @@ struct EvidenceWorkbenchWindowView: View {
                 }
                 .pickerStyle(.menu)
 
-                Button(t("导出 Dossier", "Export Dossier")) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) {
+                        showsAdvancedFilters.toggle()
+                    }
+                } label: {
+                    Label(t("筛选", "Filters"), systemImage: "line.3.horizontal.decrease.circle")
+                }
+                .help(t("显示或隐藏高级筛选", "Show or hide advanced filters"))
+
+                Button(t("导出摘录", "Export Clips")) {
                     Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
                 }
                 .disabled(!workbench.hasVisibleKeptItems)
@@ -231,65 +241,72 @@ struct EvidenceWorkbenchWindowView: View {
 
             dossierStatusStrip
 
-            HStack(spacing: 10) {
-                Picker(
-                    t("审校状态", "Review Status"),
-                    selection: $workbench.reviewFilter
-                ) {
-                    ForEach(EvidenceReviewFilter.allCases) { filter in
-                        Text(filter.title(in: languageMode))
-                            .tag(filter)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 128)
-
-                Picker(
-                    t("来源", "Source"),
-                    selection: $workbench.sourceFilter
-                ) {
-                    ForEach(EvidenceSourceFilter.allCases) { filter in
-                        Text(filter.title(in: languageMode))
-                            .tag(filter)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 136)
-
-                Picker(
-                    t("情感", "Sentiment"),
-                    selection: $workbench.sentimentFilter
-                ) {
-                    ForEach(EvidenceSentimentFilter.allCases) { filter in
-                        Text(filter.title(in: languageMode))
-                            .tag(filter)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 136)
-
-                TextField(t("标签筛选", "Filter Tags"), text: $workbench.tagFilterQuery)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 150)
-
-                TextField(t("语料筛选", "Filter Corpus"), text: $workbench.corpusFilterQuery)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 170)
-
-                if workbench.hasActiveNarrowingFilters {
-                    Button {
-                        workbench.clearFilters()
-                    } label: {
-                        Image(systemName: "xmark.circle")
-                    }
-                    .buttonStyle(.borderless)
-                    .help(t("清除筛选", "Clear Filters"))
-                }
-
-                Spacer()
+            if showsAdvancedFilters || workbench.hasActiveNarrowingFilters {
+                advancedFilterSection
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(20)
+    }
+
+    private var advancedFilterSection: some View {
+        HStack(spacing: 10) {
+            Picker(
+                t("审校状态", "Review Status"),
+                selection: $workbench.reviewFilter
+            ) {
+                ForEach(EvidenceReviewFilter.allCases) { filter in
+                    Text(filter.title(in: languageMode))
+                        .tag(filter)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 128)
+
+            Picker(
+                t("来源", "Source"),
+                selection: $workbench.sourceFilter
+            ) {
+                ForEach(EvidenceSourceFilter.allCases) { filter in
+                    Text(filter.title(in: languageMode))
+                        .tag(filter)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 136)
+
+            Picker(
+                t("情感", "Sentiment"),
+                selection: $workbench.sentimentFilter
+            ) {
+                ForEach(EvidenceSentimentFilter.allCases) { filter in
+                    Text(filter.title(in: languageMode))
+                        .tag(filter)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 136)
+
+            TextField(t("标签筛选", "Filter Tags"), text: $workbench.tagFilterQuery)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 150)
+
+            TextField(t("语料筛选", "Filter Corpus"), text: $workbench.corpusFilterQuery)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 170)
+
+            if workbench.hasActiveNarrowingFilters {
+                Button {
+                    workbench.clearFilters()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(t("清除筛选", "Clear Filters"))
+            }
+
+            Spacer()
+        }
     }
 
     private var dossierStatusStrip: some View {

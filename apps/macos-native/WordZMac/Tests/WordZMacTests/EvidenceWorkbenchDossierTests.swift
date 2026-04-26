@@ -40,19 +40,19 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
 
         XCTAssertEqual(
             EvidenceWorkbenchGroupingMode.section.currentGroupWindowTitle(
-                baseTitle: "Evidence Workbench",
+                baseTitle: "Clips",
                 group: group,
                 in: .english
             ),
-            "Evidence Workbench · Current Section: Methods · 2 items"
+            "Clips · Current Section: Methods · 2 items"
         )
         XCTAssertEqual(
             EvidenceWorkbenchGroupingMode.section.currentGroupWindowTitle(
-                baseTitle: "Evidence Workbench",
+                baseTitle: "Clips",
                 group: nil,
                 in: .english
             ),
-            "Evidence Workbench"
+            "Clips"
         )
     }
 

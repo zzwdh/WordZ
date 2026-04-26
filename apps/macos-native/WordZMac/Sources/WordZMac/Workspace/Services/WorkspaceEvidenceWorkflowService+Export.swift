@@ -27,8 +27,8 @@ extension WorkspaceEvidenceWorkflowService {
             )
             await exportTextDocument(
                 document,
-                title: wordZText("导出研究 dossier", "Export Research Dossier", mode: .system),
-                successStatus: wordZText("已导出研究 dossier 到", "Exported the research dossier to", mode: .system),
+                title: wordZText("导出摘录", "Export Clips", mode: .system),
+                successStatus: wordZText("已导出摘录到", "Exported clips to", mode: .system),
                 features: features,
                 preferredRoute: preferredRoute
             )
@@ -48,8 +48,8 @@ extension WorkspaceEvidenceWorkflowService {
         }
 
         guard let path = await dialogService.chooseSavePath(
-            title: wordZText("导出 dossier JSON", "Export Dossier JSON", mode: .system),
-            suggestedName: "research-dossier.json",
+            title: wordZText("导出摘录 JSON", "Export Clips JSON", mode: .system),
+            suggestedName: "analysis-clips.json",
             allowedExtension: "json",
             preferredRoute: preferredRoute
         ) else {

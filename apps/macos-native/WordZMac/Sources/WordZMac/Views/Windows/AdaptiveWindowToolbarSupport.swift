@@ -174,7 +174,6 @@ struct LibraryWindowToolbar: ToolbarContent {
     @Binding var preserveHierarchy: Bool
     let languageMode: AppLanguageMode
     let canTriggerCleaning: Bool
-    let canSaveCurrentCorpusSet: Bool
     let cleaningToolbarTitle: String
     let cleaningToolbarAction: LibraryManagementAction
     let overflowActions: [LibraryManagementOverflowActionSceneItem]
@@ -192,10 +191,6 @@ struct LibraryWindowToolbar: ToolbarContent {
             }
             .disabled(!canTriggerCleaning)
 
-            Button(wordZText("保存当前语料集", "Save Current Corpus Set", mode: languageMode)) {
-                onAction(.saveCurrentCorpusSet)
-            }
-            .disabled(!canSaveCurrentCorpusSet)
         }
 
         AdaptiveToolbarSpacer()

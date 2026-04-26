@@ -8,7 +8,7 @@ extension WordZCoreAppScenes {
         workspace: MainWorkspaceViewModel,
         localization: WordZLocalization
     ) -> some Scene {
-        Window("Evidence Workbench", id: NativeWindowRoute.evidenceWorkbench.id) {
+        Window("Clips", id: NativeWindowRoute.evidenceWorkbench.id) {
             EvidenceWorkbenchWindowView(workspace: workspace)
                 .wordZLocalizedEnvironment(localization)
         }

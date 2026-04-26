@@ -32,7 +32,7 @@ enum EvidenceMarkdownDossierSupport {
         let itemNumbers = evidenceNumberLookup(groups: groups)
 
         var lines: [String] = [
-            "# " + wordZText("研究 dossier", "Research Dossier", mode: .system),
+            "# " + wordZText("分析摘录", "Analysis Clips", mode: .system),
             "",
             wordZText("导出时间", "Exported At", mode: .system) + ": " + exportedAtText,
             wordZText("保留证据", "Kept Items", mode: .system) + ": \(keptItems.count)",
@@ -116,7 +116,7 @@ enum EvidenceMarkdownDossierSupport {
         lines.append(contentsOf: referenceLines(items: keptItems, itemNumbers: itemNumbers))
 
         return PlainTextExportDocument(
-            suggestedName: "research-dossier.md",
+            suggestedName: "analysis-clips.md",
             text: lines.joined(separator: "\n"),
             allowedExtension: "md"
         )

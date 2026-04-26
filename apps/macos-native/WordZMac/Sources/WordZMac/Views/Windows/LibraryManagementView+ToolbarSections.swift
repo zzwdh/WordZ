@@ -17,8 +17,10 @@ extension LibraryManagementView {
                             .lineLimit(1)
                     }
 
-                    Spacer(minLength: 16)
-                    filterButton
+                    if viewModel.scene.metadataFilterSummary != nil || !viewModel.scene.filterChips.isEmpty {
+                        Spacer(minLength: 16)
+                        filterButton
+                    }
                 }
             }
 
@@ -56,7 +58,7 @@ extension LibraryManagementView {
                         }
                     }
                 } else {
-                    Text(t("未应用筛选或完整性提示。需要缩小范围时，再展开筛选面板即可。", "No active filters or integrity prompts. Open the filter panel only when you need to narrow the scope."))
+                    Text(t("当前显示完整语料库。", "Showing the full library."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -89,12 +91,12 @@ extension LibraryManagementView {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(t("元数据筛选", "Metadata Filters"))
+                    Text(t("高级范围", "Advanced Scope"))
                         .font(.headline)
                     Text(
                         t(
-                            "按来源、年份范围、体裁和标签缩小当前语料范围。筛选结果会同步到主工作区和命名语料集。",
-                            "Narrow the current corpus scope by source, year range, genre, and tags. Results stay in sync with the main workspace and saved corpus sets."
+                            "按来源、年份范围、体裁和标签临时缩小当前语料范围。日常展示默认使用完整语料库。",
+                            "Temporarily narrow the current corpus scope by source, year range, genre, and tags. Everyday display uses the full library by default."
                         )
                     )
                     .font(.caption)
