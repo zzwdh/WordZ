@@ -231,15 +231,15 @@ extension KeywordView {
     var annotationSummaryCard: some View {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 8) {
-                Label(t("当前标注范围", "Current Annotation Scope"), systemImage: "slider.horizontal.3")
+                Label(t("当前显示口径", "Current Display Profile"), systemImage: "slider.horizontal.3")
                     .font(.headline)
                 Text(viewModel.annotationSummary(in: languageMode))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(
                     t(
-                        "需要调整 lemma profile、脚本或词类时，请使用工作区工具栏中的 Annotation 菜单。",
-                        "Use the workspace toolbar Annotation menu to change the lemma profile, scripts, or lexical classes."
+                        "需要切换表层词、lemma 或词类范围时，使用工具栏里的标注显示菜单。",
+                        "Use the toolbar Annotation Display menu to switch surface tokens, lemmas, or part-of-speech scope."
                     )
                 )
                 .font(.caption2)

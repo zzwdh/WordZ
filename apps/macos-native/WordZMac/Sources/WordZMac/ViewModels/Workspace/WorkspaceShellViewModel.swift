@@ -115,7 +115,7 @@ final class WorkspaceShellViewModel: ObservableObject {
                     WorkspaceToolbarActionItem(action: .showLibrary, title: wordZText("语料库", "Library", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .openSelected, title: wordZText("打开选中", "Open Selected", mode: languageMode), isEnabled: actionEnabled && hasSelection),
                     WorkspaceToolbarActionItem(action: .openSourceReader, title: wordZText("原文视图", "Open Source View", mode: languageMode), isEnabled: actionEnabled && hasSourceReaderContext),
-                    WorkspaceToolbarActionItem(action: .annotationControls, title: wordZText("标注", "Annotation", mode: languageMode), isEnabled: actionEnabled),
+                    WorkspaceToolbarActionItem(action: .annotationControls, title: wordZText("标注显示", "Annotation Display", mode: languageMode), isEnabled: actionEnabled),
                     WorkspaceToolbarActionItem(action: .previewCurrentCorpus, title: wordZText("快速预览", "Quick Look", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
                     WorkspaceToolbarActionItem(action: .shareCurrentContent, title: wordZText("分享当前", "Share Current", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
                     WorkspaceToolbarActionItem(action: .runStats, title: wordZText("统计", "Stats", mode: languageMode), isEnabled: actionEnabled && hasSelection),

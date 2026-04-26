@@ -304,8 +304,8 @@ struct WordZMacCommands: Commands {
 
     @CommandsBuilder
     private var annotationAndHelpCommands: some Commands {
-        CommandMenu(t("标注", "Annotation")) {
-            Section(t("词形策略", "Profile")) {
+        CommandMenu(t("标注显示", "Annotation Display")) {
+            Section(t("显示口径", "Display Profile")) {
                 ForEach(WorkspaceAnnotationProfile.allCases) { profile in
                     Button(profile.title(in: localization.effectiveMode)) {
                         workspace.setAnnotationProfile(profile)
@@ -316,7 +316,7 @@ struct WordZMacCommands: Commands {
 
             Divider()
 
-            Menu(t("脚本过滤", "Script Filter")) {
+            Menu(t("文字范围", "Script Scope")) {
                 ForEach(TokenScript.allCases) { script in
                     Button {
                         workspace.toggleAnnotationScript(script)
@@ -331,7 +331,7 @@ struct WordZMacCommands: Commands {
                 }
             }
 
-            Menu(t("词类过滤", "Lexical Class Filter")) {
+            Menu(t("词类筛选", "Part-of-Speech Filter")) {
                 ForEach(TokenLexicalClass.allCases) { lexicalClass in
                     Button {
                         workspace.toggleAnnotationLexicalClass(lexicalClass)
@@ -348,7 +348,7 @@ struct WordZMacCommands: Commands {
 
             Divider()
 
-            Button(t("清空脚本与词类过滤", "Clear Script and Class Filters")) {
+            Button(t("清空显示筛选", "Clear Display Filters")) {
                 workspace.clearAnnotationFilters()
             }
             .disabled(!annotationCommandsEnabled || (workspace.annotationState.lexicalClasses.isEmpty && workspace.annotationState.scripts.isEmpty))

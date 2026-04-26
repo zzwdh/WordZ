@@ -1,14 +1,13 @@
 import Foundation
+import WordZAnalysis
 
-enum TokenScript: String, CaseIterable, Identifiable, Codable, Sendable {
-    case latin
-    case cjk
-    case numeric
-    case mixed
-    case other
+typealias TokenScript = WordZAnalysis.TokenScript
+typealias TokenLexicalClass = WordZAnalysis.TokenLexicalClass
+typealias TokenLinguisticAnnotations = WordZAnalysis.TokenLinguisticAnnotations
+typealias TokenLemmaStrategy = WordZAnalysis.TokenLemmaStrategy
+typealias TokenizeLanguagePreset = WordZAnalysis.TokenizeLanguagePreset
 
-    var id: String { rawValue }
-
+extension TokenScript {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .latin:
@@ -25,24 +24,7 @@ enum TokenScript: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
-enum TokenLexicalClass: String, CaseIterable, Identifiable, Codable, Sendable {
-    case noun
-    case verb
-    case adjective
-    case adverb
-    case pronoun
-    case determiner
-    case preposition
-    case particle
-    case conjunction
-    case interjection
-    case classifier
-    case idiom
-    case number
-    case other
-
-    var id: String { rawValue }
-
+extension TokenLexicalClass {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .noun:
@@ -77,13 +59,7 @@ enum TokenLexicalClass: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
-struct TokenLinguisticAnnotations: Hashable, Codable, Sendable {
-    let script: TokenScript
-    let lemma: String?
-    let lexicalClass: TokenLexicalClass?
-
-    static let empty = TokenLinguisticAnnotations(script: .other, lemma: nil, lexicalClass: nil)
-
+extension TokenLinguisticAnnotations {
     var jsonObject: JSONObject {
         [
             "script": script.rawValue,
@@ -93,18 +69,13 @@ struct TokenLinguisticAnnotations: Hashable, Codable, Sendable {
     }
 }
 
-enum TokenLemmaStrategy: String, CaseIterable, Identifiable, Codable, Sendable {
-    case normalizedSurface
-    case lemmaPreferred
-
-    var id: String { rawValue }
-
+extension TokenLemmaStrategy {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .normalizedSurface:
             return wordZText("规范词优先", "Normalized surface", mode: mode)
         case .lemmaPreferred:
-            return wordZText("词形优先", "Lemma-preferred", mode: mode)
+            return wordZText("Lemma 优先", "Lemma-preferred", mode: mode)
         }
     }
 
@@ -116,24 +87,9 @@ enum TokenLemmaStrategy: String, CaseIterable, Identifiable, Codable, Sendable {
             return wordZText("若系统可给出 lemma，则优先使用 lemma。", "Use system lemmas when available; otherwise fall back to normalized tokens.", mode: mode)
         }
     }
-
-    func resolvedToken(normalized: String, annotations: TokenLinguisticAnnotations) -> String {
-        switch self {
-        case .normalizedSurface:
-            return normalized
-        case .lemmaPreferred:
-            return annotations.lemma ?? normalized
-        }
-    }
 }
 
-enum TokenizeLanguagePreset: String, CaseIterable, Identifiable, Codable, Sendable {
-    case mixedChineseEnglish
-    case latinFocused
-    case cjkFocused
-
-    var id: String { rawValue }
-
+extension TokenizeLanguagePreset {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .mixedChineseEnglish:
@@ -153,17 +109,6 @@ enum TokenizeLanguagePreset: String, CaseIterable, Identifiable, Codable, Sendab
             return wordZText("优先保留英文和数字 token，适合英文论文语料。", "Prefer Latin and numeric tokens for English-heavy corpora.", mode: mode)
         case .cjkFocused:
             return wordZText("优先保留中文和数字 token，适合中文语料。", "Prefer CJK and numeric tokens for Chinese-heavy corpora.", mode: mode)
-        }
-    }
-
-    func keeps(_ annotations: TokenLinguisticAnnotations) -> Bool {
-        switch self {
-        case .mixedChineseEnglish:
-            return annotations.script != .other
-        case .latinFocused:
-            return [.latin, .numeric, .mixed].contains(annotations.script)
-        case .cjkFocused:
-            return [.cjk, .numeric, .mixed].contains(annotations.script)
         }
     }
 }

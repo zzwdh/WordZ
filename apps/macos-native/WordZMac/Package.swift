@@ -60,7 +60,8 @@ let package = Package(
             name: "WordZAnalysis",
             path: "Sources/WordZAnalysis",
             sources: [
-                "WordZAnalysisResources.swift"
+                "WordZAnalysisResources.swift",
+                "Models/LinguisticSupportModels.swift"
             ],
             resources: [
                 .copy("Resources/Sentiment"),

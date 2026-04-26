@@ -123,7 +123,7 @@ enum KeywordUnit: String, CaseIterable, Identifiable, Codable, Sendable {
         case .normalizedSurface:
             return wordZText("规范词", "Normalized Surface", mode: mode)
         case .lemmaPreferred:
-            return wordZText("词形优先", "Lemma Preferred", mode: mode)
+            return wordZText("Lemma 优先", "Lemma Preferred", mode: mode)
         }
     }
 

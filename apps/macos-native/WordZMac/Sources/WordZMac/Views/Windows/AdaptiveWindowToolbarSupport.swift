@@ -113,7 +113,7 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
 
     private func annotationToolbarMenu(title: String, isEnabled: Bool) -> some View {
         Menu {
-            Section(wordZText("词形策略", "Profile", mode: languageMode)) {
+            Section(wordZText("显示口径", "Display Profile", mode: languageMode)) {
                 ForEach(WorkspaceAnnotationProfile.allCases) { profile in
                     Button {
                         onSelectAnnotationProfile(profile)
@@ -127,7 +127,7 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
                 }
             }
 
-            Section(wordZText("脚本过滤", "Script Filter", mode: languageMode)) {
+            Section(wordZText("文字范围", "Script Scope", mode: languageMode)) {
                 ForEach(TokenScript.allCases) { script in
                     Button {
                         onToggleAnnotationScript(script)
@@ -141,7 +141,7 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
                 }
             }
 
-            Section(wordZText("词类过滤", "Lexical Class Filter", mode: languageMode)) {
+            Section(wordZText("词类筛选", "Part-of-Speech Filter", mode: languageMode)) {
                 ForEach(TokenLexicalClass.allCases) { lexicalClass in
                     Button {
                         onToggleAnnotationLexicalClass(lexicalClass)
@@ -157,7 +157,7 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
 
             Divider()
 
-            Button(wordZText("清空脚本与词类过滤", "Clear Script and Class Filters", mode: languageMode)) {
+            Button(wordZText("清空显示筛选", "Clear Display Filters", mode: languageMode)) {
                 onClearAnnotationFilters()
             }
             .disabled(annotationState.lexicalClasses.isEmpty && annotationState.scripts.isEmpty)

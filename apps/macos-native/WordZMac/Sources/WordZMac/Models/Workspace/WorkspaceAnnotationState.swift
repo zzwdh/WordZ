@@ -12,9 +12,9 @@ enum WorkspaceAnnotationProfile: String, CaseIterable, Identifiable, Codable, Se
         case .surface:
             return wordZText("表层词形", "Surface", mode: mode)
         case .lemmaPreferred:
-            return wordZText("词形优先", "Lemma Preferred", mode: mode)
+            return wordZText("Lemma 优先", "Lemma Preferred", mode: mode)
         case .surfaceWithLemmaFallback:
-            return wordZText("表层词形（词形兜底）", "Surface with Lemma Fallback", mode: mode)
+            return wordZText("表层词形（lemma 兜底）", "Surface with Lemma Fallback", mode: mode)
         }
     }
 
