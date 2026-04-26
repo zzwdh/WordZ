@@ -28,6 +28,7 @@ enum EvidenceMarkdownDossierSupport {
             grouping: grouping,
             mode: .system
         )
+        let itemNumbers = evidenceNumberLookup(groups: groups)
 
         var lines: [String] = [
             "# " + wordZText("研究 dossier", "Research Dossier", mode: .system),
@@ -36,6 +37,16 @@ enum EvidenceMarkdownDossierSupport {
             wordZText("保留证据", "Kept Items", mode: .system) + ": \(keptItems.count)",
             wordZText("组织方式", "Grouping", mode: .system) + ": " + grouping.title(in: .system)
         ]
+
+        lines.append("")
+        lines.append("## " + wordZText("方法摘要", "Method Summary", mode: .system))
+        lines.append(contentsOf: methodSummaryLines(items: keptItems, groups: groups))
+        lines.append("")
+        lines.append("## " + wordZText("证据索引", "Evidence Index", mode: .system))
+        lines.append(contentsOf: evidenceIndexLines(groups: groups, itemNumbers: itemNumbers))
+        lines.append("")
+        lines.append("## " + wordZText("元数据缺口", "Metadata Gaps", mode: .system))
+        lines.append(contentsOf: metadataGapLines(items: keptItems, itemNumbers: itemNumbers))
 
         for group in groups {
             lines.append("")
@@ -47,9 +58,9 @@ enum EvidenceMarkdownDossierSupport {
             lines.append("")
             lines.append("- " + wordZText("条目数", "Items", mode: .system) + ": \(group.items.count)")
 
-            for (index, item) in group.items.enumerated() {
+            for item in group.items {
                 lines.append("")
-                lines.append("### \(index + 1). \(item.keyword)")
+                lines.append("### \(evidenceLabel(for: item, itemNumbers: itemNumbers)). \(item.keyword)")
                 lines.append("")
                 lines.append("- " + wordZText("来源", "Source", mode: .system) + ": " + item.sourceKind.title(in: .system))
                 lines.append("- " + wordZText("语料", "Corpus", mode: .system) + ": " + item.corpusName)
@@ -96,6 +107,10 @@ enum EvidenceMarkdownDossierSupport {
             }
         }
 
+        lines.append("")
+        lines.append("## " + wordZText("参考来源", "References", mode: .system))
+        lines.append(contentsOf: referenceLines(items: keptItems, itemNumbers: itemNumbers))
+
         return PlainTextExportDocument(
             suggestedName: "research-dossier.md",
             text: lines.joined(separator: "\n"),
@@ -107,6 +122,206 @@ enum EvidenceMarkdownDossierSupport {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func evidenceNumberLookup(groups: [EvidenceWorkbenchGroup]) -> [String: Int] {
+        var lookup: [String: Int] = [:]
+        var nextNumber = 1
+        for group in groups {
+            for item in group.items where lookup[item.id] == nil {
+                lookup[item.id] = nextNumber
+                nextNumber += 1
+            }
+        }
+        return lookup
+    }
+
+    private static func evidenceLabel(
+        for item: EvidenceItem,
+        itemNumbers: [String: Int]
+    ) -> String {
+        "E\(itemNumbers[item.id] ?? 0)"
+    }
+
+    private static func methodSummaryLines(
+        items: [EvidenceItem],
+        groups: [EvidenceWorkbenchGroup]
+    ) -> [String] {
+        [
+            "- " + wordZText("审校范围", "Review Scope", mode: .system) + ": " + wordZText("仅保留证据", "Kept evidence only", mode: .system),
+            "- " + wordZText("证据分组", "Evidence Groups", mode: .system) + ": \(groups.count)",
+            "- " + wordZText("来源分布", "Source Mix", mode: .system) + ": " + sourceMixSummary(items),
+            "- " + wordZText("引文格式分布", "Citation Formats", mode: .system) + ": " + citationFormatSummary(items),
+            "- " + wordZText("引用样式分布", "Citation Styles", mode: .system) + ": " + citationStyleSummary(items)
+        ]
+    }
+
+    private static func evidenceIndexLines(
+        groups: [EvidenceWorkbenchGroup],
+        itemNumbers: [String: Int]
+    ) -> [String] {
+        var lines = [
+            "| " + [
+                wordZText("编号", "ID", mode: .system),
+                wordZText("关键词", "Keyword", mode: .system),
+                wordZText("语料", "Corpus", mode: .system),
+                wordZText("分组", "Group", mode: .system),
+                wordZText("论点", "Claim", mode: .system),
+                wordZText("引用样式", "Citation Style", mode: .system)
+            ].joined(separator: " | ") + " |",
+            "| --- | --- | --- | --- | --- | --- |"
+        ]
+
+        for group in groups {
+            for item in group.items {
+                lines.append("| " + [
+                    evidenceLabel(for: item, itemNumbers: itemNumbers),
+                    markdownTableCell(item.keyword),
+                    markdownTableCell(item.corpusName),
+                    markdownTableCell(group.title),
+                    markdownTableCell(normalizedValue(item.claim) ?? wordZText("未归类", "Unclaimed", mode: .system)),
+                    markdownTableCell(item.citationStyle.title(in: .system))
+                ].joined(separator: " | ") + " |")
+            }
+        }
+        return lines
+    }
+
+    private static func metadataGapLines(
+        items: [EvidenceItem],
+        itemNumbers: [String: Int]
+    ) -> [String] {
+        let entries = uniqueReferenceEntries(items: items, itemNumbers: itemNumbers)
+        let gapLines = entries.compactMap { entry -> String? in
+            let gaps = missingMetadataLabels(entry.metadata)
+            guard !gaps.isEmpty else { return nil }
+            return "- " + entry.corpusName + " (" + entry.evidenceLabels.joined(separator: ", ") + "): " + gaps.joined(separator: ", ")
+        }
+        if gapLines.isEmpty {
+            return ["- " + wordZText("未发现关键元数据缺口。", "No key metadata gaps detected.", mode: .system)]
+        }
+        return gapLines
+    }
+
+    private static func referenceLines(
+        items: [EvidenceItem],
+        itemNumbers: [String: Int]
+    ) -> [String] {
+        uniqueReferenceEntries(items: items, itemNumbers: itemNumbers)
+            .map { entry in
+                "- " + referenceText(entry) + " " + wordZText("证据", "Evidence", mode: .system) + ": " + entry.evidenceLabels.joined(separator: ", ") + "."
+            }
+    }
+
+    private struct ReferenceEntry {
+        let key: String
+        let corpusName: String
+        let metadata: CorpusMetadataProfile?
+        var evidenceLabels: [String]
+    }
+
+    private static func uniqueReferenceEntries(
+        items: [EvidenceItem],
+        itemNumbers: [String: Int]
+    ) -> [ReferenceEntry] {
+        var entries: [ReferenceEntry] = []
+        var indexByKey: [String: Int] = [:]
+        for item in items {
+            let key = referenceKey(item)
+            let label = evidenceLabel(for: item, itemNumbers: itemNumbers)
+            if let index = indexByKey[key] {
+                entries[index].evidenceLabels.append(label)
+            } else {
+                indexByKey[key] = entries.count
+                entries.append(
+                    ReferenceEntry(
+                        key: key,
+                        corpusName: item.corpusName,
+                        metadata: item.corpusMetadata,
+                        evidenceLabels: [label]
+                    )
+                )
+            }
+        }
+        return entries
+    }
+
+    private static func referenceKey(_ item: EvidenceItem) -> String {
+        [
+            item.corpusID,
+            item.corpusName,
+            item.corpusMetadata?.sourceLabel ?? "",
+            item.corpusMetadata?.yearLabel ?? "",
+            item.corpusMetadata?.genreLabel ?? "",
+            item.corpusMetadata?.tags.joined(separator: ",") ?? ""
+        ].joined(separator: "|")
+    }
+
+    private static func referenceText(_ entry: ReferenceEntry) -> String {
+        var parts = [entry.corpusName]
+        if let sourceLabel = normalizedValue(entry.metadata?.sourceLabel) {
+            parts.append(sourceLabel)
+        }
+        if let yearLabel = normalizedValue(entry.metadata?.yearLabel) {
+            parts.append(yearLabel)
+        }
+        if let genreLabel = normalizedValue(entry.metadata?.genreLabel) {
+            parts.append(wordZText("体裁", "Genre", mode: .system) + ": " + genreLabel)
+        }
+        if let tags = entry.metadata?.tags, !tags.isEmpty {
+            parts.append(wordZText("标签", "Tags", mode: .system) + ": " + tags.joined(separator: ", "))
+        }
+        parts.append("WordZ")
+        return parts.joined(separator: ". ") + "."
+    }
+
+    private static func missingMetadataLabels(_ metadata: CorpusMetadataProfile?) -> [String] {
+        var labels: [String] = []
+        if normalizedValue(metadata?.sourceLabel) == nil {
+            labels.append(wordZText("来源标签", "Source Label", mode: .system))
+        }
+        if normalizedValue(metadata?.yearLabel) == nil {
+            labels.append(wordZText("年份", "Year", mode: .system))
+        }
+        if normalizedValue(metadata?.genreLabel) == nil {
+            labels.append(wordZText("体裁", "Genre", mode: .system))
+        }
+        return labels
+    }
+
+    private static func sourceMixSummary(_ items: [EvidenceItem]) -> String {
+        EvidenceSourceKind.allCases
+            .compactMap { kind -> String? in
+                let count = items.filter { $0.sourceKind == kind }.count
+                guard count > 0 else { return nil }
+                return "\(kind.title(in: .system)) \(count)"
+            }
+            .joined(separator: " · ")
+    }
+
+    private static func citationFormatSummary(_ items: [EvidenceItem]) -> String {
+        EvidenceCitationFormat.allCases
+            .compactMap { format -> String? in
+                let count = items.filter { $0.citationFormat == format }.count
+                guard count > 0 else { return nil }
+                return "\(format.title(in: .system)) \(count)"
+            }
+            .joined(separator: " · ")
+    }
+
+    private static func citationStyleSummary(_ items: [EvidenceItem]) -> String {
+        EvidenceCitationStyle.allCases
+            .compactMap { style -> String? in
+                let count = items.filter { $0.citationStyle == style }.count
+                guard count > 0 else { return nil }
+                return "\(style.title(in: .system)) \(count)"
+            }
+            .joined(separator: " · ")
+    }
+
+    private static func markdownTableCell(_ value: String) -> String {
+        let normalized = value.replacingOccurrences(of: "\n", with: " ")
+        return normalized.replacingOccurrences(of: "|", with: "\\|")
     }
 
     private static func sentimentMetadataLines(

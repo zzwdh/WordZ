@@ -165,6 +165,10 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertTrue(document.text.contains("Section A"))
         XCTAssertTrue(document.text.contains("Claim Alpha"))
         XCTAssertTrue(document.text.contains("teaching, pattern"))
+        XCTAssertTrue(document.text.contains("## " + wordZText("方法摘要", "Method Summary", mode: .system)))
+        XCTAssertTrue(document.text.contains("## " + wordZText("证据索引", "Evidence Index", mode: .system)))
+        XCTAssertTrue(document.text.contains("## " + wordZText("元数据缺口", "Metadata Gaps", mode: .system)))
+        XCTAssertTrue(document.text.contains("Demo Corpus (E1): " + wordZText("体裁", "Genre", mode: .system)))
         let citationFormatLine = wordZText("引文格式", "Citation Format", mode: .system) +
             ": " +
             EvidenceCitationFormat.fullSentence.title(in: .system)
@@ -177,7 +181,48 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertTrue(document.text.contains(citationHeading + "\nDemo Corpus. (2024). left keyword-a right [Sentence 2, Course Reader]. WordZ evidence export."))
         XCTAssertFalse(document.text.contains(citationHeading + "\nSentence 2: left keyword-a right"))
         XCTAssertTrue(document.text.contains("Use this in the handout."))
+        XCTAssertTrue(document.text.contains("## " + wordZText("参考来源", "References", mode: .system)))
+        XCTAssertTrue(document.text.contains("Demo Corpus. Course Reader. 2024. WordZ."))
         XCTAssertFalse(document.text.contains("pending-only"))
+    }
+
+    func testMarkdownDossierAddsResearchIndexAndAggregatedReferences() throws {
+        let metadata = CorpusMetadataProfile(
+            sourceLabel: "Research Archive",
+            yearLabel: "2026",
+            genreLabel: "Interview",
+            tags: ["oral", "fieldwork"]
+        )
+        let first = makeEvidenceItem(
+            id: "evidence-index-1",
+            sourceKind: .kwic,
+            reviewStatus: .keep,
+            sectionTitle: "Findings",
+            claim: "Claim Alpha",
+            citationStyle: .mla,
+            corpusMetadata: metadata
+        )
+        let second = makeEvidenceItem(
+            id: "evidence-index-2",
+            sourceKind: .sentiment,
+            reviewStatus: .keep,
+            sectionTitle: "Findings",
+            claim: "Claim Beta",
+            citationFormat: .fullSentence,
+            citationStyle: .apa,
+            corpusMetadata: metadata
+        )
+
+        let document = try EvidenceMarkdownDossierSupport.document(
+            items: [first, second],
+            grouping: .section
+        )
+
+        XCTAssertTrue(document.text.contains("| E1 | node | Demo Corpus | Findings | Claim Alpha | MLA-like |"))
+        XCTAssertTrue(document.text.contains("| E2 | sentiment-hit | Demo Corpus | Findings | Claim Beta | APA-like |"))
+        XCTAssertTrue(document.text.contains(wordZText("来源分布", "Source Mix", mode: .system) + ": KWIC 1 · " + wordZText("情感", "Sentiment", mode: .system) + " 1"))
+        XCTAssertTrue(document.text.contains(wordZText("未发现关键元数据缺口。", "No key metadata gaps detected.", mode: .system)))
+        XCTAssertTrue(document.text.contains("Demo Corpus. Research Archive. 2026. " + wordZText("体裁", "Genre", mode: .system) + ": Interview. " + wordZText("标签", "Tags", mode: .system) + ": oral, fieldwork. WordZ. " + wordZText("证据", "Evidence", mode: .system) + ": E1, E2."))
     }
 
     func testMarkdownDossierPreservesManualSectionOrderFromWorkbenchSequence() throws {
