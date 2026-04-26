@@ -229,6 +229,8 @@ struct EvidenceWorkbenchWindowView: View {
                 .disabled(workbench.filteredItems.isEmpty)
             }
 
+            dossierStatusStrip
+
             HStack(spacing: 10) {
                 Picker(
                     t("审校状态", "Review Status"),
@@ -288,6 +290,63 @@ struct EvidenceWorkbenchWindowView: View {
             }
         }
         .padding(20)
+    }
+
+    private var dossierStatusStrip: some View {
+        HStack(spacing: 12) {
+            dossierStatusMetric(
+                systemImage: "line.3.horizontal.decrease.circle",
+                title: t("范围", "Scope"),
+                value: workbench.exportScopeSummary(in: languageMode)
+            )
+
+            Divider()
+                .frame(height: 24)
+
+            dossierStatusMetric(
+                systemImage: "quote.opening",
+                title: t("引用", "Citation"),
+                value: workbench.citationReadinessSummary(in: languageMode)
+            )
+
+            Divider()
+                .frame(height: 24)
+
+            dossierStatusMetric(
+                systemImage: workbench.hasMetadataGapsInVisibleKeptItems ? "exclamationmark.triangle" : "checkmark.seal",
+                title: t("元数据", "Metadata"),
+                value: workbench.metadataReadinessSummary(in: languageMode),
+                isWarning: workbench.hasMetadataGapsInVisibleKeptItems
+            )
+        }
+        .font(.caption)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func dossierStatusMetric(
+        systemImage: String,
+        title: String,
+        value: String,
+        isWarning: Bool = false
+    ) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .foregroundStyle(isWarning ? .orange : .secondary)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(title + ": " + value)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

@@ -1466,6 +1466,58 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.exportScopeSummary(in: .system), expectedScope)
     }
 
+    func testEvidenceWorkbenchViewModelBuildsDossierStatusSummaries() {
+        let completeMetadata = CorpusMetadataProfile(
+            sourceLabel: "Research Archive",
+            yearLabel: "2026",
+            genreLabel: "Interview"
+        )
+        let complete = makeEvidenceItem(
+            id: "evidence-complete",
+            reviewStatus: .keep,
+            citationFormat: .fullSentence,
+            citationStyle: .apa,
+            corpusMetadata: completeMetadata
+        )
+        let missing = makeEvidenceItem(
+            id: "evidence-missing",
+            sourceKind: .sentiment,
+            reviewStatus: .keep,
+            citationFormat: .citationLine,
+            citationStyle: .mla,
+            corpusMetadata: nil
+        )
+        let pending = makeEvidenceItem(
+            id: "evidence-pending",
+            reviewStatus: .pending,
+            citationFormat: .concordance,
+            citationStyle: .plain,
+            corpusMetadata: nil
+        )
+        let viewModel = EvidenceWorkbenchViewModel()
+
+        viewModel.applyItems([complete, missing, pending])
+
+        let citationSummary = viewModel.citationReadinessSummary(in: .system)
+        let metadataSummary = viewModel.metadataReadinessSummary(in: .system)
+
+        XCTAssertEqual(viewModel.visibleKeptItems.map(\.id), ["evidence-complete", "evidence-missing"])
+        XCTAssertTrue(citationSummary.contains(EvidenceCitationFormat.citationLine.title(in: .system) + " 1"))
+        XCTAssertTrue(citationSummary.contains(EvidenceCitationFormat.fullSentence.title(in: .system) + " 1"))
+        XCTAssertTrue(citationSummary.contains(EvidenceCitationStyle.mla.title(in: .system) + " 1"))
+        XCTAssertTrue(citationSummary.contains(EvidenceCitationStyle.apa.title(in: .system) + " 1"))
+        XCTAssertTrue(viewModel.hasMetadataGapsInVisibleKeptItems)
+        XCTAssertTrue(metadataSummary.contains("1"))
+        XCTAssertTrue(metadataSummary.contains(wordZText("来源标签", "Source Label", mode: .system)))
+        XCTAssertTrue(metadataSummary.contains(wordZText("年份", "Year", mode: .system)))
+        XCTAssertTrue(metadataSummary.contains(wordZText("体裁", "Genre", mode: .system)))
+
+        viewModel.applyItems([complete])
+
+        XCTAssertEqual(viewModel.metadataReadinessSummary(in: .system), wordZText("元数据完整", "Metadata complete", mode: .system))
+        XCTAssertFalse(viewModel.hasMetadataGapsInVisibleKeptItems)
+    }
+
     func testEvidenceWorkbenchViewModelReordersVisibleGroupForManualSorting() {
         let first = makeEvidenceItem(id: "evidence-group-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
         let hidden = makeEvidenceItem(id: "evidence-group-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")
