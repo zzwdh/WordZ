@@ -33,6 +33,10 @@ extension TopicsView {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
+                    if let sentimentExplainer = scene.sentimentExplainer {
+                        topicsSentimentOverviewCard(sentimentExplainer)
+                    }
+
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
                             ForEach(scene.clusters) { cluster in

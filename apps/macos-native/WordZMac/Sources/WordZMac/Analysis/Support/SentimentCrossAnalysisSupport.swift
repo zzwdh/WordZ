@@ -90,6 +90,9 @@ enum SentimentCrossAnalysisSupport {
 
         guard !clusters.isEmpty else { return nil }
 
+        let scopedRows = filteredGroups.flatMap { descriptor in
+            grouped[descriptor.id] ?? []
+        }
         let scopeSummary: String
         if let focusedClusterID,
            let cluster = clusters.first(where: { $0.id == focusedClusterID }) {
@@ -100,8 +103,13 @@ enum SentimentCrossAnalysisSupport {
 
         return TopicsSentimentExplainer(
             scopeSummary: scopeSummary,
+            overallSummary: makeSummary(
+                id: "topics",
+                title: wordZText("Topics x Sentiment", "Topics x Sentiment", mode: languageMode),
+                rows: scopedRows
+            ),
             clusters: clusters,
-            overallReviewImpact: makeReviewImpact(rows: presentationResult.effectiveRows)
+            overallReviewImpact: makeReviewImpact(rows: scopedRows)
         )
     }
 

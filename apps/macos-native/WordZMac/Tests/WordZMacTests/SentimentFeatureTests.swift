@@ -692,8 +692,14 @@ final class SentimentPresentationFeatureTests: XCTestCase {
         XCTAssertEqual(explainer.cluster(id: "topic-1")?.dominantLabel, .positive)
         XCTAssertEqual(explainer.cluster(id: "topic-2")?.dominantLabel, .neutral)
         XCTAssertEqual(explainer.cluster(id: "topic-2")?.reviewImpact.overriddenCount, 1)
+        XCTAssertEqual(explainer.overallSummary.positiveCount, 1)
+        XCTAssertEqual(explainer.overallSummary.neutralCount, 1)
+        XCTAssertEqual(explainer.overallSummary.negativeCount, 0)
         XCTAssertEqual(explainer.overallReviewImpact.reviewedCount, 1)
         XCTAssertEqual(explainer.overallReviewImpact.changedCount, 1)
+        XCTAssertTrue(explainer.exportMetadataLines(in: .english).contains(where: {
+            $0.contains("Overall Distribution: +1 / =1 / -0")
+        }))
     }
 
     func testSentimentSceneBuilderAppliesFilteringSortingAndVisibleColumns() {

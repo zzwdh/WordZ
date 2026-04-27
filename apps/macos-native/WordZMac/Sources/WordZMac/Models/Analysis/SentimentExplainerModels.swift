@@ -125,6 +125,7 @@ struct TopicsSentimentClusterExplainer: Identifiable, Equatable, Codable, Sendab
 
 struct TopicsSentimentExplainer: Equatable, Codable, Sendable {
     let scopeSummary: String
+    let overallSummary: SentimentAggregateSummary
     let clusters: [TopicsSentimentClusterExplainer]
     let overallReviewImpact: SentimentReviewImpactSummary
 
@@ -137,6 +138,8 @@ struct TopicsSentimentExplainer: Equatable, Codable, Sendable {
         var lines = [
             "\(wordZText("情感解释", "Sentiment Explainer", mode: mode)): \(wordZText("Topics x Sentiment", "Topics x Sentiment", mode: mode))",
             scopeSummary,
+            "\(wordZText("整体分布", "Overall Distribution", mode: mode)): +\(overallSummary.positiveCount) / =\(overallSummary.neutralCount) / -\(overallSummary.negativeCount)",
+            "\(wordZText("整体平均净分", "Overall Average Net", mode: mode)): \(String(format: "%.3f", overallSummary.averageNetScore))",
             "\(wordZText("整体审校", "Overall Review", mode: mode)): reviewed \(overallReviewImpact.reviewedCount) · overridden \(overallReviewImpact.overriddenCount) · changed \(overallReviewImpact.changedCount)"
         ]
         for cluster in clusters.prefix(5) {
