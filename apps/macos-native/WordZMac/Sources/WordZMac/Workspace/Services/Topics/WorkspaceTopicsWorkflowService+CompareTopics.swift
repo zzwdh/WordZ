@@ -113,11 +113,15 @@ extension WorkspaceTopicsWorkflowService {
             }
 
             let result = try await analysisTask.value
-            features.topics.apply(
-                applyingCompareTopicsParagraphContexts(
-                    payload.paragraphContexts,
-                    to: result
-                )
+            let enrichedResult = applyingCompareTopicsParagraphContexts(
+                payload.paragraphContexts,
+                to: result
+            )
+            features.topics.apply(enrichedResult)
+            features.compare.applyCompareTopicsResult(
+                enrichedResult,
+                context: context,
+                languageMode: .system
             )
             analysisWorkflow.completeRun(
                 selecting: .topics,

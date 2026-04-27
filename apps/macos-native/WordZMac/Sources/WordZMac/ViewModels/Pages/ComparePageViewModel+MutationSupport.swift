@@ -16,7 +16,7 @@ extension ComparePageViewModel {
                 result = nil
                 currentPage = 1
                 selectedRowID = nil
-                clearSentimentCrossAnalysis()
+                clearCrossAnalysis()
                 invalidateCaches()
                 if !shouldRebuildScene {
                     scene = nil

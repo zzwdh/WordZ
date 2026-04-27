@@ -245,6 +245,26 @@ final class SceneBuildersTests: XCTestCase {
                 referenceDistribution: "Reference: +0 / =1 / -0",
                 note: "Alpha remains positive in the target corpus."
             ),
+            topicsSummary: CompareTopicsSummary(
+                focusTerm: "alpha",
+                headline: "Compare x Topics",
+                scopeSummary: "Target Corpora: A · Reference Corpora: B",
+                targetSegmentCount: 2,
+                referenceSegmentCount: 1,
+                sharedTopicCount: 1,
+                targetLeaningTopicCount: 1,
+                referenceLeaningTopicCount: 0,
+                note: "Alpha shares one topic across target and reference.",
+                topTopics: [
+                    CompareTopicsClusterSummary(
+                        id: "topic-1",
+                        title: "Topic 1",
+                        keywordsText: "alpha · contrast",
+                        targetSegmentCount: 1,
+                        referenceSegmentCount: 1
+                    )
+                ]
+            ),
             sortMode: .alphabeticalAscending,
             pageSize: .fifty,
             currentPage: 1,
@@ -266,6 +286,10 @@ final class SceneBuildersTests: XCTestCase {
         }))
         XCTAssertTrue(scene.exportMetadataLines.contains(where: {
             $0.contains("Compare x Sentiment")
+        }))
+        XCTAssertEqual(scene.topicsSummary?.focusTerm, "alpha")
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: {
+            $0.contains("Compare x Topics")
         }))
     }
 

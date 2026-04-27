@@ -31,6 +31,7 @@ extension ComparePageViewModel {
                     annotationState: annotationState,
                     sentimentSummary: sentimentSummary,
                     sentimentExplainer: sentimentExplainer,
+                    topicsSummary: topicsSummary,
                     referenceSelection: selectedReferenceSelection,
                     referenceCorpusSets: availableCorpusSets,
                     sortMode: sortMode,
@@ -63,6 +64,7 @@ extension ComparePageViewModel {
         let annotationStateSnapshot = annotationState
         let sentimentSummarySnapshot = sentimentSummary
         let sentimentExplainerSnapshot = sentimentExplainer
+        let topicsSummarySnapshot = topicsSummary
 
         AnalysisSceneBuildScheduling.schedule(
             owner: self,
@@ -94,6 +96,7 @@ extension ComparePageViewModel {
                     annotationState: annotationStateSnapshot,
                     sentimentSummary: sentimentSummarySnapshot,
                     sentimentExplainer: sentimentExplainerSnapshot,
+                    topicsSummary: topicsSummarySnapshot,
                     referenceSelection: referenceSelectionSnapshot,
                     referenceCorpusSets: referenceCorpusSetsSnapshot,
                     sortMode: sortSnapshot,

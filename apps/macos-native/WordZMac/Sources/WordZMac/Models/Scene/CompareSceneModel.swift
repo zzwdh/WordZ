@@ -194,6 +194,7 @@ struct CompareSceneModel: Equatable {
     let methodNotes: [String]
     let sentimentSummary: CompareSentimentSummary?
     let sentimentExplainer: CompareSentimentExplainer?
+    let topicsSummary: CompareTopicsSummary?
     let exportMetadataLines: [String]
     let sorting: CompareSortingSceneModel
     let pagination: ResultPaginationSceneModel

@@ -52,6 +52,11 @@ extension CompareView {
                     compareSentimentExplainerCard(sentimentExplainer)
                 }
 
+                if let topicsSummary = viewModel.scene?.topicsSummary,
+                   topicsSummary.focusTerm == selectedRow.word {
+                    compareTopicsSummaryCard(topicsSummary)
+                }
+
                 HStack(spacing: 12) {
                     Button(t("在 KWIC 中打开", "Open in KWIC")) {
                         onAction(.openKWIC)

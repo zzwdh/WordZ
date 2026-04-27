@@ -51,6 +51,7 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
     var sentimentDrilldownContext: CompareSentimentDrilldownContext?
     var sentimentSummary: CompareSentimentSummary?
     var sentimentExplainer: CompareSentimentExplainer?
+    var topicsSummary: CompareTopicsSummary?
     var sceneBuildRevision = 0
     var cachedFilteredRows: [CompareRow]?
     var cachedFilteredError = ""
@@ -206,6 +207,38 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
         sentimentSummary = nil
         sentimentExplainer = nil
         guard shouldRebuildScene else { return }
+        rebuildScene()
+    }
+
+    func applyCompareTopicsResult(
+        _ result: TopicAnalysisResult,
+        context: TopicsCompareDrilldownContext,
+        languageMode: AppLanguageMode
+    ) {
+        let nextSummary = CompareTopicsSummary.build(
+            context: context,
+            result: result,
+            languageMode: languageMode
+        )
+        guard topicsSummary != nextSummary else { return }
+        topicsSummary = nextSummary
+        rebuildScene()
+    }
+
+    func clearTopicsCrossAnalysis(rebuildScene shouldRebuildScene: Bool = false) {
+        guard topicsSummary != nil else { return }
+        topicsSummary = nil
+        guard shouldRebuildScene else { return }
+        rebuildScene()
+    }
+
+    func clearCrossAnalysis(rebuildScene shouldRebuildScene: Bool = false) {
+        let hadCrossAnalysis = sentimentDrilldownContext != nil || sentimentSummary != nil || sentimentExplainer != nil || topicsSummary != nil
+        sentimentDrilldownContext = nil
+        sentimentSummary = nil
+        sentimentExplainer = nil
+        topicsSummary = nil
+        guard shouldRebuildScene, hadCrossAnalysis else { return }
         rebuildScene()
     }
 }

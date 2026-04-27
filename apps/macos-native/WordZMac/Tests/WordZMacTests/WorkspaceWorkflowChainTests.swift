@@ -110,6 +110,12 @@ final class WorkspaceWorkflowChainTests: XCTestCase {
         XCTAssertEqual(workspace.selectedTab, .topics)
         XCTAssertTrue(workspace.sceneGraph.topics.hasResult)
         XCTAssertTrue(workspace.topics.scene?.crossAnalysisSummary?.contains("alpha") == true)
+        XCTAssertEqual(workspace.compare.topicsSummary?.focusTerm, "alpha")
+        XCTAssertEqual(workspace.compare.scene?.topicsSummary?.targetSegmentCount, 1)
+        XCTAssertEqual(workspace.compare.scene?.topicsSummary?.referenceSegmentCount, 1)
+        XCTAssertTrue(workspace.compare.scene?.exportMetadataLines.contains(where: {
+            $0.contains("Compare x Topics")
+        }) ?? false)
         XCTAssertEqual(topicsResult.segments.first(where: { $0.id == "compare-topic-target-1" })?.sourceID, "corpus-1")
         XCTAssertEqual(topicsResult.segments.first(where: { $0.id == "compare-topic-target-1" })?.groupID, "target")
         XCTAssertEqual(topicsResult.segments.first(where: { $0.id == "compare-topic-target-1" })?.sourceParagraphIndex, 1)

@@ -208,6 +208,7 @@ extension CompareSceneBuilder {
         annotationSummary: String,
         sentimentSummary: CompareSentimentSummary?,
         sentimentExplainer: CompareSentimentExplainer?,
+        topicsSummary: CompareTopicsSummary?,
         referenceSummary: String,
         selectedTitles: [String],
         visibleRows: Int,
@@ -228,6 +229,7 @@ extension CompareSceneBuilder {
                 annotationSummary
             ] + (sentimentSummary?.exportMetadataLines(in: languageMode) ?? [])
                 + (sentimentExplainer?.exportMetadataLines(in: languageMode) ?? [])
+                + (topicsSummary?.exportMetadataLines(in: languageMode) ?? [])
         )
     }
 

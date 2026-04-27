@@ -215,6 +215,7 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertEqual(repository.runTopicsCallCount, 1)
         XCTAssertEqual(repository.lastRunTopicsOptions?.searchQuery, "alpha")
         XCTAssertEqual(workspace.topics.compareDrilldownContext?.focusTerm, "alpha")
+        XCTAssertEqual(workspace.compare.scene?.topicsSummary?.focusTerm, "alpha")
         XCTAssertEqual(workspace.sceneGraph.activeTab, .topics)
         XCTAssertTrue(workspace.topics.scene?.crossAnalysisSummary?.contains("alpha") == true)
     }
