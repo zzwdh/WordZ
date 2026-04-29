@@ -148,6 +148,7 @@ struct TokenizeSceneModel: Equatable {
     let visibleSentences: Int
     let rows: [TokenizeSceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let searchError: String
     let exportDocument: PlainTextExportDocument?
 

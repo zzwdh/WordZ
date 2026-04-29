@@ -345,6 +345,7 @@ extension TopicsSceneBuilder {
             segmentRows: [],
             selectedSegmentID: nil,
             tableRows: [],
+            tableSnapshot: .empty,
             table: makeSegmentsTable(
                 languageMode: languageMode,
                 visibleColumns: visibleColumns,

@@ -28,6 +28,8 @@ enum SentimentPageAction {
     case changeSort(SentimentSortMode)
     case sortByColumn(SentimentColumnKey)
     case changePageSize(SentimentPageSize)
+    case previousPage
+    case nextPage
     case toggleColumn(SentimentColumnKey)
     case selectRow(String?)
     case changeManualText(String)

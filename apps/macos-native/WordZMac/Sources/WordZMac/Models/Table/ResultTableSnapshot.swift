@@ -11,11 +11,7 @@ struct ResultTableSnapshot: Equatable, Sendable {
     ) {
         self.version = version
         self.rows = rows
-        self.rowIndexByID = Dictionary(
-            uniqueKeysWithValues: rows.enumerated().map { index, row in
-                (row.id, index)
-            }
-        )
+        self.rowIndexByID = NativeTableRowIndexing.firstIndexByID(rows)
     }
 
     static func stable(rows: [NativeTableRowDescriptor]) -> ResultTableSnapshot {
@@ -50,9 +46,9 @@ private enum StableResultTableSnapshotVersioning {
         var hash = offsetBasis
         for row in rows {
             mix(row.id, into: &hash)
-            for key in row.values.keys.sorted() {
+            for key in row.cells.keys.sorted() {
                 mix(key, into: &hash)
-                mix(row.values[key] ?? "", into: &hash)
+                mix(row.value(for: key), into: &hash)
             }
             mix("|", into: &hash)
         }
@@ -66,5 +62,15 @@ private enum StableResultTableSnapshotVersioning {
             hash ^= UInt64(byte)
             hash &*= prime
         }
+    }
+}
+
+enum NativeTableRowIndexing {
+    static func firstIndexByID(_ rows: [NativeTableRowDescriptor]) -> [String: Int] {
+        var indexes: [String: Int] = [:]
+        for (index, row) in rows.enumerated() where indexes[row.id] == nil {
+            indexes[row.id] = index
+        }
+        return indexes
     }
 }

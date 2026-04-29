@@ -66,6 +66,15 @@ struct SourceReaderAnnotationSceneItem: Identifiable, Equatable {
     let value: String
 }
 
+struct SourceReaderSourceChainItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let value: String
+    let detail: String?
+    let systemImage: String
+    let isCurrent: Bool
+}
+
 struct SourceReaderSentenceSceneItem: Identifiable, Equatable {
     let id: String
     let sentenceId: Int
@@ -90,6 +99,7 @@ struct SourceReaderSceneModel: Equatable {
     let originSummary: String
     let annotationSummary: String
     let hitCountSummary: String
+    let sourceChainItems: [SourceReaderSourceChainItem]
     let hitItems: [SourceReaderHitSceneItem]
     let selectedHitID: String?
     let sentences: [SourceReaderSentenceSceneItem]

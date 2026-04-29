@@ -49,15 +49,15 @@ struct WordSceneBuilder {
         let tableRows = sceneRows.map { row in
             NativeTableRowDescriptor(
                 id: row.id,
-                values: [
-                    WordColumnKey.rank.rawValue: row.rankText,
-                    WordColumnKey.word.rawValue: row.word,
-                    WordColumnKey.count.rawValue: row.countText,
-                    WordColumnKey.normFrequency.rawValue: row.normFrequencyText,
-                    WordColumnKey.range.rawValue: row.rangeText,
-                    WordColumnKey.normRange.rawValue: row.normRangeText
-                ]
-            )
+                columnKey: WordColumnKey.self
+            ) {
+                NativeTableCell(.rank, row.rankText)
+                NativeTableCell(.word, row.word)
+                NativeTableCell(.count, row.countText)
+                NativeTableCell(.normFrequency, row.normFrequencyText)
+                NativeTableCell(.range, row.rangeText)
+                NativeTableCell(.normRange, row.normRangeText)
+            }
         }
         let exportMetadataLines = AnalysisExportMetadataSupport.notes(
             analysisTitle: wordZText("词表", "Word List", mode: languageMode),
@@ -88,24 +88,27 @@ struct WordSceneBuilder {
             pagination: pagination,
             table: NativeTableDescriptor(
                 storageKey: "word",
-                columns: WordColumnKey.allCases.map { key in
-                    NativeTableColumnDescriptor(
-                        id: key.rawValue,
+                columnKey: WordColumnKey.self,
+                defaultDensity: .compact
+            ) {
+                for key in WordColumnKey.allCases {
+                    NativeTableColumnSpec(
+                        key,
                         title: columnTitle(for: key, definition: definition, mode: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        sortDirection: sortDirection(for: key, sortMode: sortMode),
                         presentation: presentation(for: key),
                         widthPolicy: widthPolicy(for: key),
                         isPinned: key == .rank || key == .word
                     )
-                },
-                defaultDensity: .compact
-            ),
+                }
+            },
             totalRows: resolvedDisplayableRows.count,
             filteredRows: filtered.rows.count,
             visibleRows: sceneRows.count,
             rows: sceneRows,
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             searchError: filtered.error
         )
     }
@@ -200,20 +203,20 @@ struct WordSceneBuilder {
         }
     }
 
-    private func sortIndicator(for key: WordColumnKey, sortMode: WordSortMode) -> String? {
+    private func sortDirection(for key: WordColumnKey, sortMode: WordSortMode) -> NativeTableSortDirection? {
         switch (key, sortMode) {
         case (.rank, .rankAscending):
-            return "↑"
+            return .ascending
         case (.rank, .rankDescending):
-            return "↓"
+            return .descending
         case (.word, .alphabeticalAscending), (.count, .frequencyAscending), (.normFrequency, .frequencyAscending):
-            return "↑"
+            return .ascending
         case (.word, .alphabeticalDescending), (.count, .frequencyDescending), (.normFrequency, .frequencyDescending):
-            return "↓"
+            return .descending
         case (.range, .rangeAscending), (.normRange, .rangeAscending):
-            return "↑"
+            return .ascending
         case (.range, .rangeDescending), (.normRange, .rangeDescending):
-            return "↓"
+            return .descending
         default:
             return nil
         }

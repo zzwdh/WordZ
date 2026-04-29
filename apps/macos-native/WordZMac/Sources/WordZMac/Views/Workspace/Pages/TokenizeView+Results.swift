@@ -4,7 +4,25 @@ extension TokenizeView {
     @ViewBuilder
     var tokenizeResultsSection: some View {
         if let scene = viewModel.scene {
-            WorkbenchResultsToolbarSection {
+            AnalysisResultTableSection(
+                descriptor: scene.table,
+                snapshot: scene.tableSnapshot,
+                selectedRowID: viewModel.selectedRowID,
+                onSelectionChange: { onAction(.selectRow($0)) },
+                columnKeys: TokenizeColumnKey.allCases,
+                columnMenuTitle: t("列", "Columns"),
+                columnLabel: { scene.columnTitle(for: $0, mode: languageMode) },
+                isColumnVisible: { scene.column(for: $0)?.isVisible ?? false },
+                onToggleColumn: { onAction(.toggleColumn($0)) },
+                onSortByColumn: { onAction(.sortByColumn($0)) },
+                onToggleColumnFromHeader: { onAction(.toggleColumn($0)) },
+                pagination: scene.pagination,
+                onPreviousPage: { onAction(.previousPage) },
+                onNextPage: { onAction(.nextPage) },
+                emptyMessage: t("当前分词结果没有可显示的 token。", "No token rows to display."),
+                accessibilityLabel: t("分词结果表格", "Tokenization results table"),
+                activationHint: t("使用方向键浏览分词结果。", "Use arrow keys to browse tokenization results.")
+            ) {
                 Text(scene.query.isEmpty ? t("显示全部 token", "Showing all tokens") : t("过滤 token：", "Filter: ") + scene.query)
                     .font(.headline)
                 tokenizeSummaryRow(scene)
@@ -13,84 +31,46 @@ extension TokenizeView {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
-            } trailing: {
+            } headerTrailing: {
                 Text("\(t("显示", "Showing")) \(scene.visibleTokens) / \(scene.filteredTokens)（\(t("总计", "Total")) \(scene.totalTokens)）")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             } leadingControls: {
-                HStack(spacing: 12) {
-                    WorkbenchMenuPicker(
-                        title: t("排序", "Sort"),
-                        selection: Binding(
-                            get: { scene.sorting.selectedSort },
-                            set: { onAction(.changeSort($0)) }
-                        ),
-                        options: Array(TokenizeSortMode.allCases)
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-
-                    WorkbenchGuardedPageSizePicker(
-                        title: t("页大小", "Page Size"),
-                        selection: Binding(
-                            get: { scene.sorting.selectedPageSize },
-                            set: { onAction(.changePageSize($0)) }
-                        ),
-                        totalRows: scene.filteredTokens
-                    ) {
-                        $0.title(in: languageMode)
+                WorkbenchTablePrimaryControls(
+                    sortTitle: t("排序", "Sort"),
+                    selectedSort: Binding(
+                        get: { scene.sorting.selectedSort },
+                        set: { onAction(.changeSort($0)) }
+                    ),
+                    sortOptions: Array(TokenizeSortMode.allCases),
+                    sortLabel: { $0.title(in: languageMode) },
+                    pageSizeTitle: t("页大小", "Page Size"),
+                    selectedPageSize: Binding(
+                        get: { scene.sorting.selectedPageSize },
+                        set: { onAction(.changePageSize($0)) }
+                    ),
+                    totalRows: scene.filteredTokens,
+                    pageSizeLabel: { $0.title(in: languageMode) }
+                )
+            } tableSupplement: {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.adaptive(minimum: 150), spacing: 12)
+                    ],
+                    alignment: .leading,
+                    spacing: 12
+                ) {
+                    ForEach(scene.metrics) { item in
+                        WorkbenchMetricCard(title: item.title, value: item.value)
                     }
                 }
-            } trailingControls: {
-                WorkbenchResultTrailingControls(
-                    columnMenuTitle: t("列", "Columns"),
-                    keys: TokenizeColumnKey.allCases,
-                    label: { scene.columnTitle(for: $0, mode: languageMode) },
-                    isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                    onToggle: { onAction(.toggleColumn($0)) },
-                    canGoBackward: scene.pagination.canGoBackward,
-                    canGoForward: scene.pagination.canGoForward,
-                    rangeLabel: scene.pagination.rangeLabel,
-                    onPrevious: { onAction(.previousPage) },
-                    onNext: { onAction(.nextPage) }
-                )
-            }
 
-            LazyVGrid(
-                columns: [
-                    GridItem(.adaptive(minimum: 150), spacing: 12)
-                ],
-                alignment: .leading,
-                spacing: 12
-            ) {
-                ForEach(scene.metrics) { item in
-                    WorkbenchMetricCard(title: item.title, value: item.value)
+                if let selectedRow = viewModel.selectedSceneRow {
+                    tokenizeSelectionCard(selectedRow, scene: scene)
                 }
-            }
-
-            if let selectedRow = viewModel.selectedSceneRow {
-                tokenizeSelectionCard(selectedRow, scene: scene)
-            }
-
-            WorkbenchTableCard {
-                NativeTableView(
-                    descriptor: scene.table,
-                    rows: scene.tableRows,
-                    selectedRowID: viewModel.selectedRowID,
-                    onSelectionChange: { onAction(.selectRow($0)) },
-                    onSortByColumn: { columnID in
-                        guard let column = TokenizeColumnKey(rawValue: columnID) else { return }
-                        onAction(.sortByColumn(column))
-                    },
-                    onToggleColumnFromHeader: { columnID in
-                        guard let column = TokenizeColumnKey(rawValue: columnID) else { return }
-                        onAction(.toggleColumn(column))
-                    },
-                    emptyMessage: t("当前分词结果没有可显示的 token。", "No token rows to display."),
-                    accessibilityLabel: t("分词结果表格", "Tokenization results table"),
-                    activationHint: t("使用方向键浏览分词结果。", "Use arrow keys to browse tokenization results.")
-                )
+            } paginationFallback: {
+                EmptyView()
             }
         } else {
             WorkbenchEmptyStateCard(

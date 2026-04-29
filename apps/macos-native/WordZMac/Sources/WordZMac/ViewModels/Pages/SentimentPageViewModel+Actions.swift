@@ -58,6 +58,10 @@ extension SentimentPageViewModel {
             sortByColumn(column)
         case .changePageSize(let nextPageSize):
             applyPageSizeChange(nextPageSize)
+        case .previousPage:
+            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+        case .nextPage:
+            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
         case .toggleColumn(let column):
             toggleVisibleColumnAndRebuild(column)
         case .selectRow(let rowID):

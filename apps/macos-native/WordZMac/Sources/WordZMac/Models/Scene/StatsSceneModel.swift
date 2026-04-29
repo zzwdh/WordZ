@@ -164,6 +164,7 @@ struct StatsSceneModel: Equatable {
     let metrics: [StatsMetricSceneItem]
     let rows: [StatsFrequencySceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let definition: FrequencyMetricDefinition
     let definitionSummary: String
     let exportMetadataLines: [String]

@@ -113,6 +113,7 @@ struct ClusterSceneModel: Equatable {
     let rows: [ClusterSceneRow]
     let table: NativeTableDescriptor
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let exportMetadataLines: [String]
     let searchError: String
 

@@ -49,15 +49,15 @@ struct StatsSceneBuilder {
         let tableRows = visibleRows.map { row in
             NativeTableRowDescriptor(
                 id: row.id,
-                values: [
-                    StatsColumnKey.rank.rawValue: row.rankText,
-                    StatsColumnKey.word.rawValue: row.word,
-                    StatsColumnKey.count.rawValue: row.countText,
-                    StatsColumnKey.normFrequency.rawValue: row.normFrequencyText,
-                    StatsColumnKey.range.rawValue: row.rangeText,
-                    StatsColumnKey.normRange.rawValue: row.normRangeText
-                ]
-            )
+                columnKey: StatsColumnKey.self
+            ) {
+                NativeTableCell(.rank, row.rankText)
+                NativeTableCell(.word, row.word)
+                NativeTableCell(.count, row.countText)
+                NativeTableCell(.normFrequency, row.normFrequencyText)
+                NativeTableCell(.range, row.rangeText)
+                NativeTableCell(.normRange, row.normRangeText)
+            }
         }
         let exportMetadataLines = AnalysisExportMetadataSupport.notes(
             analysisTitle: wordZText("词频统计", "Frequency Stats", mode: languageMode),
@@ -71,6 +71,7 @@ struct StatsSceneBuilder {
             metrics: metrics,
             rows: visibleRows,
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             definition: definition,
             definitionSummary: definition.summary(in: languageMode),
             exportMetadataLines: exportMetadataLines,
@@ -81,19 +82,21 @@ struct StatsSceneBuilder {
             pagination: pagination,
             table: NativeTableDescriptor(
                 storageKey: "stats",
-                columns: StatsColumnKey.allCases.map { key in
-                    NativeTableColumnDescriptor(
-                        id: key.rawValue,
+                columnKey: StatsColumnKey.self,
+                defaultDensity: .compact
+            ) {
+                for key in StatsColumnKey.allCases {
+                    NativeTableColumnSpec(
+                        key,
                         title: columnTitle(for: key, definition: definition, mode: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, sortMode: sortMode),
+                        sortDirection: sortDirection(for: key, sortMode: sortMode),
                         presentation: presentation(for: key),
                         widthPolicy: widthPolicy(for: key),
                         isPinned: key == .rank || key == .word
                     )
-                },
-                defaultDensity: .compact
-            ),
+                }
+            },
             totalRows: sortedRows.count,
             visibleRows: visibleRows.count
         )
@@ -144,32 +147,32 @@ struct StatsSceneBuilder {
         }
     }
 
-    private func sortIndicator(for key: StatsColumnKey, sortMode: StatsSortMode) -> String? {
+    private func sortDirection(for key: StatsColumnKey, sortMode: StatsSortMode) -> NativeTableSortDirection? {
         switch (key, sortMode) {
         case (.rank, .rankAscending):
-            return "↑"
+            return .ascending
         case (.rank, .rankDescending):
-            return "↓"
+            return .descending
         case (.word, .alphabeticalAscending):
-            return "↑"
+            return .ascending
         case (.word, .alphabeticalDescending):
-            return "↓"
+            return .descending
         case (.count, .frequencyAscending):
-            return "↑"
+            return .ascending
         case (.count, .frequencyDescending):
-            return "↓"
+            return .descending
         case (.normFrequency, .frequencyAscending):
-            return "↑"
+            return .ascending
         case (.normFrequency, .frequencyDescending):
-            return "↓"
+            return .descending
         case (.range, .rangeAscending):
-            return "↑"
+            return .ascending
         case (.range, .rangeDescending):
-            return "↓"
+            return .descending
         case (.normRange, .rangeAscending):
-            return "↑"
+            return .ascending
         case (.normRange, .rangeDescending):
-            return "↓"
+            return .descending
         default:
             return nil
         }

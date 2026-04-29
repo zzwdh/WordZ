@@ -32,7 +32,24 @@ extension StatsView {
     }
 
     func resultsSection(_ scene: StatsSceneModel) -> some View {
-        WorkbenchResultsToolbarSection {
+        AnalysisResultTableSection(
+            descriptor: scene.table,
+            snapshot: scene.tableSnapshot,
+            columnKeys: StatsColumnKey.allCases,
+            columnMenuTitle: t("列与导出", "Columns & Export"),
+            columnLabel: { scene.columnTitle(for: $0, mode: languageMode) },
+            isColumnVisible: { scene.column(for: $0)?.isVisible ?? false },
+            onToggleColumn: { onAction(.toggleColumn($0)) },
+            onSortByColumn: { onAction(.sortByColumn($0)) },
+            onToggleColumnFromHeader: { onAction(.toggleColumn($0)) },
+            pagination: scene.pagination,
+            showsPaginationControls: showsPaginationControls(for: scene),
+            onPreviousPage: { onAction(.previousPage) },
+            onNextPage: { onAction(.nextPage) },
+            emptyMessage: t("当前统计结果没有可显示的词项。", "No stats rows to display."),
+            accessibilityLabel: t("统计结果表格", "Stats results table"),
+            activationHint: t("使用方向键浏览结果，按 Return 可触发表格默认动作。", "Use arrow keys to browse results, then press Return to trigger the default table action.")
+        ) {
             Text(t("词频列表", "Frequency List"))
                 .font(.headline)
             Text(currentSortSummary(for: scene))
@@ -41,7 +58,7 @@ extension StatsView {
             Text(scene.definitionSummary)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
-        } trailing: {
+        } headerTrailing: {
             VStack(alignment: .trailing, spacing: 4) {
                 Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.totalRows)")
                     .font(.caption)
@@ -53,49 +70,30 @@ extension StatsView {
                     .monospacedDigit()
             }
         } leadingControls: {
-            WorkbenchAdaptiveControlCluster {
-                sortPicker(for: scene)
-                definitionControls(for: scene)
-                if showsPageSizeControl(for: scene) {
-                    pageSizePicker(for: scene)
+            WorkbenchTablePrimaryControls(
+                sortTitle: t("排序", "Sort"),
+                selectedSort: Binding(
+                    get: { scene.sorting.selectedSort },
+                    set: { onAction(.changeSort($0)) }
+                ),
+                sortOptions: Array(StatsSortMode.allCases),
+                sortLabel: { $0.title(in: languageMode) },
+                pageSizeTitle: t("页大小", "Page Size"),
+                selectedPageSize: Binding(
+                    get: { scene.sorting.selectedPageSize },
+                    set: { onAction(.changePageSize($0)) }
+                ),
+                totalRows: scene.totalRows,
+                showsPageSizeControl: showsPageSizeControl(for: scene),
+                pageSizeLabel: { $0.title(in: languageMode) },
+                middle: {
+                    definitionControls(for: scene)
                 }
-            }
-        } trailingControls: {
-            WorkbenchAdaptiveResultTrailingControls(
-                columnMenuTitle: t("列与导出", "Columns & Export"),
-                keys: StatsColumnKey.allCases,
-                label: { scene.columnTitle(for: $0, mode: languageMode) },
-                isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                onToggle: { onAction(.toggleColumn($0)) },
-                canGoBackward: scene.pagination.canGoBackward,
-                canGoForward: scene.pagination.canGoForward,
-                rangeLabel: scene.pagination.rangeLabel,
-                showsPaginationControls: showsPaginationControls(for: scene),
-                onPrevious: { onAction(.previousPage) },
-                onNext: { onAction(.nextPage) }
-            ) {
-                allRowsVisibleBadge
-            }
-        }
-    }
-
-    func tableSection(_ scene: StatsSceneModel) -> some View {
-        WorkbenchTableCard {
-            NativeTableView(
-                descriptor: scene.table,
-                rows: scene.tableRows,
-                onSortByColumn: { columnID in
-                    guard let column = StatsColumnKey(rawValue: columnID) else { return }
-                    onAction(.sortByColumn(column))
-                },
-                onToggleColumnFromHeader: { columnID in
-                    guard let column = StatsColumnKey(rawValue: columnID) else { return }
-                    onAction(.toggleColumn(column))
-                },
-                emptyMessage: t("当前统计结果没有可显示的词项。", "No stats rows to display."),
-                accessibilityLabel: t("统计结果表格", "Stats results table"),
-                activationHint: t("使用方向键浏览结果，按 Return 可触发表格默认动作。", "Use arrow keys to browse results, then press Return to trigger the default table action.")
             )
+        } tableSupplement: {
+            EmptyView()
+        } paginationFallback: {
+            allRowsVisibleBadge
         }
     }
 

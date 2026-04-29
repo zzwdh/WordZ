@@ -168,6 +168,7 @@ struct WordSceneModel: Equatable {
     let visibleRows: Int
     let rows: [WordSceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let searchError: String
 
     func column(for key: WordColumnKey) -> NativeTableColumnDescriptor? {

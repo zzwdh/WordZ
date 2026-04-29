@@ -280,6 +280,7 @@ struct CollocateSceneModel: Equatable {
     let visibleRows: Int
     let rows: [CollocateSceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let exportMetadataLines: [String]
     let searchError: String
 

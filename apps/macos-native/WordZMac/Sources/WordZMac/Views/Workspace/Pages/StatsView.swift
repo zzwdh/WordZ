@@ -19,7 +19,6 @@ struct StatsView: View {
                 if let scene = viewModel.scene {
                     summarySection(scene)
                     resultsSection(scene)
-                    tableSection(scene)
                 } else {
                     emptyState
                 }

@@ -2,14 +2,7 @@ import SwiftUI
 
 extension SentimentView {
     func color(for label: SentimentLabel) -> Color {
-        switch label {
-        case .positive:
-            return .green
-        case .neutral:
-            return .gray
-        case .negative:
-            return .red
-        }
+        WorkbenchChartPalette.sentiment(label)
     }
 
     func format(_ value: Double) -> String {

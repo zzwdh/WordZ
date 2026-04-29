@@ -5,8 +5,14 @@ struct WorkbenchResultsToolbarSection<Leading: View, Trailing: View, LeadingCont
     private let trailing: Trailing
     private let leadingControls: LeadingControls
     private let trailingControls: TrailingControls
+    private let annotationState: WorkspaceAnnotationState?
+    private let annotationResultCount: Int?
+    private let showsAnnotationImpact: Bool
 
     init(
+        annotationState: WorkspaceAnnotationState? = nil,
+        annotationResultCount: Int? = nil,
+        showsAnnotationImpact: Bool = true,
         @ViewBuilder leading: () -> Leading,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder leadingControls: () -> LeadingControls,
@@ -16,6 +22,9 @@ struct WorkbenchResultsToolbarSection<Leading: View, Trailing: View, LeadingCont
         self.trailing = trailing()
         self.leadingControls = leadingControls()
         self.trailingControls = trailingControls()
+        self.annotationState = annotationState
+        self.annotationResultCount = annotationResultCount
+        self.showsAnnotationImpact = showsAnnotationImpact
     }
 
     var body: some View {
@@ -30,6 +39,14 @@ struct WorkbenchResultsToolbarSection<Leading: View, Trailing: View, LeadingCont
                 leadingControls
             } trailing: {
                 trailingControls
+            }
+
+            if let annotationState {
+                AnnotationFilterStatusStrip(
+                    state: annotationState,
+                    resultCount: annotationResultCount,
+                    showsImpact: showsAnnotationImpact
+                )
             }
         }
     }
@@ -75,10 +92,17 @@ struct WorkbenchResultControlsRow<Leading: View, Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            leading
-            Spacer(minLength: 12)
-            trailing
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                leading
+                Spacer(minLength: 12)
+                trailing
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                leading
+                trailing
+            }
         }
     }
 }

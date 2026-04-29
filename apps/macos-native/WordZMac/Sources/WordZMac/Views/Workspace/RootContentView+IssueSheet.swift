@@ -15,6 +15,14 @@ extension RootContentView {
     }
 
     func syncWorkspaceIssuePresentation(with banner: WorkspaceIssueBanner?) {
+        guard !usesWorkspaceIssueBannerSurface else {
+            presentedIssueBanner = nil
+            if banner == nil {
+                dismissedIssueBannerID = nil
+            }
+            return
+        }
+
         guard let banner else {
             presentedIssueBanner = nil
             dismissedIssueBannerID = nil
@@ -46,7 +54,7 @@ extension RootContentView {
                         dismissWorkspaceIssueSheet()
                         Task { await commandHandler.performRecoveryAction(recoveryAction) }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .adaptiveGlassButtonStyle(prominent: true)
                 }
 
                 HStack(spacing: 10) {
@@ -54,20 +62,22 @@ extension RootContentView {
                         dismissWorkspaceIssueSheet()
                         commandHandler.openHelpCenter()
                     }
+                    .adaptiveGlassButtonStyle()
 
                     Button(wordZText("导出诊断包", "Export Diagnostics Bundle", mode: languageMode)) {
                         dismissWorkspaceIssueSheet()
                         commandHandler.exportDiagnostics()
                     }
+                    .adaptiveGlassButtonStyle()
 
                     if !viewModel.settings.scene.userDataDirectory.isEmpty {
                         Button(wordZText("打开数据目录", "Open Data Directory", mode: languageMode)) {
                             dismissWorkspaceIssueSheet()
                             commandHandler.openUserDataDirectory()
                         }
+                        .adaptiveGlassButtonStyle()
                     }
                 }
-                .buttonStyle(.bordered)
             }
 
             HStack {
@@ -76,9 +86,14 @@ extension RootContentView {
                 Button(wordZText("稍后处理", "Dismiss", mode: languageMode)) {
                     dismissWorkspaceIssueSheet()
                 }
+                .adaptiveGlassButtonStyle()
             }
         }
         .padding(20)
         .frame(minWidth: 460, idealWidth: 520)
+    }
+
+    var usesWorkspaceIssueBannerSurface: Bool {
+        true
     }
 }

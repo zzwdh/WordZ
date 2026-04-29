@@ -25,18 +25,27 @@ extension RootContentView {
                     Button(commandHandler.recoveryTitle(for: recoveryAction, languageMode: languageMode)) {
                         Task { await commandHandler.performRecoveryAction(recoveryAction) }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .adaptiveGlassButtonStyle(prominent: true)
                 }
                 Button(wordZText("使用说明", "Usage Guide", mode: languageMode)) {
                     commandHandler.openHelpCenter()
                 }
+                .adaptiveGlassButtonStyle()
                 Button(wordZText("导出诊断包", "Export Diagnostics Bundle", mode: languageMode)) {
                     commandHandler.exportDiagnostics()
                 }
+                .adaptiveGlassButtonStyle()
                 if !viewModel.settings.scene.userDataDirectory.isEmpty {
                     Button(wordZText("打开数据目录", "Open Data Directory", mode: languageMode)) {
                         commandHandler.openUserDataDirectory()
                     }
+                    .adaptiveGlassButtonStyle()
+                }
+                if viewModel.activeIssue == banner {
+                    Button(wordZText("稍后处理", "Dismiss", mode: languageMode)) {
+                        viewModel.clearActiveIssue()
+                    }
+                    .adaptiveGlassButtonStyle()
                 }
             }
         }

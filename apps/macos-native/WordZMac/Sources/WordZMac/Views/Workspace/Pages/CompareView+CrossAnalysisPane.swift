@@ -2,32 +2,26 @@ import SwiftUI
 
 extension CompareView {
     func compareTopicsSummaryCard(_ summary: CompareTopicsSummary) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Label(summary.headline, systemImage: "square.stack.3d.up")
-                    .font(.subheadline.weight(.semibold))
-                Spacer(minLength: 8)
-                Text("\(summary.topTopics.count) \(t("主题", "Topics"))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
-            }
-
-            Text(summary.scopeSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 12) {
-                compareSentimentSummaryMetric(
-                    t("片段分布", "Segments"),
+        CrossAnalysisExplanationPanel(
+            title: summary.headline,
+            subtitle: summary.scopeSummary,
+            systemImage: "square.stack.3d.up"
+        ) {
+            Text("\(summary.topTopics.count) \(t("主题", "Topics"))")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+        } content: {
+            CrossAnalysisMetricRow(metrics: [
+                CrossAnalysisMetric(
+                    title: t("片段分布", "Segments"),
                     value: "T \(summary.targetSegmentCount) / R \(summary.referenceSegmentCount)"
-                )
-                compareSentimentSummaryMetric(
-                    t("主题侧向", "Topic Balance"),
+                ),
+                CrossAnalysisMetric(
+                    title: t("主题侧向", "Topic Balance"),
                     value: "shared \(summary.sharedTopicCount) · T \(summary.targetLeaningTopicCount) · R \(summary.referenceLeaningTopicCount)"
                 )
-            }
+            ])
 
             Text(summary.note)
                 .font(.caption)
@@ -63,11 +57,5 @@ extension CompareView {
                 Spacer()
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(WordZTheme.primarySurfaceSoft)
-        )
     }
 }

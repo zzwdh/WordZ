@@ -44,6 +44,8 @@ extension WorkspaceActionDispatcher {
              .changeSort,
              .sortByColumn,
              .changePageSize,
+             .previousPage,
+             .nextPage,
              .toggleColumn,
              .selectRow,
              .changeManualText,

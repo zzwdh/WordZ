@@ -9,6 +9,8 @@ final class SourceReaderViewModel: ObservableObject {
     @Published var captureSectionTitle = ""
     @Published var captureClaim = ""
     @Published var captureTagsText = ""
+    @Published var captureCitationFormat: EvidenceCitationFormat = .citationLine
+    @Published var captureCitationStyle: EvidenceCitationStyle = .plain
     @Published var captureNote = ""
 
     private var tokenizedSentences: [TokenizedSentence] = []
@@ -85,6 +87,8 @@ final class SourceReaderViewModel: ObservableObject {
             sectionTitle: captureSectionTitle,
             claim: captureClaim,
             tagsText: captureTagsText,
+            citationFormat: captureCitationFormat,
+            citationStyle: captureCitationStyle,
             note: captureNote
         )
     }
@@ -249,6 +253,13 @@ final class SourceReaderViewModel: ObservableObject {
             hitCountSummary: String(
                 format: wordZText("共 %d 条命中", "%d hits", mode: languageMode),
                 hitItems.count
+            ),
+            sourceChainItems: SourceReaderSourceChainBuilder.build(
+                context: context,
+                selectedAnchor: selectedAnchor,
+                selection: selection,
+                hitCount: hitItems.count,
+                mode: languageMode
             ),
             hitItems: hitItems,
             selectedHitID: effectiveSelectedHitID,

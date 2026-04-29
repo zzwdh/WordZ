@@ -108,7 +108,8 @@ struct LocatorSceneBuilder {
             totalRows: result.rows.count,
             visibleRows: sceneRows.count,
             rows: sceneRows,
-            tableRows: tableRows
+            tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows)
         )
     }
 

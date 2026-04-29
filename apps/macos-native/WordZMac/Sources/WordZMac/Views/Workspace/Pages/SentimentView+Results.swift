@@ -1,171 +1,108 @@
-import Charts
 import SwiftUI
 
 extension SentimentView {
     @ViewBuilder
     var sentimentResultsSection: some View {
         if let scene = viewModel.scene {
-            WorkbenchResultsToolbarSection {
+            AnalysisResultTableSection(
+                annotationState: viewModel.annotationState,
+                annotationResultCount: scene.filteredRows,
+                descriptor: scene.table,
+                snapshot: scene.tableSnapshot,
+                selectedRowID: viewModel.selectedRowID,
+                onSelectionChange: { onAction(.selectRow($0)) },
+                columnKeys: SentimentColumnKey.allCases,
+                columnMenuTitle: t("列", "Columns"),
+                columnLabel: { scene.columnTitle(for: $0, mode: languageMode) },
+                isColumnVisible: { scene.column(for: $0)?.isVisible ?? false },
+                onToggleColumn: { onAction(.toggleColumn($0)) },
+                onSortByColumn: { onAction(.sortByColumn($0)) },
+                onToggleColumnFromHeader: { onAction(.toggleColumn($0)) },
+                pagination: scene.pagination,
+                onPreviousPage: { onAction(.previousPage) },
+                onNextPage: { onAction(.nextPage) },
+                emptyMessage: t("当前没有可显示的情感结果。", "No sentiment rows to display."),
+                accessibilityLabel: t("情感结果表格", "Sentiment results table")
+            ) {
                 Text(scene.source.title(in: languageMode))
                     .font(.headline)
                 Text("\(scene.unit.title(in: languageMode)) · \(scene.backend.title(in: languageMode))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } trailing: {
+            } headerTrailing: {
                 Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             } leadingControls: {
-                HStack(spacing: 12) {
-                    WorkbenchMenuPicker(
-                        title: t("排序", "Sort"),
-                        selection: Binding(
-                            get: { scene.sorting.selectedSort },
-                            set: { onAction(.changeSort($0)) }
-                        ),
-                        options: SentimentSortMode.allCases
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-
-                    WorkbenchGuardedPageSizePicker(
-                        title: t("页大小", "Page Size"),
-                        selection: Binding(
-                            get: { scene.sorting.selectedPageSize },
-                            set: { onAction(.changePageSize($0)) }
-                        ),
-                        totalRows: scene.filteredRows
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-                }
-            } trailingControls: {
-                HStack(spacing: 12) {
-                    Picker(t("筛选", "Filter"), selection: Binding(
-                        get: { viewModel.labelFilter },
-                        set: { onAction(.changeLabelFilter($0)) }
-                    )) {
-                        Text(t("全部", "All")).tag(Optional<SentimentLabel>.none)
-                        ForEach(SentimentLabel.allCases) { label in
-                            Text(label.title(in: languageMode)).tag(Optional(label))
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 340)
-
-                    TextField(
-                        t("筛选文本或证据", "Filter text or evidence"),
-                        text: Binding(
-                            get: { viewModel.rowFilterQuery },
-                            set: { onAction(.changeFilterQuery($0)) }
-                        )
+                WorkbenchTablePrimaryControls(
+                    sortTitle: t("排序", "Sort"),
+                    selectedSort: Binding(
+                        get: { scene.sorting.selectedSort },
+                        set: { onAction(.changeSort($0)) }
+                    ),
+                    sortOptions: SentimentSortMode.allCases,
+                    sortLabel: { $0.title(in: languageMode) },
+                    pageSizeTitle: t("页大小", "Page Size"),
+                    selectedPageSize: Binding(
+                        get: { scene.sorting.selectedPageSize },
+                        set: { onAction(.changePageSize($0)) }
+                    ),
+                    totalRows: scene.filteredRows,
+                    pageSizeLabel: { $0.title(in: languageMode) }
+                )
+            } secondaryLeadingControls: {
+                sentimentFilterControls
+            } tableSupplement: {
+                LazyVGrid(columns: summaryColumns, alignment: .leading, spacing: 12) {
+                    WorkbenchMetricCard(
+                        title: t("总条数", "Total Texts"),
+                        value: "\(scene.summary.totalTexts)",
+                        subtitle: scene.unit.title(in: languageMode)
                     )
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 220)
-
-                    WorkbenchMenuPicker(
-                        title: t("Review", "Review"),
-                        selection: Binding(
-                            get: { viewModel.reviewFilter },
-                            set: { onAction(.changeReviewFilter($0)) }
-                        ),
-                        options: SentimentReviewFilter.allCases
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-
-                    WorkbenchMenuPicker(
-                        title: t("审校状态", "Review Status"),
-                        selection: Binding(
-                            get: { viewModel.reviewStatusFilter },
-                            set: { onAction(.changeReviewStatusFilter($0)) }
-                        ),
-                        options: SentimentReviewStatusFilter.allCases
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-
-                    Toggle(
-                        t("仅难例", "Hard Cases"),
-                        isOn: Binding(
-                            get: { viewModel.showOnlyHardCases },
-                            set: { onAction(.toggleShowOnlyHardCases($0)) }
-                        )
+                    WorkbenchMetricCard(
+                        title: t("积极", "Positive"),
+                        value: "\(scene.summary.positiveCount)",
+                        subtitle: formatPercent(scene.summary.positiveRatio)
                     )
-                    .toggleStyle(.switch)
+                    WorkbenchMetricCard(
+                        title: t("中性", "Neutral"),
+                        value: "\(scene.summary.neutralCount)",
+                        subtitle: formatPercent(scene.summary.neutralRatio)
+                    )
+                    WorkbenchMetricCard(
+                        title: t("消极", "Negative"),
+                        value: "\(scene.summary.negativeCount)",
+                        subtitle: formatPercent(scene.summary.negativeRatio)
+                    )
                 }
-            }
 
-            LazyVGrid(columns: summaryColumns, alignment: .leading, spacing: 12) {
-                WorkbenchMetricCard(
-                    title: t("总条数", "Total Texts"),
-                    value: "\(scene.summary.totalTexts)",
-                    subtitle: scene.unit.title(in: languageMode)
-                )
-                WorkbenchMetricCard(
-                    title: t("积极", "Positive"),
-                    value: "\(scene.summary.positiveCount)",
-                    subtitle: formatPercent(scene.summary.positiveRatio)
-                )
-                WorkbenchMetricCard(
-                    title: t("中性", "Neutral"),
-                    value: "\(scene.summary.neutralCount)",
-                    subtitle: formatPercent(scene.summary.neutralRatio)
-                )
-                WorkbenchMetricCard(
-                    title: t("消极", "Negative"),
-                    value: "\(scene.summary.negativeCount)",
-                    subtitle: formatPercent(scene.summary.negativeRatio)
-                )
-            }
+                Text(reviewSummaryLine(scene))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            Text(reviewSummaryLine(scene))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                WorkbenchPaneCard(title: t("分布图", "Distribution"), subtitle: chartSubtitle(scene)) {
+                    chartView(scene)
+                }
 
-            WorkbenchPaneCard(
-                title: t("分布图", "Distribution"),
-                subtitle: chartSubtitle(scene)
-            ) {
-                chartView(scene)
-                    .frame(minHeight: 260)
-            }
-
-            if !scene.groupSummaries.isEmpty {
-                WorkbenchPaneCard(
-                    title: t("分组统计", "Grouped Summaries"),
-                    subtitle: t("Target / Reference 或输入源分组统计", "Grouped counts for targets, references, or sources")
-                ) {
-                    LazyVGrid(columns: summaryColumns, alignment: .leading, spacing: 12) {
-                        ForEach(scene.groupSummaries) { group in
-                            WorkbenchMetricCard(
-                                title: group.title,
-                                value: "+\(group.positiveCount) / =\(group.neutralCount) / -\(group.negativeCount)",
-                                subtitle: "\(t("总计", "Total")) \(group.totalTexts)"
-                            )
+                if !scene.groupSummaries.isEmpty {
+                    WorkbenchPaneCard(
+                        title: t("分组统计", "Grouped Summaries"),
+                        subtitle: t("Target / Reference 或输入源分组统计", "Grouped counts for targets, references, or sources")
+                    ) {
+                        LazyVGrid(columns: summaryColumns, alignment: .leading, spacing: 12) {
+                            ForEach(scene.groupSummaries) { group in
+                                WorkbenchMetricCard(
+                                    title: group.title,
+                                    value: "+\(group.positiveCount) / =\(group.neutralCount) / -\(group.negativeCount)",
+                                    subtitle: "\(t("总计", "Total")) \(group.totalTexts)"
+                                )
+                            }
                         }
                     }
                 }
-            }
-
-            WorkbenchTableCard {
-                NativeTableView(
-                    descriptor: scene.table,
-                    rows: scene.tableRows,
-                    selectedRowID: viewModel.selectedRowID,
-                    onSelectionChange: { onAction(.selectRow($0)) },
-                    onSortByColumn: { columnID in
-                        guard let column = SentimentColumnKey(rawValue: columnID) else { return }
-                        onAction(.sortByColumn(column))
-                    },
-                    onToggleColumnFromHeader: { columnID in
-                        guard let column = SentimentColumnKey(rawValue: columnID) else { return }
-                        onAction(.toggleColumn(column))
-                    },
-                    emptyMessage: t("当前没有可显示的情感结果。", "No sentiment rows to display."),
-                    accessibilityLabel: t("情感结果表格", "Sentiment results table")
-                )
+            } paginationFallback: {
+                EmptyView()
             }
 
             WorkbenchPaneCard(
@@ -228,46 +165,91 @@ extension SentimentView {
         }
     }
 
-    @ViewBuilder
-    func chartView(_ scene: SentimentSceneModel) -> some View {
-        switch scene.chartKind {
-        case .distributionBar:
-            Chart(scene.chartSegments) { segment in
-                BarMark(
-                    x: .value("Label", segment.label.title(in: languageMode)),
-                    y: .value("Count", segment.count)
-                )
-                .foregroundStyle(color(for: segment.label))
+    var sentimentFilterControls: some View {
+        WorkbenchAdaptiveControls {
+            HStack(spacing: 12) {
+                sentimentLabelFilterPicker
+                sentimentFilterTextField
+                sentimentReviewFilterPicker
+                sentimentReviewStatusFilterPicker
+                sentimentHardCasesToggle
             }
-            .chartYAxisLabel(t("条数", "Count"))
-        case .distributionDonut:
-            Chart(scene.chartSegments) { segment in
-                SectorMark(
-                    angle: .value("Count", segment.count),
-                    innerRadius: .ratio(0.58),
-                    angularInset: 2
-                )
-                .foregroundStyle(color(for: segment.label))
-                .annotation(position: .overlay) {
-                    EmptyView()
+        } compact: {
+            VStack(alignment: .leading, spacing: 10) {
+                sentimentLabelFilterPicker
+                    .frame(maxWidth: 340, alignment: .leading)
+                sentimentFilterTextField
+                    .frame(maxWidth: 280, alignment: .leading)
+                HStack(spacing: 10) {
+                    sentimentReviewFilterPicker
+                    sentimentReviewStatusFilterPicker
+                    sentimentHardCasesToggle
                 }
             }
-        case .trendLine:
-            Chart(scene.trendPoints) { point in
-                LineMark(
-                    x: .value("Index", point.index),
-                    y: .value("Net", point.netScore)
-                )
-                .foregroundStyle(Color.accentColor)
-                PointMark(
-                    x: .value("Index", point.index),
-                    y: .value("Net", point.netScore)
-                )
-                .foregroundStyle(color(for: point.label))
-                .symbolSize(40)
-            }
-            .chartYAxisLabel("Net")
         }
+    }
+
+    var sentimentLabelFilterPicker: some View {
+        Picker(t("筛选", "Filter"), selection: Binding(
+            get: { viewModel.labelFilter },
+            set: { onAction(.changeLabelFilter($0)) }
+        )) {
+            Text(t("全部", "All")).tag(Optional<SentimentLabel>.none)
+            ForEach(SentimentLabel.allCases) { label in
+                Text(label.title(in: languageMode)).tag(Optional(label))
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 340)
+    }
+
+    var sentimentFilterTextField: some View {
+        TextField(
+            t("筛选文本或证据", "Filter text or evidence"),
+            text: Binding(
+                get: { viewModel.rowFilterQuery },
+                set: { onAction(.changeFilterQuery($0)) }
+            )
+        )
+        .textFieldStyle(.roundedBorder)
+        .frame(width: 220)
+    }
+
+    var sentimentReviewFilterPicker: some View {
+        WorkbenchMenuPicker(
+            title: t("Review", "Review"),
+            selection: Binding(
+                get: { viewModel.reviewFilter },
+                set: { onAction(.changeReviewFilter($0)) }
+            ),
+            options: SentimentReviewFilter.allCases
+        ) {
+            $0.title(in: languageMode)
+        }
+    }
+
+    var sentimentReviewStatusFilterPicker: some View {
+        WorkbenchMenuPicker(
+            title: t("审校状态", "Review Status"),
+            selection: Binding(
+                get: { viewModel.reviewStatusFilter },
+                set: { onAction(.changeReviewStatusFilter($0)) }
+            ),
+            options: SentimentReviewStatusFilter.allCases
+        ) {
+            $0.title(in: languageMode)
+        }
+    }
+
+    var sentimentHardCasesToggle: some View {
+        Toggle(
+            t("仅难例", "Hard Cases"),
+            isOn: Binding(
+                get: { viewModel.showOnlyHardCases },
+                set: { onAction(.toggleShowOnlyHardCases($0)) }
+            )
+        )
+        .toggleStyle(.switch)
     }
 
     @ViewBuilder
@@ -293,10 +275,6 @@ extension SentimentView {
                 }
             }
         }
-    }
-
-    func chartSubtitle(_ scene: SentimentSceneModel) -> String {
-        "\(scene.summary.totalTexts) \(t("条分析单位", "analysis units")) · \(scene.chartKind.title(in: languageMode))"
     }
 
     func reviewSummaryLine(_ scene: SentimentSceneModel) -> String {

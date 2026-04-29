@@ -194,6 +194,33 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene?.filteredRows, 0)
     }
 
+    func testSentimentPageViewModelSupportsPagingActions() {
+        let viewModel = SentimentPageViewModel()
+        viewModel.apply(makePagedSentimentResult(rowCount: 60))
+
+        viewModel.handle(.changePageSize(.twentyFive))
+        XCTAssertEqual(viewModel.scene?.pagination.rangeLabel, "1-25 / 60")
+        XCTAssertEqual(viewModel.scene?.rows.count, 25)
+        XCTAssertEqual(viewModel.scene?.pagination.canGoForward, true)
+        XCTAssertEqual(viewModel.scene?.pagination.canGoBackward, false)
+
+        viewModel.handle(.nextPage)
+        XCTAssertEqual(viewModel.scene?.pagination.rangeLabel, "26-50 / 60")
+        XCTAssertEqual(viewModel.scene?.rows.first?.id, "sentiment-25")
+        XCTAssertEqual(viewModel.scene?.pagination.canGoBackward, true)
+
+        viewModel.handle(.previousPage)
+        XCTAssertEqual(viewModel.scene?.pagination.rangeLabel, "1-25 / 60")
+        XCTAssertEqual(viewModel.scene?.rows.first?.id, "sentiment-0")
+
+        viewModel.handle(.sortByColumn(.source))
+        XCTAssertEqual(viewModel.scene?.sorting.selectedSort, .sourceAscending)
+        XCTAssertEqual(viewModel.scene?.table.column(for: SentimentColumnKey.source)?.sortDirection, .ascending)
+
+        viewModel.handle(.toggleColumn(.evidence))
+        XCTAssertTrue(viewModel.scene?.table.isVisible(SentimentColumnKey.evidence) == true)
+    }
+
     func testSentimentPageViewModelRestoresReferenceCorpusSetFromSnapshot() {
         let referenceSet = LibraryCorpusSetItem(json: [
             "id": "set-1",
@@ -1761,6 +1788,11 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(repository.runTokenizeCallCount, 0)
         XCTAssertEqual(viewModel.scene?.sentences.count, 2)
         XCTAssertEqual(viewModel.scene?.selection?.hit.fullSentenceText, "Delta alpha.")
+        XCTAssertEqual(viewModel.scene?.sourceChainItems.map(\.id), ["origin", "query", "corpus", "source-file", "current-highlight"])
+        XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "origin" })?.value, "KWIC")
+        XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "query" })?.detail, "L1 / R1 · Phrase")
+        XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.isCurrent, true)
+        XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.detail, "Delta alpha.")
     }
 
     @MainActor
@@ -1801,5 +1833,72 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(repository.runTokenizeCallCount, 1)
         XCTAssertEqual(viewModel.scene?.sentences.count, 2)
         XCTAssertEqual(viewModel.scene?.selection?.hit.fullSentenceText, "Alpha beta gamma.")
+    }
+
+    private func makePagedSentimentResult(rowCount: Int) -> SentimentRunResult {
+        let base = makeSentimentResult()
+        let rows = (0..<rowCount).map { index in
+            let template = base.rows[index % base.rows.count]
+            return SentimentRowResult(
+                id: "sentiment-\(index)",
+                sourceID: template.sourceID,
+                sourceTitle: template.sourceTitle,
+                groupID: template.groupID,
+                groupTitle: template.groupTitle,
+                text: "\(template.text) #\(index)",
+                positivityScore: template.positivityScore,
+                negativityScore: template.negativityScore,
+                neutralityScore: template.neutralityScore,
+                finalLabel: template.finalLabel,
+                netScore: template.netScore,
+                evidence: template.evidence,
+                evidenceCount: template.evidenceCount,
+                mixedEvidence: template.mixedEvidence,
+                diagnostics: template.diagnostics,
+                sentenceID: index,
+                tokenIndex: template.tokenIndex
+            )
+        }
+        let positiveCount = rows.filter { $0.finalLabel == .positive }.count
+        let neutralCount = rows.filter { $0.finalLabel == .neutral }.count
+        let negativeCount = rows.filter { $0.finalLabel == .negative }.count
+        let summary = SentimentAggregateSummary(
+            id: "overall",
+            title: "Overall",
+            totalTexts: rowCount,
+            positiveCount: positiveCount,
+            neutralCount: neutralCount,
+            negativeCount: negativeCount,
+            positiveRatio: rowCount == 0 ? 0 : Double(positiveCount) / Double(rowCount),
+            neutralRatio: rowCount == 0 ? 0 : Double(neutralCount) / Double(rowCount),
+            negativeRatio: rowCount == 0 ? 0 : Double(negativeCount) / Double(rowCount),
+            averagePositivity: rows.map(\.positivityScore).average,
+            averageNeutrality: rows.map(\.neutralityScore).average,
+            averageNegativity: rows.map(\.negativityScore).average,
+            averageNetScore: rows.map(\.netScore).average
+        )
+        return SentimentRunResult(
+            request: base.request,
+            backendKind: base.backendKind,
+            backendRevision: base.backendRevision,
+            resourceRevision: base.resourceRevision,
+            providerID: base.providerID,
+            providerFamily: base.providerFamily,
+            supportsEvidenceHits: base.supportsEvidenceHits,
+            rows: rows,
+            overallSummary: summary,
+            groupSummaries: [summary],
+            lexiconVersion: base.lexiconVersion,
+            activeRuleProfileRevision: base.activeRuleProfileRevision,
+            activePackIDs: base.activePackIDs,
+            calibrationProfileRevision: base.calibrationProfileRevision,
+            userLexiconBundleIDs: base.userLexiconBundleIDs
+        )
+    }
+}
+
+private extension Array where Element == Double {
+    var average: Double {
+        isEmpty ? 0 : reduce(0, +) / Double(count)
     }
 }

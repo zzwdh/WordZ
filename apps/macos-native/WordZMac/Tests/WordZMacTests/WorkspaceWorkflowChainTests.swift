@@ -185,6 +185,10 @@ final class WorkspaceWorkflowChainTests: XCTestCase {
         XCTAssertEqual(workspace.sourceReader.scene?.selectedHitID, "1-1")
         XCTAssertEqual(workspace.sourceReader.scene?.selection?.hit.fullSentenceText, "Delta alpha.")
         XCTAssertTrue(workspace.sourceReader.scene?.originSummary.contains("KWIC") == true)
+        XCTAssertEqual(workspace.sourceReader.scene?.sourceChainItems.last?.id, "current-highlight")
+        XCTAssertTrue(workspace.sourceReader.scene?.sourceChainItems.last?.value.contains("2") == true)
+        XCTAssertTrue(workspace.sourceReader.scene?.sourceChainItems.last?.value.contains("alpha") == true)
+        XCTAssertEqual(workspace.sourceReader.scene?.sourceChainItems.last?.isCurrent, true)
     }
 
     func testOpenCurrentSourceReaderFromLocatorLoadsSelectedSentenceContext() async {

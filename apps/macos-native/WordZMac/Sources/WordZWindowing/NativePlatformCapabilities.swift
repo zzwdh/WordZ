@@ -7,6 +7,9 @@ package struct NativePlatformCapabilities: Equatable, Sendable {
     package let supportsToolbarSearchEnhancements: Bool
     package let supportsScrollEdgeEffects: Bool
     package let supportsSplitViewAccessories: Bool
+    package let supportsGlassButtons: Bool
+    package let supportsBackgroundExtension: Bool
+    package let supportsAccessoryGlassSurfaces: Bool
 
     package static var current: NativePlatformCapabilities {
         resolved(
@@ -35,7 +38,10 @@ package struct NativePlatformCapabilities: Equatable, Sendable {
             supportsAdvancedWindowPlacement: isAtLeastMacOS15,
             supportsToolbarSearchEnhancements: isAtLeastMacOS26,
             supportsScrollEdgeEffects: isAtLeastMacOS26,
-            supportsSplitViewAccessories: isAtLeastMacOS26
+            supportsSplitViewAccessories: isAtLeastMacOS26,
+            supportsGlassButtons: isAtLeastMacOS26,
+            supportsBackgroundExtension: isAtLeastMacOS26,
+            supportsAccessoryGlassSurfaces: isAtLeastMacOS26
         )
     }
 }

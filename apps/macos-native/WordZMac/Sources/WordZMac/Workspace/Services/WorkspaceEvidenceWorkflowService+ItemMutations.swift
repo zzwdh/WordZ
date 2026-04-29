@@ -98,6 +98,26 @@ extension WorkspaceEvidenceWorkflowService {
         itemID: String,
         features: WorkspaceEvidenceWorkflowContext
     ) async {
+        let item = features.evidenceWorkbench.items.first { $0.id == itemID }
+        let itemTitle = item?.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedItemTitle: String
+        if let itemTitle, !itemTitle.isEmpty {
+            resolvedItemTitle = itemTitle
+        } else {
+            resolvedItemTitle = wordZText("该摘录", "this clip", mode: .system)
+        }
+        let confirmed = await dialogService.confirm(
+            title: wordZText("删除摘录", "Delete Clip", mode: .system),
+            message: wordZText(
+                "确定要删除「\(resolvedItemTitle)」吗？此操作无法撤销。",
+                "Delete \"\(resolvedItemTitle)\"? This cannot be undone.",
+                mode: .system
+            ),
+            confirmTitle: wordZText("删除", "Delete", mode: .system),
+            preferredRoute: .evidenceWorkbench
+        )
+        guard confirmed else { return }
+
         do {
             try await repository.deleteEvidenceItem(itemID: itemID)
             let items = try await repository.listEvidenceItems()

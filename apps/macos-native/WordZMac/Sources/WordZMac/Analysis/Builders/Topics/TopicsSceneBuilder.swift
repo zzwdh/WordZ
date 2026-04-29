@@ -237,6 +237,7 @@ struct TopicsSceneBuilder {
             segmentRows: pageSegments,
             selectedSegmentID: resolvedSelectedRowID,
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             table: makeSegmentsTable(
                 languageMode: languageMode,
                 visibleColumns: visibleColumns,

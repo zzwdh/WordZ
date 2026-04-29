@@ -11,6 +11,8 @@ extension NativeTableView.Coordinator {
         onDoubleClick: ((String) -> Void)?,
         onSortByColumn: ((String) -> Void)? = nil,
         onToggleColumnFromHeader: ((String) -> Void)? = nil,
+        selectedMarkerID: String? = nil,
+        onMarkerSelectionChange: ((String, String?) -> Void)? = nil,
         allowsMultipleSelection: Bool = true,
         isHeaderPinned: Bool = true,
         emptyMessage: String = "当前没有可显示的数据。",
@@ -22,16 +24,13 @@ extension NativeTableView.Coordinator {
         let previousRows = self.rows
         let previousSnapshotVersion = self.snapshotVersion
         let previousSelectedRowID = self.selectedRowID
+        let previousSelectedMarkerID = self.selectedMarkerID
         let previousSelectedRowIDs = self.selectedRowIDs
         let previousDensity = resolvedDensity(for: previousDescriptor)
         let previousHeaderPinning = self.isHeaderPinned
         let columnsChanged = previousDescriptor != descriptor
         let resolvedRows = snapshot?.rows ?? rows
-        let resolvedRowIndexByID = snapshot?.rowIndexByID ?? Dictionary(
-            uniqueKeysWithValues: resolvedRows.enumerated().map { index, row in
-                (row.id, index)
-            }
-        )
+        let resolvedRowIndexByID = snapshot?.rowIndexByID ?? NativeTableRowIndexing.firstIndexByID(resolvedRows)
         let rowsChanged: Bool
         if let snapshot {
             rowsChanged = previousSnapshotVersion != snapshot.version
@@ -48,6 +47,8 @@ extension NativeTableView.Coordinator {
         self.onDoubleClick = onDoubleClick
         self.onSortByColumn = onSortByColumn
         self.onToggleColumnFromHeader = onToggleColumnFromHeader
+        self.selectedMarkerID = selectedMarkerID
+        self.onMarkerSelectionChange = onMarkerSelectionChange
         self.allowsMultipleSelection = allowsMultipleSelection
         self.isHeaderPinned = isHeaderPinned
         self.emptyMessage = emptyMessage
@@ -66,7 +67,9 @@ extension NativeTableView.Coordinator {
             selectedRowIDs.insert(selectedRowID)
         }
 
-        let selectionChanged = previousSelectedRowID != selectedRowID || previousSelectedRowIDs != selectedRowIDs
+        let selectionChanged = previousSelectedRowID != selectedRowID
+            || previousSelectedMarkerID != selectedMarkerID
+            || previousSelectedRowIDs != selectedRowIDs
         let emptinessChanged = previousRows.isEmpty != resolvedRows.isEmpty
         let densityChanged = previousDensity != nextDensity
 
@@ -92,6 +95,11 @@ extension NativeTableView.Coordinator {
             )
         } else if rowsChanged {
             reloadOutcome = reloadVisibleRows(previousRowCount: previousRows.count)
+        } else if selectionChanged {
+            reloadOutcome = reloadCustomPresentationRows(
+                previousSelectedRowID: previousSelectedRowID,
+                selectedRowID: selectedRowID
+            )
         }
 
         tableView?.setAccessibilityLabel(accessibilityLabel ?? wordZText("结果表格", "Results table", mode: .system))

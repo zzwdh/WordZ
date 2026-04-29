@@ -37,7 +37,7 @@ extension NativePlatformCapabilities {
             }
         }
 
-        if capabilities.supportsLiquidGlass, resolvedTier == .fullVisualRefresh {
+        if capabilities.supportsBackgroundExtension, resolvedTier == .fullVisualRefresh {
             if #available(macOS 26.0, *) {
                 decorated = AnyView(
                     decorated.backgroundExtensionEffect()
@@ -143,12 +143,14 @@ extension NativePlatformCapabilities {
         case .glassSurface, .fullVisualRefresh:
             if current.supportsLiquidGlass {
                 if #available(macOS 26.0, *) {
-                    return AnyView(
-                        content
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .glassEffect(in: Capsule())
-                    )
+                    let glassContent = content
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .glassEffect(in: Capsule())
+                    if current.supportsGlassButtons {
+                        return AnyView(glassContent.buttonStyle(.glass))
+                    }
+                    return AnyView(glassContent)
                 }
             }
             return AnyView(
@@ -156,6 +158,37 @@ extension NativePlatformCapabilities {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(.regularMaterial, in: Capsule())
+            )
+        }
+    }
+
+    @MainActor
+    static func decorateIssueBannerSurface<Content: View>(
+        _ content: Content,
+        style: WordZVisualStyle,
+        cornerRadius: CGFloat
+    ) -> AnyView {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
+        switch style.tier {
+        case .baseline, .chromeOnly:
+            return AnyView(
+                content
+                    .background(WordZTheme.cardBackground, in: shape)
+                    .overlay(shape.stroke(WordZTheme.shellBorder, lineWidth: 1))
+            )
+        case .glassSurface, .fullVisualRefresh:
+            if current.supportsAccessoryGlassSurfaces {
+                if #available(macOS 26.0, *) {
+                    return AnyView(
+                        content.glassEffect(.regular.interactive(), in: shape)
+                    )
+                }
+            }
+            return AnyView(
+                content
+                    .background(.regularMaterial, in: shape)
+                    .overlay(shape.stroke(WordZTheme.surfaceStroke(for: style), lineWidth: 1))
             )
         }
     }

@@ -165,6 +165,93 @@ final class EngineeringGuardrailTests: XCTestCase {
         XCTAssertFalse(contents.contains("MainWorkspaceViewModelTests"))
     }
 
+    func testMigratedAnalysisTablesUseSharedSectionAndSnapshots() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let migratedPages = [
+            "Sources/WordZMac/Views/Workspace/Pages/ClusterView.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/CollocateView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/CompareView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/KeywordView+ResultTable.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/KWICView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/LocatorView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/SentimentView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/TokenizeView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/WordView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/StatsView+Results.swift",
+            "Sources/WordZMac/Views/Workspace/Pages/NgramView+Results.swift"
+        ]
+
+        for relativePath in migratedPages {
+            let url = root.appendingPathComponent(relativePath)
+            let contents = try String(contentsOf: url, encoding: .utf8)
+
+            XCTAssertTrue(
+                contents.contains("AnalysisResultTableSection("),
+                "\(relativePath) should use the shared analysis result table section."
+            )
+            XCTAssertTrue(
+                contents.contains("snapshot: scene.tableSnapshot"),
+                "\(relativePath) should pass ResultTableSnapshot into NativeTableView."
+            )
+            XCTAssertFalse(
+                contents.contains("WorkbenchTableCard {"),
+                "\(relativePath) should not rebuild the shared table card locally."
+            )
+            XCTAssertFalse(
+                contents.contains("NativeTableView("),
+                "\(relativePath) should not call NativeTableView directly after migrating to AnalysisResultTableSection."
+            )
+        }
+    }
+
+    func testNativeTableViewSwiftUIBoundaryRequiresSnapshots() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let tableViewURL = root.appendingPathComponent(
+            "Sources/WordZMac/Views/Workbench/Table/NativeTableView.swift"
+        )
+        let tableViewContents = try String(contentsOf: tableViewURL, encoding: .utf8)
+        let analysisSectionURL = root.appendingPathComponent(
+            "Sources/WordZMac/Views/Workbench/AnalysisResultTableSection.swift"
+        )
+        let analysisSectionContents = try String(contentsOf: analysisSectionURL, encoding: .utf8)
+        XCTAssertFalse(
+            analysisSectionContents.contains("AnyView"),
+            "AnalysisResultTableSection should keep supplemental controls generic instead of type-erasing them."
+        )
+        XCTAssertTrue(
+            tableViewContents.contains("snapshot: ResultTableSnapshot"),
+            "NativeTableView should expose a snapshot initializer at the SwiftUI boundary."
+        )
+        XCTAssertTrue(
+            tableViewContents.contains("@available(*, unavailable") &&
+                tableViewContents.contains("Pass ResultTableSnapshot"),
+            "NativeTableView(rows:) should stay unavailable so large tables do not fall back to row equality checks."
+        )
+
+        let pagesRoot = root.appendingPathComponent("Sources/WordZMac/Views/Workspace/Pages", isDirectory: true)
+        let enumerator = FileManager.default.enumerator(
+            at: pagesRoot,
+            includingPropertiesForKeys: nil
+        )
+        let swiftFiles = (enumerator?.compactMap { $0 as? URL } ?? [])
+            .filter { $0.pathExtension == "swift" }
+
+        for url in swiftFiles {
+            let contents = try String(contentsOf: url, encoding: .utf8)
+            guard contents.contains("NativeTableView(") else { continue }
+            XCTAssertFalse(
+                contents.contains("rows:"),
+                "\(url.path) should pass a ResultTableSnapshot into NativeTableView instead of rows."
+            )
+        }
+    }
+
     func testRuntimeStorageSupportKeepsLegacyShardParsingInsideMigratorBoundary() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

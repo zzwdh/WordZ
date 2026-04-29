@@ -47,16 +47,30 @@ struct PlotSceneBuilder {
         let tableRows = rows.map { row in
             NativeTableRowDescriptor(
                 id: row.id,
-                values: [
-                    PlotColumnKey.row.rawValue: "\(row.rowNumber)",
-                    PlotColumnKey.fileID.rawValue: "\(row.fileID)",
-                    PlotColumnKey.filePath.rawValue: row.displayPath,
-                    PlotColumnKey.fileTokens.rawValue: "\(row.fileTokens)",
-                    PlotColumnKey.frequency.rawValue: "\(row.frequency)",
-                    PlotColumnKey.normalizedFrequency.rawValue: row.normalizedFrequencyText,
-                    PlotColumnKey.plot.rawValue: row.plotText
-                ]
-            )
+                columnKey: PlotColumnKey.self
+            ) {
+                NativeTableCell(.row, "\(row.rowNumber)")
+                NativeTableCell(.fileID, "\(row.fileID)")
+                NativeTableCell(.filePath, row.displayPath)
+                NativeTableCell(.fileTokens, "\(row.fileTokens)")
+                NativeTableCell(.frequency, "\(row.frequency)")
+                NativeTableCell(.normalizedFrequency, row.normalizedFrequencyText)
+                NativeTableCell(
+                    .plot,
+                    value: .custom(
+                        text: row.plotText,
+                        presentation: .markerStrip(
+                            row.markers.map { marker in
+                                NativeTableMarkerValue(
+                                    id: marker.id,
+                                    normalizedPosition: marker.normalizedPosition,
+                                    accessibilityLabel: "Sentence \(marker.sentenceId + 1), token \(marker.tokenIndex + 1)"
+                                )
+                            }
+                        )
+                    )
+                )
+            }
         }
 
         let exportMetadataLines = AnalysisExportMetadataSupport.notes(
@@ -86,20 +100,22 @@ struct PlotSceneBuilder {
             rows: rows,
             table: NativeTableDescriptor(
                 storageKey: "plot",
-                columns: PlotColumnKey.allCases.map { key in
-                    NativeTableColumnDescriptor(
-                        id: key.rawValue,
+                columnKey: PlotColumnKey.self,
+                defaultDensity: .compact
+            ) {
+                for key in PlotColumnKey.allCases {
+                    NativeTableColumnSpec(
+                        key,
                         title: key.title(in: languageMode),
                         isVisible: true,
-                        sortIndicator: nil,
                         presentation: presentation(for: key),
                         widthPolicy: widthPolicy(for: key),
                         isPinned: key == .row || key == .filePath
                     )
-                },
-                defaultDensity: .compact
-            ),
+                }
+            },
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             exportMetadataLines: exportMetadataLines
         )
     }
@@ -114,8 +130,10 @@ struct PlotSceneBuilder {
             return .numeric(precision: 0)
         case .normalizedFrequency:
             return .numeric(precision: 2)
-        case .filePath, .plot:
+        case .filePath:
             return .summary
+        case .plot:
+            return .custom(.markerStrip)
         }
     }
 

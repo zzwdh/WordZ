@@ -50,6 +50,9 @@ struct SourceReaderWindowView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                        if let scene = sourceReader.scene, !scene.sourceChainItems.isEmpty {
+                            SourceReaderSourceChainView(items: scene.sourceChainItems)
+                        }
                     }
 
                     Spacer()
@@ -72,7 +75,7 @@ struct SourceReaderWindowView: View {
                         Button(t("复制引文", "Copy Citation")) {
                             workspace.copySourceReaderCitation()
                         }
-                        .disabled(sourceReader.currentCitationText == nil)
+                        .disabled(sourceReader.currentPreparedCitationText == nil)
 
                         Button(t("加入摘录", "Add to Clips")) {
                             Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
@@ -169,6 +172,12 @@ struct SourceReaderWindowView: View {
                                             .monospacedDigit()
                                     }
 
+                                    SourceReaderSourceChainView(
+                                        items: scene.sourceChainItems,
+                                        title: t("高亮来源链", "Highlight Source Chain"),
+                                        showsDetails: true
+                                    )
+
                                     WorkbenchConcordanceLineView(
                                         leftContext: selection.leftContext,
                                         keyword: selection.keyword,
@@ -193,12 +202,21 @@ struct SourceReaderWindowView: View {
                                             annotationGrid(selection.annotationItems)
                                         }
                                     }
+
+                                    if sourceReader.canAddEvidence {
+                                        Divider()
+                                        SourceReaderInlineEvidenceDraftView(
+                                            sourceReader: sourceReader,
+                                            onCopyCitation: {
+                                                workspace.copySourceReaderCitation()
+                                            },
+                                            onAddClip: {
+                                                Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
+                                            }
+                                        )
+                                    }
                                 }
                             }
-                        }
-
-                        if sourceReader.canAddEvidence {
-                            SourceReaderCaptureDraftCard(sourceReader: sourceReader)
                         }
 
                         WorkbenchSectionCard {

@@ -5,36 +5,32 @@ extension TopicsView {
         _ explainer: TopicsSentimentExplainer
     ) -> some View {
         let dominantLabel = topicDominantLabel(for: explainer.overallSummary)
-        return VStack(alignment: .leading, spacing: 10) {
+        return CrossAnalysisExplanationPanel(
+            title: t("Topics x Sentiment", "Topics x Sentiment"),
+            subtitle: explainer.scopeSummary,
+            systemImage: "chart.bar.doc.horizontal"
+        ) {
             HStack(spacing: 8) {
-                Label(t("Topics x Sentiment", "Topics x Sentiment"), systemImage: "chart.bar.doc.horizontal")
-                    .font(.caption.weight(.semibold))
                 topicBadge(
                     title: dominantLabel.title(in: languageMode),
                     tone: topicBadgeTone(for: dominantLabel)
                 )
-                Spacer(minLength: 8)
                 Text("\(explainer.clusters.count) \(t("主题", "Topics"))")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
             }
-
-            Text(explainer.scopeSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 12) {
-                topicSentimentMetric(
-                    t("整体分布", "Overall"),
+        } content: {
+            CrossAnalysisMetricRow(metrics: [
+                CrossAnalysisMetric(
+                    title: t("整体分布", "Overall"),
                     value: topicSentimentDistribution(explainer.overallSummary)
-                )
-                topicSentimentMetric(
-                    t("平均净分", "Average Net"),
+                ),
+                CrossAnalysisMetric(
+                    title: t("平均净分", "Average Net"),
                     value: String(format: "%.3f", explainer.overallSummary.averageNetScore)
                 )
-            }
+            ])
 
             Text(topicSentimentReviewSummary(explainer.overallReviewImpact))
                 .font(.caption)
@@ -56,38 +52,30 @@ extension TopicsView {
                 }
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(WordZTheme.primarySurfaceSoft)
-        )
     }
 
     func topicSentimentExplainerCard(
         _ cluster: TopicsSentimentClusterExplainer
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Text(t("情感解释", "Sentiment Explainer"))
-                    .font(.headline)
-                topicBadge(
-                    title: cluster.dominantLabel.title(in: languageMode),
-                    tone: topicBadgeTone(for: cluster.dominantLabel)
-                )
-                Spacer()
-            }
-
-            HStack(spacing: 12) {
-                topicSentimentMetric(
-                    t("分布", "Distribution"),
+        CrossAnalysisExplanationPanel(
+            title: t("情感解释", "Sentiment Explainer"),
+            systemImage: "chart.line.uptrend.xyaxis"
+        ) {
+            topicBadge(
+                title: cluster.dominantLabel.title(in: languageMode),
+                tone: topicBadgeTone(for: cluster.dominantLabel)
+            )
+        } content: {
+            CrossAnalysisMetricRow(metrics: [
+                CrossAnalysisMetric(
+                    title: t("分布", "Distribution"),
                     value: topicSentimentDistribution(cluster.summary)
-                )
-                topicSentimentMetric(
-                    t("平均净分", "Average Net"),
+                ),
+                CrossAnalysisMetric(
+                    title: t("平均净分", "Average Net"),
                     value: String(format: "%.3f", cluster.summary.averageNetScore)
                 )
-            }
+            ])
 
             Text(topicSentimentReviewSummary(cluster.reviewImpact))
                 .font(.caption)
@@ -96,9 +84,7 @@ extension TopicsView {
 
             if !cluster.topDrivers.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(t("驱动线索", "Driver Cues"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    CrossAnalysisSectionLabel(title: t("驱动线索", "Driver Cues"))
                     ForEach(cluster.topDrivers) { driver in
                         Text(topicDriverLine(driver))
                             .font(.caption)
@@ -110,9 +96,7 @@ extension TopicsView {
 
             if !cluster.exemplars.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(t("代表样例", "Exemplars"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    CrossAnalysisSectionLabel(title: t("代表样例", "Exemplars"))
                     ForEach(cluster.exemplars) { exemplar in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 8) {
@@ -154,24 +138,6 @@ extension TopicsView {
                 }
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(WordZTheme.primarySurfaceSoft)
-        )
-    }
-
-    func topicSentimentMetric(_ title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption.weight(.medium))
-                .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     func topicClusterPolaritySummary(_ cluster: TopicsSentimentClusterExplainer) -> String {

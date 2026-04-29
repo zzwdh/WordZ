@@ -1,6 +1,6 @@
 {
   "name": "corpus-lite",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "productName": "WordZ",
   "description": "一个本地桌面语料分析工具。",
   "main": "main.js",
@@ -68,10 +68,10 @@
       "channel": "stable"
     },
     "releaseNotes": [
-      "证据工作流升级：Evidence Workbench 支持证据捕获、分组整理、dossier 草稿与 Markdown 导出，Source Reader 可以把阅读片段带回研究上下文。",
-      "情感分析工作流增强：新增情感审阅样本、配置档案、用户词典包导入导出、cross-analysis/export 支撑，并补齐基准与 gold 数据回归。",
-      "主题与工作区架构收口：Topics 代码按领域重组，feature workflow 协议、运行任务监督与页面状态抽象落地，WorkspaceFeature 不再依赖具体页面 ViewModel。",
-      "原生工程与发布链路硬化：WordZEngine/WordZAnalysis/WordZShared 拆出真实 target，新增架构守卫、发布元数据检查、打包/上传脚本和更完整的回归测试。"
+      "结果表格升级：各分析页统一接入共享结果表区域、快照驱动刷新、类型化列/行描述和更稳定的列显示、排序、分页控制。",
+      "研究阅读链路增强：Source Reader 新增来源链、证据草稿与引用预览，KWIC/Locator 共享阅读导出和摘录整理面板。",
+      "分析解释与可视化增强：标注口径状态条、跨分析说明面板和情感分布/趋势图让筛选、比较与情感结果更容易复核。",
+      "原生窗口与回归继续硬化：窗口 toolbar/chrome 适配、表格交互、删除确认和工程守卫测试进一步补齐。"
     ]
   },
   "license": "MIT",

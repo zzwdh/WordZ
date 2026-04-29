@@ -50,6 +50,21 @@ struct WordZVisualStyle: Equatable {
 
         return WordZVisualStyle(route: route, tier: stableTier)
     }
+
+    static func resolveAccessory(
+        for route: NativeWindowRoute,
+        capabilities: NativePlatformCapabilities = .current
+    ) -> WordZVisualStyle {
+        let baseStyle = resolve(for: route, capabilities: capabilities)
+        guard route == .mainWorkspace,
+              capabilities.supportsAccessoryGlassSurfaces,
+              NativeWindowPresentationProfile.profile(for: route)
+                .resolvedSplitAccessoryMode(capabilities: capabilities) == .mainWorkspaceTopAccessory else {
+            return baseStyle
+        }
+
+        return WordZVisualStyle(route: route, tier: .glassSurface)
+    }
 }
 
 private struct WordZVisualStyleKey: EnvironmentKey {

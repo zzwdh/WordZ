@@ -94,6 +94,35 @@ extension NativeTableView.Coordinator {
     }
 
     @MainActor
+    func reloadCustomPresentationRows(
+        previousSelectedRowID: String?,
+        selectedRowID: String?
+    ) -> ReloadOutcome {
+        guard let tableView else { return .none }
+        let customColumnIndexes = descriptor.visibleColumns.compactMap { column -> Int? in
+            guard case .custom = column.presentation else { return nil }
+            return tableView.tableColumns.firstIndex(where: { $0.identifier.rawValue == column.id })
+        }
+        guard !customColumnIndexes.isEmpty else { return .none }
+
+        var rowIndexes = IndexSet()
+        [previousSelectedRowID, selectedRowID].forEach { rowID in
+            guard let rowID, let index = rowIndexByID[rowID], index >= 0, index < rows.count else { return }
+            rowIndexes.insert(index)
+        }
+        guard !rowIndexes.isEmpty else { return .none }
+
+        tableView.reloadData(
+            forRowIndexes: rowIndexes,
+            columnIndexes: IndexSet(customColumnIndexes)
+        )
+        return ReloadOutcome(
+            mode: .partialVisibleRows,
+            reloadedRowCount: rowIndexes.count
+        )
+    }
+
+    @MainActor
     func selectedRowIndexes() -> [Int] {
         guard let tableView else { return [] }
         return tableView.selectedRowIndexes.compactMap { index in
@@ -124,6 +153,89 @@ extension NativeTableView.Coordinator {
         }
         onDoubleClick?(rowID)
         return true
+    }
+
+    @MainActor
+    func selectMarker(rowID: String, markerID: String?, activate: Bool) {
+        guard let rowIndex = rowIndexByID[rowID], rowIndex >= 0, rowIndex < rows.count else { return }
+        let previousSelectedRowID = selectedRowID
+        selectedRowID = rowID
+        selectedRowIDs = [rowID]
+        selectedMarkerID = markerID
+        if let tableView, tableView.selectedRow != rowIndex {
+            tableView.selectRowIndexes(IndexSet(integer: rowIndex), byExtendingSelection: false)
+        }
+        _ = reloadCustomPresentationRows(
+            previousSelectedRowID: previousSelectedRowID,
+            selectedRowID: rowID
+        )
+        onMarkerSelectionChange?(rowID, markerID)
+        if activate {
+            onDoubleClick?(rowID)
+        }
+    }
+
+    @MainActor
+    @discardableResult
+    func selectAdjacentMarker(direction: NativeTableView.MarkerNavigationDirection) -> Bool {
+        guard let rowIndex = resolvedSelectedRowIndexes().first, rowIndex >= 0, rowIndex < rows.count else {
+            return false
+        }
+        return selectAdjacentMarker(rowID: rows[rowIndex].id, direction: direction)
+    }
+
+    @MainActor
+    @discardableResult
+    func selectAdjacentMarker(
+        rowID: String,
+        direction: NativeTableView.MarkerNavigationDirection
+    ) -> Bool {
+        guard let rowIndex = rowIndexByID[rowID], rowIndex >= 0, rowIndex < rows.count else {
+            return false
+        }
+        let markers = markerValues(in: rows[rowIndex])
+        guard !markers.isEmpty else { return false }
+
+        let selectedIndex = selectedMarkerID.flatMap { markerID in
+            markers.firstIndex(where: { $0.id == markerID })
+        }
+        let nextIndex: Int
+        switch direction {
+        case .previous:
+            nextIndex = max((selectedIndex ?? markers.count) - 1, 0)
+        case .next:
+            nextIndex = min((selectedIndex ?? -1) + 1, markers.count - 1)
+        }
+
+        let markerID = markers[nextIndex].id
+        guard selectedMarkerID != markerID || selectedRowID != rowID else { return false }
+        selectMarker(rowID: rowID, markerID: markerID, activate: false)
+        return true
+    }
+
+    @MainActor
+    @discardableResult
+    func activateMarker(rowID: String) -> Bool {
+        guard let rowIndex = rowIndexByID[rowID], rowIndex >= 0, rowIndex < rows.count else {
+            return false
+        }
+        if selectedRowID != rowID {
+            selectedRowID = rowID
+            selectedRowIDs = [rowID]
+            onSelectionChange?(rowID)
+        }
+        onDoubleClick?(rowID)
+        return true
+    }
+
+    private func markerValues(in row: NativeTableRowDescriptor) -> [NativeTableMarkerValue] {
+        for column in orderedVisibleColumns() {
+            guard case .custom(.markerStrip) = column.presentation else { continue }
+            if case .custom(_, .markerStrip(let markers))? = row.cell(for: column.id) {
+                return markers
+            }
+        }
+        return []
     }
 
     @MainActor

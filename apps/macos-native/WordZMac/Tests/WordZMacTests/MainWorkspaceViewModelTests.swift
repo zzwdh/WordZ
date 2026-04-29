@@ -360,6 +360,26 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         )
     }
 
+    func testWorkspaceAnnotationStateDescribesFilterImpact() {
+        let defaultState = WorkspaceAnnotationState.default
+        let filteredState = WorkspaceAnnotationState(
+            profile: .lemmaPreferred,
+            lexicalClasses: [.verb, .noun],
+            scripts: [.latin]
+        )
+
+        XCTAssertFalse(defaultState.hasActiveFilters)
+        XCTAssertEqual(defaultState.activeFilterCount, 0)
+        XCTAssertEqual(defaultState.filterSummary(in: .english), "Scripts: All · Classes: All")
+        XCTAssertEqual(defaultState.impactSummary(in: .english), "All scripts and lexical classes are currently included.")
+
+        XCTAssertTrue(filteredState.hasActiveFilters)
+        XCTAssertEqual(filteredState.activeFilterCount, 3)
+        XCTAssertEqual(filteredState.filterSummary(in: .english), "Scripts: Latin · Classes: Noun, Verb")
+        XCTAssertTrue(filteredState.impactSummary(in: .english).contains("before candidate generation"))
+        XCTAssertTrue(filteredState.emptyResultHint(in: .english).contains("too narrow"))
+    }
+
     func testSourceReaderExportIncludesAnnotationSummaryAndTokenAnnotations() async throws {
         let repository = FakeWorkspaceRepository(
             tokenizeResult: makeTokenizeResult(),
@@ -407,6 +427,8 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         workspace.sourceReader.captureSectionTitle = "Section A"
         workspace.sourceReader.captureClaim = "Alpha illustrates the target pattern."
         workspace.sourceReader.captureTagsText = "teaching, alpha, teaching"
+        workspace.sourceReader.captureCitationFormat = .fullSentence
+        workspace.sourceReader.captureCitationStyle = .mla
         workspace.sourceReader.captureNote = "Use for the introduction."
 
         await workspace.captureCurrentSourceReaderEvidenceItem()
@@ -414,7 +436,39 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(repository.evidenceItems.first?.sectionTitle, "Section A")
         XCTAssertEqual(repository.evidenceItems.first?.claim, "Alpha illustrates the target pattern.")
         XCTAssertEqual(repository.evidenceItems.first?.tags, ["teaching", "alpha"])
+        XCTAssertEqual(repository.evidenceItems.first?.citationFormat, .fullSentence)
+        XCTAssertEqual(repository.evidenceItems.first?.citationStyle, .mla)
         XCTAssertEqual(repository.evidenceItems.first?.note, "Use for the introduction.")
+    }
+
+    func testCopySourceReaderCitationUsesPreparedCitationDraft() async {
+        let repository = FakeWorkspaceRepository(
+            tokenizeResult: makeTokenizeResult(),
+            kwicResult: KWICResult(rows: [
+                KWICRow(id: "1-1", left: "Delta", node: "alpha", right: "", sentenceId: 1, sentenceTokenIndex: 1)
+            ])
+        )
+        let hostActions = FakeHostActionService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostActionService: hostActions
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.kwic.keyword = "alpha"
+        await workspace.runKWIC()
+        workspace.kwic.selectedRowID = "1-1"
+        _ = await workspace.openCurrentSourceReader()
+
+        workspace.sourceReader.captureCitationFormat = .fullSentence
+        workspace.sourceReader.captureCitationStyle = .apa
+
+        workspace.copySourceReaderCitation()
+
+        XCTAssertEqual(
+            hostActions.copiedClipboardTexts.last,
+            "Demo Corpus. (n.d.). Delta alpha. [Sentence 2]. WordZ evidence export."
+        )
     }
 
     func testCaptureCurrentSourceReaderEvidenceItemFromPlotPersistsPlotSource() async {

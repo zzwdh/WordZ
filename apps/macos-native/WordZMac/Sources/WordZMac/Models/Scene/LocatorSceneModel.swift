@@ -116,6 +116,7 @@ struct LocatorSceneModel: Equatable {
     let visibleRows: Int
     let rows: [LocatorSceneRow]
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
 
     func column(for key: LocatorColumnKey) -> NativeTableColumnDescriptor? {
         table.column(id: key.rawValue)

@@ -16,6 +16,9 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertFalse(capabilities.supportsToolbarSearchEnhancements)
         XCTAssertFalse(capabilities.supportsScrollEdgeEffects)
         XCTAssertFalse(capabilities.supportsSplitViewAccessories)
+        XCTAssertFalse(capabilities.supportsGlassButtons)
+        XCTAssertFalse(capabilities.supportsBackgroundExtension)
+        XCTAssertFalse(capabilities.supportsAccessoryGlassSurfaces)
     }
 
     func testNativePlatformCapabilitiesResolvedForMacOS15WithoutLiquidGlass() {
@@ -30,6 +33,9 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertFalse(capabilities.supportsToolbarSearchEnhancements)
         XCTAssertFalse(capabilities.supportsScrollEdgeEffects)
         XCTAssertFalse(capabilities.supportsSplitViewAccessories)
+        XCTAssertFalse(capabilities.supportsGlassButtons)
+        XCTAssertFalse(capabilities.supportsBackgroundExtension)
+        XCTAssertFalse(capabilities.supportsAccessoryGlassSurfaces)
     }
 
     func testNativePlatformCapabilitiesResolvedForLiquidGlassRuntime() {
@@ -44,6 +50,9 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertTrue(capabilities.supportsToolbarSearchEnhancements)
         XCTAssertTrue(capabilities.supportsScrollEdgeEffects)
         XCTAssertTrue(capabilities.supportsSplitViewAccessories)
+        XCTAssertTrue(capabilities.supportsGlassButtons)
+        XCTAssertTrue(capabilities.supportsBackgroundExtension)
+        XCTAssertTrue(capabilities.supportsAccessoryGlassSurfaces)
     }
 
     func testPresentationProfileFallsBackToBaselineOnMacOS14() {
@@ -88,6 +97,32 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertFalse(style.usesAdaptiveToolbarSurface)
     }
 
+    func testMainWorkspaceAccessoryStyleCanUseGlassWithoutUpgradingResultCards() {
+        let capabilities = NativePlatformCapabilities.resolved(
+            isAtLeastMacOS15: true,
+            isAtLeastMacOS26: true
+        )
+
+        let contentStyle = WordZVisualStyle.resolve(for: .mainWorkspace, capabilities: capabilities)
+        let accessoryStyle = WordZVisualStyle.resolveAccessory(for: .mainWorkspace, capabilities: capabilities)
+
+        XCTAssertEqual(contentStyle.tier, .chromeOnly)
+        XCTAssertEqual(accessoryStyle.tier, .glassSurface)
+        XCTAssertTrue(accessoryStyle.usesAdaptiveToolbarSurface)
+    }
+
+    func testMainWorkspaceAccessoryStyleFallsBackBeforeLiquidGlassRuntime() {
+        let capabilities = NativePlatformCapabilities.resolved(
+            isAtLeastMacOS15: true,
+            isAtLeastMacOS26: false
+        )
+
+        let accessoryStyle = WordZVisualStyle.resolveAccessory(for: .mainWorkspace, capabilities: capabilities)
+
+        XCTAssertEqual(accessoryStyle.tier, .chromeOnly)
+        XCTAssertFalse(accessoryStyle.usesAdaptiveToolbarSurface)
+    }
+
     func testLibraryVisualStyleStillUsesFullVisualRefreshWhenLiquidGlassIsAvailable() {
         let capabilities = NativePlatformCapabilities.resolved(
             isAtLeastMacOS15: true,
@@ -100,7 +135,7 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertTrue(style.usesAdaptiveToolbarSurface)
     }
 
-    func testPresentationProfileRoutesToolbarAndSearchModesWhileKeepingWorkspaceBannerEmbedded() {
+    func testPresentationProfileRoutesToolbarSearchAndSplitAccessoryModesOnMacOS26() {
         let capabilities = NativePlatformCapabilities.resolved(
             isAtLeastMacOS15: true,
             isAtLeastMacOS26: true
@@ -114,7 +149,7 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertEqual(
             NativeWindowPresentationProfile.profile(for: .mainWorkspace)
                 .resolvedSplitAccessoryMode(capabilities: capabilities),
-            .none
+            .mainWorkspaceTopAccessory
         )
         XCTAssertEqual(
             NativeWindowPresentationProfile.profile(for: .library)

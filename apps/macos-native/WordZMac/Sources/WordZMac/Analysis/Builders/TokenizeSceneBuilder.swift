@@ -172,6 +172,7 @@ struct TokenizeSceneBuilder {
             visibleSentences: visibleSentenceCount,
             rows: sceneRows,
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             searchError: searchError,
             exportDocument: exportDocument
         )

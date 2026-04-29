@@ -219,6 +219,7 @@ struct SentimentSceneModel: Equatable {
     let trendPoints: [SentimentTrendPoint]
     let table: NativeTableDescriptor
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let exportMetadataLines: [String]
 
     func column(for key: SentimentColumnKey) -> NativeTableColumnDescriptor? {

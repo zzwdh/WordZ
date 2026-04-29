@@ -1,6 +1,44 @@
 import AppKit
 
 @MainActor
+private enum NativeTableNumberFormatterCache {
+    struct Key: Hashable {
+        let localeIdentifier: String
+        let minimumFractionDigits: Int
+        let maximumFractionDigits: Int
+        let usesGrouping: Bool
+    }
+
+    private static var formatters: [Key: NumberFormatter] = [:]
+
+    static func formatter(
+        locale: Locale,
+        minimumFractionDigits: Int,
+        maximumFractionDigits: Int,
+        usesGrouping: Bool
+    ) -> NumberFormatter {
+        let key = Key(
+            localeIdentifier: locale.identifier,
+            minimumFractionDigits: minimumFractionDigits,
+            maximumFractionDigits: maximumFractionDigits,
+            usesGrouping: usesGrouping
+        )
+        if let formatter = formatters[key] {
+            return formatter
+        }
+
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = usesGrouping
+        formatter.minimumFractionDigits = minimumFractionDigits
+        formatter.maximumFractionDigits = maximumFractionDigits
+        formatters[key] = formatter
+        return formatter
+    }
+}
+
+@MainActor
 extension NativeTableView.Coordinator {
     func alignment(for column: NativeTableColumnDescriptor) -> NSTextAlignment {
         switch column.presentation {
@@ -78,27 +116,31 @@ extension NativeTableView.Coordinator {
             resolvedPrecision = 2
         }
 
-        let formatter = NumberFormatter()
-        formatter.locale = WordZLocalization.shared.locale
-        formatter.numberStyle = .decimal
-        formatter.usesGroupingSeparator = usesGrouping
+        let minimumFractionDigits: Int
+        let maximumFractionDigits: Int
         if let resolvedPrecision {
-            formatter.minimumFractionDigits = resolvedPrecision == 0 ? 0 : resolvedPrecision
-            formatter.maximumFractionDigits = resolvedPrecision
+            minimumFractionDigits = resolvedPrecision == 0 ? 0 : resolvedPrecision
+            maximumFractionDigits = resolvedPrecision
         } else {
-            formatter.minimumFractionDigits = 0
-            formatter.maximumFractionDigits = 6
+            minimumFractionDigits = 0
+            maximumFractionDigits = 6
         }
+        let formatter = NativeTableNumberFormatterCache.formatter(
+            locale: WordZLocalization.shared.locale,
+            minimumFractionDigits: minimumFractionDigits,
+            maximumFractionDigits: maximumFractionDigits,
+            usesGrouping: usesGrouping
+        )
         return formatter.string(from: NSNumber(value: number)) ?? rawValue
     }
 
     func formattedThreshold(_ value: Double, precision: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = WordZLocalization.shared.locale
-        formatter.numberStyle = .decimal
-        formatter.usesGroupingSeparator = false
-        formatter.minimumFractionDigits = precision
-        formatter.maximumFractionDigits = precision
+        let formatter = NativeTableNumberFormatterCache.formatter(
+            locale: WordZLocalization.shared.locale,
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision,
+            usesGrouping: false
+        )
         return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(precision)f", value)
     }
 }

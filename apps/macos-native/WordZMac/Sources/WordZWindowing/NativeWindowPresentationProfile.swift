@@ -50,7 +50,7 @@ package struct NativeWindowPresentationProfile: Equatable {
                 preferredTier: .fullVisualRefresh,
                 toolbarMode: .swiftUIPrimary,
                 searchMode: .none,
-                splitAccessoryMode: .none,
+                splitAccessoryMode: .mainWorkspaceTopAccessory,
                 prefersTransparentTitleBar: false,
                 prefersHiddenTitle: false,
                 prefersBackgroundDrag: false,

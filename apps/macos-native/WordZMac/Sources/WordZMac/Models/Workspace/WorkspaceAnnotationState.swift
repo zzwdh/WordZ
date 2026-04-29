@@ -77,6 +77,14 @@ struct WorkspaceAnnotationState: Equatable, Codable, Sendable {
         Set(scripts)
     }
 
+    var hasActiveFilters: Bool {
+        !lexicalClasses.isEmpty || !scripts.isEmpty
+    }
+
+    var activeFilterCount: Int {
+        lexicalClasses.count + scripts.count
+    }
+
     func summary(in mode: AppLanguageMode) -> String {
         var parts = [
             "\(wordZText("标注", "Annotation", mode: mode)): \(profile.title(in: mode))"
@@ -99,6 +107,61 @@ struct WorkspaceAnnotationState: Equatable, Codable, Sendable {
         }
 
         return parts.joined(separator: " · ")
+    }
+
+    func filterSummary(in mode: AppLanguageMode) -> String {
+        [
+            scriptFilterSummary(in: mode),
+            lexicalClassFilterSummary(in: mode)
+        ].joined(separator: " · ")
+    }
+
+    func impactSummary(in mode: AppLanguageMode) -> String {
+        if hasActiveFilters {
+            return wordZText(
+                "筛选会在候选生成前生效，并影响计数、排序、样例与跨分析结果。",
+                "Filters are applied before candidate generation and affect counts, sorting, examples, and cross-analysis results.",
+                mode: mode
+            )
+        }
+
+        return wordZText(
+            "当前使用全部脚本和词类。",
+            "All scripts and lexical classes are currently included.",
+            mode: mode
+        )
+    }
+
+    func emptyResultHint(in mode: AppLanguageMode) -> String {
+        guard hasActiveFilters else {
+            return wordZText(
+                "当前结果为空；可调整检索词、停用词或分析参数后重新运行。",
+                "The current result is empty; adjust the query, stopwords, or analysis parameters and run again.",
+                mode: mode
+            )
+        }
+
+        return wordZText(
+            "当前筛选可能过窄；清空脚本或词类筛选后重新运行可验证结果口径。",
+            "The active filters may be too narrow; clear script or lexical-class filters and run again to verify the scope.",
+            mode: mode
+        )
+    }
+
+    func scriptFilterSummary(in mode: AppLanguageMode) -> String {
+        if scripts.isEmpty {
+            return wordZText("脚本：全部", "Scripts: All", mode: mode)
+        }
+
+        return "\(wordZText("脚本", "Scripts", mode: mode)): \(scripts.map { $0.title(in: mode) }.joined(separator: ", "))"
+    }
+
+    func lexicalClassFilterSummary(in mode: AppLanguageMode) -> String {
+        if lexicalClasses.isEmpty {
+            return wordZText("词类：全部", "Classes: All", mode: mode)
+        }
+
+        return "\(wordZText("词类", "Classes", mode: mode)): \(lexicalClasses.map { $0.title(in: mode) }.joined(separator: ", "))"
     }
 
     var jsonObject: JSONObject {

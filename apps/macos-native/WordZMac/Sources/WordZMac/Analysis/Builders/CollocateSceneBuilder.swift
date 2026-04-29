@@ -174,6 +174,7 @@ struct CollocateSceneBuilder {
             visibleRows: visibleSceneRows.count,
             rows: visibleSceneRows,
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             exportMetadataLines: exportMetadataLines,
             searchError: ""
         )

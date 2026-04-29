@@ -124,11 +124,13 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         sidebarItem.preferredThicknessFraction = 0.24
         inspectorItem.preferredThicknessFraction = 0.26
 
-        if #available(macOS 26.0, *) {
-            sidebarItem.automaticallyAdjustsSafeAreaInsets = true
-            detailItem.automaticallyAdjustsSafeAreaInsets = true
-            inspectorItem.automaticallyAdjustsSafeAreaInsets = true
-            updateTopAccessoryIfNeeded()
+        if NativePlatformCapabilities.current.supportsSplitViewAccessories {
+            if #available(macOS 26.0, *) {
+                sidebarItem.automaticallyAdjustsSafeAreaInsets = true
+                detailItem.automaticallyAdjustsSafeAreaInsets = true
+                inspectorItem.automaticallyAdjustsSafeAreaInsets = true
+                updateTopAccessoryIfNeeded()
+            }
         }
     }
 
@@ -150,8 +152,10 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         detailController.update(rootView: detail)
         inspectorController.update(rootView: inspector)
         self.topAccessory = topAccessory
-        if #available(macOS 26.0, *) {
-            updateTopAccessoryIfNeeded()
+        if NativePlatformCapabilities.current.supportsSplitViewAccessories {
+            if #available(macOS 26.0, *) {
+                updateTopAccessoryIfNeeded()
+            }
         }
         guard currentLayout != layout else { return }
         currentLayout = layout

@@ -49,18 +49,13 @@ extension TopicsView {
 
                 NativeTableView(
                     descriptor: scene.table,
-                    rows: scene.tableRows,
+                    snapshot: scene.tableSnapshot,
                     selectedRowID: viewModel.selectedRowID,
                     onSelectionChange: { onAction(.selectRow($0)) },
                     onDoubleClick: { onAction(.activateRow($0)) },
-                    onSortByColumn: { columnID in
-                        guard let column = TopicsColumnKey(rawValue: columnID) else { return }
-                        onAction(.sortByColumn(column))
-                    },
-                    onToggleColumnFromHeader: { columnID in
-                        guard let column = TopicsColumnKey(rawValue: columnID) else { return }
-                        onAction(.toggleColumn(column))
-                    },
+                    columnKey: TopicsColumnKey.self,
+                    onSortByColumnKey: { onAction(.sortByColumn($0)) },
+                    onToggleColumnFromHeaderKey: { onAction(.toggleColumn($0)) },
                     allowsMultipleSelection: false,
                     emptyMessage: t("当前主题没有可显示的片段。", "No topic segments are available to display."),
                     accessibilityLabel: t("Topics 片段结果表格", "Topics segments results table"),

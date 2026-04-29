@@ -153,6 +153,7 @@ struct ClusterSceneBuilder {
                 defaultDensity: .compact
             ),
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             exportMetadataLines: exportMetadataLines,
             searchError: searchError
         )

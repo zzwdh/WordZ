@@ -43,6 +43,9 @@ let package = Package(
                 "ViewModels/README.md",
                 "Views/README.md",
                 "Workspace/README.md"
+            ],
+            swiftSettings: [
+                .unsafeFlags(["-Xcc", "-DACCELERATE_NEW_LAPACK"])
             ]
         ),
         .target(

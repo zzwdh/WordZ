@@ -19,35 +19,64 @@ extension CollocateView {
                 }
             }
 
-            WorkbenchToolbarSection {
-                WorkbenchResultHeaderRow {
-                    Text(t("节点词：", "Node Word: ") + scene.query)
-                        .font(.headline)
-                    Text(t("窗口：", "Window: ") + "L\(scene.leftWindow) / R\(scene.rightWindow) · " + t("最低共现：", "Min Co-occurrence: ") + "\(scene.minFreq)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                    Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    Text(scene.annotationSummary)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                } trailing: {
-                    Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows) / \(scene.totalRows)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+            AnalysisResultTableSection(
+                annotationState: viewModel.annotationState,
+                annotationResultCount: scene.filteredRows,
+                descriptor: scene.table,
+                snapshot: scene.tableSnapshot,
+                selectedRowID: viewModel.selectedRowID,
+                onSelectionChange: { onAction(.selectRow($0)) },
+                columnKeys: CollocateColumnKey.allCases,
+                columnMenuTitle: t("列", "Columns"),
+                columnLabel: { scene.columnTitle(for: $0, mode: languageMode) },
+                isColumnVisible: { scene.column(for: $0)?.isVisible ?? false },
+                onToggleColumn: { onAction(.toggleColumn($0)) },
+                onSortByColumn: { onAction(.sortByColumn($0)) },
+                onToggleColumnFromHeader: { onAction(.toggleColumn($0)) },
+                pagination: scene.pagination,
+                onPreviousPage: { onAction(.previousPage) },
+                onNextPage: { onAction(.nextPage) },
+                emptyMessage: t("当前搭配词结果没有可显示的词项。", "No collocate rows to display."),
+                accessibilityLabel: t("搭配词结果表格", "Collocate results table"),
+                activationHint: t("使用方向键浏览结果，按 Return 可触发表格默认动作。", "Use arrow keys to browse results, then press Return to trigger the default table action.")
+            ) {
+                Text(t("节点词：", "Node Word: ") + scene.query)
+                    .font(.headline)
+                Text(t("窗口：", "Window: ") + "L\(scene.leftWindow) / R\(scene.rightWindow) · " + t("最低共现：", "Min Co-occurrence: ") + "\(scene.minFreq)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
 
                 if !scene.searchError.isEmpty {
                     Text(scene.searchError)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
-
-                WorkbenchResultControlsRow {
-                    HStack(spacing: 12) {
+            } headerTrailing: {
+                Text("\(t("显示", "Showing")) \(scene.visibleRows) / \(scene.filteredRows) / \(scene.totalRows)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            } leadingControls: {
+                WorkbenchTablePrimaryControls(
+                    sortTitle: t("排序", "Sort"),
+                    selectedSort: Binding(
+                        get: { scene.sorting.selectedSort },
+                        set: { onAction(.changeSort($0)) }
+                    ),
+                    sortOptions: Array(CollocateSortMode.allCases),
+                    sortLabel: { $0.title(in: languageMode) },
+                    pageSizeTitle: t("页大小", "Page Size"),
+                    selectedPageSize: Binding(
+                        get: { scene.sorting.selectedPageSize },
+                        set: { onAction(.changePageSize($0)) }
+                    ),
+                    totalRows: scene.filteredRows,
+                    pageSizeLabel: { $0.title(in: languageMode) },
+                    prefix: {
                         WorkbenchMenuPicker(
                             title: t("重点指标", "Focus Metric"),
                             selection: Binding(
@@ -58,76 +87,23 @@ extension CollocateView {
                         ) {
                             $0.title(in: languageMode)
                         }
-
-                        WorkbenchMenuPicker(
-                            title: t("排序", "Sort"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedSort },
-                                set: { onAction(.changeSort($0)) }
-                            ),
-                            options: Array(CollocateSortMode.allCases)
-                        ) {
-                            $0.title(in: languageMode)
-                        }
-
-                        WorkbenchGuardedPageSizePicker(
-                            title: t("页大小", "Page Size"),
-                            selection: Binding(
-                                get: { scene.sorting.selectedPageSize },
-                                set: { onAction(.changePageSize($0)) }
-                            ),
-                            totalRows: scene.filteredRows
-                        ) {
-                            $0.title(in: languageMode)
-                        }
                     }
-                } trailing: {
-                    WorkbenchResultTrailingControls(
-                        columnMenuTitle: t("列", "Columns"),
-                        keys: CollocateColumnKey.allCases,
-                        label: { scene.columnTitle(for: $0, mode: languageMode) },
-                        isVisible: { scene.column(for: $0)?.isVisible ?? false },
-                        onToggle: { onAction(.toggleColumn($0)) },
-                        canGoBackward: scene.pagination.canGoBackward,
-                        canGoForward: scene.pagination.canGoForward,
-                        rangeLabel: scene.pagination.rangeLabel,
-                        onPrevious: { onAction(.previousPage) },
-                        onNext: { onAction(.nextPage) }
-                    )
-                }
-            }
-
-            WorkbenchMethodNoteCard(
-                title: t("结果说明", "How to Read These Results"),
-                summary: scene.methodSummary,
-                notes: scene.methodNotes
-            )
-
-            HStack {
-                Button(t("复制方法摘要", "Copy Method Summary")) {
-                    onAction(.copyMethodSummary)
-                }
-                Spacer()
-            }
-
-            WorkbenchTableCard {
-                NativeTableView(
-                    descriptor: scene.table,
-                    rows: scene.tableRows,
-                    selectedRowID: viewModel.selectedRowID,
-                    onSelectionChange: { onAction(.selectRow($0)) },
-                    onSortByColumn: { columnID in
-                        guard let column = CollocateColumnKey(rawValue: columnID) else { return }
-                        onAction(.sortByColumn(column))
-                    },
-                    onToggleColumnFromHeader: { columnID in
-                        guard let column = CollocateColumnKey(rawValue: columnID) else { return }
-                        onAction(.toggleColumn(column))
-                    },
-                    emptyMessage: t("当前搭配词结果没有可显示的词项。", "No collocate rows to display."),
-                    accessibilityLabel: t("搭配词结果表格", "Collocate results table"),
-                    activationHint: t("使用方向键浏览结果，按 Return 可触发表格默认动作。", "Use arrow keys to browse results, then press Return to trigger the default table action.")
                 )
+            } tableSupplement: {
+                WorkbenchMethodNoteCard(
+                    title: t("结果说明", "How to Read These Results"),
+                    summary: scene.methodSummary,
+                    notes: scene.methodNotes
+                )
+
+                HStack {
+                    Button(t("复制方法摘要", "Copy Method Summary")) {
+                        onAction(.copyMethodSummary)
+                    }
+                    Spacer()
+                }
+            } paginationFallback: {
+                EmptyView()
             }
 
             if let selectedRow = viewModel.selectedSceneRow {

@@ -77,19 +77,19 @@ struct SentimentSceneBuilder {
         let tableRows = sceneRows.map { row in
             NativeTableRowDescriptor(
                 id: row.id,
-                values: [
-                    SentimentColumnKey.source.rawValue: row.groupTitle.isEmpty ? row.sourceTitle : "\(row.groupTitle) · \(row.sourceTitle)",
-                    SentimentColumnKey.text.rawValue: row.text,
-                    SentimentColumnKey.positivity.rawValue: formatPercent(row.rawPositivityScore),
-                    SentimentColumnKey.neutrality.rawValue: formatPercent(row.rawNeutralityScore),
-                    SentimentColumnKey.negativity.rawValue: formatPercent(row.rawNegativityScore),
-                    SentimentColumnKey.finalLabel.rawValue: row.effectiveLabel.title(in: languageMode),
-                    SentimentColumnKey.rawLabel.rawValue: row.rawLabel.title(in: languageMode),
-                    SentimentColumnKey.reviewStatus.rawValue: row.reviewStatus.title(in: languageMode),
-                    SentimentColumnKey.netScore.rawValue: format(row.rawNetScore),
-                    SentimentColumnKey.evidence.rawValue: row.evidencePreview
-                ]
-            )
+                columnKey: SentimentColumnKey.self
+            ) {
+                NativeTableCell(.source, row.groupTitle.isEmpty ? row.sourceTitle : "\(row.groupTitle) · \(row.sourceTitle)")
+                NativeTableCell(.text, row.text)
+                NativeTableCell(.positivity, formatPercent(row.rawPositivityScore))
+                NativeTableCell(.neutrality, formatPercent(row.rawNeutralityScore))
+                NativeTableCell(.negativity, formatPercent(row.rawNegativityScore))
+                NativeTableCell(.finalLabel, row.effectiveLabel.title(in: languageMode))
+                NativeTableCell(.rawLabel, row.rawLabel.title(in: languageMode))
+                NativeTableCell(.reviewStatus, row.reviewStatus.title(in: languageMode))
+                NativeTableCell(.netScore, format(row.rawNetScore))
+                NativeTableCell(.evidence, row.evidencePreview)
+            }
         }
 
         let filteredSceneRows = sortedRows.map(makeSceneRow)
@@ -168,20 +168,23 @@ struct SentimentSceneBuilder {
             }),
             table: NativeTableDescriptor(
                 storageKey: "sentiment",
-                columns: SentimentColumnKey.allCases.map { key in
-                    NativeTableColumnDescriptor(
-                        id: key.rawValue,
+                columnKey: SentimentColumnKey.self,
+                defaultDensity: .reading
+            ) {
+                for key in SentimentColumnKey.allCases {
+                    NativeTableColumnSpec(
+                        key,
                         title: key.title(in: languageMode),
                         isVisible: visibleColumns.contains(key),
-                        sortIndicator: sortIndicator(for: key, mode: sortMode),
+                        sortDirection: sortDirection(for: key, mode: sortMode),
                         presentation: presentation(for: key),
                         widthPolicy: widthPolicy(for: key),
                         isPinned: key == .source || key == .text
                     )
-                },
-                defaultDensity: .reading
-            ),
+                }
+            },
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             exportMetadataLines: exportMetadataLines
         )
     }
@@ -478,15 +481,17 @@ struct SentimentSceneBuilder {
         }
     }
 
-    private func sortIndicator(for key: SentimentColumnKey, mode: SentimentSortMode) -> String? {
+    private func sortDirection(for key: SentimentColumnKey, mode: SentimentSortMode) -> NativeTableSortDirection? {
         switch (key, mode) {
         case (.positivity, .positivityDescending),
              (.neutrality, .neutralityDescending),
              (.negativity, .negativityDescending),
-             (.netScore, .netScoreDescending),
-             (.finalLabel, .labelAscending),
+             (.netScore, .netScoreDescending):
+            return .descending
+        case (.finalLabel, .labelAscending),
+             (.reviewStatus, .reviewStatusAscending),
              (.source, .sourceAscending):
-            return "↓"
+            return .ascending
         default:
             return nil
         }

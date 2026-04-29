@@ -1169,6 +1169,9 @@ final class FakeDialogService: NativeDialogServicing {
     var promptTextPreferredRoute: NativeWindowRoute?
     var savePathPreferredRoute: NativeWindowRoute?
     var confirmPreferredRoute: NativeWindowRoute?
+    var confirmCallCount = 0
+    var confirmTitle: String?
+    var confirmMessage: String?
 
     func chooseImportPaths(preferredRoute: NativeWindowRoute?) async -> [String]? {
         return importPathsResult
@@ -1219,6 +1222,9 @@ final class FakeDialogService: NativeDialogServicing {
         confirmTitle: String,
         preferredRoute: NativeWindowRoute?
     ) async -> Bool {
+        confirmCallCount += 1
+        self.confirmTitle = title
+        confirmMessage = message
         confirmPreferredRoute = preferredRoute
         return confirmResult
     }

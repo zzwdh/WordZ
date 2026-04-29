@@ -144,65 +144,38 @@ extension CompareView {
     }
 
     func compareSentimentSummaryCard(_ summary: CompareSentimentSummary) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(summary.headline)
-                .font(.subheadline.weight(.semibold))
-            Text(summary.scopeSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(summary.targetDistribution)
-                .font(.caption.monospacedDigit())
-            if let referenceDistribution = summary.referenceDistribution {
-                Text(referenceDistribution)
-                    .font(.caption.monospacedDigit())
-            }
+        CrossAnalysisExplanationPanel(
+            title: summary.headline,
+            subtitle: summary.scopeSummary,
+            systemImage: "waveform.path.ecg"
+        ) {
+            CrossAnalysisMetricRow(metrics: compareSentimentSummaryMetrics(summary))
+
             Text(summary.note)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(WordZTheme.primarySurfaceSoft)
-        )
     }
 
     func compareSentimentExplainerCard(_ explainer: CompareSentimentExplainer) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(t("Sentiment Explainer", "Sentiment Explainer"))
-                .font(.subheadline.weight(.semibold))
+        CrossAnalysisExplanationPanel(
+            title: t("Sentiment Explainer", "Sentiment Explainer"),
+            subtitle: explainer.scopeSummary,
+            systemImage: "chart.line.uptrend.xyaxis"
+        ) {
+            CrossAnalysisMetricRow(metrics: compareSentimentDistributionMetrics(explainer))
 
-            Text(explainer.scopeSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 12) {
-                compareSentimentSummaryMetric(
-                    explainer.targetSummary.title,
-                    value: compareDistributionText(explainer.targetSummary)
-                )
-                if let referenceSummary = explainer.referenceSummary {
-                    compareSentimentSummaryMetric(
-                        referenceSummary.title,
-                        value: compareDistributionText(referenceSummary)
-                    )
-                }
-            }
-
-            HStack(spacing: 12) {
-                compareSentimentSummaryMetric(
-                    t("分布差值", "Distribution Delta"),
+            CrossAnalysisMetricRow(metrics: [
+                CrossAnalysisMetric(
+                    title: t("分布差值", "Distribution Delta"),
                     value: "+\(comparePointsText(explainer.positiveDeltaPoints)) · =\(comparePointsText(explainer.neutralDeltaPoints)) · -\(comparePointsText(explainer.negativeDeltaPoints))"
-                )
-                compareSentimentSummaryMetric(
-                    t("平均净分差值", "Average Net Delta"),
+                ),
+                CrossAnalysisMetric(
+                    title: t("平均净分差值", "Average Net Delta"),
                     value: String(format: "%.3f", explainer.averageNetDelta)
                 )
-            }
+            ])
 
             compareSentimentReviewImpactRow(
                 title: t("目标侧审校", "Target Review"),
@@ -218,9 +191,7 @@ extension CompareView {
 
             if !explainer.targetTopDrivers.isEmpty || !explainer.referenceTopDrivers.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(t("驱动线索", "Driver Cues"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    CrossAnalysisSectionLabel(title: t("驱动线索", "Driver Cues"))
                     if !explainer.targetTopDrivers.isEmpty {
                         compareDriverList(
                             title: t("目标侧", "Target"),
@@ -238,9 +209,7 @@ extension CompareView {
 
             if !explainer.targetExemplars.isEmpty || !explainer.referenceExemplars.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(t("代表样例", "Exemplars"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    CrossAnalysisSectionLabel(title: t("代表样例", "Exemplars"))
                     if !explainer.targetExemplars.isEmpty {
                         compareExemplarList(
                             title: t("目标侧", "Target"),
@@ -264,24 +233,42 @@ extension CompareView {
                 Spacer()
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(WordZTheme.primarySurfaceSoft)
-        )
     }
 
-    func compareSentimentSummaryMetric(_ title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption.weight(.medium))
-                .monospacedDigit()
+    func compareSentimentSummaryMetrics(_ summary: CompareSentimentSummary) -> [CrossAnalysisMetric] {
+        var metrics = [
+            CrossAnalysisMetric(
+                title: t("目标侧", "Target"),
+                value: summary.targetDistribution
+            )
+        ]
+        if let referenceDistribution = summary.referenceDistribution {
+            metrics.append(
+                CrossAnalysisMetric(
+                    title: t("参考侧", "Reference"),
+                    value: referenceDistribution
+                )
+            )
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        return metrics
+    }
+
+    func compareSentimentDistributionMetrics(_ explainer: CompareSentimentExplainer) -> [CrossAnalysisMetric] {
+        var metrics = [
+            CrossAnalysisMetric(
+                title: explainer.targetSummary.title,
+                value: compareDistributionText(explainer.targetSummary)
+            )
+        ]
+        if let referenceSummary = explainer.referenceSummary {
+            metrics.append(
+                CrossAnalysisMetric(
+                    title: referenceSummary.title,
+                    value: compareDistributionText(referenceSummary)
+                )
+            )
+        }
+        return metrics
     }
 
     func compareSentimentReviewImpactRow(

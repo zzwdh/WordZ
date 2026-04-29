@@ -76,7 +76,7 @@ extension MainWorkspaceViewModel {
     }
 
     func copySourceReaderCitation() {
-        guard let citationText = sourceReader.currentCitationText else { return }
+        guard let citationText = sourceReader.currentPreparedCitationText else { return }
         hostActionService.copyTextToClipboard(citationText)
         settings.setSupportStatus(t("已复制当前引文。", "Copied the current citation."))
         clearActiveIssue()

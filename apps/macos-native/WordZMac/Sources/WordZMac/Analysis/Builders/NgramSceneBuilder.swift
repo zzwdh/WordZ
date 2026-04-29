@@ -118,6 +118,7 @@ struct NgramSceneBuilder {
             filteredRows: filteredRows.count,
             rows: visibleSceneRows,
             tableRows: tableRows,
+            tableSnapshot: ResultTableSnapshot.stable(rows: tableRows),
             exportMetadataLines: exportMetadataLines,
             searchError: searchError
         )

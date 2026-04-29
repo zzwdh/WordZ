@@ -67,6 +67,7 @@ struct TopicsSceneModel: Equatable {
     let segmentRows: [TopicSegmentRow]
     let selectedSegmentID: String?
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let table: NativeTableDescriptor
     let summaryRows: [NativeTableRowDescriptor]
     let summaryTable: NativeTableDescriptor

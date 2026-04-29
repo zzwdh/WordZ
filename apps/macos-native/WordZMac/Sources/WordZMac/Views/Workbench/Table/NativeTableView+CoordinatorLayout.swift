@@ -25,7 +25,7 @@ extension NativeTableView.Coordinator {
 
         for column in orderedVisibleColumns() {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.id))
-            tableColumn.title = column.sortIndicator.map { "\(column.title) \($0)" } ?? column.title
+            tableColumn.title = column.title
             tableColumn.minWidth = minimumWidth(for: column)
             tableColumn.maxWidth = maximumWidth(for: column)
             tableColumn.width = clampedWidth(storedWidth(for: column) ?? preferredWidth(for: column, density: density), for: column)
@@ -34,10 +34,46 @@ extension NativeTableView.Coordinator {
                 weight: column.sortIndicator == nil ? .medium : .bold
             )
             tableColumn.headerCell.alignment = alignment(for: column)
-            tableColumn.headerToolTip = column.title
+            tableColumn.sortDescriptorPrototype = column.sortDirection.map {
+                NSSortDescriptor(key: column.id, ascending: $0.isAscending)
+            }
+            tableColumn.headerToolTip = headerToolTip(for: column)
             tableView.addTableColumn(tableColumn)
+            if let sortDirection = column.sortDirection {
+                tableView.setIndicatorImage(sortIndicatorImage(for: sortDirection), in: tableColumn)
+            }
+        }
+        tableView.sortDescriptors = descriptor.columns.compactMap { column in
+            column.sortDirection.map { NSSortDescriptor(key: column.id, ascending: $0.isAscending) }
         }
         hasBuiltColumns = true
+    }
+
+    private func sortIndicatorImage(for direction: NativeTableSortDirection) -> NSImage? {
+        switch direction {
+        case .ascending:
+            return NSImage(named: NSImage.Name("NSAscendingSortIndicator"))
+        case .descending:
+            return NSImage(named: NSImage.Name("NSDescendingSortIndicator"))
+        }
+    }
+
+    private func headerToolTip(for column: NativeTableColumnDescriptor) -> String {
+        guard let direction = column.sortDirection else { return column.title }
+        switch direction {
+        case .ascending:
+            return wordZText(
+                "\(column.title)，升序排序",
+                "\(column.title), sorted ascending",
+                mode: .system
+            )
+        case .descending:
+            return wordZText(
+                "\(column.title)，降序排序",
+                "\(column.title), sorted descending",
+                mode: .system
+            )
+        }
     }
 
     func preferredWidth(for column: NativeTableColumnDescriptor, density: NativeTableDensityPreset) -> CGFloat {

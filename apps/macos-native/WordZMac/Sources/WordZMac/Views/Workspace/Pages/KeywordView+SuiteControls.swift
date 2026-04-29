@@ -231,19 +231,10 @@ extension KeywordView {
     var annotationSummaryCard: some View {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 8) {
-                Label(t("当前显示口径", "Current Display Profile"), systemImage: "slider.horizontal.3")
-                    .font(.headline)
-                Text(viewModel.annotationSummary(in: languageMode))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(
-                    t(
-                        "需要切换表层词、lemma 或词类范围时，使用工具栏里的标注显示菜单。",
-                        "Use the toolbar Annotation Display menu to switch surface tokens, lemmas, or part-of-speech scope."
-                    )
+                AnnotationFilterStatusStrip(
+                    state: viewModel.workspaceAnnotationState,
+                    resultCount: viewModel.scene?.totalRows
                 )
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
             }
         }
     }

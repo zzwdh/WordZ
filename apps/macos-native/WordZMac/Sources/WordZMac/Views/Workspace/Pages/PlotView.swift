@@ -93,19 +93,22 @@ struct PlotView: View {
             }
 
             WorkbenchTableCard {
-                PlotDistributionTableView(
-                    rows: scene.rows,
+                NativeTableView(
+                    descriptor: scene.table,
+                    snapshot: scene.tableSnapshot,
                     selectedRowID: viewModel.selectedRowID,
-                    selectedMarkerID: viewModel.selectedMarkerID,
                     onSelectionChange: { onAction(.selectRow($0)) },
+                    onDoubleClick: { _ in
+                        onAction(.openKWIC)
+                    },
+                    columnKey: PlotColumnKey.self,
+                    selectedMarkerID: viewModel.selectedMarkerID,
                     onMarkerSelectionChange: { rowID, markerID in
                         onAction(.selectMarker(rowID: rowID, markerID: markerID))
                     },
-                    onActivateRow: { _ in
-                        onAction(.openKWIC)
-                    },
                     emptyMessage: t("当前 Plot 结果没有可显示的文件。", "No Plot rows to display."),
-                    accessibilityLabel: t("Plot 分布结果表格", "Plot distribution results table")
+                    accessibilityLabel: t("Plot 分布结果表格", "Plot distribution results table"),
+                    activationHint: t("按 Return 打开 KWIC。", "Press Return to open in KWIC.")
                 )
             }
 

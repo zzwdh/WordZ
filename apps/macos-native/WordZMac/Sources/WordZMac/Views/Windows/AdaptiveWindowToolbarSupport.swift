@@ -251,7 +251,7 @@ struct SettingsWindowToolbar: ToolbarContent {
                 Button(wordZText("保存设置", "Save Settings", mode: languageMode)) {
                     onAction(.save)
                 }
-                .buttonStyle(.borderedProminent)
+                .adaptiveProminentToolbarButtonStyle()
             }
             .sharedBackgroundVisibility(.hidden)
         } else {
@@ -259,7 +259,7 @@ struct SettingsWindowToolbar: ToolbarContent {
                 Button(wordZText("保存设置", "Save Settings", mode: languageMode)) {
                     onAction(.save)
                 }
-                .buttonStyle(.borderedProminent)
+                .adaptiveProminentToolbarButtonStyle()
             }
         }
     }
@@ -309,5 +309,35 @@ extension View {
 
     func nativeTaskCenterSearchPresentation() -> some View {
         modifier(NativeTaskCenterSearchPresentationModifier())
+    }
+
+    func adaptiveGlassButtonStyle(prominent: Bool = false) -> some View {
+        modifier(AdaptiveGlassButtonStyleModifier(isProminent: prominent))
+    }
+
+    fileprivate func adaptiveProminentToolbarButtonStyle() -> some View {
+        adaptiveGlassButtonStyle(prominent: true)
+    }
+}
+
+private struct AdaptiveGlassButtonStyleModifier: ViewModifier {
+    let isProminent: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *),
+           NativePlatformCapabilities.current.supportsGlassButtons {
+            if isProminent {
+                content.buttonStyle(.glassProminent)
+            } else {
+                content.buttonStyle(.glass)
+            }
+        } else {
+            if isProminent {
+                content.buttonStyle(.borderedProminent)
+            } else {
+                content.buttonStyle(.bordered)
+            }
+        }
     }
 }

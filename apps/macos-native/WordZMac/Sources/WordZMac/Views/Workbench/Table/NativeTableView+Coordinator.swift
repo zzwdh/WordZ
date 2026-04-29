@@ -18,6 +18,8 @@ extension NativeTableView {
         var onDoubleClick: ((String) -> Void)?
         var onSortByColumn: ((String) -> Void)?
         var onToggleColumnFromHeader: ((String) -> Void)?
+        var selectedMarkerID: String?
+        var onMarkerSelectionChange: ((String, String?) -> Void)?
         var allowsMultipleSelection: Bool
         var isHeaderPinned: Bool
         var emptyMessage: String
@@ -37,6 +39,8 @@ extension NativeTableView {
             onDoubleClick: ((String) -> Void)?,
             onSortByColumn: ((String) -> Void)? = nil,
             onToggleColumnFromHeader: ((String) -> Void)? = nil,
+            selectedMarkerID: String? = nil,
+            onMarkerSelectionChange: ((String, String?) -> Void)? = nil,
             allowsMultipleSelection: Bool = true,
             isHeaderPinned: Bool = true,
             emptyMessage: String = "当前没有可显示的数据。",
@@ -47,16 +51,14 @@ extension NativeTableView {
             let resolvedRows = snapshot?.rows ?? rows
             self.rows = resolvedRows
             self.snapshotVersion = snapshot?.version
-            self.rowIndexByID = snapshot?.rowIndexByID ?? Dictionary(
-                uniqueKeysWithValues: resolvedRows.enumerated().map { index, row in
-                    (row.id, index)
-                }
-            )
+            self.rowIndexByID = snapshot?.rowIndexByID ?? NativeTableRowIndexing.firstIndexByID(resolvedRows)
             self.selectedRowID = selectedRowID
             self.onSelectionChange = onSelectionChange
             self.onDoubleClick = onDoubleClick
             self.onSortByColumn = onSortByColumn
             self.onToggleColumnFromHeader = onToggleColumnFromHeader
+            self.selectedMarkerID = selectedMarkerID
+            self.onMarkerSelectionChange = onMarkerSelectionChange
             self.allowsMultipleSelection = allowsMultipleSelection
             self.isHeaderPinned = isHeaderPinned
             self.emptyMessage = emptyMessage

@@ -69,6 +69,7 @@ struct PlotSceneModel: Equatable {
     let rows: [PlotSceneRow]
     let table: NativeTableDescriptor
     let tableRows: [NativeTableRowDescriptor]
+    let tableSnapshot: ResultTableSnapshot
     let exportMetadataLines: [String]
 
     func column(for key: PlotColumnKey) -> NativeTableColumnDescriptor? {

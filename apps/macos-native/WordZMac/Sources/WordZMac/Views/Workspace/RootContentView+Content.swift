@@ -5,7 +5,7 @@ extension RootContentView {
         MainWorkspaceSplitContainer(
             isSidebarVisible: layoutState.sidebarVisibilityBinding,
             isInspectorVisible: layoutState.inspectorVisibilityBinding,
-            topAccessory: workspaceTopAccessoryContent
+            topAccessory: usesWorkspaceTopAccessory ? workspaceTopAccessoryContent : nil
         ) {
             workspaceSidebarPane
         } detail: {
@@ -24,9 +24,16 @@ extension RootContentView {
     }
 
     var workspaceMainPane: some View {
-        currentDetailView
-            .environmentObject(viewModel.lexicalAutocomplete)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        VStack(spacing: 0) {
+            if !usesWorkspaceTopAccessory {
+                workspaceIssueBanner
+            }
+
+            currentDetailView
+                .environmentObject(viewModel.lexicalAutocomplete)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // Keep the main workspace on the stable window background until the
         // 26-specific detail pane treatment is tuned. The adaptive glass path
         // currently makes the analysis pane read as dimmed.
@@ -49,10 +56,15 @@ extension RootContentView {
     }
 
     var usesWorkspaceTopAccessory: Bool {
-        false
+        NativeWindowPresentationProfile.profile(for: .mainWorkspace)
+            .resolvedSplitAccessoryMode(capabilities: .current) == .mainWorkspaceTopAccessory
     }
 
     var workspaceTopAccessoryContent: AnyView? {
-        nil
+        guard viewModel.issueBanner != nil else { return nil }
+        return AnyView(
+            workspaceIssueBanner
+                .wordZVisualStyle(WordZVisualStyle.resolveAccessory(for: .mainWorkspace))
+        )
     }
 }

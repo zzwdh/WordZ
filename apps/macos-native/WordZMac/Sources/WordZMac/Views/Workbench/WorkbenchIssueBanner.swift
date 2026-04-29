@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct WorkbenchIssueBanner<Actions: View>: View {
+    @Environment(\.wordZVisualStyle) private var visualStyle
+
     let tone: WorkspaceIssueBannerTone
     let title: String
     let message: String
@@ -19,6 +21,21 @@ struct WorkbenchIssueBanner<Actions: View>: View {
     }
 
     var body: some View {
+        NativePlatformCapabilities.decorateIssueBannerSurface(
+            bannerContent,
+            style: visualStyle,
+            cornerRadius: 14
+        )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(tone.tint)
+                .frame(width: 4)
+                .padding(.vertical, 10)
+                .padding(.leading, 6)
+        }
+    }
+
+    private var bannerContent: some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: tone.symbolName)
                 .font(.title3.weight(.semibold))
@@ -38,14 +55,6 @@ struct WorkbenchIssueBanner<Actions: View>: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .workbenchCardChrome(cornerRadius: 14)
-        .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(tone.tint)
-                .frame(width: 4)
-                .padding(.vertical, 10)
-                .padding(.leading, 6)
-        }
     }
 }
 

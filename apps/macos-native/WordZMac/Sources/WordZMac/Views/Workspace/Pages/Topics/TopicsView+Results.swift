@@ -96,31 +96,24 @@ extension TopicsView {
             }
 
             WorkbenchResultControlsRow {
-                HStack(spacing: 12) {
-                    WorkbenchMenuPicker(
-                        title: t("排序", "Sort"),
-                        selection: Binding(
-                            get: { scene.controls.selectedSort },
-                            set: { onAction(.changeSort($0)) }
-                        ),
-                        options: Array(TopicSegmentSortMode.allCases)
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-
-                    WorkbenchGuardedPageSizePicker(
-                        title: t("页大小", "Page Size"),
-                        selection: Binding(
-                            get: { scene.controls.selectedPageSize },
-                            set: { onAction(.changePageSize($0)) }
-                        ),
-                        totalRows: scene.totalSegments
-                    ) {
-                        $0.title(in: languageMode)
-                    }
-                }
+                WorkbenchTablePrimaryControls(
+                    sortTitle: t("排序", "Sort"),
+                    selectedSort: Binding(
+                        get: { scene.controls.selectedSort },
+                        set: { onAction(.changeSort($0)) }
+                    ),
+                    sortOptions: Array(TopicSegmentSortMode.allCases),
+                    sortLabel: { $0.title(in: languageMode) },
+                    pageSizeTitle: t("页大小", "Page Size"),
+                    selectedPageSize: Binding(
+                        get: { scene.controls.selectedPageSize },
+                        set: { onAction(.changePageSize($0)) }
+                    ),
+                    totalRows: scene.totalSegments,
+                    pageSizeLabel: { $0.title(in: languageMode) }
+                )
             } trailing: {
-                WorkbenchResultTrailingControls(
+                WorkbenchTableSecondaryControls(
                     columnMenuTitle: t("列", "Columns"),
                     keys: TopicsColumnKey.allCases,
                     label: { scene.columnTitle(for: $0, mode: languageMode) },
@@ -130,16 +123,22 @@ extension TopicsView {
                     canGoForward: scene.pagination.canGoForward,
                     rangeLabel: scene.pagination.rangeLabel,
                     onPrevious: { onAction(.previousPage) },
-                    onNext: { onAction(.nextPage) }
-                ) {
-                    Menu(t("导出", "Export")) {
-                        Button(t("导出主题摘要", "Export Topics Summary")) { onAction(.exportSummary) }
-                            .disabled(scene.summaryExportSnapshot == nil)
-                        Button(t("导出主题片段", "Export Topic Segments")) { onAction(.exportSegments) }
-                            .disabled(scene.segmentsExportSnapshot == nil)
+                    onNext: { onAction(.nextPage) },
+                    leading: {
+                        Menu(t("导出", "Export")) {
+                            Button(t("导出主题摘要", "Export Topics Summary")) { onAction(.exportSummary) }
+                                .disabled(scene.summaryExportSnapshot == nil)
+                            Button(t("导出主题片段", "Export Topic Segments")) { onAction(.exportSegments) }
+                                .disabled(scene.segmentsExportSnapshot == nil)
+                        }
                     }
-                }
+                )
             }
+
+            AnnotationFilterStatusStrip(
+                state: viewModel.annotationState,
+                resultCount: scene.visibleSegments
+            )
         }
     }
 }

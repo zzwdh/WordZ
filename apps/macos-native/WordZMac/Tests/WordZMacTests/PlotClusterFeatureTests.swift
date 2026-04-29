@@ -246,11 +246,18 @@ final class PlotClusterSceneAndViewModelTests: XCTestCase {
         XCTAssertEqual(scene.selectedRowID, "corpus-2")
         XCTAssertEqual(scene.selectedMarkerID, "0-1")
         XCTAssertEqual(scene.table.storageKey, "plot")
+        XCTAssertEqual(scene.table.column(for: PlotColumnKey.plot)?.presentation, .custom(.markerStrip))
         XCTAssertEqual(scene.tableRows.first?.value(for: PlotColumnKey.row.rawValue), "1")
         XCTAssertEqual(scene.tableRows.first?.value(for: PlotColumnKey.fileID.rawValue), "0")
         XCTAssertEqual(scene.tableRows.first?.value(for: PlotColumnKey.filePath.rawValue), "/tmp/demo.txt")
         XCTAssertEqual(scene.tableRows.first?.value(for: PlotColumnKey.frequency.rawValue), "5")
         XCTAssertEqual(scene.tableRows.last?.value(for: PlotColumnKey.plot.rawValue), "0.25 | 0.75")
+        if case .custom(_, .markerStrip(let markers))? = scene.tableRows.last?.cell(for: PlotColumnKey.plot) {
+            XCTAssertEqual(markers.map(\.id), ["0-1", "1-3"])
+            XCTAssertEqual(markers.map(\.normalizedPosition), [0.25, 0.75])
+        } else {
+            XCTFail("Expected Plot table row to carry marker strip payload")
+        }
         XCTAssertTrue(scene.exportMetadataLines.contains("Query: alpha"))
         XCTAssertTrue(scene.exportMetadataLines.contains("Scope: Current Corpus Range"))
         XCTAssertTrue(scene.exportMetadataLines.contains("Total Hits: 7"))

@@ -11,6 +11,8 @@ struct NativeTableView: NSViewRepresentable {
     var onDoubleClick: ((String) -> Void)? = nil
     var onSortByColumn: ((String) -> Void)? = nil
     var onToggleColumnFromHeader: ((String) -> Void)? = nil
+    var selectedMarkerID: String? = nil
+    var onMarkerSelectionChange: ((String, String?) -> Void)? = nil
     var allowsMultipleSelection = true
     var emptyMessage: String = "当前没有可显示的数据。"
     var accessibilityLabel: String? = nil
@@ -61,6 +63,7 @@ struct NativeTableView: NSViewRepresentable {
         }
     }
 
+    @available(*, unavailable, message: "Pass ResultTableSnapshot with init(descriptor:snapshot:) so updates can compare snapshot versions instead of row contents.")
     init(
         descriptor: NativeTableDescriptor,
         rows: [NativeTableRowDescriptor],
@@ -69,6 +72,8 @@ struct NativeTableView: NSViewRepresentable {
         onDoubleClick: ((String) -> Void)? = nil,
         onSortByColumn: ((String) -> Void)? = nil,
         onToggleColumnFromHeader: ((String) -> Void)? = nil,
+        selectedMarkerID: String? = nil,
+        onMarkerSelectionChange: ((String, String?) -> Void)? = nil,
         allowsMultipleSelection: Bool = true,
         emptyMessage: String = "当前没有可显示的数据。",
         accessibilityLabel: String? = nil,
@@ -82,6 +87,8 @@ struct NativeTableView: NSViewRepresentable {
         self.onDoubleClick = onDoubleClick
         self.onSortByColumn = onSortByColumn
         self.onToggleColumnFromHeader = onToggleColumnFromHeader
+        self.selectedMarkerID = selectedMarkerID
+        self.onMarkerSelectionChange = onMarkerSelectionChange
         self.allowsMultipleSelection = allowsMultipleSelection
         self.emptyMessage = emptyMessage
         self.accessibilityLabel = accessibilityLabel
@@ -96,6 +103,8 @@ struct NativeTableView: NSViewRepresentable {
         onDoubleClick: ((String) -> Void)? = nil,
         onSortByColumn: ((String) -> Void)? = nil,
         onToggleColumnFromHeader: ((String) -> Void)? = nil,
+        selectedMarkerID: String? = nil,
+        onMarkerSelectionChange: ((String, String?) -> Void)? = nil,
         allowsMultipleSelection: Bool = true,
         emptyMessage: String = "当前没有可显示的数据。",
         accessibilityLabel: String? = nil,
@@ -109,6 +118,8 @@ struct NativeTableView: NSViewRepresentable {
         self.onDoubleClick = onDoubleClick
         self.onSortByColumn = onSortByColumn
         self.onToggleColumnFromHeader = onToggleColumnFromHeader
+        self.selectedMarkerID = selectedMarkerID
+        self.onMarkerSelectionChange = onMarkerSelectionChange
         self.allowsMultipleSelection = allowsMultipleSelection
         self.emptyMessage = emptyMessage
         self.accessibilityLabel = accessibilityLabel
@@ -125,6 +136,8 @@ struct NativeTableView: NSViewRepresentable {
             onDoubleClick: onDoubleClick,
             onSortByColumn: onSortByColumn,
             onToggleColumnFromHeader: onToggleColumnFromHeader,
+            selectedMarkerID: selectedMarkerID,
+            onMarkerSelectionChange: onMarkerSelectionChange,
             allowsMultipleSelection: allowsMultipleSelection,
             isHeaderPinned: isHeaderPinned,
             emptyMessage: emptyMessage,
@@ -166,6 +179,8 @@ struct NativeTableView: NSViewRepresentable {
             onDoubleClick: onDoubleClick,
             onSortByColumn: onSortByColumn,
             onToggleColumnFromHeader: onToggleColumnFromHeader,
+            selectedMarkerID: selectedMarkerID,
+            onMarkerSelectionChange: onMarkerSelectionChange,
             allowsMultipleSelection: allowsMultipleSelection,
             isHeaderPinned: isHeaderPinned,
             emptyMessage: emptyMessage,
@@ -185,6 +200,8 @@ struct NativeTableView: NSViewRepresentable {
             onDoubleClick: onDoubleClick,
             onSortByColumn: onSortByColumn,
             onToggleColumnFromHeader: onToggleColumnFromHeader,
+            selectedMarkerID: selectedMarkerID,
+            onMarkerSelectionChange: onMarkerSelectionChange,
             allowsMultipleSelection: allowsMultipleSelection,
             isHeaderPinned: isHeaderPinned,
             emptyMessage: emptyMessage,
