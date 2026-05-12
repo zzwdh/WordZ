@@ -160,59 +160,11 @@ extension SentimentPageViewModel {
 
     func rebuildScene() {
         guard let presentationResult else {
+            invalidatePendingSceneBuilds()
             scene = nil
             return
         }
-        let trimmedQuery = rowFilterQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let rowsForSelection = presentationResult.effectiveRows.filter { row in
-            let rawRow = row.rawRow
-            let matchesLabel = labelFilter.map { row.effectiveLabel == $0 } ?? true
-            let matchesReview = reviewFilter.includes(rawRow)
-            let matchesReviewStatus = reviewStatusFilter.includes(row)
-            let matchesHardCase = showOnlyHardCases
-                ? rawRow.diagnostics.reviewFlags.isEmpty == false || rawRow.mixedEvidence
-                : true
-            let matchesQuery: Bool
-            if trimmedQuery.isEmpty {
-                matchesQuery = true
-            } else {
-                let haystacks = [
-                    rawRow.text,
-                    rawRow.sourceTitle,
-                    rawRow.groupTitle ?? "",
-                    rawRow.evidence.map(\.surface).joined(separator: " "),
-                    rawRow.diagnostics.ruleSummary ?? "",
-                    rawRow.diagnostics.scopeNotes.joined(separator: " "),
-                    rawRow.diagnostics.ruleTraces.flatMap(\.appliedSteps).map(\.note).joined(separator: " "),
-                    row.reviewNote ?? ""
-                ].map { $0.localizedLowercase }
-                matchesQuery = haystacks.contains { $0.contains(trimmedQuery.localizedLowercase) }
-            }
-            return matchesLabel && matchesReview && matchesReviewStatus && matchesHardCase && matchesQuery
-        }
-        syncSelectedRow(within: rowsForSelection)
-        syncSelectedReviewNoteDraft()
-        scene = sceneBuilder.build(
-            from: presentationResult,
-            thresholdPreset: thresholdPreset,
-            filterQuery: rowFilterQuery,
-            labelFilter: labelFilter,
-            reviewFilter: reviewFilter,
-            reviewStatusFilter: reviewStatusFilter,
-            showOnlyHardCases: showOnlyHardCases,
-            sortMode: sortMode,
-            pageSize: pageSize,
-            currentPage: currentPage,
-            visibleColumns: visibleColumns,
-            selectedRowID: selectedRowID,
-            chartKind: chartKind,
-            additionalMetadataLines: exportMetadataLines(
-                annotationSummary: annotationState.summary(in: WordZLocalization.shared.effectiveMode),
-                languageMode: WordZLocalization.shared.effectiveMode
-            ),
-            languageMode: WordZLocalization.shared.effectiveMode
-        )
-        currentPage = scene?.pagination.currentPage ?? 1
+        rebuildScene(from: presentationResult)
     }
 
     func apply(_ snapshot: WorkspaceSnapshotSummary) {
@@ -320,6 +272,7 @@ extension SentimentPageViewModel {
         presentationResult = nil
         reviewSamples = []
         scene = nil
+        invalidatePendingSceneBuilds()
         backendNotice = nil
         selectedReviewNoteDraft = ""
         selectedReferenceSelection = .automatic
@@ -383,7 +336,7 @@ extension SentimentPageViewModel {
         }
     }
 
-    private func syncSelectedReviewNoteDraft() {
+    func syncSelectedReviewNoteDraft() {
         let nextValue = selectedReviewSample?.reviewNote ?? ""
         if selectedReviewNoteDraft != nextValue {
             selectedReviewNoteDraft = nextValue

@@ -55,9 +55,11 @@ struct SentimentSceneBuilder {
         selectedRowID: String?,
         chartKind: SentimentChartKind,
         additionalMetadataLines: [String] = [],
-        languageMode: AppLanguageMode = .system
+        languageMode: AppLanguageMode = .system,
+        filteredRows prefilteredRows: [SentimentEffectiveRow]? = nil,
+        sortedRows presortedRows: [SentimentEffectiveRow]? = nil
     ) -> SentimentSceneModel {
-        let filteredRows = filterRows(
+        let filteredRows = prefilteredRows ?? filterRows(
             presentationResult.effectiveRows,
             query: filterQuery,
             labelFilter: labelFilter,
@@ -65,7 +67,7 @@ struct SentimentSceneBuilder {
             reviewStatusFilter: reviewStatusFilter,
             showOnlyHardCases: showOnlyHardCases
         )
-        let sortedRows = sortRows(filteredRows, mode: sortMode)
+        let sortedRows = presortedRows ?? sortRows(filteredRows, mode: sortMode)
         let pagination = buildPagination(
             totalRows: sortedRows.count,
             currentPage: currentPage,
@@ -92,10 +94,7 @@ struct SentimentSceneBuilder {
             }
         }
 
-        let filteredSceneRows = sortedRows.map(makeSceneRow)
-        let positiveExamples = filteredSceneRows.filter { $0.effectiveLabel == .positive }.prefix(5)
-        let neutralExamples = filteredSceneRows.filter { $0.effectiveLabel == .neutral }.prefix(5)
-        let negativeExamples = filteredSceneRows.filter { $0.effectiveLabel == .negative }.prefix(5)
+        let examples = exampleRows(from: sortedRows)
         let exportMetadataLines = buildMetadataLines(
             presentationResult: presentationResult,
             thresholdPreset: thresholdPreset,
@@ -138,9 +137,9 @@ struct SentimentSceneBuilder {
             visibleRows: sceneRows.count,
             selectedRowID: selectedRowID,
             rows: sceneRows,
-            positiveExamples: Array(positiveExamples),
-            neutralExamples: Array(neutralExamples),
-            negativeExamples: Array(negativeExamples),
+            positiveExamples: examples.positive,
+            neutralExamples: examples.neutral,
+            negativeExamples: examples.negative,
             chartSegments: [
                 SentimentChartSegment(
                     label: .positive,
@@ -189,7 +188,7 @@ struct SentimentSceneBuilder {
         )
     }
 
-    private func filterRows(
+    func filterRows(
         _ rows: [SentimentEffectiveRow],
         query: String,
         labelFilter: SentimentLabel?,
@@ -198,6 +197,7 @@ struct SentimentSceneBuilder {
         showOnlyHardCases: Bool
     ) -> [SentimentEffectiveRow] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedQuery = trimmedQuery.localizedLowercase
         return rows.filter { row in
             let rawRow = row.rawRow
             let matchesLabel = labelFilter.map { row.effectiveLabel == $0 } ?? true
@@ -223,13 +223,13 @@ struct SentimentSceneBuilder {
                     row.rawLabel.rawValue,
                     row.effectiveLabel.rawValue
                 ].map { $0.localizedLowercase }
-                matchesQuery = haystacks.contains { $0.contains(trimmedQuery.localizedLowercase) }
+                matchesQuery = haystacks.contains { $0.contains(normalizedQuery) }
             }
             return matchesLabel && matchesReview && matchesReviewStatus && matchesHardCase && matchesQuery
         }
     }
 
-    private func sortRows(_ rows: [SentimentEffectiveRow], mode: SentimentSortMode) -> [SentimentEffectiveRow] {
+    func sortRows(_ rows: [SentimentEffectiveRow], mode: SentimentSortMode) -> [SentimentEffectiveRow] {
         switch mode {
         case .original:
             return rows
@@ -317,6 +317,32 @@ struct SentimentSceneBuilder {
             reviewedAt: row.reviewedAt,
             reviewSampleID: row.reviewSampleID
         )
+    }
+
+    private func exampleRows(from sortedRows: [SentimentEffectiveRow]) -> (
+        positive: [SentimentSceneRow],
+        neutral: [SentimentSceneRow],
+        negative: [SentimentSceneRow]
+    ) {
+        var positive: [SentimentSceneRow] = []
+        var neutral: [SentimentSceneRow] = []
+        var negative: [SentimentSceneRow] = []
+
+        for row in sortedRows {
+            guard positive.count < 5 || neutral.count < 5 || negative.count < 5 else { break }
+            switch row.effectiveLabel {
+            case .positive where positive.count < 5:
+                positive.append(makeSceneRow(row))
+            case .neutral where neutral.count < 5:
+                neutral.append(makeSceneRow(row))
+            case .negative where negative.count < 5:
+                negative.append(makeSceneRow(row))
+            default:
+                break
+            }
+        }
+
+        return (positive, neutral, negative)
     }
 
     private func evidencePreview(for row: SentimentRowResult) -> String {

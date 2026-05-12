@@ -260,7 +260,7 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.annotationProfile = annotationProfile
         self.annotationLexicalClasses = annotationLexicalClasses
         self.annotationScripts = annotationScripts
-        self.tokenizeLanguagePreset = tokenizeLanguagePreset
+        self.tokenizeLanguagePreset = tokenizeLanguagePreset.normalizedForTokenizeModule
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
         self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
@@ -429,7 +429,7 @@ struct NativePersistedWorkspaceSnapshot: Codable, Equatable {
         self.annotationProfile = try container.decodeIfPresent(WorkspaceAnnotationProfile.self, forKey: .annotationProfile) ?? .surface
         self.annotationLexicalClasses = try container.decodeIfPresent([TokenLexicalClass].self, forKey: .annotationLexicalClasses) ?? []
         self.annotationScripts = try container.decodeIfPresent([TokenScript].self, forKey: .annotationScripts) ?? []
-        self.tokenizeLanguagePreset = try container.decodeIfPresent(TokenizeLanguagePreset.self, forKey: .tokenizeLanguagePreset) ?? .mixedChineseEnglish
+        self.tokenizeLanguagePreset = (try container.decodeIfPresent(TokenizeLanguagePreset.self, forKey: .tokenizeLanguagePreset))?.normalizedForTokenizeModule ?? .defaultTokenizePreset
         self.tokenizeLemmaStrategy = try container.decodeIfPresent(TokenLemmaStrategy.self, forKey: .tokenizeLemmaStrategy) ?? .normalizedSurface
         self.compareReferenceCorpusID = try container.decodeIfPresent(String.self, forKey: .compareReferenceCorpusID) ?? ""
         self.compareSelectedCorpusIDs = try container.decodeIfPresent([String].self, forKey: .compareSelectedCorpusIDs) ?? []

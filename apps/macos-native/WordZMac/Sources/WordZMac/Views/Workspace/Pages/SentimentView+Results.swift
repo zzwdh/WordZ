@@ -137,7 +137,7 @@ extension SentimentView {
                     }
                     .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)
 
-                    Button(t("加入摘录", "Add to Clips")) {
+                    Button(t("加入证据篮", "Add to Evidence Basket")) {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     }
                     .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)

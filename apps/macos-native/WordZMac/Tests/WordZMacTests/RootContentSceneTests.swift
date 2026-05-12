@@ -467,6 +467,69 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertTrue(controller.splitViewItems[2].isCollapsed)
     }
 
+    func testMainWorkspaceSplitControllerSkipsHostedRootUpdatesWhenOnlyLayoutChanges() throws {
+        let initialRevision = WorkspaceSplitContentRevision(
+            sceneGraphRevision: 1,
+            selectedRoute: .stats,
+            runningTaskKeys: [],
+            issueBannerID: nil,
+            languageMode: .system,
+            annotationState: .default
+        )
+        let controller = MainWorkspaceSplitController(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: initialRevision
+        )
+
+        _ = controller.view
+        let sidebarHost = try XCTUnwrap(controller.splitViewItems[0].viewController as? HostedPaneViewController<EmptyView>)
+        let detailHost = try XCTUnwrap(controller.splitViewItems[1].viewController as? HostedPaneViewController<EmptyView>)
+        let inspectorHost = try XCTUnwrap(controller.splitViewItems[2].viewController as? HostedPaneViewController<EmptyView>)
+
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: initialRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: false,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(detailHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(inspectorHost.rootViewUpdateCount, 0)
+        XCTAssertTrue(controller.splitViewItems[0].isCollapsed)
+
+        let nextRevision = WorkspaceSplitContentRevision(
+            sceneGraphRevision: 2,
+            selectedRoute: .stats,
+            runningTaskKeys: [],
+            issueBannerID: nil,
+            languageMode: .system,
+            annotationState: .default
+        )
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: nextRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: false,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 1)
+        XCTAssertEqual(detailHost.rootViewUpdateCount, 1)
+        XCTAssertEqual(inspectorHost.rootViewUpdateCount, 1)
+    }
+
     func testRootContentDefaultLaunchControllerPresentsLibraryWindowOnFirstLaunch() async {
         var hasPresentedWindow = false
         let hostPreferencesStore = InMemoryHostPreferencesStore()

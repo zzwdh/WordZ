@@ -3,7 +3,7 @@ import Foundation
 @testable import WordZWorkspaceCore
 
 @MainActor
-final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository {
+final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository, StoredTokenPositionIndexReadingRepository {
     var startedUserDataURL: URL?
     var stopCalled = false
     var loadBootstrapStateCallCount = 0
@@ -83,6 +83,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var openedCorporaByID: [String: OpenedCorpus]
     var storedFrequencyArtifactsByCorpusID: [String: StoredFrequencyArtifact] = [:]
     var storedTokenizedArtifactsByCorpusID: [String: StoredTokenizedArtifact] = [:]
+    var storedTokenPositionIndexesByCorpusID: [String: StoredTokenPositionIndexArtifact] = [:]
     var librarySnapshot: LibrarySnapshot
     var recycleSnapshot: RecycleBinSnapshot
     var statsResult: StatsResult
@@ -464,6 +465,10 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
 
     func loadStoredTokenizedArtifact(corpusId: String) async throws -> StoredTokenizedArtifact? {
         storedTokenizedArtifactsByCorpusID[corpusId]
+    }
+
+    func loadStoredTokenPositionIndex(corpusId: String) async throws -> StoredTokenPositionIndexArtifact? {
+        storedTokenPositionIndexesByCorpusID[corpusId]
     }
 
     func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
@@ -1613,7 +1618,7 @@ func makeWorkspaceSnapshot(
     selectedCorpusSetID: String = "",
     corpusNames: [String] = ["Demo Corpus"],
     searchQuery: String = "keyword",
-    tokenizeLanguagePreset: TokenizeLanguagePreset = .mixedChineseEnglish,
+    tokenizeLanguagePreset: TokenizeLanguagePreset = .latinFocused,
     tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
     compareReferenceCorpusID: String = "",
     compareSelectedCorpusIDs: [String] = [],

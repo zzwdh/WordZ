@@ -194,6 +194,31 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene?.filteredRows, 0)
     }
 
+    func testSentimentThresholdChangesTriggerSingleInputChange() {
+        let viewModel = SentimentPageViewModel()
+        viewModel.apply(makeSentimentResult())
+        var inputChangeCount = 0
+        viewModel.onInputChange = {
+            inputChangeCount += 1
+        }
+
+        viewModel.handle(.changeThresholdPreset(.balanced))
+
+        XCTAssertEqual(inputChangeCount, 1)
+        XCTAssertEqual(viewModel.thresholdPreset, .balanced)
+        XCTAssertEqual(viewModel.decisionThreshold, SentimentThresholdPreset.balanced.thresholds.decisionThreshold)
+        XCTAssertEqual(viewModel.minimumEvidence, SentimentThresholdPreset.balanced.thresholds.minimumEvidence)
+        XCTAssertEqual(viewModel.neutralBias, SentimentThresholdPreset.balanced.thresholds.neutralBias)
+        XCTAssertEqual(viewModel.scene?.thresholdPreset, .balanced)
+
+        inputChangeCount = 0
+        viewModel.handle(.changeDecisionThreshold(0.42))
+
+        XCTAssertEqual(inputChangeCount, 1)
+        XCTAssertEqual(viewModel.thresholdPreset, .custom)
+        XCTAssertEqual(viewModel.decisionThreshold, 0.42)
+    }
+
     func testSentimentPageViewModelSupportsPagingActions() {
         let viewModel = SentimentPageViewModel()
         viewModel.apply(makePagedSentimentResult(rowCount: 60))
@@ -1793,6 +1818,62 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "query" })?.detail, "L1 / R1 · Phrase")
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.isCurrent, true)
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.detail, "Delta alpha.")
+    }
+
+    @MainActor
+    func testSourceReaderViewModelKeepsSentenceItemsStableWhenSelectingHits() async throws {
+        let repository = FakeWorkspaceRepository(tokenizeResult: makeTokenizeResult())
+        let viewModel = SourceReaderViewModel()
+
+        try await viewModel.load(
+            context: SourceReaderLaunchContext(
+                origin: .kwic,
+                corpusID: "corpus-1",
+                corpusName: "Corpus 1",
+                displayName: "Corpus 1",
+                filePath: "/tmp/source-reader-missing-fallback.txt",
+                query: "alpha",
+                leftWindow: 1,
+                rightWindow: 1,
+                searchOptionsSummary: nil,
+                hitAnchors: [
+                    SourceReaderHitAnchor(
+                        id: "0-0",
+                        sentenceId: 0,
+                        tokenIndex: 0,
+                        keyword: "Alpha",
+                        leftContext: "",
+                        rightContext: "beta gamma",
+                        concordanceText: "Alpha beta gamma",
+                        citationText: "Corpus 1 · Sentence 1",
+                        fullSentenceText: nil
+                    ),
+                    SourceReaderHitAnchor(
+                        id: "1-1",
+                        sentenceId: 1,
+                        tokenIndex: 1,
+                        keyword: "alpha",
+                        leftContext: "Delta",
+                        rightContext: "",
+                        concordanceText: "Delta alpha",
+                        citationText: "Corpus 1 · Sentence 2",
+                        fullSentenceText: nil
+                    )
+                ],
+                selectedHitID: "0-0",
+                fallbackText: "Alpha beta gamma.\nDelta alpha."
+            ),
+            repository: repository
+        )
+
+        let initialSentences = viewModel.scene?.sentences
+        XCTAssertEqual(viewModel.scene?.selectedSentenceID, 0)
+
+        viewModel.selectHit("1-1")
+
+        XCTAssertEqual(viewModel.scene?.selectedSentenceID, 1)
+        XCTAssertEqual(viewModel.scene?.sentences, initialSentences)
+        XCTAssertEqual(viewModel.scene?.selection?.hit.fullSentenceText, "Delta alpha.")
     }
 
     @MainActor

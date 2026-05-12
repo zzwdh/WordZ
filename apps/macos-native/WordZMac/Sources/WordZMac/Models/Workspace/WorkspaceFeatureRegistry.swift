@@ -1,8 +1,4 @@
 import Foundation
-import SwiftUI
-
-typealias WorkspaceFeatureDetailViewBuilder =
-    @MainActor (_ workspace: MainWorkspaceViewModel, _ dispatcher: WorkspaceActionDispatcher) -> AnyView
 
 enum WorkspaceFeatureKey: String, CaseIterable, Identifiable {
     case stats
@@ -36,7 +32,6 @@ struct WorkspaceFeatureDescriptor: Identifiable, Equatable {
     let showsInSidebar: Bool
     let showsInPagePicker: Bool
     let showsInCommands: Bool
-    let detailViewBuilder: WorkspaceFeatureDetailViewBuilder
 
     var id: WorkspaceFeatureKey { key }
 
@@ -46,14 +41,6 @@ struct WorkspaceFeatureDescriptor: Identifiable, Equatable {
 
     func sidebarSubtitle(in mode: AppLanguageMode) -> String {
         wordZText(sidebarSubtitleZh, sidebarSubtitleEn, mode: mode)
-    }
-
-    @MainActor
-    func makeDetailView(
-        workspace: MainWorkspaceViewModel,
-        dispatcher: WorkspaceActionDispatcher
-    ) -> AnyView {
-        detailViewBuilder(workspace, dispatcher)
     }
 
     static func == (lhs: WorkspaceFeatureDescriptor, rhs: WorkspaceFeatureDescriptor) -> Bool {
@@ -86,17 +73,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runStats,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    StatsView(
-                        viewModel: workspace.stats,
-                        sidebar: workspace.sidebar,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.stats),
-                        onAction: dispatcher.handleStatsAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .word,
@@ -110,16 +87,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runWord,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    WordView(
-                        viewModel: workspace.word,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.word),
-                        onAction: dispatcher.handleWordAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .tokenize,
@@ -133,16 +101,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runTokenize,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    TokenizeView(
-                        viewModel: workspace.tokenize,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.tokenize),
-                        onAction: dispatcher.handleTokenizeAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         topicsDescriptor(),
         .init(
@@ -157,16 +116,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runCompare,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    CompareView(
-                        viewModel: workspace.compare,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.compare),
-                        onAction: dispatcher.handleCompareAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         sentimentDescriptor(),
         .init(
@@ -181,16 +131,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runKeyword,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    KeywordView(
-                        viewModel: workspace.keyword,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.keyword),
-                        onAction: dispatcher.handleKeywordAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .chiSquare,
@@ -204,16 +145,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runChiSquare,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    ChiSquareView(
-                        viewModel: workspace.chiSquare,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.chiSquare),
-                        onAction: dispatcher.handleChiSquareAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .plot,
@@ -227,16 +159,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runPlot,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    PlotView(
-                        viewModel: workspace.plot,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.plot),
-                        onAction: dispatcher.handlePlotAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .ngram,
@@ -250,16 +173,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runNgram,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    NgramView(
-                        viewModel: workspace.ngram,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.ngram),
-                        onAction: dispatcher.handleNgramAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .cluster,
@@ -273,16 +187,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runCluster,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    ClusterView(
-                        viewModel: workspace.cluster,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.cluster),
-                        onAction: dispatcher.handleClusterAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .kwic,
@@ -296,17 +201,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runKWIC,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    KWICView(
-                        viewModel: workspace.kwic,
-                        evidenceWorkbench: workspace.evidenceWorkbench,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.kwic),
-                        onAction: dispatcher.handleKWICAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .collocate,
@@ -320,16 +215,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runCollocate,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    CollocateView(
-                        viewModel: workspace.collocate,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.collocate),
-                        onAction: dispatcher.handleCollocateAction
-                    )
-                )
-            }
+            showsInCommands: true
         ),
         .init(
             key: .locator,
@@ -343,17 +229,7 @@ enum WorkspaceFeatureRegistry {
             commandAction: .runLocator,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    LocatorView(
-                        viewModel: workspace.locator,
-                        evidenceWorkbench: workspace.evidenceWorkbench,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.locator),
-                        onAction: dispatcher.handleLocatorAction
-                    )
-                )
-            }
+            showsInCommands: true
         )
     ]
 

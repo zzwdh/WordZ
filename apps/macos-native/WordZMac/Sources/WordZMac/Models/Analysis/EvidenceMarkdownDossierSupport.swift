@@ -7,7 +7,7 @@ enum EvidenceMarkdownDossierSupport {
         var errorDescription: String? {
             switch self {
             case .emptySelection:
-                return wordZText("没有已标记为保留的证据条目。", "There are no kept evidence items to export.", mode: .system)
+                return wordZText("没有已标记为保留的证据条目。", "There are no kept evidence items to save.", mode: .system)
             }
         }
     }
@@ -32,39 +32,39 @@ enum EvidenceMarkdownDossierSupport {
         let itemNumbers = evidenceNumberLookup(groups: groups)
 
         var lines: [String] = [
-            "# " + wordZText("分析摘录", "Analysis Clips", mode: .system),
+            wordZText("写作素材", "Writing Material", mode: .system),
             "",
-            wordZText("导出时间", "Exported At", mode: .system) + ": " + exportedAtText,
+            wordZText("保存时间", "Saved At", mode: .system) + ": " + exportedAtText,
             wordZText("保留证据", "Kept Items", mode: .system) + ": \(keptItems.count)",
             wordZText("组织方式", "Grouping", mode: .system) + ": " + grouping.title(in: .system)
         ]
         if let filterSummary = normalizedValue(filterSummary) {
-            lines.append(wordZText("导出范围", "Export Scope", mode: .system) + ": " + filterSummary)
+            lines.append(wordZText("保存范围", "Save Scope", mode: .system) + ": " + filterSummary)
         }
 
         lines.append("")
-        lines.append("## " + wordZText("方法摘要", "Method Summary", mode: .system))
+        lines.append(wordZText("整理摘要", "Review Summary", mode: .system))
         lines.append(contentsOf: methodSummaryLines(items: keptItems, groups: groups))
         lines.append("")
-        lines.append("## " + wordZText("证据索引", "Evidence Index", mode: .system))
+        lines.append(wordZText("证据索引", "Evidence Index", mode: .system))
         lines.append(contentsOf: evidenceIndexLines(groups: groups, itemNumbers: itemNumbers))
         lines.append("")
-        lines.append("## " + wordZText("元数据缺口", "Metadata Gaps", mode: .system))
+        lines.append(wordZText("来源元数据检查", "Source Metadata Check", mode: .system))
         lines.append(contentsOf: metadataGapLines(items: keptItems, itemNumbers: itemNumbers))
 
         for group in groups {
             lines.append("")
-            lines.append("## \(group.title)")
+            lines.append(group.title)
             if let subtitle = normalizedValue(group.subtitle) {
                 lines.append("")
-                lines.append("> " + subtitle)
+                lines.append(subtitle)
             }
             lines.append("")
             lines.append("- " + wordZText("条目数", "Items", mode: .system) + ": \(group.items.count)")
 
             for item in group.items {
                 lines.append("")
-                lines.append("### \(evidenceLabel(for: item, itemNumbers: itemNumbers)). \(item.keyword)")
+                lines.append("\(evidenceLabel(for: item, itemNumbers: itemNumbers)). \(item.keyword)")
                 lines.append("")
                 lines.append("- " + wordZText("来源", "Source", mode: .system) + ": " + item.sourceKind.title(in: .system))
                 lines.append("- " + wordZText("语料", "Corpus", mode: .system) + ": " + item.corpusName)
@@ -74,51 +74,51 @@ enum EvidenceMarkdownDossierSupport {
                     lines.append("- " + wordZText("命中集", "Hit Set", mode: .system) + ": " + savedSetName)
                 }
                 if let sectionTitle = normalizedValue(item.sectionTitle) {
-                    lines.append("- " + wordZText("章节", "Section", mode: .system) + ": " + sectionTitle)
+                    lines.append("- " + wordZText("证据组", "Evidence Group", mode: .system) + ": " + sectionTitle)
                 }
                 if let claim = normalizedValue(item.claim) {
-                    lines.append("- " + wordZText("论点", "Claim", mode: .system) + ": " + claim)
+                    lines.append("- " + wordZText("发现线索", "Finding", mode: .system) + ": " + claim)
                 }
                 if !item.tags.isEmpty {
                     lines.append("- " + wordZText("标签", "Tags", mode: .system) + ": " + item.tags.joined(separator: ", "))
                 }
-                lines.append("- " + wordZText("引文格式", "Citation Format", mode: .system) + ": " + item.citationFormat.title(in: .system))
-                lines.append("- " + wordZText("引用样式", "Citation Style", mode: .system) + ": " + item.citationStyle.title(in: .system))
+                lines.append("- " + wordZText("引文文本", "Citation Text", mode: .system) + ": " + item.citationFormat.title(in: .system))
+                lines.append("- " + wordZText("引用样式", "Reference Style", mode: .system) + ": " + item.citationStyle.title(in: .system))
                 lines.append("")
-                lines.append("#### " + wordZText("索引行", "Concordance", mode: .system))
+                lines.append(wordZText("索引行", "Concordance", mode: .system) + ":")
                 lines.append(item.concordanceText)
                 lines.append("")
-                lines.append("#### " + wordZText("完整句", "Full Sentence", mode: .system))
+                lines.append(wordZText("完整句", "Full Sentence", mode: .system) + ":")
                 lines.append(item.fullSentenceText)
                 lines.append("")
-                lines.append("#### " + wordZText("引文", "Citation", mode: .system))
+                lines.append(wordZText("引文", "Citation", mode: .system) + ":")
                 lines.append(item.styledCitationText)
                 if let note = normalizedValue(item.note) {
                     lines.append("")
-                    lines.append("#### " + wordZText("备注", "Note", mode: .system))
+                    lines.append(wordZText("备注", "Note", mode: .system) + ":")
                     lines.append(note)
                 }
                 if let sentimentMetadata = item.sentimentMetadata {
                     lines.append("")
-                    lines.append("#### " + wordZText("情感 Provenance", "Sentiment Provenance", mode: .system))
+                    lines.append(wordZText("情感溯源", "Sentiment Trace", mode: .system) + ":")
                     lines.append(contentsOf: sentimentMetadataLines(sentimentMetadata))
                 }
                 if let crossAnalysisMetadata = item.crossAnalysisMetadata {
                     lines.append("")
-                    lines.append("#### " + wordZText("跨分析 Provenance", "Cross-analysis Provenance", mode: .system))
+                    lines.append(wordZText("跨分析溯源", "Cross-analysis Trace", mode: .system) + ":")
                     lines.append(contentsOf: crossAnalysisMetadataLines(crossAnalysisMetadata))
                 }
             }
         }
 
         lines.append("")
-        lines.append("## " + wordZText("参考来源", "References", mode: .system))
+        lines.append(wordZText("参考来源", "References", mode: .system))
         lines.append(contentsOf: referenceLines(items: keptItems, itemNumbers: itemNumbers))
 
         return PlainTextExportDocument(
-            suggestedName: "analysis-clips.md",
+            suggestedName: "wordz-writing-material.txt",
             text: lines.joined(separator: "\n"),
-            allowedExtension: "md"
+            allowedExtension: "txt"
         )
     }
 
@@ -155,8 +155,8 @@ enum EvidenceMarkdownDossierSupport {
             "- " + wordZText("审校范围", "Review Scope", mode: .system) + ": " + wordZText("仅保留证据", "Kept evidence only", mode: .system),
             "- " + wordZText("证据分组", "Evidence Groups", mode: .system) + ": \(groups.count)",
             "- " + wordZText("来源分布", "Source Mix", mode: .system) + ": " + sourceMixSummary(items),
-            "- " + wordZText("引文格式分布", "Citation Formats", mode: .system) + ": " + citationFormatSummary(items),
-            "- " + wordZText("引用样式分布", "Citation Styles", mode: .system) + ": " + citationStyleSummary(items)
+            "- " + wordZText("引文文本分布", "Citation Text Formats", mode: .system) + ": " + citationFormatSummary(items),
+            "- " + wordZText("引用样式分布", "Reference Styles", mode: .system) + ": " + citationStyleSummary(items)
         ]
     }
 
@@ -165,27 +165,26 @@ enum EvidenceMarkdownDossierSupport {
         itemNumbers: [String: Int]
     ) -> [String] {
         var lines = [
-            "| " + [
+            [
                 wordZText("编号", "ID", mode: .system),
                 wordZText("关键词", "Keyword", mode: .system),
                 wordZText("语料", "Corpus", mode: .system),
                 wordZText("分组", "Group", mode: .system),
-                wordZText("论点", "Claim", mode: .system),
-                wordZText("引用样式", "Citation Style", mode: .system)
-            ].joined(separator: " | ") + " |",
-            "| --- | --- | --- | --- | --- | --- |"
+                wordZText("发现线索", "Finding", mode: .system),
+                wordZText("引用样式", "Reference Style", mode: .system)
+            ].joined(separator: "\t")
         ]
 
         for group in groups {
             for item in group.items {
-                lines.append("| " + [
+                lines.append([
                     evidenceLabel(for: item, itemNumbers: itemNumbers),
-                    markdownTableCell(item.keyword),
-                    markdownTableCell(item.corpusName),
-                    markdownTableCell(group.title),
-                    markdownTableCell(normalizedValue(item.claim) ?? wordZText("未归类", "Unclaimed", mode: .system)),
-                    markdownTableCell(item.citationStyle.title(in: .system))
-                ].joined(separator: " | ") + " |")
+                    plainTextCell(item.keyword),
+                    plainTextCell(item.corpusName),
+                    plainTextCell(group.title),
+                    plainTextCell(normalizedValue(item.claim) ?? wordZText("未标注", "Unlabeled", mode: .system)),
+                    plainTextCell(item.citationStyle.title(in: .system))
+                ].joined(separator: "\t"))
             }
         }
         return lines
@@ -323,9 +322,10 @@ enum EvidenceMarkdownDossierSupport {
             .joined(separator: " · ")
     }
 
-    private static func markdownTableCell(_ value: String) -> String {
-        let normalized = value.replacingOccurrences(of: "\n", with: " ")
-        return normalized.replacingOccurrences(of: "|", with: "\\|")
+    private static func plainTextCell(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
     }
 
     private static func sentimentMetadataLines(

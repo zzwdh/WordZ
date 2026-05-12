@@ -50,6 +50,7 @@ final class EngineeringGuardrailTests: XCTestCase {
             ("Views/Workspace/Pages/SentimentView+Controls.swift", 440),
             ("Views/Workspace/Pages/SentimentView+Results.swift", 340),
             ("Views/Workspace/Pages/SentimentView+Inspector.swift", 260),
+            ("Views/Workspace/WorkspaceFeatureFactory.swift", 180),
             ("Models/Analysis/EvidenceWorkbenchDossierModels.swift", 40),
             ("Models/Analysis/EvidenceWorkbenchGroupingMode+Messages.swift", 700),
             ("Models/Workspace/WorkspaceFeatureRegistry.swift", 400),
@@ -163,6 +164,133 @@ final class EngineeringGuardrailTests: XCTestCase {
         XCTAssertTrue(contents.contains("WorkspaceActionDispatcherTests"))
         XCTAssertTrue(contents.contains("WorkspaceFeatureRegistryTests"))
         XCTAssertFalse(contents.contains("MainWorkspaceViewModelTests"))
+    }
+
+    func testArchitectureContractDocumentsTargetsAndGuardedBoundaries() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let contractURL = root.appendingPathComponent("ARCHITECTURE.md")
+        let contents = try String(contentsOf: contractURL, encoding: .utf8)
+
+        let packageTargets = [
+            "WordZMac",
+            "WordZAppShell",
+            "WordZWorkspaceFeature",
+            "WordZLibraryFeature",
+            "WordZWorkbenchUI",
+            "WordZWindowing",
+            "WordZWorkspaceCore",
+            "WordZAnalysis",
+            "WordZStorage",
+            "WordZEngine",
+            "WordZHost",
+            "WordZExport",
+            "WordZDiagnostics",
+            "WordZShared"
+        ]
+
+        for target in packageTargets {
+            XCTAssertTrue(
+                contents.contains("`\(target)`"),
+                "ARCHITECTURE.md should document \(target)."
+            )
+        }
+
+        let requiredBoundaries = [
+            "Scripts/architecture-guard.sh",
+            "Scripts/engineering-guard.sh",
+            "App/Composition",
+            "Models/Workspace",
+            "Views/Workspace/WorkspaceFeatureFactory.swift",
+            "WorkspaceStateDraft",
+            "NativePersistedWorkspaceSnapshot"
+        ]
+
+        for boundary in requiredBoundaries {
+            XCTAssertTrue(
+                contents.contains(boundary),
+                "ARCHITECTURE.md should document \(boundary)."
+            )
+        }
+    }
+
+    func testArchitectureGuardKeepsWorkspaceModelsFreeOfUIFrameworks() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let scriptURL = root.appendingPathComponent("Scripts/architecture-guard.sh")
+        let scriptContents = try String(contentsOf: scriptURL, encoding: .utf8)
+        XCTAssertTrue(scriptContents.contains("check_workspace_models_do_not_import_ui_frameworks"))
+        XCTAssertTrue(scriptContents.contains("check_workspace_feature_registry_is_data_only"))
+
+        let modelsRoot = root.appendingPathComponent("Sources/WordZMac/Models/Workspace", isDirectory: true)
+        let enumerator = FileManager.default.enumerator(
+            at: modelsRoot,
+            includingPropertiesForKeys: nil
+        )
+        let swiftFiles = (enumerator?.compactMap { $0 as? URL } ?? [])
+            .filter { $0.pathExtension == "swift" }
+
+        for url in swiftFiles {
+            let contents = try String(contentsOf: url, encoding: .utf8)
+            XCTAssertFalse(
+                contents.contains("import SwiftUI") || contents.contains("import AppKit"),
+                "\(url.path) should keep Workspace models free of UI framework imports."
+            )
+        }
+
+        let registryFiles = [
+            "WorkspaceFeatureRegistry.swift",
+            "WorkspaceFeatureRegistry+MigratedVerticals.swift"
+        ]
+        let viewConstructionTokens = [
+            "AnyView",
+            "detailViewBuilder",
+            "StatsView(",
+            "WordView(",
+            "TokenizeView(",
+            "TopicsView(",
+            "CompareView(",
+            "SentimentView(",
+            "KeywordView(",
+            "ChiSquareView(",
+            "PlotView(",
+            "NgramView(",
+            "ClusterView(",
+            "KWICView(",
+            "CollocateView(",
+            "LocatorView("
+        ]
+
+        for fileName in registryFiles {
+            let contents = try String(
+                contentsOf: modelsRoot.appendingPathComponent(fileName),
+                encoding: .utf8
+            )
+            for token in viewConstructionTokens {
+                XCTAssertFalse(
+                    contents.contains(token),
+                    "\(fileName) should not construct SwiftUI feature pages."
+                )
+            }
+        }
+    }
+
+    func testWorkspaceStateModelsStayStructurallyAligned() {
+        let draftLabels = Set(storedPropertyLabels(of: WorkspaceStateDraft.empty))
+        XCTAssertEqual(
+            Set(storedPropertyLabels(of: WorkspaceSnapshotSummary.empty)),
+            draftLabels,
+            "WorkspaceSnapshotSummary should add/remove fields with WorkspaceStateDraft."
+        )
+        XCTAssertEqual(
+            Set(storedPropertyLabels(of: NativePersistedWorkspaceSnapshot.empty)),
+            draftLabels,
+            "NativePersistedWorkspaceSnapshot should add/remove fields with WorkspaceStateDraft."
+        )
     }
 
     func testMigratedAnalysisTablesUseSharedSectionAndSnapshots() throws {
@@ -280,5 +408,9 @@ final class EngineeringGuardrailTests: XCTestCase {
         let seconds = Double(components.seconds) * 1_000
         let attoseconds = Double(components.attoseconds) / 1_000_000_000_000_000
         return seconds + attoseconds
+    }
+
+    private func storedPropertyLabels<T>(of value: T) -> [String] {
+        Mirror(reflecting: value).children.compactMap(\.label)
     }
 }

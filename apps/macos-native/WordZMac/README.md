@@ -17,6 +17,15 @@ swift run --package-path apps/macos-native/WordZMac
 - 独立 mac 用户数据目录与文档窗口语义
 - 原生菜单、辅助窗口、任务中心、欢迎页
 
+## 架构约定
+
+长期模块边界和演进规则记录在 [`ARCHITECTURE.md`](ARCHITECTURE.md)。修改目录结构、
+SwiftPM target、工作区功能路由或核心边界守卫时，需要同步更新这份契约，并运行：
+
+```bash
+zsh apps/macos-native/WordZMac/Scripts/engineering-guard.sh
+```
+
 ## 打包
 
 在仓库根目录执行：

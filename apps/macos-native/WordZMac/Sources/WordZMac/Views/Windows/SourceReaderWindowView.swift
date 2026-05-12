@@ -77,7 +77,7 @@ struct SourceReaderWindowView: View {
                         }
                         .disabled(sourceReader.currentPreparedCitationText == nil)
 
-                        Button(t("加入摘录", "Add to Clips")) {
+                        Button(t("加入证据篮", "Add to Evidence Basket")) {
                             Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
                         }
                         .disabled(!sourceReader.canAddEvidence)
@@ -247,7 +247,11 @@ struct SourceReaderWindowView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .fill(sentence.isSelected ? Color.accentColor.opacity(0.12) : WordZTheme.primarySurfaceSoft)
+                                                .fill(
+                                                    sentence.sentenceId == scene.selectedSentenceID
+                                                        ? Color.accentColor.opacity(0.12)
+                                                        : WordZTheme.primarySurfaceSoft
+                                                )
                                         )
                                     }
                                 }
@@ -263,8 +267,8 @@ struct SourceReaderWindowView: View {
                 title: t("还没有原文阅读内容", "No source reader content yet"),
                 systemImage: "doc.text.magnifyingglass",
                 message: t(
-                    "先从 KWIC、定位器或 Plot 选择一条带 provenance 的结果，再打开原文阅读器。",
-                    "Select a provenance-backed result from KWIC, Locator, or Plot, then open the source reader."
+                    "先从 KWIC、定位器或 Plot 选择一条带来源记录的结果，再打开原文阅读器。",
+                    "Select a source-backed result from KWIC, Locator, or Plot, then open the source reader."
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)

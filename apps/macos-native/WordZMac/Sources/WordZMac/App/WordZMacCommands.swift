@@ -229,7 +229,7 @@ struct WordZMacCommands: Commands {
 
             Divider()
 
-            Button(t("导出研究报告包…", "Export Research Report Bundle…")) {
+            Button(t("导出分析材料包…", "Export Analysis Materials Bundle…")) {
                 performFocusedCommand("exportReportBundle") { context in
                     await exportReportBundle(using: context)
                 }
@@ -242,7 +242,7 @@ struct WordZMacCommands: Commands {
 
     @CommandsBuilder
     private var dossierAndAnnotationCommands: some Commands {
-        CommandMenu(t("Dossier", "Dossier")) {
+        CommandMenu(t("证据", "Evidence")) {
             Section(t("当前分组", "Current Group")) {
                 Button(evidenceGroupingMode.moveSelectedGroupTitle(.up, in: localization.effectiveMode)) {
                     performFocusedCommand("moveSelectedEvidenceGroup.up") { context in
@@ -284,19 +284,12 @@ struct WordZMacCommands: Commands {
 
             Divider()
 
-            Button(t("导出摘录", "Export Clips")) {
+            Button(t("保存保留条目为文本…", "Save Kept Items as Text…")) {
                 performFocusedCommand("exportEvidenceDossier") { context in
                     await exportEvidenceDossier(using: context)
                 }
             }
             .disabled(!isContextEnabled(\.canExportEvidenceDossier))
-
-            Button(t("导出 JSON", "Export JSON")) {
-                performFocusedCommand("exportEvidenceJSON") { context in
-                    await exportEvidenceJSON(using: context)
-                }
-            }
-            .disabled(!isContextEnabled(\.canExportEvidenceJSON))
         }
 
         annotationAndHelpCommands

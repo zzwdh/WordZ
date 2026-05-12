@@ -167,6 +167,7 @@ package final class NativeAppContainer {
     package func makeMainWorkspaceViewModel() -> MainWorkspaceViewModel {
         let featurePages = makeFeaturePages()
         _ = WorkspaceFeaturePageHandles(bundle: featurePages)
+        let pageViewModels = WorkspacePageViewModelBundle(featurePages: featurePages)
         let dialogService = makeDialogService()
         let sceneStore = makeSceneStore()
         let sessionStore = makeSessionStore()
@@ -213,25 +214,26 @@ package final class NativeAppContainer {
             diagnosticsBundleService: makeDiagnosticsBundleService(),
             taskCenter: taskCenter,
             sessionStore: sessionStore,
-            sidebar: LibrarySidebarViewModel(),
-            shell: WorkspaceShellViewModel(),
-            library: LibraryManagementViewModel(),
-            stats: StatsPageViewModel(),
-            word: WordPageViewModel(),
-            tokenize: TokenizePageViewModel(),
-            topics: featurePages.topics,
-            compare: ComparePageViewModel(),
-            sentiment: featurePages.sentiment,
-            keyword: KeywordPageViewModel(),
-            chiSquare: ChiSquarePageViewModel(),
-            plot: PlotPageViewModel(),
-            ngram: NgramPageViewModel(),
-            cluster: ClusterPageViewModel(),
-            kwic: KWICPageViewModel(),
-            collocate: CollocatePageViewModel(),
-            locator: LocatorPageViewModel(),
-            evidenceWorkbench: featurePages.evidenceWorkbench,
-            settings: WorkspaceSettingsViewModel()
+            sidebar: pageViewModels.sidebar,
+            shell: pageViewModels.shell,
+            library: pageViewModels.library,
+            stats: pageViewModels.stats,
+            word: pageViewModels.word,
+            tokenize: pageViewModels.tokenize,
+            topics: pageViewModels.featurePages.topics,
+            compare: pageViewModels.compare,
+            sentiment: pageViewModels.featurePages.sentiment,
+            keyword: pageViewModels.keyword,
+            chiSquare: pageViewModels.chiSquare,
+            plot: pageViewModels.plot,
+            ngram: pageViewModels.ngram,
+            cluster: pageViewModels.cluster,
+            kwic: pageViewModels.kwic,
+            collocate: pageViewModels.collocate,
+            locator: pageViewModels.locator,
+            evidenceWorkbench: pageViewModels.featurePages.evidenceWorkbench,
+            sourceReader: pageViewModels.sourceReader,
+            settings: pageViewModels.settings
         )
     }
 }

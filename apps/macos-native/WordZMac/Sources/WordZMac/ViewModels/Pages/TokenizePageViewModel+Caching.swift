@@ -2,16 +2,17 @@ import Foundation
 
 extension TokenizePageViewModel {
     func resolvedPresetFilteredTokens(for result: TokenizeResult) -> [TokenizedToken] {
+        let tokenizePreset = languagePreset.normalizedForTokenizeModule
         if let cachedPresetFilteredTokens,
-           cachedLanguagePreset == languagePreset {
+           cachedLanguagePreset == tokenizePreset {
             return cachedPresetFilteredTokens
         }
         let tokens = sceneBuilder.filterPresetTokens(
             from: result,
-            languagePreset: languagePreset
+            languagePreset: tokenizePreset
         )
         cachedPresetFilteredTokens = tokens
-        cachedLanguagePreset = languagePreset
+        cachedLanguagePreset = tokenizePreset
         cachedFilteredTokens = nil
         cachedFilteredError = ""
         cachedFilterQuery = ""

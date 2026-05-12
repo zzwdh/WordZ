@@ -5,6 +5,8 @@ struct LexicalAutocompleteTextField: NSViewRepresentable {
     let title: String
     @Binding var text: String
     let searchOptions: SearchOptionsState
+    var stopwordFilter: StopwordFilterState = .default
+    var suggestionScope: LexicalSuggestionScope? = nil
     @ObservedObject var controller: LexicalAutocompleteController
     var maxSuggestions = 8
 
@@ -91,6 +93,8 @@ extension LexicalAutocompleteTextField {
             let nextSuggestions = parent.controller.suggestions(
                 for: query,
                 options: parent.searchOptions,
+                stopwordFilter: parent.stopwordFilter,
+                scope: parent.suggestionScope,
                 limit: parent.maxSuggestions
             )
             applySuggestions(nextSuggestions, for: query, forcePresentation: forcePresentation)
@@ -239,7 +243,7 @@ extension LexicalAutocompleteTextField {
             termColumn.resizingMask = .autoresizingMask
             termColumn.width = 220
             let countColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("count"))
-            countColumn.width = 76
+            countColumn.width = 116
 
             tableView.addTableColumn(termColumn)
             tableView.addTableColumn(countColumn)
@@ -254,15 +258,36 @@ extension LexicalAutocompleteTextField {
 
             switch columnID {
             case "count":
-                label.stringValue = "\(suggestion.count)"
+                label.stringValue = Self.detailText(for: suggestion)
                 label.alignment = .right
                 label.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
                 label.textColor = .secondaryLabelColor
             default:
-                label.stringValue = suggestion.term
+                label.stringValue = Self.termText(for: suggestion)
                 label.alignment = .left
                 label.font = .systemFont(ofSize: NSFont.systemFontSize)
                 label.textColor = .labelColor
+            }
+        }
+
+        private static func termText(for suggestion: LexicalSuggestion) -> String {
+            switch suggestion.source {
+            case .prefix:
+                return suggestion.term
+            case .collocate:
+                let label = wordZText("搭配", "Collocate", mode: WordZLocalization.shared.effectiveMode)
+                return "\(label)  \(suggestion.term)"
+            }
+        }
+
+        private static func detailText(for suggestion: LexicalSuggestion) -> String {
+            switch suggestion.source {
+            case .prefix:
+                return "\(suggestion.count)"
+            case .collocate:
+                let score = suggestion.score.map { String(format: "%.2f", $0) } ?? "0.00"
+                let cooccurrence = suggestion.cooccurrence ?? 0
+                return "LD \(score) / \(cooccurrence)"
             }
         }
 
@@ -455,9 +480,9 @@ extension LexicalAutocompleteTextField {
             guard field.bounds.width > 0, field.bounds.height > 0 else { return }
 
             let safeMaxSuggestions = min(max(1, parent.maxSuggestions), 6)
-            let width = min(max(field.bounds.width, 260), 360)
+            let width = min(max(field.bounds.width, 300), 420)
             let visibleRowCount = min(max(1, suggestions.count), safeMaxSuggestions)
-            let countColumnWidth: CGFloat = 76
+            let countColumnWidth: CGFloat = 116
             let height = CGFloat(visibleRowCount) * tableView.rowHeight + 8
 
             if let termColumn = tableView.tableColumns.first(where: { $0.identifier.rawValue == "term" }),

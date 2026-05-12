@@ -19,13 +19,11 @@ extension TokenizeView {
 
                 WorkbenchAdaptiveControls {
                     HStack(spacing: 12) {
-                        languagePresetPicker
                         annotationProfilePicker
                         Spacer(minLength: 0)
                     }
                 } compact: {
                     VStack(alignment: .leading, spacing: 12) {
-                        languagePresetPicker
                         annotationProfilePicker
                     }
                 }
@@ -42,19 +40,10 @@ extension TokenizeView {
             title: t("搜索 token（留空显示全部）", "Search tokens (leave blank for all)"),
             text: $viewModel.query,
             searchOptions: viewModel.searchOptions,
+            stopwordFilter: viewModel.stopwordFilter,
             controller: lexicalAutocompleteController
         )
             .layoutPriority(1)
-    }
-
-    var languagePresetPicker: some View {
-        WorkbenchMenuPicker(
-            title: t("语言预设", "Language Preset"),
-            selection: $viewModel.languagePreset,
-            options: Array(TokenizeLanguagePreset.allCases)
-        ) {
-            $0.title(in: languageMode)
-        }
     }
 
     var annotationProfilePicker: some View {
@@ -80,6 +69,6 @@ extension TokenizeView {
     }
 
     var tokenizeControlSummary: String {
-        "\(viewModel.languagePreset.title(in: languageMode)) · \(viewModel.annotationProfile.title(in: languageMode))"
+        viewModel.annotationProfile.title(in: languageMode)
     }
 }

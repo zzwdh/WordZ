@@ -54,6 +54,7 @@ extension CollocateView {
             title: t("节点词", "Node Word"),
             text: $viewModel.keyword,
             searchOptions: viewModel.searchOptions,
+            stopwordFilter: viewModel.stopwordFilter,
             controller: lexicalAutocompleteController
         )
     }

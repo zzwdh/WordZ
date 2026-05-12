@@ -76,7 +76,7 @@ enum EvidenceWorkbenchGroupingSupport {
             }
             return (
                 "section:__unsectioned__",
-                wordZText("未分组章节", "Unsectioned", mode: mode),
+                wordZText("未分组证据", "Ungrouped Evidence", mode: mode),
                 normalizedValue(item.claim),
                 nil
             )
@@ -86,7 +86,7 @@ enum EvidenceWorkbenchGroupingSupport {
             }
             return (
                 "claim:__unclaimed__",
-                wordZText("未归类论点", "Unclaimed", mode: mode),
+                wordZText("未标注发现", "Unlabeled Finding", mode: mode),
                 normalizedValue(item.sectionTitle),
                 nil
             )

@@ -14,6 +14,12 @@ final class SourceReaderViewModel: ObservableObject {
     @Published var captureNote = ""
 
     private var tokenizedSentences: [TokenizedSentence] = []
+    private var tokenizedSentencesByID: [Int: TokenizedSentence] = [:]
+    private var hitAnchorsByID: [String: SourceReaderHitAnchor] = [:]
+    private var hitAnchorIDs: Set<String> = []
+    private var cachedHitItems: [SourceReaderHitSceneItem] = []
+    private var cachedHitItemsByID: [String: SourceReaderHitSceneItem] = [:]
+    private var cachedSentenceItems: [SourceReaderSentenceSceneItem] = []
     private var selectedHitID: String?
     private var annotationState = WorkspaceAnnotationState.default
 
@@ -107,10 +113,13 @@ final class SourceReaderViewModel: ObservableObject {
         defer { isLoading = false }
 
         launchContext = context
+        scene = nil
+        clearStaticSceneCaches()
         tokenizedSentences = try await resolvedTokenizedSentences(
             for: context,
             repository: repository
         )
+        rebuildStaticSceneCaches(for: context)
         selectedHitID = context.selectedHitID ?? context.hitAnchors.first?.id
         rebuildScene()
 
@@ -131,13 +140,12 @@ final class SourceReaderViewModel: ObservableObject {
 
     func selectHit(_ hitID: String?) {
         guard let context = launchContext else { return }
-        let availableIDs = Set(context.hitAnchors.map(\.id))
         guard let hitID else {
             selectedHitID = context.hitAnchors.first?.id
             rebuildScene()
             return
         }
-        guard availableIDs.contains(hitID) else { return }
+        guard hitAnchorIDs.contains(hitID) else { return }
         selectedHitID = hitID
         rebuildScene()
     }
@@ -178,7 +186,7 @@ final class SourceReaderViewModel: ObservableObject {
             }
         }
 
-        let documentText = try resolvedDocumentText(for: context)
+        let documentText = try await resolvedDocumentText(for: context)
         let tokenized = try await repository.runTokenize(text: documentText)
         return tokenized.sentences
     }
@@ -186,23 +194,19 @@ final class SourceReaderViewModel: ObservableObject {
     private func rebuildScene() {
         guard let context = launchContext else {
             scene = nil
+            clearStaticSceneCaches()
             return
         }
 
-        let sentencesByID = Dictionary(uniqueKeysWithValues: tokenizedSentences.map { ($0.sentenceId, $0) })
-        let effectiveSelectedHitID = context.hitAnchors.contains(where: { $0.id == selectedHitID })
-            ? selectedHitID
-            : context.hitAnchors.first?.id
-        let selectedAnchor = context.hitAnchors.first(where: { $0.id == effectiveSelectedHitID })
-
-        let hitItems = context.hitAnchors.map { anchor in
-            makeHitSceneItem(anchor: anchor, context: context, sentence: sentencesByID[anchor.sentenceId])
-        }
+        let effectiveSelectedHitID = selectedHitID.flatMap { hitAnchorIDs.contains($0) ? $0 : nil }
+            ?? context.hitAnchors.first?.id
+        let selectedAnchor = effectiveSelectedHitID.flatMap { hitAnchorsByID[$0] }
 
         let selection = selectedAnchor.flatMap { anchor -> SourceReaderSelection? in
-            let sentence = sentencesByID[anchor.sentenceId]
+            let sentence = tokenizedSentencesByID[anchor.sentenceId]
             let resolved = resolveConcordance(anchor: anchor, context: context, sentence: sentence)
-            let hit = makeHitSceneItem(anchor: anchor, context: context, sentence: sentence)
+            let hit = cachedHitItemsByID[anchor.id]
+                ?? makeHitSceneItem(anchor: anchor, context: context, sentence: sentence)
             let annotationItems = buildAnnotationItems(anchor: anchor, sentence: sentence, languageMode: WordZLocalization.shared.effectiveMode)
             return SourceReaderSelection(
                 hit: hit,
@@ -214,18 +218,6 @@ final class SourceReaderViewModel: ObservableObject {
         }
 
         let selectedSentenceID = selectedAnchor?.sentenceId
-        let hitSentenceIDs = Set(context.hitAnchors.map(\.sentenceId))
-        let sentences = tokenizedSentences.map { sentence in
-            SourceReaderSentenceSceneItem(
-                id: sentence.id,
-                sentenceId: sentence.sentenceId,
-                sentenceLabel: "\(sentence.sentenceId + 1)",
-                text: sentence.text,
-                containsHit: hitSentenceIDs.contains(sentence.sentenceId),
-                isSelected: sentence.sentenceId == selectedSentenceID
-            )
-        }
-
         let languageMode = WordZLocalization.shared.effectiveMode
         let resolvedTitle = normalizedValue(context.displayName)
             ?? normalizedValue((context.filePath as NSString).lastPathComponent)
@@ -252,20 +244,64 @@ final class SourceReaderViewModel: ObservableObject {
             annotationSummary: annotationState.summary(in: languageMode),
             hitCountSummary: String(
                 format: wordZText("共 %d 条命中", "%d hits", mode: languageMode),
-                hitItems.count
+                cachedHitItems.count
             ),
             sourceChainItems: SourceReaderSourceChainBuilder.build(
                 context: context,
                 selectedAnchor: selectedAnchor,
                 selection: selection,
-                hitCount: hitItems.count,
+                hitCount: cachedHitItems.count,
                 mode: languageMode
             ),
-            hitItems: hitItems,
+            hitItems: cachedHitItems,
             selectedHitID: effectiveSelectedHitID,
-            sentences: sentences,
+            selectedSentenceID: selectedSentenceID,
+            sentences: cachedSentenceItems,
             selection: selection
         )
+    }
+
+    private func rebuildStaticSceneCaches(for context: SourceReaderLaunchContext) {
+        tokenizedSentencesByID = Dictionary(
+            tokenizedSentences.map { ($0.sentenceId, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        hitAnchorsByID = Dictionary(
+            context.hitAnchors.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        hitAnchorIDs = Set(context.hitAnchors.map(\.id))
+        cachedHitItems = context.hitAnchors.map { anchor in
+            makeHitSceneItem(
+                anchor: anchor,
+                context: context,
+                sentence: tokenizedSentencesByID[anchor.sentenceId]
+            )
+        }
+        cachedHitItemsByID = Dictionary(
+            cachedHitItems.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let hitSentenceIDs = Set(context.hitAnchors.map(\.sentenceId))
+        cachedSentenceItems = tokenizedSentences.map { sentence in
+            SourceReaderSentenceSceneItem(
+                id: sentence.id,
+                sentenceId: sentence.sentenceId,
+                sentenceLabel: "\(sentence.sentenceId + 1)",
+                text: sentence.text,
+                containsHit: hitSentenceIDs.contains(sentence.sentenceId),
+                isSelected: false
+            )
+        }
+    }
+
+    private func clearStaticSceneCaches() {
+        tokenizedSentencesByID = [:]
+        hitAnchorsByID = [:]
+        hitAnchorIDs = []
+        cachedHitItems = []
+        cachedHitItemsByID = [:]
+        cachedSentenceItems = []
     }
 
     private func buildAnnotationItems(
@@ -405,21 +441,10 @@ final class SourceReaderViewModel: ObservableObject {
         )
     }
 
-    private func resolvedDocumentText(for context: SourceReaderLaunchContext) throws -> String {
+    private func resolvedDocumentText(for context: SourceReaderLaunchContext) async throws -> String {
         if let filePath = normalizedValue(context.filePath),
-           FileManager.default.fileExists(atPath: filePath) {
-            let url = URL(fileURLWithPath: filePath)
-
-            if ImportedDocumentReadingSupport.canImport(url: url),
-               let document = try? ImportedDocumentReadingSupport.readImportedDocument(at: url),
-               let text = normalizedValue(document.text) {
-                return text
-            }
-
-            if let text = try? String(contentsOf: url),
-               let normalizedText = normalizedValue(text) {
-                return normalizedText
-            }
+           let text = await Self.readDocumentTextIfAvailable(atPath: filePath) {
+            return text
         }
 
         if let fallbackText = normalizedValue(context.fallbackText) {
@@ -439,9 +464,33 @@ final class SourceReaderViewModel: ObservableObject {
         )
     }
 
-    private func normalizedValue(_ value: String?) -> String? {
+    private nonisolated static func readDocumentTextIfAvailable(atPath filePath: String) async -> String? {
+        await Task.detached(priority: .userInitiated) {
+            guard FileManager.default.fileExists(atPath: filePath) else { return nil }
+            let url = URL(fileURLWithPath: filePath)
+
+            if ImportedDocumentReadingSupport.canImport(url: url),
+               let document = try? ImportedDocumentReadingSupport.readImportedDocument(at: url),
+               let text = normalizedText(document.text) {
+                return text
+            }
+
+            if let text = try? String(contentsOf: url),
+               let normalizedText = normalizedText(text) {
+                return normalizedText
+            }
+
+            return nil
+        }.value
+    }
+
+    private nonisolated static func normalizedText(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func normalizedValue(_ value: String?) -> String? {
+        Self.normalizedText(value)
     }
 }

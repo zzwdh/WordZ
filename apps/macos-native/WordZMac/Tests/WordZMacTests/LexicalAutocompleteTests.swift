@@ -83,6 +83,109 @@ final class LexicalAutocompleteTests: XCTestCase {
         XCTAssertTrue(controller.suggestions(for: "hes", options: .default).isEmpty)
     }
 
+    func testLexicalAutocompleteControllerFiltersPrefixSuggestionsWithStopwords() async {
+        let repository = FakeWorkspaceRepository()
+        repository.storedFrequencyArtifactsByCorpusID["corpus-1"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "alpha", count: 20, rank: 1),
+            FrequencyRow(word: "alpine", count: 10, rank: 2)
+        ])
+
+        let controller = LexicalAutocompleteController(repository: repository)
+        controller.updateSelectedCorpusID("corpus-1")
+        await waitForAutocompleteLoad(controller, corpusID: "corpus-1")
+
+        let suggestions = controller.suggestions(
+            for: "al",
+            options: .default,
+            stopwordFilter: StopwordFilterState(enabled: true, listText: "alpha")
+        )
+        XCTAssertEqual(suggestions.map(\.term), ["alpine"])
+    }
+
+    func testLexicalAutocompleteControllerMergesMultiCorpusFrequencySuggestions() async {
+        let repository = FakeWorkspaceRepository()
+        repository.storedFrequencyArtifactsByCorpusID["corpus-1"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "history", count: 7, rank: 2),
+            FrequencyRow(word: "historic", count: 4, rank: 4)
+        ])
+        repository.storedFrequencyArtifactsByCorpusID["corpus-2"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "history", count: 11, rank: 1),
+            FrequencyRow(word: "histogram", count: 9, rank: 3)
+        ])
+
+        let controller = LexicalAutocompleteController(repository: repository)
+        controller.updateSelectedCorpusIDs(["corpus-1", "corpus-2"])
+        await waitForAutocompleteLoad(controller, corpusID: "corpus-1")
+
+        let suggestions = controller.suggestions(for: "hist", options: .default)
+        XCTAssertEqual(suggestions.map(\.term), ["history", "histogram", "historic"])
+        XCTAssertEqual(suggestions.map(\.count), [18, 9, 4])
+    }
+
+    func testLexicalAutocompleteControllerAddsCollocateSuggestionsForExactTerm() async {
+        let repository = FakeWorkspaceRepository()
+        repository.storedFrequencyArtifactsByCorpusID["corpus-1"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "alpha", count: 3, rank: 1),
+            FrequencyRow(word: "beta", count: 4, rank: 2),
+            FrequencyRow(word: "gamma", count: 1, rank: 3)
+        ])
+        repository.storedTokenizedArtifactsByCorpusID["corpus-1"] = makeTokenizedArtifact()
+        repository.storedTokenPositionIndexesByCorpusID["corpus-1"] = makeTokenPositionIndex()
+
+        let controller = LexicalAutocompleteController(repository: repository)
+        controller.updateSelectedCorpusID("corpus-1")
+        await waitForAutocompleteLoad(controller, corpusID: "corpus-1")
+
+        let configuration = LexicalSuggestionConfiguration(
+            maxSuggestions: 5,
+            maxPrefixSuggestions: 2,
+            maxCollocateSuggestions: 3,
+            collocateLeftWindow: 1,
+            collocateRightWindow: 1,
+            collocateMinFrequency: 1,
+            collocateDebounceNanoseconds: 1_000_000
+        )
+        _ = controller.suggestions(
+            for: "alpha",
+            options: .default,
+            configuration: configuration
+        )
+        await waitForAutocompleteSuggestion(controller) {
+            controller.suggestions(
+                for: "alpha",
+                options: .default,
+                configuration: configuration
+            )
+            .contains { $0.source == .collocate && $0.term == "beta" }
+        }
+
+        let suggestions = controller.suggestions(
+            for: "alpha",
+            options: .default,
+            configuration: configuration
+        )
+        XCTAssertTrue(suggestions.contains { $0.term == "alpha" && $0.source == .prefix })
+        XCTAssertTrue(suggestions.contains { $0.term == "beta" && $0.source == .collocate && $0.cooccurrence == 4 })
+        XCTAssertFalse(suggestions.contains { $0.term == "alpha" && $0.source == .collocate })
+    }
+
+    func testLexicalAutocompleteControllerFallsBackToPrefixWithoutPositionIndex() async {
+        let repository = FakeWorkspaceRepository()
+        repository.storedFrequencyArtifactsByCorpusID["corpus-1"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "alpha", count: 3, rank: 1),
+            FrequencyRow(word: "beta", count: 4, rank: 2)
+        ])
+        repository.storedTokenizedArtifactsByCorpusID["corpus-1"] = makeTokenizedArtifact()
+
+        let controller = LexicalAutocompleteController(repository: repository)
+        controller.updateSelectedCorpusID("corpus-1")
+        await waitForAutocompleteLoad(controller, corpusID: "corpus-1")
+
+        let suggestions = controller.suggestions(for: "alpha", options: .default)
+        XCTAssertEqual(suggestions.map(\.source), [.prefix])
+        XCTAssertEqual(suggestions.map(\.term), ["alpha"])
+    }
+
     func testLexicalAutocompleteInteractionStateSupportsMoveAcceptAndDismiss() {
         let suggestions = [
             LexicalAutocompleteSuggestion(term: "hesitation", count: 12, rank: 1),
@@ -252,6 +355,23 @@ private func waitForAutocompleteRevision(
     }
 }
 
+@MainActor
+private func waitForAutocompleteSuggestion(
+    _ controller: LexicalAutocompleteController,
+    timeoutNanoseconds: UInt64 = 1_000_000_000,
+    condition: () -> Bool
+) async {
+    let started = Date().timeIntervalSinceReferenceDate
+    while !condition() {
+        let elapsedNanoseconds = UInt64((Date().timeIntervalSinceReferenceDate - started) * 1_000_000_000)
+        if elapsedNanoseconds > timeoutNanoseconds {
+            break
+        }
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 10_000_000)
+    }
+}
+
 private func makeFrequencyArtifact(rows: [FrequencyRow]) -> StoredFrequencyArtifact {
     StoredFrequencyArtifact(
         textDigest: "digest",
@@ -262,5 +382,44 @@ private func makeFrequencyArtifact(rows: [FrequencyRow]) -> StoredFrequencyArtif
         ttr: rows.isEmpty ? 0 : Double(rows.count) / Double(rows.reduce(0) { $0 + $1.count }),
         sttr: 0,
         frequencyRows: rows
+    )
+}
+
+private func makeTokenizedArtifact() -> StoredTokenizedArtifact {
+    StoredTokenizedArtifact(
+        textDigest: "digest",
+        sentences: [
+            TokenizedSentence(sentenceId: 0, text: "alpha beta alpha gamma", tokens: [
+                TokenizedToken(original: "alpha", normalized: "alpha", sentenceId: 0, tokenIndex: 0),
+                TokenizedToken(original: "beta", normalized: "beta", sentenceId: 0, tokenIndex: 1),
+                TokenizedToken(original: "alpha", normalized: "alpha", sentenceId: 0, tokenIndex: 2),
+                TokenizedToken(original: "gamma", normalized: "gamma", sentenceId: 0, tokenIndex: 3)
+            ]),
+            TokenizedSentence(sentenceId: 1, text: "beta alpha beta", tokens: [
+                TokenizedToken(original: "beta", normalized: "beta", sentenceId: 1, tokenIndex: 0),
+                TokenizedToken(original: "alpha", normalized: "alpha", sentenceId: 1, tokenIndex: 1),
+                TokenizedToken(original: "beta", normalized: "beta", sentenceId: 1, tokenIndex: 2)
+            ])
+        ]
+    )
+}
+
+private func makeTokenPositionIndex() -> StoredTokenPositionIndexArtifact {
+    StoredTokenPositionIndexArtifact(
+        textDigest: "digest",
+        exactPositions: [
+            "alpha": [
+                StoredTokenPosition(sentenceId: 0, tokenIndex: 0),
+                StoredTokenPosition(sentenceId: 0, tokenIndex: 2),
+                StoredTokenPosition(sentenceId: 1, tokenIndex: 1)
+            ]
+        ],
+        normalizedPositions: [
+            "alpha": [
+                StoredTokenPosition(sentenceId: 0, tokenIndex: 0),
+                StoredTokenPosition(sentenceId: 0, tokenIndex: 2),
+                StoredTokenPosition(sentenceId: 1, tokenIndex: 1)
+            ]
+        ]
     )
 }

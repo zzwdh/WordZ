@@ -1,6 +1,6 @@
 import Foundation
 
-enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable {
+enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case exclude
     case include
 
@@ -20,7 +20,7 @@ enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
-enum SearchMatchMode: String, CaseIterable, Identifiable, Codable, Sendable {
+enum SearchMatchMode: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case token
     case phraseExact
 

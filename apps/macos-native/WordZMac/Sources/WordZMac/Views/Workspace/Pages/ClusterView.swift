@@ -173,6 +173,7 @@ struct ClusterView: View {
             title: t("搜索词串（留空显示全部）", "Search phrase (leave blank for all)"),
             text: $viewModel.query,
             searchOptions: viewModel.searchOptions,
+            stopwordFilter: viewModel.stopwordFilter,
             controller: lexicalAutocompleteController
         )
     }

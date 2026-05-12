@@ -17,7 +17,7 @@ enum ReadingExportFormat: String, CaseIterable, Equatable, Hashable, Sendable, I
         case .citation:
             return wordZText("引文格式", "Citation", mode: mode)
         case .summary:
-            return wordZText("研究摘要", "Research Summary", mode: mode)
+            return wordZText("分析摘要", "Analysis Summary", mode: mode)
         }
     }
 }

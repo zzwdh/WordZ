@@ -218,6 +218,53 @@ final class NativeAnalysisEngineTests: XCTestCase {
         XCTAssertNil(result.rows.first(where: { $0.word == "delta" }))
     }
 
+    func testRunCollocateProducesSameRowsAcrossFastPaths() throws {
+        let engine = NativeAnalysisEngine()
+        let text = "alpha beta alpha gamma. beta alpha beta."
+        let textResult = try engine.runCollocate(
+            text: text,
+            keyword: "alpha",
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1,
+            searchOptions: .default
+        )
+        let tokenized = engine.runTokenize(text: text)
+        let artifact = StoredTokenizedArtifact(textDigest: "digest", sentences: tokenized.sentences)
+        let positions = tokenized.tokens
+            .filter { $0.normalized == "alpha" }
+            .map { StoredTokenPosition(sentenceId: $0.sentenceId, tokenIndex: $0.tokenIndex) }
+
+        let positionResult = engine.runCollocate(
+            artifact: artifact,
+            positions: positions,
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1
+        )
+        let artifactResult = try engine.runCollocate(
+            artifact: artifact,
+            keyword: "alpha",
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1,
+            searchOptions: .default
+        )
+        let candidateResult = try engine.runCollocate(
+            artifact: artifact,
+            candidateSentenceIDs: Set(tokenized.sentences.map(\.sentenceId)),
+            keyword: "alpha",
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1,
+            searchOptions: .default
+        )
+
+        XCTAssertEqual(positionResult.rows, textResult.rows)
+        XCTAssertEqual(artifactResult.rows, textResult.rows)
+        XCTAssertEqual(candidateResult.rows, textResult.rows)
+    }
+
     func testRunCompareComputesSignedKeynessAgainstReferenceCorpora() {
         let engine = NativeAnalysisEngine()
         let result = engine.runCompare(comparisonEntries: [

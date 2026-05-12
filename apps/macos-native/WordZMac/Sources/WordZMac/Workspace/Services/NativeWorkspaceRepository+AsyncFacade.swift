@@ -66,6 +66,10 @@ extension NativeWorkspaceRepository {
         try await core.loadStoredTokenizedArtifact(corpusId: corpusId)
     }
 
+    func loadStoredTokenPositionIndex(corpusId: String) async throws -> StoredTokenPositionIndexArtifact? {
+        try await core.loadStoredTokenPositionIndex(corpusId: corpusId)
+    }
+
     func loadCorpusInfo(corpusId: String) async throws -> CorpusInfoSummary {
         try await core.loadCorpusInfo(corpusId: corpusId)
     }

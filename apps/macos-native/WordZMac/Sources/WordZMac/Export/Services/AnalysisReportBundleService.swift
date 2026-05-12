@@ -59,7 +59,7 @@ final class AnalysisReportBundleService: AnalysisReportBundleServicing {
 
         let reportURL = bundleDirectoryURL.appendingPathComponent("report.txt")
         try payload.reportText.write(to: reportURL, atomically: true, encoding: .utf8)
-        manifestEntries.append(.init(path: "report.txt", description: "Human-readable analysis report summary."))
+        manifestEntries.append(.init(path: "report.txt", description: "Human-readable analysis materials summary."))
 
         let metadataURL = bundleDirectoryURL.appendingPathComponent("build-metadata.json")
         try writeJSON(payload.buildMetadata, to: metadataURL)
@@ -68,7 +68,7 @@ final class AnalysisReportBundleService: AnalysisReportBundleServicing {
         let draftURL = bundleDirectoryURL.appendingPathComponent("workspace-draft.json")
         let draftData = try JSONSerialization.data(withJSONObject: payload.workspaceDraft.asJSONObject(), options: [.prettyPrinted, .sortedKeys])
         try draftData.write(to: draftURL, options: .atomic)
-        manifestEntries.append(.init(path: "workspace-draft.json", description: "Saved workspace draft used to build this report bundle."))
+        manifestEntries.append(.init(path: "workspace-draft.json", description: "Saved workspace draft used to build this analysis materials bundle."))
 
         if let tableSnapshot = payload.tableSnapshot {
             let tableURL = bundleDirectoryURL.appendingPathComponent("current-result.csv")

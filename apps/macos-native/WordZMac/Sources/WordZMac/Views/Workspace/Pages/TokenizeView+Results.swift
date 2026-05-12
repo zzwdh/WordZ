@@ -76,7 +76,7 @@ extension TokenizeView {
             WorkbenchEmptyStateCard(
                 title: t("尚未生成分词结果", "No tokenization results yet"),
                 systemImage: "text.word.spacing",
-                message: t("先运行一次分词，WordZ 会把 token、lemma、词类和脚本信息一起整理好，方便你继续做筛选、导出和教学展示。", "Run tokenization once and WordZ will organize tokens, lemmas, lexical classes, and script information for filtering, export, and teaching-oriented reading.")
+                message: t("先运行一次分词，WordZ 会按英文语料整理 token、lemma 和词类，方便你继续筛选、导出和教学展示。", "Run tokenization once and WordZ will organize English tokens, lemmas, and lexical classes for filtering, export, and teaching-oriented reading.")
             )
         }
     }
@@ -86,7 +86,6 @@ extension TokenizeView {
             HStack(spacing: 10) {
                 Label(scene.searchOptions.summaryText, systemImage: "magnifyingglass")
                 Label(scene.stopwordFilter.summaryText, systemImage: "line.3.horizontal.decrease.circle")
-                Label(scene.languagePreset.title(in: languageMode), systemImage: "globe")
                 Label(scene.lemmaStrategy.title(in: languageMode), systemImage: "character.book.closed")
             }
             .font(.caption)
@@ -95,7 +94,7 @@ extension TokenizeView {
                 Text("\(scene.searchOptions.summaryText) · \(scene.stopwordFilter.summaryText)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("\(scene.languagePreset.title(in: languageMode)) · \(scene.lemmaStrategy.title(in: languageMode))")
+                Text(scene.lemmaStrategy.title(in: languageMode))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -109,10 +108,6 @@ extension TokenizeView {
                     Label(t("当前选中 token", "Selected Token"), systemImage: "text.cursor")
                         .font(.headline)
                     Spacer(minLength: 8)
-                    Text(scene.languagePresetSummary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
 
                 ViewThatFits(in: .horizontal) {

@@ -102,6 +102,7 @@ struct SourceReaderSceneModel: Equatable {
     let sourceChainItems: [SourceReaderSourceChainItem]
     let hitItems: [SourceReaderHitSceneItem]
     let selectedHitID: String?
+    let selectedSentenceID: Int?
     let sentences: [SourceReaderSentenceSceneItem]
     let selection: SourceReaderSelection?
 }

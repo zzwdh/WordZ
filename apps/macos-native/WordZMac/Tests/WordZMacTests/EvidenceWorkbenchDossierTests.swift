@@ -24,7 +24,7 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
                 group: nil,
                 in: .english
             ),
-            "No Section Selected"
+            "No Evidence Group Selected"
         )
     }
 
@@ -40,19 +40,19 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
 
         XCTAssertEqual(
             EvidenceWorkbenchGroupingMode.section.currentGroupWindowTitle(
-                baseTitle: "Clips",
+                baseTitle: "Evidence Basket",
                 group: group,
                 in: .english
             ),
-            "Clips · Current Section: Methods · 2 items"
+            "Evidence Basket · Current Evidence Group: Methods · 2 items"
         )
         XCTAssertEqual(
             EvidenceWorkbenchGroupingMode.section.currentGroupWindowTitle(
-                baseTitle: "Clips",
+                baseTitle: "Evidence Basket",
                 group: nil,
                 in: .english
             ),
-            "Clips"
+            "Evidence Basket"
         )
     }
 
@@ -165,23 +165,23 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertTrue(document.text.contains("Section A"))
         XCTAssertTrue(document.text.contains("Claim Alpha"))
         XCTAssertTrue(document.text.contains("teaching, pattern"))
-        XCTAssertTrue(document.text.contains("## " + wordZText("方法摘要", "Method Summary", mode: .system)))
-        XCTAssertTrue(document.text.contains("## " + wordZText("证据索引", "Evidence Index", mode: .system)))
-        XCTAssertTrue(document.text.contains("## " + wordZText("元数据缺口", "Metadata Gaps", mode: .system)))
+        XCTAssertTrue(document.text.contains(wordZText("整理摘要", "Review Summary", mode: .system)))
+        XCTAssertTrue(document.text.contains(wordZText("证据索引", "Evidence Index", mode: .system)))
+        XCTAssertTrue(document.text.contains(wordZText("来源元数据检查", "Source Metadata Check", mode: .system)))
         XCTAssertTrue(document.text.contains("Demo Corpus (E1): " + wordZText("体裁", "Genre", mode: .system)))
-        let citationFormatLine = wordZText("引文格式", "Citation Format", mode: .system) +
+        let citationFormatLine = wordZText("引文文本", "Citation Text", mode: .system) +
             ": " +
             EvidenceCitationFormat.fullSentence.title(in: .system)
-        let citationStyleLine = wordZText("引用样式", "Citation Style", mode: .system) +
+        let citationStyleLine = wordZText("引用样式", "Reference Style", mode: .system) +
             ": " +
             EvidenceCitationStyle.apa.title(in: .system)
-        let citationHeading = "#### " + wordZText("引文", "Citation", mode: .system)
+        let citationHeading = wordZText("引文", "Citation", mode: .system) + ":"
         XCTAssertTrue(document.text.contains(citationFormatLine))
         XCTAssertTrue(document.text.contains(citationStyleLine))
         XCTAssertTrue(document.text.contains(citationHeading + "\nDemo Corpus. (2024). left keyword-a right [Sentence 2, Course Reader]. WordZ evidence export."))
         XCTAssertFalse(document.text.contains(citationHeading + "\nSentence 2: left keyword-a right"))
         XCTAssertTrue(document.text.contains("Use this in the handout."))
-        XCTAssertTrue(document.text.contains("## " + wordZText("参考来源", "References", mode: .system)))
+        XCTAssertTrue(document.text.contains(wordZText("参考来源", "References", mode: .system)))
         XCTAssertTrue(document.text.contains("Demo Corpus. Course Reader. 2024. WordZ."))
         XCTAssertFalse(document.text.contains("pending-only"))
     }
@@ -218,8 +218,8 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             grouping: .section
         )
 
-        XCTAssertTrue(document.text.contains("| E1 | node | Demo Corpus | Findings | Claim Alpha | MLA-like |"))
-        XCTAssertTrue(document.text.contains("| E2 | sentiment-hit | Demo Corpus | Findings | Claim Beta | APA-like |"))
+        XCTAssertTrue(document.text.contains("E1\tnode\tDemo Corpus\tFindings\tClaim Alpha\tMLA-like"))
+        XCTAssertTrue(document.text.contains("E2\tsentiment-hit\tDemo Corpus\tFindings\tClaim Beta\tAPA-like"))
         XCTAssertTrue(document.text.contains(wordZText("来源分布", "Source Mix", mode: .system) + ": KWIC 1 · " + wordZText("情感", "Sentiment", mode: .system) + " 1"))
         XCTAssertTrue(document.text.contains(wordZText("未发现关键元数据缺口。", "No key metadata gaps detected.", mode: .system)))
         XCTAssertTrue(document.text.contains("Demo Corpus. Research Archive. 2026. " + wordZText("体裁", "Genre", mode: .system) + ": Interview. " + wordZText("标签", "Tags", mode: .system) + ": oral, fieldwork. WordZ. " + wordZText("证据", "Evidence", mode: .system) + ": E1, E2."))
@@ -235,7 +235,7 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             filterSummary: filterSummary
         )
 
-        XCTAssertTrue(document.text.contains(wordZText("导出范围", "Export Scope", mode: .system) + ": " + filterSummary))
+        XCTAssertTrue(document.text.contains(wordZText("保存范围", "Save Scope", mode: .system) + ": " + filterSummary))
     }
 
     func testMarkdownDossierPreservesManualSectionOrderFromWorkbenchSequence() throws {
@@ -259,8 +259,8 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             grouping: .section
         )
 
-        let sectionBRange = try XCTUnwrap(document.text.range(of: "## Section B"))
-        let sectionARange = try XCTUnwrap(document.text.range(of: "## Section A"))
+        let sectionBRange = try XCTUnwrap(document.text.range(of: "\nSection B\n"))
+        let sectionARange = try XCTUnwrap(document.text.range(of: "\nSection A\n"))
         XCTAssertLessThan(sectionBRange.lowerBound, sectionARange.lowerBound)
     }
 
@@ -292,8 +292,8 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             grouping: .claim
         )
 
-        let claimBetaRange = try XCTUnwrap(document.text.range(of: "## Claim Beta"))
-        let claimAlphaRange = try XCTUnwrap(document.text.range(of: "## Claim Alpha"))
+        let claimBetaRange = try XCTUnwrap(document.text.range(of: "\nClaim Beta\n"))
+        let claimAlphaRange = try XCTUnwrap(document.text.range(of: "\nClaim Alpha\n"))
         XCTAssertLessThan(claimBetaRange.lowerBound, claimAlphaRange.lowerBound)
     }
 
@@ -462,8 +462,8 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             grouping: .section
         )
 
-        XCTAssertTrue(document.text.contains(wordZText("情感 Provenance", "Sentiment Provenance", mode: .system)))
-        XCTAssertTrue(document.text.contains(wordZText("跨分析 Provenance", "Cross-analysis Provenance", mode: .system)))
+        XCTAssertTrue(document.text.contains(wordZText("情感溯源", "Sentiment Trace", mode: .system)))
+        XCTAssertTrue(document.text.contains(wordZText("跨分析溯源", "Cross-analysis Trace", mode: .system)))
         XCTAssertTrue(document.text.contains(wordZText("生效标签", "Effective Label", mode: .system)))
         XCTAssertTrue(document.text.contains(wordZText("原始标签", "Raw Label", mode: .system)))
     }

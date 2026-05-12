@@ -88,7 +88,7 @@ extension WorkspaceAnalysisWorkflowService {
         }
         copyReadingDocument(
             document,
-            successStatus: wordZText("已复制对比研究摘要。", "Copied compare research summary.", mode: .system),
+            successStatus: wordZText("已复制对比分析摘要。", "Copied compare analysis summary.", mode: .system),
             features: features
         )
     }
@@ -108,8 +108,8 @@ extension WorkspaceAnalysisWorkflowService {
         guard let document else { return }
         await exportTextDocument(
             document,
-            title: wordZText("导出对比研究摘要", "Export Compare Summary", mode: .system),
-            successStatus: wordZText("已导出对比研究摘要到", "Exported compare summary to", mode: .system),
+            title: wordZText("导出对比分析摘要", "Export Compare Summary", mode: .system),
+            successStatus: wordZText("已导出对比分析摘要到", "Exported compare summary to", mode: .system),
             features: features,
             preferredRoute: preferredRoute
         )
@@ -134,7 +134,7 @@ extension WorkspaceAnalysisWorkflowService {
         }
         copyReadingDocument(
             document,
-            successStatus: wordZText("已复制搭配研究摘要。", "Copied collocate research summary.", mode: .system),
+            successStatus: wordZText("已复制搭配分析摘要。", "Copied collocate analysis summary.", mode: .system),
             features: features
         )
     }
@@ -154,8 +154,8 @@ extension WorkspaceAnalysisWorkflowService {
         guard let document else { return }
         await exportTextDocument(
             document,
-            title: wordZText("导出搭配研究摘要", "Export Collocate Summary", mode: .system),
-            successStatus: wordZText("已导出搭配研究摘要到", "Exported collocate summary to", mode: .system),
+            title: wordZText("导出搭配分析摘要", "Export Collocate Summary", mode: .system),
+            successStatus: wordZText("已导出搭配分析摘要到", "Exported collocate summary to", mode: .system),
             features: features,
             preferredRoute: preferredRoute
         )

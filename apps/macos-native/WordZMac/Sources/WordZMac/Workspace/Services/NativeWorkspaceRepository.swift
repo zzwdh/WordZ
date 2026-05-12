@@ -2,7 +2,7 @@ import Foundation
 import WordZEngine
 
 @MainActor
-final class NativeWorkspaceRepository: WorkspaceRepository, TopicProgressReportingRepository, LibraryImportProgressReportingRepository, LibraryCorpusCleaningProgressReportingRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, MetadataFilteringLibraryRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository {
+final class NativeWorkspaceRepository: WorkspaceRepository, TopicProgressReportingRepository, LibraryImportProgressReportingRepository, LibraryCorpusCleaningProgressReportingRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, MetadataFilteringLibraryRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository, StoredTokenPositionIndexReadingRepository {
     let core: NativeWorkspaceRepositoryCore
 
     init(rootURL: URL = EnginePaths.defaultUserDataURL()) {

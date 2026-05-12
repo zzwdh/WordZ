@@ -162,8 +162,8 @@ extension MainWorkspaceViewModel {
             return nil
         }
         return AnalysisReportBundleTextDocument(
-            relativePath: "reading/evidence-dossier.md",
-            description: "Current evidence workbench dossier export.",
+            relativePath: "reading/writing-material.txt",
+            description: "Current kept evidence material for writing.",
             document: document
         )
     }

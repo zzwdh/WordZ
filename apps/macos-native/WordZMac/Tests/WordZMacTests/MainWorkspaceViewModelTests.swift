@@ -1027,12 +1027,12 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
     func testExportEvidenceArtifactsWriteMarkdownAndJSON() async throws {
         let dialogService = FakeDialogService()
-        let markdownURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("evidence-packet-\(UUID().uuidString).md")
+        let textURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("writing-material-\(UUID().uuidString).txt")
         let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("evidence-bundle-\(UUID().uuidString).json")
         defer {
-            try? FileManager.default.removeItem(at: markdownURL)
+            try? FileManager.default.removeItem(at: textURL)
             try? FileManager.default.removeItem(at: jsonURL)
         }
 
@@ -1094,12 +1094,12 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
         await workspace.initializeIfNeeded()
 
-        dialogService.savePathResult = markdownURL.path
+        dialogService.savePathResult = textURL.path
         await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .mainWorkspace)
 
-        let markdownText = try String(contentsOf: markdownURL, encoding: .utf8)
-        XCTAssertTrue(markdownText.contains("keep-only"))
-        XCTAssertFalse(markdownText.contains("pending-only"))
+        let text = try String(contentsOf: textURL, encoding: .utf8)
+        XCTAssertTrue(text.contains("keep-only"))
+        XCTAssertFalse(text.contains("pending-only"))
 
         dialogService.savePathResult = jsonURL.path
         await workspace.exportEvidenceJSON(preferredWindowRoute: .mainWorkspace)
@@ -1113,12 +1113,12 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
     func testExportEvidenceArtifactsRespectCurrentWorkbenchFilters() async throws {
         let dialogService = FakeDialogService()
-        let markdownURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("filtered-evidence-packet-\(UUID().uuidString).md")
+        let textURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("filtered-writing-material-\(UUID().uuidString).txt")
         let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("filtered-evidence-bundle-\(UUID().uuidString).json")
         defer {
-            try? FileManager.default.removeItem(at: markdownURL)
+            try? FileManager.default.removeItem(at: textURL)
             try? FileManager.default.removeItem(at: jsonURL)
         }
 
@@ -1155,13 +1155,13 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         workspace.evidenceWorkbench.tagFilterQuery = "export"
         workspace.evidenceWorkbench.corpusFilterQuery = "archive"
 
-        dialogService.savePathResult = markdownURL.path
+        dialogService.savePathResult = textURL.path
         await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .mainWorkspace)
 
-        let markdownText = try String(contentsOf: markdownURL, encoding: .utf8)
-        XCTAssertTrue(markdownText.contains("node"))
-        XCTAssertFalse(markdownText.contains("locator-node"))
-        XCTAssertFalse(markdownText.contains("beta"))
+        let text = try String(contentsOf: textURL, encoding: .utf8)
+        XCTAssertTrue(text.contains("node"))
+        XCTAssertFalse(text.contains("locator-node"))
+        XCTAssertFalse(text.contains("beta"))
 
         dialogService.savePathResult = jsonURL.path
         await workspace.exportEvidenceJSON(preferredWindowRoute: .mainWorkspace)
@@ -1876,14 +1876,14 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await workspace.exportCurrentReportBundle(preferredWindowRoute: .mainWorkspace)
 
         XCTAssertNotNil(reportBundleService.lastPayload)
-        XCTAssertTrue(reportBundleService.lastPayload?.reportText.contains("WordZ Report Bundle") == true)
+        XCTAssertTrue(reportBundleService.lastPayload?.reportText.contains("WordZ Analysis Materials Bundle") == true)
         XCTAssertNotNil(reportBundleService.lastPayload?.tableSnapshot)
         XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/source-reader-current.txt" }) == true)
-        XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/evidence-dossier.md" }) == true)
+        XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/writing-material.txt" }) == true)
         XCTAssertEqual(hostActions.exportedArchivePath, "/tmp/WordZMac-report.zip")
-        XCTAssertEqual(hostActions.exportedArchiveTitle, "导出研究报告包")
+        XCTAssertEqual(hostActions.exportedArchiveTitle, "导出分析材料包")
         XCTAssertEqual(hostActions.exportedArchivePreferredRoute, .mainWorkspace)
-        XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出研究报告包到 /tmp/WordZMac-report.zip")
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出分析材料包到 /tmp/WordZMac-report.zip")
     }
 
     func testQuickLookCurrentContentUsesSelectedCorpusPathWhenNoResultSceneIsActive() async {

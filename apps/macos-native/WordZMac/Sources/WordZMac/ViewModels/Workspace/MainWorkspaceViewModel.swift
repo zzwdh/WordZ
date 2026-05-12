@@ -139,7 +139,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.diagnosticsBundleService = diagnosticsBundleService
         self.taskCenter = taskCenter
         self.lexicalAutocomplete = LexicalAutocompleteController(
-            repository: repository as? any StoredFrequencyArtifactReadingRepository
+            repository: repository
         )
         self.sessionActor = WorkspaceSessionActor()
         self.sidebar = sidebar

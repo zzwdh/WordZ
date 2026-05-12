@@ -412,19 +412,19 @@ struct EvidenceItem: Identifiable, Codable, Equatable, Sendable {
     func dossierSummary(in mode: AppLanguageMode) -> String {
         var parts: [String] = []
         if let claim = normalizedValue(claim) {
-            parts.append(wordZText("论点", "Claim", mode: mode) + ": " + claim)
+            parts.append(wordZText("发现线索", "Finding", mode: mode) + ": " + claim)
         }
         if !tags.isEmpty {
             parts.append(wordZText("标签", "Tags", mode: mode) + ": " + tagSummaryText)
         }
         if let sectionTitle = normalizedValue(sectionTitle) {
-            parts.append(wordZText("章节", "Section", mode: mode) + ": " + sectionTitle)
+            parts.append(wordZText("证据组", "Evidence Group", mode: mode) + ": " + sectionTitle)
         }
         if citationFormat != .citationLine {
-            parts.append(wordZText("引文格式", "Citation Format", mode: mode) + ": " + citationFormat.title(in: mode))
+            parts.append(wordZText("引文文本", "Citation Text", mode: mode) + ": " + citationFormat.title(in: mode))
         }
         if citationStyle != .plain {
-            parts.append(wordZText("引用样式", "Citation Style", mode: mode) + ": " + citationStyle.title(in: mode))
+            parts.append(wordZText("引用样式", "Reference Style", mode: mode) + ": " + citationStyle.title(in: mode))
         }
         return parts.joined(separator: " · ")
     }

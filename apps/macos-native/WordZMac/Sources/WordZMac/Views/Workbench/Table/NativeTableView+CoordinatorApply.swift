@@ -31,6 +31,9 @@ extension NativeTableView.Coordinator {
         let columnsChanged = previousDescriptor != descriptor
         let resolvedRows = snapshot?.rows ?? rows
         let resolvedRowIndexByID = snapshot?.rowIndexByID ?? NativeTableRowIndexing.firstIndexByID(resolvedRows)
+        let availableIDs = Set(resolvedRows.map(\.id))
+        let resolvedSelectedRowID = selectedRowID.flatMap { availableIDs.contains($0) ? $0 : nil }
+        let shouldNotifyUnavailableSelection = selectedRowID != nil && resolvedSelectedRowID == nil
         let rowsChanged: Bool
         if let snapshot {
             rowsChanged = previousSnapshotVersion != snapshot.version
@@ -42,7 +45,7 @@ extension NativeTableView.Coordinator {
         self.rows = resolvedRows
         self.snapshotVersion = snapshot?.version
         self.rowIndexByID = resolvedRowIndexByID
-        self.selectedRowID = selectedRowID
+        self.selectedRowID = resolvedSelectedRowID
         self.onSelectionChange = onSelectionChange
         self.onDoubleClick = onDoubleClick
         self.onSortByColumn = onSortByColumn
@@ -61,13 +64,12 @@ extension NativeTableView.Coordinator {
         let headerPinningChanged = previousHeaderPinning != isHeaderPinned
         updateTableMetrics(nextDensity)
 
-        let availableIDs = Set(resolvedRows.map(\.id))
         selectedRowIDs = previousSelectedRowIDs.intersection(availableIDs)
-        if let selectedRowID, availableIDs.contains(selectedRowID) {
-            selectedRowIDs.insert(selectedRowID)
+        if let resolvedSelectedRowID {
+            selectedRowIDs.insert(resolvedSelectedRowID)
         }
 
-        let selectionChanged = previousSelectedRowID != selectedRowID
+        let selectionChanged = previousSelectedRowID != resolvedSelectedRowID
             || previousSelectedMarkerID != selectedMarkerID
             || previousSelectedRowIDs != selectedRowIDs
         let emptinessChanged = previousRows.isEmpty != resolvedRows.isEmpty
@@ -98,7 +100,7 @@ extension NativeTableView.Coordinator {
         } else if selectionChanged {
             reloadOutcome = reloadCustomPresentationRows(
                 previousSelectedRowID: previousSelectedRowID,
-                selectedRowID: selectedRowID
+                selectedRowID: resolvedSelectedRowID
             )
         }
 
@@ -106,6 +108,9 @@ extension NativeTableView.Coordinator {
         tableView?.setAccessibilityHelp(activationHint)
         syncSelection()
         syncEmptyState()
+        if shouldNotifyUnavailableSelection {
+            onSelectionChange?(nil)
+        }
 
         AnalysisPerformanceTelemetry.logTableApply(
             storageKey: descriptor.storageKey,

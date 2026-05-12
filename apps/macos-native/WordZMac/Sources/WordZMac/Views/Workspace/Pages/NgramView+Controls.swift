@@ -39,6 +39,7 @@ extension NgramView {
             title: t("搜索词（留空显示全部）", "Search term (leave blank for all)"),
             text: $viewModel.query,
             searchOptions: viewModel.searchOptions,
+            stopwordFilter: viewModel.stopwordFilter,
             controller: lexicalAutocompleteController
         )
     }

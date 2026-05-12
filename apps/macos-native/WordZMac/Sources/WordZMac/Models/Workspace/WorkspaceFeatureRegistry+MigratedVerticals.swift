@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 extension WorkspaceFeatureRegistry {
     static func topicsDescriptor() -> WorkspaceFeatureDescriptor {
@@ -14,16 +14,7 @@ extension WorkspaceFeatureRegistry {
             commandAction: .runTopics,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    TopicsView(
-                        viewModel: workspace.topics,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.topics),
-                        onAction: dispatcher.handleTopicsAction
-                    )
-                )
-            }
+            showsInCommands: true
         )
     }
 
@@ -40,16 +31,7 @@ extension WorkspaceFeatureRegistry {
             commandAction: .runSentiment,
             showsInSidebar: true,
             showsInPagePicker: true,
-            showsInCommands: true,
-            detailViewBuilder: { workspace, dispatcher in
-                AnyView(
-                    SentimentView(
-                        viewModel: workspace.sentiment,
-                        isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.sentiment),
-                        onAction: dispatcher.handleSentimentAction
-                    )
-                )
-            }
+            showsInCommands: true
         )
     }
 }

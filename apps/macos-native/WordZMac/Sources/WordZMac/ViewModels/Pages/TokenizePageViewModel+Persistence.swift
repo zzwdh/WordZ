@@ -7,7 +7,7 @@ extension TokenizePageViewModel {
             searchOptions = snapshot.searchOptions
             stopwordFilter = snapshot.stopwordFilter
             applyWorkspaceAnnotationProfile(snapshot.annotationProfile)
-            languagePreset = snapshot.tokenizeLanguagePreset
+            languagePreset = snapshot.tokenizeLanguagePreset.normalizedForTokenizeModule
             lemmaStrategy = snapshot.annotationProfile.tokenizeLemmaStrategy
         }
     }
@@ -26,7 +26,7 @@ extension TokenizePageViewModel {
             searchOptions = .default
             stopwordFilter = .default
             applyWorkspaceAnnotationProfile(.surface)
-            languagePreset = .mixedChineseEnglish
+            languagePreset = .defaultTokenizePreset
             lemmaStrategy = .normalizedSurface
             isEditingStopwords = false
             result = nil

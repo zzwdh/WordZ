@@ -257,8 +257,10 @@ struct ParsedDocument: Sendable {
     private static func tokenizeWords(in text: String, sentenceId: Int) -> [ParsedToken] {
         let tokenizer = NLTokenizer(unit: .word)
         tokenizer.string = text
+        tokenizer.setLanguage(.english)
         let tagger = NLTagger(tagSchemes: [.lemma, .lexicalClass])
         tagger.string = text
+        tagger.setLanguage(.english, range: text.startIndex..<text.endIndex)
         var tokens: [ParsedToken] = []
         tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
             let value = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)

@@ -91,7 +91,7 @@ extension KWICView {
                 systemImage: "text.magnifyingglass",
                 message: t("输入检索词并运行后，这里会显示可阅读、可复制、可继续定位的索引行。", "Run a keyword search to see concordance lines that are ready for reading, citation copying, and follow-up locating."),
                 suggestions: [
-                    t("较短的窗口更适合课堂演示，较长的窗口更适合研究解读。", "Shorter windows work well for teaching demos, while longer windows help with research interpretation."),
+                    t("较短的窗口适合快速核对，较长的窗口适合细读上下文。", "Shorter windows work well for quick checks, while longer windows help with close reading."),
                     t("双击任意索引行或使用“发送到定位器”可继续查看句内位置。", "Double-click any row or use Send to Locator to continue from that concordance line.")
                 ]
             )
@@ -105,7 +105,7 @@ extension KWICView {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    Text(t("研究阅读视图", "Research Reading View"))
+                    Text(t("原文阅读视图", "Source Reading View"))
                         .font(.headline)
                     Spacer()
                     Text(t("句", "Sentence") + " \(selectedRow.sentenceId + 1)")
@@ -138,7 +138,7 @@ extension KWICView {
                     Button {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     } label: {
-                        Label(t("加入摘录", "Add to Clips"), systemImage: "text.badge.plus")
+                        Label(t("加入证据篮", "Add to Evidence Basket"), systemImage: "text.badge.plus")
                     }
                     ConcordanceReadingExportMenu(
                         languageMode: languageMode,
@@ -164,8 +164,8 @@ extension KWICView {
             languageMode: languageMode,
             addCurrentTitle: t("加入当前行", "Add Current Row"),
             emptyMessage: t(
-                "把当前 KWIC 行加入摘录后，这里会显示可复查、可标记、可备注的分析片段。",
-                "Add the current KWIC row to collect reviewable, annotatable analysis clips here."
+                "把当前 KWIC 行加入证据篮后，这里会显示可复查、可标记、可备注的分析片段。",
+                "Add the current KWIC row to collect reviewable, annotatable evidence here."
             ),
             currentSelectionAvailable: viewModel.selectedSceneRow != nil,
             itemPreviewText: { $0.concordanceText },

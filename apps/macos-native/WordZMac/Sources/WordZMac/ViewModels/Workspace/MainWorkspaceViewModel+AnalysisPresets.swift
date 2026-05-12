@@ -107,8 +107,8 @@ extension MainWorkspaceViewModel {
         }
 
         let taskID = taskCenter.beginTask(
-            title: t("导出研究报告包", "Export Research Report Bundle"),
-            detail: t("正在整理当前结果、方法说明和工作区状态…", "Collecting the current result, methodology notes, and workspace state…"),
+            title: t("导出分析材料包", "Export Analysis Materials Bundle"),
+            detail: t("正在整理当前结果、方法说明、保留证据素材和工作区状态…", "Collecting the current result, method notes, kept evidence material, and workspace state…"),
             progress: 0
         )
 
@@ -121,11 +121,11 @@ extension MainWorkspaceViewModel {
             if let savedPath = try await hostActionService.exportArchiveBundle(
                 archivePath: artifact.archiveURL.path,
                 suggestedName: suggestedName,
-                title: t("导出研究报告包", "Export Research Report Bundle"),
+                title: t("导出分析材料包", "Export Analysis Materials Bundle"),
                 preferredRoute: preferredWindowRoute?.hostPresentationHint
             ) {
                 settings.setSupportStatus(
-                    "\(t("已导出研究报告包到", "Exported report bundle to")) \(savedPath)"
+                    "\(t("已导出分析材料包到", "Exported analysis materials bundle to")) \(savedPath)"
                 )
                 clearActiveIssue()
                 taskCenter.completeTask(
@@ -134,15 +134,15 @@ extension MainWorkspaceViewModel {
                     action: .openFile(path: savedPath)
                 )
             } else {
-                let cancelled = t("已取消导出研究报告包。", "Report bundle export was cancelled.")
+                let cancelled = t("已取消导出分析材料包。", "Analysis materials bundle export was cancelled.")
                 settings.setSupportStatus(cancelled)
                 taskCenter.failTask(id: taskID, detail: cancelled)
             }
         } catch {
             presentIssue(
                 error,
-                titleZh: "导出研究报告包失败",
-                titleEn: "Report Bundle Export Failed"
+                titleZh: "导出分析材料包失败",
+                titleEn: "Analysis Materials Bundle Export Failed"
             )
             taskCenter.failTask(id: taskID, detail: error.localizedDescription)
         }
@@ -167,7 +167,7 @@ extension MainWorkspaceViewModel {
         )
 
         let reportLines = [
-            "WordZ Report Bundle",
+            "WordZ Analysis Materials Bundle",
             "Generated At: \(generatedAt)",
             "Analysis: \(selectedTab.displayTitle(in: languageMode))",
             "Workspace Summary: \(sceneGraph.context.workspaceSummary)",
@@ -206,7 +206,7 @@ extension MainWorkspaceViewModel {
         }
 
         return AnalysisReportBundlePayload(
-            bundleBaseName: "WordZMac-\(selectedTab.snapshotValue)-report",
+            bundleBaseName: "WordZMac-\(selectedTab.snapshotValue)-materials",
             reportText: reportText,
             buildMetadata: buildMetadata,
             workspaceDraft: workspaceDraft,

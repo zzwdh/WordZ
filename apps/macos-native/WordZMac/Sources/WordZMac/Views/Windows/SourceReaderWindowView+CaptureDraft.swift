@@ -24,7 +24,7 @@ struct SourceReaderInlineEvidenceDraftView: View {
                 Button {
                     onAddClip()
                 } label: {
-                    Label(t("加入摘录", "Add to Clips"), systemImage: "tray.and.arrow.down")
+                    Label(t("加入证据篮", "Add to Evidence Basket"), systemImage: "tray.and.arrow.down")
                 }
                 .disabled(!sourceReader.canAddEvidence)
             }
@@ -34,13 +34,13 @@ struct SourceReaderInlineEvidenceDraftView: View {
             }
 
             TextField(
-                t("章节标题", "Section Title"),
+                t("证据组", "Evidence Group"),
                 text: $sourceReader.captureSectionTitle
             )
             .textFieldStyle(.roundedBorder)
 
             TextField(
-                t("论点 / Claim", "Claim"),
+                t("发现线索", "Finding"),
                 text: $sourceReader.captureClaim
             )
             .textFieldStyle(.roundedBorder)
@@ -78,7 +78,7 @@ struct SourceReaderInlineEvidenceDraftView: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 Picker(
-                    t("引文格式", "Citation Format"),
+                    t("引文文本", "Citation Text"),
                     selection: $sourceReader.captureCitationFormat
                 ) {
                     ForEach(EvidenceCitationFormat.allCases) { format in
@@ -95,7 +95,7 @@ struct SourceReaderInlineEvidenceDraftView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Picker(
-                    t("引用样式", "Citation Style"),
+                    t("引用样式", "Reference Style"),
                     selection: $sourceReader.captureCitationStyle
                 ) {
                     ForEach(EvidenceCitationStyle.allCases) { style in

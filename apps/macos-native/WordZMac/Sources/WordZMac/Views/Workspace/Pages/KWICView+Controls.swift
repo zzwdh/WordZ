@@ -40,6 +40,7 @@ extension KWICView {
             title: t("检索词", "Keyword"),
             text: $viewModel.keyword,
             searchOptions: viewModel.searchOptions,
+            stopwordFilter: viewModel.stopwordFilter,
             controller: lexicalAutocompleteController
         )
     }

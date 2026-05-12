@@ -90,12 +90,20 @@ extension TokenLemmaStrategy {
 }
 
 extension TokenizeLanguagePreset {
+    static var defaultTokenizePreset: TokenizeLanguagePreset {
+        .latinFocused
+    }
+
+    var normalizedForTokenizeModule: TokenizeLanguagePreset {
+        .latinFocused
+    }
+
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .mixedChineseEnglish:
             return wordZText("中英混合", "Mixed Zh/En", mode: mode)
         case .latinFocused:
-            return wordZText("英文优先", "Latin-focused", mode: mode)
+            return wordZText("英文", "English", mode: mode)
         case .cjkFocused:
             return wordZText("中文优先", "CJK-focused", mode: mode)
         }
@@ -106,7 +114,7 @@ extension TokenizeLanguagePreset {
         case .mixedChineseEnglish:
             return wordZText("保留中英和数字 token，适合混合文本。", "Keep CJK, Latin, and numeric tokens for mixed-language texts.", mode: mode)
         case .latinFocused:
-            return wordZText("优先保留英文和数字 token，适合英文论文语料。", "Prefer Latin and numeric tokens for English-heavy corpora.", mode: mode)
+            return wordZText("保留英文和数字 token。", "Keep English and numeric tokens.", mode: mode)
         case .cjkFocused:
             return wordZText("优先保留中文和数字 token，适合中文语料。", "Prefer CJK and numeric tokens for Chinese-heavy corpora.", mode: mode)
         }

@@ -20,7 +20,7 @@ struct SentimentCalibrationProfileSceneItem: Identifiable, Equatable {
 }
 
 @MainActor
-package final class SentimentPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisSelectedRowControlling {
+package final class SentimentPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisSelectedRowControlling, AnalysisSceneBuildRevisionControlling {
     typealias AnalysisPageSize = SentimentPageSize
     typealias AnalysisSortMode = SentimentSortMode
 
@@ -29,6 +29,7 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
     ]
 
     var isApplyingState = false
+    var isApplyingThresholdBatch = false
     var isApplyingInputState: Bool { isApplyingState }
 
     @Published var source: SentimentInputSource = .openedCorpus {
@@ -82,30 +83,30 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
     }
     @Published var thresholdPreset: SentimentThresholdPreset = .conservative {
         didSet {
-            guard oldValue != thresholdPreset else { return }
+            guard oldValue != thresholdPreset, !isApplyingThresholdBatch else { return }
             if thresholdPreset != .custom {
-                applyThresholds(thresholdPreset.thresholds, rebuildScene: true)
+                applyThresholds(thresholdPreset.thresholds, rebuildScene: false)
             }
             handleInputChange(rebuildScene: true)
         }
     }
     @Published var decisionThreshold: Double = SentimentThresholds.default.decisionThreshold {
         didSet {
-            guard oldValue != decisionThreshold else { return }
+            guard oldValue != decisionThreshold, !isApplyingThresholdBatch else { return }
             markThresholdsCustom()
             handleInputChange(rebuildScene: true)
         }
     }
     @Published var minimumEvidence: Double = SentimentThresholds.default.minimumEvidence {
         didSet {
-            guard oldValue != minimumEvidence else { return }
+            guard oldValue != minimumEvidence, !isApplyingThresholdBatch else { return }
             markThresholdsCustom()
             handleInputChange(rebuildScene: true)
         }
     }
     @Published var neutralBias: Double = SentimentThresholds.default.neutralBias {
         didSet {
-            guard oldValue != neutralBias else { return }
+            guard oldValue != neutralBias, !isApplyingThresholdBatch else { return }
             markThresholdsCustom()
             handleInputChange(rebuildScene: true)
         }
@@ -183,6 +184,7 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
     var selectedReferenceSelection: CompareReferenceSelection = .automatic
     var topicSegmentsFocusClusterID: String?
     var annotationState = WorkspaceAnnotationState.default
+    var sceneBuildRevision = 0
 
     package static func makeFeaturePage() -> SentimentPageViewModel {
         SentimentPageViewModel(sceneBuilder: SentimentSceneBuilder())

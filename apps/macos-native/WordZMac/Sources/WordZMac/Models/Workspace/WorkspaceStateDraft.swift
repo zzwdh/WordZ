@@ -94,7 +94,7 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         annotationProfile: .surface,
         annotationLexicalClasses: [],
         annotationScripts: [],
-        tokenizeLanguagePreset: .mixedChineseEnglish,
+        tokenizeLanguagePreset: .defaultTokenizePreset,
         tokenizeLemmaStrategy: .normalizedSurface,
         compareReferenceCorpusID: "",
         compareSelectedCorpusIDs: [],
@@ -177,7 +177,7 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         annotationProfile: WorkspaceAnnotationProfile = .surface,
         annotationLexicalClasses: [TokenLexicalClass] = [],
         annotationScripts: [TokenScript] = [],
-        tokenizeLanguagePreset: TokenizeLanguagePreset = .mixedChineseEnglish,
+        tokenizeLanguagePreset: TokenizeLanguagePreset = .defaultTokenizePreset,
         tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
         compareReferenceCorpusID: String = "",
         compareSelectedCorpusIDs: [String] = [],
@@ -258,7 +258,7 @@ struct WorkspaceStateDraft: Equatable, Sendable {
         self.annotationProfile = annotationProfile
         self.annotationLexicalClasses = annotationLexicalClasses
         self.annotationScripts = annotationScripts
-        self.tokenizeLanguagePreset = tokenizeLanguagePreset
+        self.tokenizeLanguagePreset = tokenizeLanguagePreset.normalizedForTokenizeModule
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
         self.compareSelectedCorpusIDs = compareSelectedCorpusIDs

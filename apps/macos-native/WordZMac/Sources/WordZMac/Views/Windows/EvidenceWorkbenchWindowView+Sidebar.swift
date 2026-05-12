@@ -119,9 +119,9 @@ struct EvidenceWorkbenchSidebarList: View {
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
 
-            let dossierSummary = item.dossierSummary(in: languageMode)
-            if !dossierSummary.isEmpty {
-                Text(dossierSummary)
+            let evidenceSummary = item.dossierSummary(in: languageMode)
+            if !evidenceSummary.isEmpty {
+                Text(evidenceSummary)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

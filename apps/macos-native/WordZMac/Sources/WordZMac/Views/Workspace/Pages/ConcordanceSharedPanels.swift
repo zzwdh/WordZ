@@ -104,7 +104,7 @@ struct ConcordanceEvidenceWorkbenchSection: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Text(t("摘录", "Clips"))
+            Text(t("证据篮", "Evidence Basket"))
                 .font(.headline)
             Spacer()
             Picker(
@@ -125,7 +125,7 @@ struct ConcordanceEvidenceWorkbenchSection: View {
             }
             .disabled(!currentSelectionAvailable)
 
-            Button(t("查看摘录", "View Clips")) {
+            Button(t("查看证据篮", "View Evidence Basket")) {
                 openWorkbench()
             }
         }
@@ -385,7 +385,7 @@ struct ConcordanceSavedSetsSection<ViewModel: ConcordanceSavedSetsPanelState>: V
             .textFieldStyle(.roundedBorder)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(t("研究备注", "Research Notes"))
+                Text(t("复查备注", "Review Notes"))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 TextEditor(text: $viewModel.savedSetNotesDraft)

@@ -8,6 +8,15 @@ struct WorkspaceSplitLayout: Equatable {
     var isInspectorVisible: Bool
 }
 
+struct WorkspaceSplitContentRevision: Equatable {
+    var sceneGraphRevision: Int
+    var selectedRoute: WorkspaceMainRoute
+    var runningTaskKeys: Set<WorkspaceRuntimeTaskKey>
+    var issueBannerID: String?
+    var languageMode: AppLanguageMode
+    var annotationState: WorkspaceAnnotationState
+}
+
 struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>: NSViewControllerRepresentable {
     @Binding var isSidebarVisible: Bool
     @Binding var isInspectorVisible: Bool
@@ -16,10 +25,12 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
     let detail: Detail
     let inspector: Inspector
     let topAccessory: AnyView?
+    let contentRevision: WorkspaceSplitContentRevision
 
     init(
         isSidebarVisible: Binding<Bool>,
         isInspectorVisible: Binding<Bool>,
+        contentRevision: WorkspaceSplitContentRevision,
         topAccessory: AnyView? = nil,
         @ViewBuilder sidebar: () -> Sidebar,
         @ViewBuilder detail: () -> Detail,
@@ -31,6 +42,7 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
         self.detail = detail()
         self.inspector = inspector()
         self.topAccessory = topAccessory
+        self.contentRevision = contentRevision
     }
 
     func makeNSViewController(context: Context) -> MainWorkspaceSplitController<Sidebar, Detail, Inspector> {
@@ -38,7 +50,8 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
             sidebar: sidebar,
             detail: detail,
             inspector: inspector,
-            topAccessory: topAccessory
+            topAccessory: topAccessory,
+            contentRevision: contentRevision
         )
     }
 
@@ -51,6 +64,7 @@ struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>
             detail: detail,
             inspector: inspector,
             topAccessory: topAccessory,
+            contentRevision: contentRevision,
             layout: layout
         )
     }
@@ -79,12 +93,20 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         isInspectorVisible: true
     )
     private var hasAppliedInitialLayout = false
+    private var currentContentRevision: WorkspaceSplitContentRevision?
 
-    init(sidebar: Sidebar, detail: Detail, inspector: Inspector, topAccessory: AnyView? = nil) {
+    init(
+        sidebar: Sidebar,
+        detail: Detail,
+        inspector: Inspector,
+        topAccessory: AnyView? = nil,
+        contentRevision: WorkspaceSplitContentRevision? = nil
+    ) {
         sidebarController = HostedPaneViewController(rootView: sidebar)
         detailController = HostedPaneViewController(rootView: detail)
         inspectorController = HostedPaneViewController(rootView: inspector)
         self.topAccessory = topAccessory
+        currentContentRevision = contentRevision
 
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarController)
         detailItem = NSSplitViewItem(viewController: detailController)
@@ -145,21 +167,32 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         detail: Detail,
         inspector: Inspector,
         topAccessory: AnyView? = nil,
+        contentRevision: WorkspaceSplitContentRevision? = nil,
         layout: WorkspaceSplitLayout,
         animateLayoutChanges: Bool? = nil
     ) {
-        sidebarController.update(rootView: sidebar)
-        detailController.update(rootView: detail)
-        inspectorController.update(rootView: inspector)
-        self.topAccessory = topAccessory
-        if NativePlatformCapabilities.current.supportsSplitViewAccessories {
-            if #available(macOS 26.0, *) {
-                updateTopAccessoryIfNeeded()
+        if shouldUpdateHostedContent(for: contentRevision) {
+            sidebarController.update(rootView: sidebar)
+            detailController.update(rootView: detail)
+            inspectorController.update(rootView: inspector)
+            self.topAccessory = topAccessory
+            if NativePlatformCapabilities.current.supportsSplitViewAccessories {
+                if #available(macOS 26.0, *) {
+                    updateTopAccessoryIfNeeded()
+                }
             }
+            currentContentRevision = contentRevision
         }
         guard currentLayout != layout else { return }
         currentLayout = layout
         applyLayout(animated: animateLayoutChanges ?? hasAppliedInitialLayout)
+    }
+
+    private func shouldUpdateHostedContent(
+        for contentRevision: WorkspaceSplitContentRevision?
+    ) -> Bool {
+        guard let contentRevision else { return true }
+        return currentContentRevision != contentRevision
     }
 
     private func applyLayout(force: Bool = false, animated: Bool = false) {
@@ -217,6 +250,8 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
 }
 
 final class HostedPaneViewController<Content: View>: NSHostingController<Content> {
+    private(set) var rootViewUpdateCount = 0
+
     override init(rootView: Content) {
         super.init(rootView: rootView)
         if #available(macOS 13.0, *) {
@@ -230,6 +265,7 @@ final class HostedPaneViewController<Content: View>: NSHostingController<Content
     }
 
     func update(rootView: Content) {
+        rootViewUpdateCount += 1
         self.rootView = rootView
     }
 }

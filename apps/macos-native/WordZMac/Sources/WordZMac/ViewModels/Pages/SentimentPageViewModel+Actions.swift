@@ -150,19 +150,23 @@ extension SentimentPageViewModel {
     }
 
     func markThresholdsCustom() {
-        guard !isApplyingState else { return }
+        guard !isApplyingState, !isApplyingThresholdBatch else { return }
         if thresholdPreset != .custom,
            thresholds != thresholdPreset.thresholds {
+            isApplyingThresholdBatch = true
             thresholdPreset = .custom
+            isApplyingThresholdBatch = false
         }
     }
 
     func applyThresholds(_ thresholds: SentimentThresholds, rebuildScene: Bool) {
+        isApplyingThresholdBatch = true
         decisionThreshold = thresholds.decisionThreshold
         minimumEvidence = thresholds.minimumEvidence
         neutralBias = thresholds.neutralBias
+        isApplyingThresholdBatch = false
         if rebuildScene {
-            self.rebuildScene()
+            handleInputChange(rebuildScene: true)
         }
     }
 }

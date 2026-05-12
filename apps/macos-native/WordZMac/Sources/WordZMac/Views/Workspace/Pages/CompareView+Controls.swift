@@ -67,6 +67,8 @@ extension CompareView {
             title: t("过滤词（留空显示全部）", "Filter term (leave blank for all)"),
             text: $viewModel.query,
             searchOptions: viewModel.searchOptions,
+            stopwordFilter: viewModel.stopwordFilter,
+            suggestionScope: .corpora(viewModel.selectedCorpusIDsSnapshot),
             controller: lexicalAutocompleteController
         )
     }

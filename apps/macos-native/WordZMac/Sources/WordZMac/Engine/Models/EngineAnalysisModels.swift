@@ -65,6 +65,31 @@ struct CollocateRow: Identifiable, Hashable, Sendable {
     let mutualInformation: Double
     let tScore: Double
 
+    init(
+        word: String,
+        total: Int,
+        left: Int,
+        right: Int,
+        wordFreq: Int,
+        keywordFreq: Int,
+        rate: Double,
+        logDice: Double,
+        mutualInformation: Double,
+        tScore: Double
+    ) {
+        self.word = word
+        self.total = total
+        self.left = left
+        self.right = right
+        self.wordFreq = wordFreq
+        self.keywordFreq = keywordFreq
+        self.rate = rate
+        self.logDice = logDice
+        self.mutualInformation = mutualInformation
+        self.tScore = tScore
+        self.id = word.isEmpty ? UUID().uuidString : word
+    }
+
     init(json: JSONObject) {
         self.word = JSONFieldReader.string(json, key: "word")
         self.total = JSONFieldReader.int(json, key: "total")
@@ -87,6 +112,10 @@ struct CollocateResult: Equatable, Sendable {
         self.rows = items
             .compactMap { $0 as? JSONObject }
             .map(CollocateRow.init)
+    }
+
+    init(rows: [CollocateRow]) {
+        self.rows = rows
     }
 }
 

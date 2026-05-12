@@ -60,68 +60,26 @@ extension NativeAnalysisEngine {
 
         let index = indexedDocument(for: text, documentKey: documentKey)
         let document = index.document
-        let frequency = index.frequencyMap
-        let tokenCount = max(index.tokenCount, 1)
-        let safeLeft = max(0, leftWindow)
-        let safeRight = max(0, rightWindow)
-        let safeMinFreq = max(1, minFreq)
-        var totalByWord: [String: Int] = [:]
-        var leftByWord: [String: Int] = [:]
-        var rightByWord: [String: Int] = [:]
-        var keywordFreq = 0
-
-        for sentence in document.sentences {
-            for match in kwicMatches(in: sentence, matcher: matcher) {
-                keywordFreq += 1
-
-                let leftStart = max(0, match.startIndex - safeLeft)
-                if leftStart < match.startIndex {
-                    for neighbor in sentence.tokens[leftStart..<match.startIndex] {
-                        totalByWord[neighbor.normalized, default: 0] += 1
-                        leftByWord[neighbor.normalized, default: 0] += 1
-                    }
-                }
-
-                let rightEnd = min(sentence.tokens.count, match.endIndex + safeRight + 1)
-                if match.endIndex + 1 < rightEnd {
-                    for neighbor in sentence.tokens[(match.endIndex + 1)..<rightEnd] {
-                        totalByWord[neighbor.normalized, default: 0] += 1
-                        rightByWord[neighbor.normalized, default: 0] += 1
-                    }
-                }
+        let sentences = document.sentences.map(CollocateAssociationCalculator.Sentence.init)
+        let ranges = document.sentences.flatMap { sentence in
+            kwicMatches(in: sentence, matcher: matcher).map {
+                CollocateAssociationCalculator.NodeRange(
+                    sentenceId: sentence.sentenceId,
+                    startIndex: $0.startIndex,
+                    endIndex: $0.endIndex
+                )
             }
         }
 
-        let rows = totalByWord
-            .filter { $0.value >= safeMinFreq }
-            .map { word, total in
-                let wordFreq = frequency[word, default: 0]
-                let observed = Double(total)
-                let expected = (Double(keywordFreq) * Double(wordFreq)) / Double(tokenCount)
-                let mutualInformation = expected > 0 && observed > 0
-                    ? log2(observed / expected)
-                    : 0
-                let tScore = observed > 0
-                    ? (observed - expected) / sqrt(observed)
-                    : 0
-                let logDice = (keywordFreq + wordFreq) > 0 && observed > 0
-                    ? 14 + log2((2 * observed) / Double(keywordFreq + wordFreq))
-                    : 0
-                return [
-                    "word": word,
-                    "total": total,
-                    "left": leftByWord[word, default: 0],
-                    "right": rightByWord[word, default: 0],
-                    "wordFreq": wordFreq,
-                    "keywordFreq": keywordFreq,
-                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0,
-                    "logDice": logDice,
-                    "mutualInformation": mutualInformation,
-                    "tScore": tScore
-                ] as JSONObject
-            }
-
-        return CollocateResult(items: rows)
+        return collocateResult(
+            sentences: sentences,
+            nodeRanges: ranges,
+            frequencyMap: index.frequencyMap,
+            tokenCount: index.tokenCount,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            minFreq: minFreq
+        )
     }
 
     func runLocator(
@@ -298,71 +256,28 @@ extension NativeAnalysisEngine {
         rightWindow: Int,
         minFreq: Int
     ) -> CollocateResult {
-        let frequency = artifact.frequencyMap
-        let tokenCount = max(artifact.tokenCount, 1)
-        let safeLeft = max(0, leftWindow)
-        let safeRight = max(0, rightWindow)
-        let safeMinFreq = max(1, minFreq)
         let sentenceMap = Dictionary(uniqueKeysWithValues: artifact.sentences.map { ($0.sentenceId, $0) })
-        var totalByWord: [String: Int] = [:]
-        var leftByWord: [String: Int] = [:]
-        var rightByWord: [String: Int] = [:]
-        var keywordFreq = 0
-
-        for position in positions {
+        let ranges = positions.compactMap { position -> CollocateAssociationCalculator.NodeRange? in
             guard let sentence = sentenceMap[position.sentenceId],
                   sentence.tokens.indices.contains(position.tokenIndex) else {
-                continue
+                return nil
             }
-
-            keywordFreq += 1
-            let leftStart = max(0, position.tokenIndex - safeLeft)
-            if leftStart < position.tokenIndex {
-                for neighbor in sentence.tokens[leftStart..<position.tokenIndex] {
-                    totalByWord[neighbor.normalized, default: 0] += 1
-                    leftByWord[neighbor.normalized, default: 0] += 1
-                }
-            }
-
-            let rightEnd = min(sentence.tokens.count, position.tokenIndex + safeRight + 1)
-            if position.tokenIndex + 1 < rightEnd {
-                for neighbor in sentence.tokens[(position.tokenIndex + 1)..<rightEnd] {
-                    totalByWord[neighbor.normalized, default: 0] += 1
-                    rightByWord[neighbor.normalized, default: 0] += 1
-                }
-            }
+            return CollocateAssociationCalculator.NodeRange(
+                sentenceId: position.sentenceId,
+                startIndex: position.tokenIndex,
+                endIndex: position.tokenIndex
+            )
         }
 
-        let rows = totalByWord
-            .filter { $0.value >= safeMinFreq }
-            .map { word, total in
-                let wordFreq = frequency[word, default: 0]
-                let observed = Double(total)
-                let expected = (Double(keywordFreq) * Double(wordFreq)) / Double(tokenCount)
-                let mutualInformation = expected > 0 && observed > 0
-                    ? log2(observed / expected)
-                    : 0
-                let tScore = observed > 0
-                    ? (observed - expected) / sqrt(observed)
-                    : 0
-                let logDice = (keywordFreq + wordFreq) > 0 && observed > 0
-                    ? 14 + log2((2 * observed) / Double(keywordFreq + wordFreq))
-                    : 0
-                return [
-                    "word": word,
-                    "total": total,
-                    "left": leftByWord[word, default: 0],
-                    "right": rightByWord[word, default: 0],
-                    "wordFreq": wordFreq,
-                    "keywordFreq": keywordFreq,
-                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0,
-                    "logDice": logDice,
-                    "mutualInformation": mutualInformation,
-                    "tScore": tScore
-                ] as JSONObject
-            }
-
-        return CollocateResult(items: rows)
+        return collocateResult(
+            sentences: artifact.sentences.map(CollocateAssociationCalculator.Sentence.init),
+            nodeRanges: ranges,
+            frequencyMap: artifact.frequencyMap,
+            tokenCount: artifact.tokenCount,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            minFreq: minFreq
+        )
     }
 
     func runCollocate(
@@ -382,68 +297,25 @@ extension NativeAnalysisEngine {
             )
         }
 
-        let frequency = artifact.frequencyMap
-        let tokenCount = max(artifact.tokenCount, 1)
-        let safeLeft = max(0, leftWindow)
-        let safeRight = max(0, rightWindow)
-        let safeMinFreq = max(1, minFreq)
-        var totalByWord: [String: Int] = [:]
-        var leftByWord: [String: Int] = [:]
-        var rightByWord: [String: Int] = [:]
-        var keywordFreq = 0
-
-        for sentence in artifact.sentences {
-            for match in kwicMatches(in: sentence, matcher: matcher) {
-                keywordFreq += 1
-
-                let leftStart = max(0, match.startIndex - safeLeft)
-                if leftStart < match.startIndex {
-                    for neighbor in sentence.tokens[leftStart..<match.startIndex] {
-                        totalByWord[neighbor.normalized, default: 0] += 1
-                        leftByWord[neighbor.normalized, default: 0] += 1
-                    }
-                }
-
-                let rightEnd = min(sentence.tokens.count, match.endIndex + safeRight + 1)
-                if match.endIndex + 1 < rightEnd {
-                    for neighbor in sentence.tokens[(match.endIndex + 1)..<rightEnd] {
-                        totalByWord[neighbor.normalized, default: 0] += 1
-                        rightByWord[neighbor.normalized, default: 0] += 1
-                    }
-                }
+        let ranges = artifact.sentences.flatMap { sentence in
+            kwicMatches(in: sentence, matcher: matcher).map {
+                CollocateAssociationCalculator.NodeRange(
+                    sentenceId: sentence.sentenceId,
+                    startIndex: $0.startIndex,
+                    endIndex: $0.endIndex
+                )
             }
         }
 
-        let rows = totalByWord
-            .filter { $0.value >= safeMinFreq }
-            .map { word, total in
-                let wordFreq = frequency[word, default: 0]
-                let observed = Double(total)
-                let expected = (Double(keywordFreq) * Double(wordFreq)) / Double(tokenCount)
-                let mutualInformation = expected > 0 && observed > 0
-                    ? log2(observed / expected)
-                    : 0
-                let tScore = observed > 0
-                    ? (observed - expected) / sqrt(observed)
-                    : 0
-                let logDice = (keywordFreq + wordFreq) > 0 && observed > 0
-                    ? 14 + log2((2 * observed) / Double(keywordFreq + wordFreq))
-                    : 0
-                return [
-                    "word": word,
-                    "total": total,
-                    "left": leftByWord[word, default: 0],
-                    "right": rightByWord[word, default: 0],
-                    "wordFreq": wordFreq,
-                    "keywordFreq": keywordFreq,
-                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0,
-                    "logDice": logDice,
-                    "mutualInformation": mutualInformation,
-                    "tScore": tScore
-                ] as JSONObject
-            }
-
-        return CollocateResult(items: rows)
+        return collocateResult(
+            sentences: artifact.sentences.map(CollocateAssociationCalculator.Sentence.init),
+            nodeRanges: ranges,
+            frequencyMap: artifact.frequencyMap,
+            tokenCount: artifact.tokenCount,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            minFreq: minFreq
+        )
     }
 
     func runCollocate(
@@ -464,68 +336,26 @@ extension NativeAnalysisEngine {
             )
         }
 
-        let frequency = artifact.frequencyMap
-        let tokenCount = max(artifact.tokenCount, 1)
-        let safeLeft = max(0, leftWindow)
-        let safeRight = max(0, rightWindow)
-        let safeMinFreq = max(1, minFreq)
-        var totalByWord: [String: Int] = [:]
-        var leftByWord: [String: Int] = [:]
-        var rightByWord: [String: Int] = [:]
-        var keywordFreq = 0
-
-        for sentence in artifact.sentences where candidateSentenceIDs.contains(sentence.sentenceId) {
-            for match in kwicMatches(in: sentence, matcher: matcher) {
-                keywordFreq += 1
-
-                let leftStart = max(0, match.startIndex - safeLeft)
-                if leftStart < match.startIndex {
-                    for neighbor in sentence.tokens[leftStart..<match.startIndex] {
-                        totalByWord[neighbor.normalized, default: 0] += 1
-                        leftByWord[neighbor.normalized, default: 0] += 1
-                    }
-                }
-
-                let rightEnd = min(sentence.tokens.count, match.endIndex + safeRight + 1)
-                if match.endIndex + 1 < rightEnd {
-                    for neighbor in sentence.tokens[(match.endIndex + 1)..<rightEnd] {
-                        totalByWord[neighbor.normalized, default: 0] += 1
-                        rightByWord[neighbor.normalized, default: 0] += 1
-                    }
-                }
+        let candidateSentences = artifact.sentences.filter { candidateSentenceIDs.contains($0.sentenceId) }
+        let ranges = candidateSentences.flatMap { sentence in
+            kwicMatches(in: sentence, matcher: matcher).map {
+                CollocateAssociationCalculator.NodeRange(
+                    sentenceId: sentence.sentenceId,
+                    startIndex: $0.startIndex,
+                    endIndex: $0.endIndex
+                )
             }
         }
 
-        let rows = totalByWord
-            .filter { $0.value >= safeMinFreq }
-            .map { word, total in
-                let wordFreq = frequency[word, default: 0]
-                let observed = Double(total)
-                let expected = (Double(keywordFreq) * Double(wordFreq)) / Double(tokenCount)
-                let mutualInformation = expected > 0 && observed > 0
-                    ? log2(observed / expected)
-                    : 0
-                let tScore = observed > 0
-                    ? (observed - expected) / sqrt(observed)
-                    : 0
-                let logDice = (keywordFreq + wordFreq) > 0 && observed > 0
-                    ? 14 + log2((2 * observed) / Double(keywordFreq + wordFreq))
-                    : 0
-                return [
-                    "word": word,
-                    "total": total,
-                    "left": leftByWord[word, default: 0],
-                    "right": rightByWord[word, default: 0],
-                    "wordFreq": wordFreq,
-                    "keywordFreq": keywordFreq,
-                    "rate": keywordFreq > 0 ? Double(total) / Double(keywordFreq) : 0,
-                    "logDice": logDice,
-                    "mutualInformation": mutualInformation,
-                    "tScore": tScore
-                ] as JSONObject
-            }
-
-        return CollocateResult(items: rows)
+        return collocateResult(
+            sentences: candidateSentences.map(CollocateAssociationCalculator.Sentence.init),
+            nodeRanges: ranges,
+            frequencyMap: artifact.frequencyMap,
+            tokenCount: artifact.tokenCount,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            minFreq: minFreq
+        )
     }
 
     func runLocator(
@@ -589,6 +419,28 @@ private struct KWICMatch {
     let startIndex: Int
     let endIndex: Int
     let node: String
+}
+
+private func collocateResult(
+    sentences: [CollocateAssociationCalculator.Sentence],
+    nodeRanges: [CollocateAssociationCalculator.NodeRange],
+    frequencyMap: [String: Int],
+    tokenCount: Int,
+    leftWindow: Int,
+    rightWindow: Int,
+    minFreq: Int
+) -> CollocateResult {
+    CollocateResult(
+        rows: CollocateAssociationCalculator.calculate(
+            sentences: sentences,
+            nodeRanges: nodeRanges,
+            frequencyMap: frequencyMap,
+            tokenCount: tokenCount,
+            leftWindow: leftWindow,
+            rightWindow: rightWindow,
+            minFreq: minFreq
+        )
+    )
 }
 
 private func kwicMatches(in sentence: ParsedSentence, matcher: SearchTextMatcher) -> [KWICMatch] {

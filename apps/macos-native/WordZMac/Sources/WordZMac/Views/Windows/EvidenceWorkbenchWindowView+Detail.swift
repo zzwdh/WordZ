@@ -3,10 +3,13 @@ import SwiftUI
 struct EvidenceWorkbenchDetailPanel: View {
     @Environment(\.wordZLanguageMode) private var languageMode
     @ObservedObject var workbench: EvidenceWorkbenchViewModel
+    @State private var showsExportOptions = false
+    @State private var showsSourceTrace = false
+    @State private var showsOrderingTools = false
+
     let onUpdateStatus: (String, EvidenceReviewStatus) -> Void
     let onMoveSelected: (EvidenceWorkbenchMoveDirection) -> Void
     let onExportMarkdown: () -> Void
-    let onExportJSON: () -> Void
     let onMoveSelectedGroup: (EvidenceWorkbenchMoveDirection) -> Void
     let onSplitSelectedGroup: () -> Void
     let onRenameSelectedGroup: () -> Void
@@ -19,30 +22,7 @@ struct EvidenceWorkbenchDetailPanel: View {
         if let item = workbench.selectedItem {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.keyword.isEmpty ? t("证据条目", "Evidence Item") : item.keyword)
-                                .font(.title3.weight(.semibold))
-                            Text(item.sourceKind.title(in: languageMode) + " · " + item.corpusName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Picker(
-                            t("评审状态", "Review Status"),
-                            selection: Binding(
-                                get: { item.reviewStatus },
-                                set: { onUpdateStatus(item.id, $0) }
-                            )
-                        ) {
-                            ForEach(EvidenceReviewStatus.allCases) { status in
-                                Text(status.title(in: languageMode))
-                                    .tag(status)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(maxWidth: 280)
-                    }
+                    header(for: item)
 
                     WorkbenchConcordanceLineView(
                         leftContext: item.leftContext,
@@ -55,321 +35,386 @@ struct EvidenceWorkbenchDetailPanel: View {
                         content: item.fullSentenceText
                     )
 
-                    detailBlock(
-                        title: t("引文", "Citation"),
-                        content: item.styledCitationText(
-                            format: workbench.citationFormatDraft,
-                            style: workbench.citationStyleDraft
+                    evidenceNotesSection
+
+                    DisclosureGroup(isExpanded: $showsExportOptions) {
+                        exportOptionsSection(item)
+                    } label: {
+                        disclosureLabel(
+                            title: t("引文文本", "Citation Text"),
+                            subtitle: workbench.citationFormatDraft.title(in: languageMode) +
+                                " · " +
+                                workbench.citationStyleDraft.title(in: languageMode)
                         )
-                    )
+                    }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(t("摘录信息", "Clip Details"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        TextField(
-                            t("章节标题", "Section Title"),
-                            text: $workbench.sectionDraft
+                    DisclosureGroup(isExpanded: $showsSourceTrace) {
+                        sourceTraceSection(item)
+                    } label: {
+                        disclosureLabel(
+                            title: t("来源与分析记录", "Source and Analysis Trace"),
+                            subtitle: item.sourceKind.title(in: languageMode) + " · " + item.corpusName
                         )
-                        .textFieldStyle(.roundedBorder)
+                    }
 
-                        TextField(
-                            t("论点 / Claim", "Claim"),
-                            text: $workbench.claimDraft
+                    DisclosureGroup(isExpanded: $showsOrderingTools) {
+                        orderingToolsSection
+                    } label: {
+                        disclosureLabel(
+                            title: t("整理工具", "Organization Tools"),
+                            subtitle: workbench.selectedGroup(in: languageMode)?.title ??
+                                t("未选择分组", "No Group Selected")
                         )
-                        .textFieldStyle(.roundedBorder)
-
-                        TextField(
-                            t("标签（逗号分隔）", "Tags (comma separated)"),
-                            text: $workbench.tagsDraft
-                        )
-                        .textFieldStyle(.roundedBorder)
-
-                        Picker(
-                            t("引文格式", "Citation Format"),
-                            selection: $workbench.citationFormatDraft
-                        ) {
-                            ForEach(EvidenceCitationFormat.allCases) { format in
-                                Text(format.title(in: languageMode))
-                                    .tag(format)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        Text(workbench.citationFormatDraft.summary(in: languageMode))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Picker(
-                            t("引用样式", "Citation Style"),
-                            selection: $workbench.citationStyleDraft
-                        ) {
-                            ForEach(EvidenceCitationStyle.allCases) { style in
-                                Text(style.title(in: languageMode))
-                                    .tag(style)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        Text(workbench.citationStyleDraft.summary(in: languageMode))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if let summary = workbench.currentDraft.summary(in: languageMode).nilIfEmpty {
-                            Text(summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(t("来源摘要", "Source Summary"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        detailSummaryRow(t("来源", "Source"), value: item.sourceKind.title(in: languageMode))
-                        detailSummaryRow(t("语料", "Corpus"), value: item.corpusName)
-                        detailSummaryRow(t("句号", "Sentence"), value: "\(item.sentenceId + 1)")
-                        detailSummaryRow(t("参数", "Parameters"), value: item.parameterSummary(in: languageMode))
-                        if let savedSetName = workbench.normalizedNote(item.savedSetName) {
-                            detailSummaryRow(t("命中集", "Hit Set"), value: savedSetName)
-                        }
-                    }
-
-                    if let sentimentMetadata = item.sentimentMetadata {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(t("情感 Provenance", "Sentiment Provenance"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            detailSummaryRow(
-                                t("Raw Result", "Raw Result"),
-                                value: sentimentMetadata.rawLabel.title(in: languageMode) + " · " + sentimentScoreSummary(sentimentMetadata.rawScores)
-                            )
-                            detailSummaryRow(
-                                t("Effective Result", "Effective Result"),
-                                value: sentimentMetadata.effectiveLabel.title(in: languageMode) + " · " + sentimentScoreSummary(sentimentMetadata.effectiveScores)
-                            )
-                            detailSummaryRow(
-                                t("Review Status", "Review Status"),
-                                value: sentimentMetadata.reviewStatus.title(in: languageMode)
-                            )
-                            detailSummaryRow(
-                                t("Backend", "Backend"),
-                                value: sentimentMetadata.backendKind.title(in: languageMode) + " · " + sentimentMetadata.backendRevision
-                            )
-                            if let providerID = sentimentMetadata.providerID,
-                               !providerID.isEmpty {
-                                let providerValue = providerID + (sentimentMetadata.providerFamily.map {
-                                    " · " + $0.title(in: languageMode)
-                                } ?? "")
-                                detailSummaryRow(
-                                    t("Model Provider", "Model Provider"),
-                                    value: providerValue
-                                )
-                            }
-                            detailSummaryRow(
-                                t("Pack / Profile", "Pack / Profile"),
-                                value: sentimentMetadata.domainPackID.title(in: languageMode) + " · " + sentimentMetadata.ruleProfileID
-                            )
-                            if let inferencePath = sentimentMetadata.inferencePath {
-                                detailSummaryRow(
-                                    t("推理路径", "Inference Path"),
-                                    value: inferencePath.title(in: languageMode)
-                                )
-                            }
-                            if let modelInputKind = sentimentMetadata.modelInputKind {
-                                detailSummaryRow(
-                                    t("输入模式", "Input Mode"),
-                                    value: modelInputKind.title(in: languageMode)
-                                )
-                            }
-                            if let ruleSummary = workbench.normalizedNote(sentimentMetadata.ruleSummary) {
-                                detailSummaryRow(t("规则摘要", "Rule Summary"), value: ruleSummary)
-                            }
-                            if !sentimentMetadata.topRuleTraceSteps.isEmpty {
-                                detailSummaryRow(
-                                    t("规则步骤", "Rule Steps"),
-                                    value: sentimentMetadata.topRuleTraceSteps
-                                        .map { "\($0.tag): \($0.note)" }
-                                        .joined(separator: " · ")
-                                )
-                            }
-                        }
-                    }
-
-                    if let crossAnalysisMetadata = item.crossAnalysisMetadata {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(t("跨分析 Provenance", "Cross-analysis Provenance"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            detailSummaryRow(t("来源", "Origin"), value: crossAnalysisMetadata.originKind.title(in: languageMode))
-                            detailSummaryRow(t("范围", "Scope"), value: crossAnalysisMetadata.scopeSummary)
-                            if let focusTerm = workbench.normalizedNote(crossAnalysisMetadata.focusTerm) {
-                                detailSummaryRow(t("聚焦词项", "Focus Term"), value: focusTerm)
-                            }
-                            if let focusedTopicID = workbench.normalizedNote(crossAnalysisMetadata.focusedTopicID) {
-                                detailSummaryRow(t("聚焦主题", "Focused Topic"), value: focusedTopicID)
-                            }
-                            if let groupTitle = workbench.normalizedNote(crossAnalysisMetadata.groupTitle) {
-                                detailSummaryRow(t("分组", "Group"), value: groupTitle)
-                            }
-                            if let compareSide = workbench.normalizedNote(crossAnalysisMetadata.compareSide) {
-                                detailSummaryRow(t("对照侧", "Compare Side"), value: compareSide)
-                            }
-                            if let topicTitle = workbench.normalizedNote(crossAnalysisMetadata.topicTitle) {
-                                detailSummaryRow(t("主题标题", "Topic Title"), value: topicTitle)
-                            }
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(t("研究备注", "Research Note"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $workbench.noteDraft)
-                            .font(.body)
-                            .frame(minHeight: 120)
-                    }
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(t("编排顺序", "Ordering"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 12) {
-                            Text(t("条目顺序", "Item Order"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Button {
-                                onMoveSelected(.up)
-                            } label: {
-                                Label(
-                                    t("上移条目", "Move Item Up"),
-                                    systemImage: EvidenceWorkbenchMoveDirection.up.systemImageName
-                                )
-                            }
-                            .disabled(!workbench.canMoveSelectedItemUp)
-
-                            Button {
-                                onMoveSelected(.down)
-                            } label: {
-                                Label(
-                                    t("下移条目", "Move Item Down"),
-                                    systemImage: EvidenceWorkbenchMoveDirection.down.systemImageName
-                                )
-                            }
-                            .disabled(!workbench.canMoveSelectedItemDown)
-
-                            Spacer()
-                        }
-
-                        if let selectedGroup = workbench.selectedGroup(in: languageMode) {
-                            Text(
-                                workbench.groupingMode.currentGroupTitle(in: languageMode) +
-                                    ": " +
-                                    selectedGroup.title +
-                                    " · " +
-                                    selectedGroup.itemCountSummary
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                            HStack(spacing: 12) {
-                                Button {
-                                    onMoveSelectedGroup(.up)
-                                } label: {
-                                    Label(
-                                        workbench.groupingMode.moveSelectedGroupTitle(.up, in: languageMode),
-                                        systemImage: EvidenceWorkbenchMoveDirection.up.systemImageName
-                                    )
-                                }
-                                .disabled(!workbench.canMoveSelectedGroupUp)
-
-                                Button {
-                                    onMoveSelectedGroup(.down)
-                                } label: {
-                                    Label(
-                                        workbench.groupingMode.moveSelectedGroupTitle(.down, in: languageMode),
-                                        systemImage: EvidenceWorkbenchMoveDirection.down.systemImageName
-                                    )
-                                }
-                                .disabled(!workbench.canMoveSelectedGroupDown)
-
-                                Button {
-                                    onSplitSelectedGroup()
-                                } label: {
-                                    Label(
-                                        workbench.groupingMode.splitSelectedGroupTitle(in: languageMode),
-                                        systemImage: "scissors"
-                                    )
-                                }
-                                .disabled(!workbench.canSplitSelectedGroup)
-
-                                Button {
-                                    onRenameSelectedGroup()
-                                } label: {
-                                    Label(
-                                        workbench.groupingMode.renameSelectedGroupTitle(in: languageMode),
-                                        systemImage: "pencil"
-                                    )
-                                }
-                                .disabled(!workbench.groupingMode.supportsItemAssignment)
-
-                                Button {
-                                    onMergeSelectedGroup()
-                                } label: {
-                                    Label(
-                                        workbench.groupingMode.mergeSelectedGroupTitle(in: languageMode),
-                                        systemImage: "arrow.triangle.merge"
-                                    )
-                                }
-                                .disabled(!workbench.groupingMode.supportsItemAssignment)
-
-                                Spacer()
-                            }
-                        }
-                    }
-
-                    HStack(spacing: 12) {
-                        Button(t("复制引文", "Copy Citation")) {
-                            onCopyCitation(item.id)
-                        }
-                        Button(t("导出摘录", "Export Clips")) {
-                            onExportMarkdown()
-                        }
-                        .disabled(!workbench.items.contains(where: { $0.reviewStatus == .keep }))
-                        Button(t("导出 JSON", "Export JSON")) {
-                            onExportJSON()
-                        }
-                        .disabled(workbench.items.isEmpty)
-                        Button(t("保存整理字段", "Save Details")) {
-                            onSaveDetails()
-                        }
-                        .disabled(!workbench.hasUnsavedDetailChanges)
-                        Button(role: .destructive) {
-                            onDeleteItem(item.id)
-                        } label: {
-                            Text(t("删除条目", "Delete Item"))
-                        }
-                        Spacer()
-                    }
+                    actionRow(item)
                 }
             }
         } else {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(t("还没有可阅读的证据条目", "No Evidence Items Yet"))
-                    .font(.title3.weight(.semibold))
-                Text(
-                    t(
-                        "先从 KWIC、定位器或原文阅读器加入摘录，这里会显示可复查、可备注、可导出的分析材料。",
-                        "Add clips from KWIC, Locator, or Source Reader to collect reviewable, annotatable, exportable analysis material."
-                    )
-                )
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            emptyState
         }
+    }
+
+    private func header(for item: EvidenceItem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.keyword.isEmpty ? t("证据条目", "Evidence Item") : item.keyword)
+                    .font(.title3.weight(.semibold))
+                Text(item.sourceKind.title(in: languageMode) + " · " + item.corpusName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Picker(
+                t("评审状态", "Review Status"),
+                selection: Binding(
+                    get: { item.reviewStatus },
+                    set: { onUpdateStatus(item.id, $0) }
+                )
+            ) {
+                ForEach(EvidenceReviewStatus.allCases) { status in
+                    Text(status.title(in: languageMode))
+                        .tag(status)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 280)
+        }
+    }
+
+    private var evidenceNotesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(t("整理信息", "Evidence Notes"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            TextField(
+                t("证据组", "Evidence Group"),
+                text: $workbench.sectionDraft
+            )
+            .textFieldStyle(.roundedBorder)
+
+            TextField(
+                t("发现线索", "Finding"),
+                text: $workbench.claimDraft
+            )
+            .textFieldStyle(.roundedBorder)
+
+            TextField(
+                t("标签（逗号分隔）", "Tags (comma separated)"),
+                text: $workbench.tagsDraft
+            )
+            .textFieldStyle(.roundedBorder)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(t("复查备注", "Review Note"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $workbench.noteDraft)
+                    .font(.body)
+                    .frame(minHeight: 120)
+            }
+
+            if let summary = workbench.currentDraft.summary(in: languageMode).nilIfEmpty {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func exportOptionsSection(_ item: EvidenceItem) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            detailBlock(
+                title: t("引文预览", "Citation Preview"),
+                content: item.styledCitationText(
+                    format: workbench.citationFormatDraft,
+                    style: workbench.citationStyleDraft
+                )
+            )
+
+            Picker(
+                t("引文文本", "Citation Text"),
+                selection: $workbench.citationFormatDraft
+            ) {
+                ForEach(EvidenceCitationFormat.allCases) { format in
+                    Text(format.title(in: languageMode))
+                        .tag(format)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(workbench.citationFormatDraft.summary(in: languageMode))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Picker(
+                t("引用样式", "Reference Style"),
+                selection: $workbench.citationStyleDraft
+            ) {
+                ForEach(EvidenceCitationStyle.allCases) { style in
+                    Text(style.title(in: languageMode))
+                        .tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(workbench.citationStyleDraft.summary(in: languageMode))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 8)
+    }
+
+    private func sourceTraceSection(_ item: EvidenceItem) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sourceSummarySection(item)
+
+            if let sentimentMetadata = item.sentimentMetadata {
+                sentimentTraceSection(sentimentMetadata)
+            }
+
+            if let crossAnalysisMetadata = item.crossAnalysisMetadata {
+                crossAnalysisTraceSection(crossAnalysisMetadata)
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    private func sourceSummarySection(_ item: EvidenceItem) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(t("来源摘要", "Source Summary"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            detailSummaryRow(t("来源", "Source"), value: item.sourceKind.title(in: languageMode))
+            detailSummaryRow(t("语料", "Corpus"), value: item.corpusName)
+            detailSummaryRow(t("句号", "Sentence"), value: "\(item.sentenceId + 1)")
+            detailSummaryRow(t("参数", "Parameters"), value: item.parameterSummary(in: languageMode))
+            if let savedSetName = workbench.normalizedNote(item.savedSetName) {
+                detailSummaryRow(t("命中集", "Hit Set"), value: savedSetName)
+            }
+        }
+    }
+
+    private func sentimentTraceSection(_ metadata: EvidenceSentimentMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(t("情感溯源", "Sentiment Trace"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            detailSummaryRow(
+                t("Raw Result", "Raw Result"),
+                value: metadata.rawLabel.title(in: languageMode) + " · " + sentimentScoreSummary(metadata.rawScores)
+            )
+            detailSummaryRow(
+                t("Effective Result", "Effective Result"),
+                value: metadata.effectiveLabel.title(in: languageMode) + " · " + sentimentScoreSummary(metadata.effectiveScores)
+            )
+            detailSummaryRow(
+                t("Review Status", "Review Status"),
+                value: metadata.reviewStatus.title(in: languageMode)
+            )
+            detailSummaryRow(
+                t("Backend", "Backend"),
+                value: metadata.backendKind.title(in: languageMode) + " · " + metadata.backendRevision
+            )
+            if let providerID = metadata.providerID, !providerID.isEmpty {
+                let providerValue = providerID + (metadata.providerFamily.map {
+                    " · " + $0.title(in: languageMode)
+                } ?? "")
+                detailSummaryRow(t("Model Provider", "Model Provider"), value: providerValue)
+            }
+            detailSummaryRow(
+                t("Pack / Profile", "Pack / Profile"),
+                value: metadata.domainPackID.title(in: languageMode) + " · " + metadata.ruleProfileID
+            )
+            if let inferencePath = metadata.inferencePath {
+                detailSummaryRow(t("推理路径", "Inference Path"), value: inferencePath.title(in: languageMode))
+            }
+            if let modelInputKind = metadata.modelInputKind {
+                detailSummaryRow(t("输入模式", "Input Mode"), value: modelInputKind.title(in: languageMode))
+            }
+            if let ruleSummary = workbench.normalizedNote(metadata.ruleSummary) {
+                detailSummaryRow(t("规则摘要", "Rule Summary"), value: ruleSummary)
+            }
+            if !metadata.topRuleTraceSteps.isEmpty {
+                detailSummaryRow(
+                    t("规则步骤", "Rule Steps"),
+                    value: metadata.topRuleTraceSteps
+                        .map { "\($0.tag): \($0.note)" }
+                        .joined(separator: " · ")
+                )
+            }
+        }
+    }
+
+    private func crossAnalysisTraceSection(_ metadata: EvidenceCrossAnalysisMetadata) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(t("跨分析溯源", "Cross-analysis Trace"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            detailSummaryRow(t("来源", "Origin"), value: metadata.originKind.title(in: languageMode))
+            detailSummaryRow(t("范围", "Scope"), value: metadata.scopeSummary)
+            if let focusTerm = workbench.normalizedNote(metadata.focusTerm) {
+                detailSummaryRow(t("聚焦词项", "Focus Term"), value: focusTerm)
+            }
+            if let focusedTopicID = workbench.normalizedNote(metadata.focusedTopicID) {
+                detailSummaryRow(t("聚焦主题", "Focused Topic"), value: focusedTopicID)
+            }
+            if let groupTitle = workbench.normalizedNote(metadata.groupTitle) {
+                detailSummaryRow(t("分组", "Group"), value: groupTitle)
+            }
+            if let compareSide = workbench.normalizedNote(metadata.compareSide) {
+                detailSummaryRow(t("对照侧", "Compare Side"), value: compareSide)
+            }
+            if let topicTitle = workbench.normalizedNote(metadata.topicTitle) {
+                detailSummaryRow(t("主题标题", "Topic Title"), value: topicTitle)
+            }
+        }
+    }
+
+    private var orderingToolsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Text(t("条目顺序", "Item Order"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    onMoveSelected(.up)
+                } label: {
+                    Label(t("上移条目", "Move Item Up"), systemImage: EvidenceWorkbenchMoveDirection.up.systemImageName)
+                }
+                .disabled(!workbench.canMoveSelectedItemUp)
+
+                Button {
+                    onMoveSelected(.down)
+                } label: {
+                    Label(t("下移条目", "Move Item Down"), systemImage: EvidenceWorkbenchMoveDirection.down.systemImageName)
+                }
+                .disabled(!workbench.canMoveSelectedItemDown)
+
+                Spacer()
+            }
+
+            if let selectedGroup = workbench.selectedGroup(in: languageMode) {
+                Text(
+                    workbench.groupingMode.currentGroupTitle(in: languageMode) +
+                        ": " +
+                        selectedGroup.title +
+                        " · " +
+                        selectedGroup.itemCountSummary
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    Button {
+                        onMoveSelectedGroup(.up)
+                    } label: {
+                        Label(
+                            workbench.groupingMode.moveSelectedGroupTitle(.up, in: languageMode),
+                            systemImage: EvidenceWorkbenchMoveDirection.up.systemImageName
+                        )
+                    }
+                    .disabled(!workbench.canMoveSelectedGroupUp)
+
+                    Button {
+                        onMoveSelectedGroup(.down)
+                    } label: {
+                        Label(
+                            workbench.groupingMode.moveSelectedGroupTitle(.down, in: languageMode),
+                            systemImage: EvidenceWorkbenchMoveDirection.down.systemImageName
+                        )
+                    }
+                    .disabled(!workbench.canMoveSelectedGroupDown)
+
+                    Button {
+                        onSplitSelectedGroup()
+                    } label: {
+                        Label(workbench.groupingMode.splitSelectedGroupTitle(in: languageMode), systemImage: "scissors")
+                    }
+                    .disabled(!workbench.canSplitSelectedGroup)
+
+                    Button {
+                        onRenameSelectedGroup()
+                    } label: {
+                        Label(workbench.groupingMode.renameSelectedGroupTitle(in: languageMode), systemImage: "pencil")
+                    }
+                    .disabled(!workbench.groupingMode.supportsItemAssignment)
+
+                    Button {
+                        onMergeSelectedGroup()
+                    } label: {
+                        Label(workbench.groupingMode.mergeSelectedGroupTitle(in: languageMode), systemImage: "arrow.triangle.merge")
+                    }
+                    .disabled(!workbench.groupingMode.supportsItemAssignment)
+
+                    Spacer()
+                }
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    private func actionRow(_ item: EvidenceItem) -> some View {
+        HStack(spacing: 12) {
+            Button(t("复制引文", "Copy Citation")) {
+                onCopyCitation(item.id)
+            }
+
+            Button(t("保存保留条目…", "Save Kept Items…")) {
+                onExportMarkdown()
+            }
+            .disabled(!workbench.items.contains(where: { $0.reviewStatus == .keep }))
+
+            Button(t("保存整理", "Save Notes")) {
+                onSaveDetails()
+            }
+            .disabled(!workbench.hasUnsavedDetailChanges)
+
+            Button(role: .destructive) {
+                onDeleteItem(item.id)
+            } label: {
+                Text(t("删除条目", "Delete Item"))
+            }
+
+            Spacer()
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(t("还没有可阅读的证据条目", "No Evidence Items Yet"))
+                .font(.title3.weight(.semibold))
+            Text(
+                t(
+                    "先从 KWIC、定位器或原文阅读器加入证据；这里会保留上下文、来源参数和复查备注，方便之后带到真正的写作工具。",
+                    "Add evidence from KWIC, Locator, or Source Reader; this basket keeps context, source traces, and review notes for handoff to your writing tools."
+                )
+            )
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private func detailBlock(title: String, content: String) -> some View {
@@ -392,6 +437,18 @@ struct EvidenceWorkbenchDetailPanel: View {
                 .font(.caption)
                 .textSelection(.enabled)
             Spacer()
+        }
+    }
+
+    private func disclosureLabel(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 

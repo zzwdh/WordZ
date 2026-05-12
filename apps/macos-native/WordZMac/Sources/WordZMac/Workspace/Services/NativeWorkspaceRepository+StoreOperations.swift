@@ -147,6 +147,11 @@ extension NativeWorkspaceRepositoryCore {
         return try storedTokenizedArtifact(for: corpusId)
     }
 
+    func loadStoredTokenPositionIndex(corpusId: String) throws -> StoredTokenPositionIndexArtifact? {
+        try ensureReady()
+        return try storedTokenPositionIndex(for: corpusId)
+    }
+
     func loadCorpusInfo(corpusId: String) throws -> CorpusInfoSummary {
         try ensureReady()
         if let cached = corpusInfoCache[corpusId] {

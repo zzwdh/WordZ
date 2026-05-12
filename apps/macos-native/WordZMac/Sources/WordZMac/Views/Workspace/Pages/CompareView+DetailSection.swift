@@ -74,7 +74,7 @@ extension CompareView {
                     Button(t("转到 Keyword Suite", "Analyze in Keyword Suite")) {
                         onAction(.analyzeInKeywordSuite)
                     }
-                    Menu(t("研究导出", "Research Export")) {
+                    Menu(t("阅读导出", "Reading Export")) {
                         Button("Copy Current") {
                             onAction(.copyCurrent(.summary))
                         }

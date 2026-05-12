@@ -4,9 +4,9 @@ extension EvidenceWorkbenchGroupingMode {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("按章节", "By Section", mode: mode)
+            return wordZText("按证据组", "By Evidence Group", mode: mode)
         case .claim:
-            return wordZText("按论点", "By Claim", mode: mode)
+            return wordZText("按发现线索", "By Finding", mode: mode)
         case .corpusSet:
             return wordZText("按命中集", "By Hit Set", mode: mode)
         }
@@ -15,9 +15,9 @@ extension EvidenceWorkbenchGroupingMode {
     func unitTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("章节", "Section", mode: mode)
+            return wordZText("证据组", "Evidence Group", mode: mode)
         case .claim:
-            return wordZText("论点", "Claim", mode: mode)
+            return wordZText("发现线索", "Finding", mode: mode)
         case .corpusSet:
             return wordZText("命中集", "Hit Set", mode: mode)
         }
@@ -190,11 +190,11 @@ extension EvidenceWorkbenchGroupingMode {
     func unsupportedItemAssignmentStatus(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("当前章节视图不支持该拖放操作。", "This drag operation is not supported in the section view.", mode: mode)
+            return wordZText("当前证据组视图不支持该拖放操作。", "This drag operation is not supported in the evidence group view.", mode: mode)
         case .claim:
-            return wordZText("当前论点视图不支持该拖放操作。", "This drag operation is not supported in the claim view.", mode: mode)
+            return wordZText("当前发现线索视图不支持该拖放操作。", "This drag operation is not supported in the finding view.", mode: mode)
         case .corpusSet:
-            return wordZText("命中集分组来自 provenance，本轮不支持手工拖入。", "Hit set grouping is provenance-based and cannot accept manual drops in this release.", mode: mode)
+            return wordZText("命中集分组来自来源记录，本轮不支持手工拖入。", "Hit set grouping comes from source records and cannot accept manual drops in this release.", mode: mode)
         }
     }
 
@@ -205,12 +205,12 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("已将证据条目归入章节：%@。", "Assigned the evidence item to section: %@.", mode: mode),
+                format: wordZText("已将证据条目归入证据组：%@。", "Assigned the evidence item to evidence group: %@.", mode: mode),
                 groupTitle
             )
         case .claim:
             return String(
-                format: wordZText("已将证据条目归入论点：%@。", "Assigned the evidence item to claim: %@.", mode: mode),
+                format: wordZText("已将证据条目标注为发现线索：%@。", "Assigned the evidence item to finding: %@.", mode: mode),
                 groupTitle
             )
         case .corpusSet:
@@ -221,9 +221,9 @@ extension EvidenceWorkbenchGroupingMode {
     func createGroupTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("新建章节…", "New Section…", mode: mode)
+            return wordZText("新建证据组…", "New Evidence Group…", mode: mode)
         case .claim:
-            return wordZText("新建论点…", "New Claim…", mode: mode)
+            return wordZText("新建发现线索…", "New Finding…", mode: mode)
         case .corpusSet:
             return wordZText("新建命中集…", "New Hit Set…", mode: mode)
         }
@@ -232,9 +232,9 @@ extension EvidenceWorkbenchGroupingMode {
     func createGroupDropHint(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("拖入条目，或使用当前选中条目新建章节。", "Drop an item here, or use the current selection to create a section.", mode: mode)
+            return wordZText("拖入条目，或使用当前选中条目新建证据组。", "Drop an item here, or use the current selection to create an evidence group.", mode: mode)
         case .claim:
-            return wordZText("拖入条目，或使用当前选中条目新建论点。", "Drop an item here, or use the current selection to create a claim.", mode: mode)
+            return wordZText("拖入条目，或使用当前选中条目新建发现线索。", "Drop an item here, or use the current selection to create a finding.", mode: mode)
         case .corpusSet:
             return wordZText("当前命中集视图不支持新建分组。", "Creating a new group is not supported in the hit set view.", mode: mode)
         }
@@ -243,9 +243,9 @@ extension EvidenceWorkbenchGroupingMode {
     func createGroupPromptTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("新建章节", "New Section", mode: mode)
+            return wordZText("新建证据组", "New Evidence Group", mode: mode)
         case .claim:
-            return wordZText("新建论点", "New Claim", mode: mode)
+            return wordZText("新建发现线索", "New Finding", mode: mode)
         case .corpusSet:
             return wordZText("新建命中集", "New Hit Set", mode: mode)
         }
@@ -254,9 +254,9 @@ extension EvidenceWorkbenchGroupingMode {
     func createGroupPromptMessage(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("输入新的章节标题，拖入的证据会归入这里。", "Enter a new section title and the dragged evidence will be assigned to it.", mode: mode)
+            return wordZText("输入新的证据组名称，拖入的证据会归入这里。", "Enter a new evidence group name and the dragged evidence will be assigned to it.", mode: mode)
         case .claim:
-            return wordZText("输入新的论点名称，拖入的证据会归入这里。", "Enter a new claim name and the dragged evidence will be assigned to it.", mode: mode)
+            return wordZText("输入新的发现线索名称，拖入的证据会归入这里。", "Enter a new finding name and the dragged evidence will be assigned to it.", mode: mode)
         case .corpusSet:
             return wordZText("当前命中集视图不支持新建分组。", "Creating a new group is not supported in the hit set view.", mode: mode)
         }
@@ -276,9 +276,9 @@ extension EvidenceWorkbenchGroupingMode {
     func missingCreatedGroupNameStatus(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("请输入新的章节标题。", "Enter a new section title.", mode: mode)
+            return wordZText("请输入新的证据组名称。", "Enter a new evidence group name.", mode: mode)
         case .claim:
-            return wordZText("请输入新的论点名称。", "Enter a new claim name.", mode: mode)
+            return wordZText("请输入新的发现线索名称。", "Enter a new finding name.", mode: mode)
         case .corpusSet:
             return wordZText("当前命中集视图不支持新建分组。", "Creating a new group is not supported in the hit set view.", mode: mode)
         }
@@ -291,12 +291,12 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("已创建章节并归入证据：%@。", "Created the section and assigned the evidence: %@.", mode: mode),
+                format: wordZText("已创建证据组并归入证据：%@。", "Created the evidence group and assigned the evidence: %@.", mode: mode),
                 groupTitle
             )
         case .claim:
             return String(
-                format: wordZText("已创建论点并归入证据：%@。", "Created the claim and assigned the evidence: %@.", mode: mode),
+                format: wordZText("已创建发现线索并归入证据：%@。", "Created the finding and assigned the evidence: %@.", mode: mode),
                 groupTitle
             )
         case .corpusSet:
@@ -307,9 +307,9 @@ extension EvidenceWorkbenchGroupingMode {
     func splitSelectedGroupTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("拆分当前章节…", "Split Current Section…", mode: mode)
+            return wordZText("拆分当前证据组…", "Split Current Evidence Group…", mode: mode)
         case .claim:
-            return wordZText("拆分当前论点…", "Split Current Claim…", mode: mode)
+            return wordZText("拆分当前发现线索…", "Split Current Finding…", mode: mode)
         case .corpusSet:
             return wordZText("拆分当前命中集…", "Split Current Hit Set…", mode: mode)
         }
@@ -318,9 +318,9 @@ extension EvidenceWorkbenchGroupingMode {
     func splitGroupPromptTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("拆分章节", "Split Section", mode: mode)
+            return wordZText("拆分证据组", "Split Evidence Group", mode: mode)
         case .claim:
-            return wordZText("拆分论点", "Split Claim", mode: mode)
+            return wordZText("拆分发现线索", "Split Finding", mode: mode)
         case .corpusSet:
             return wordZText("拆分命中集", "Split Hit Set", mode: mode)
         }
@@ -334,8 +334,8 @@ extension EvidenceWorkbenchGroupingMode {
         case .section:
             return String(
                 format: wordZText(
-                    "为从章节“%@”拆出的后半部分输入新标题。当前选中条目及其后续同章节证据会移到这里。",
-                    "Enter a new title for the section split out of \"%@\". The selected item and later evidence from the same section will move there.",
+                    "为从证据组“%@”拆出的后半部分输入新名称。当前选中条目及其后续同组证据会移到这里。",
+                    "Enter a new name for the evidence group split out of \"%@\". The selected item and later evidence from the same group will move there.",
                     mode: mode
                 ),
                 sourceGroupTitle
@@ -343,8 +343,8 @@ extension EvidenceWorkbenchGroupingMode {
         case .claim:
             return String(
                 format: wordZText(
-                    "为从论点“%@”拆出的后半部分输入新名称。当前选中条目及其后续同论点证据会移到这里。",
-                    "Enter a new name for the claim split out of \"%@\". The selected item and later evidence from the same claim will move there.",
+                    "为从发现线索“%@”拆出的后半部分输入新名称。当前选中条目及其后续同线索证据会移到这里。",
+                    "Enter a new name for the finding split out of \"%@\". The selected item and later evidence from the same finding will move there.",
                     mode: mode
                 ),
                 sourceGroupTitle
@@ -367,14 +367,14 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return wordZText(
-                "请先选中当前章节中的非首条证据，再执行拆分。",
-                "Select a non-leading evidence item in the current section before splitting.",
+                "请先选中当前证据组中的非首条证据，再执行拆分。",
+                "Select a non-leading evidence item in the current evidence group before splitting.",
                 mode: mode
             )
         case .claim:
             return wordZText(
-                "请先选中当前论点中的非首条证据，再执行拆分。",
-                "Select a non-leading evidence item in the current claim before splitting.",
+                "请先选中当前发现线索中的非首条证据，再执行拆分。",
+                "Select a non-leading evidence item in the current finding before splitting.",
                 mode: mode
             )
         case .corpusSet:
@@ -385,9 +385,9 @@ extension EvidenceWorkbenchGroupingMode {
     func missingSplitGroupNameStatus(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("请输入新章节标题。", "Enter the new section title.", mode: mode)
+            return wordZText("请输入新证据组名称。", "Enter the new evidence group name.", mode: mode)
         case .claim:
-            return wordZText("请输入新论点名称。", "Enter the new claim name.", mode: mode)
+            return wordZText("请输入新发现线索名称。", "Enter the new finding name.", mode: mode)
         case .corpusSet:
             return wordZText("当前命中集视图不支持拆分分组。", "Splitting groups is not supported in the hit set view.", mode: mode)
         }
@@ -401,8 +401,8 @@ extension EvidenceWorkbenchGroupingMode {
         case .section:
             return String(
                 format: wordZText(
-                    "章节“%@”已存在；如需并入请使用合并。",
-                    "Section \"%@\" already exists. Use Merge instead if you want to combine groups.",
+                    "证据组“%@”已存在；如需并入请使用合并。",
+                    "Evidence group \"%@\" already exists. Use Merge instead if you want to combine groups.",
                     mode: mode
                 ),
                 groupTitle
@@ -410,8 +410,8 @@ extension EvidenceWorkbenchGroupingMode {
         case .claim:
             return String(
                 format: wordZText(
-                    "论点“%@”已存在；如需并入请使用合并。",
-                    "Claim \"%@\" already exists. Use Merge instead if you want to combine groups.",
+                    "发现线索“%@”已存在；如需并入请使用合并。",
+                    "Finding \"%@\" already exists. Use Merge instead if you want to combine groups.",
                     mode: mode
                 ),
                 groupTitle
@@ -429,13 +429,13 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("已从章节“%@”拆出新章节“%@”。", "Split section \"%@\" into a new section \"%@\".", mode: mode),
+                format: wordZText("已从证据组“%@”拆出新证据组“%@”。", "Split evidence group \"%@\" into a new evidence group \"%@\".", mode: mode),
                 sourceGroupTitle,
                 targetGroupTitle
             )
         case .claim:
             return String(
-                format: wordZText("已从论点“%@”拆出新论点“%@”。", "Split claim \"%@\" into a new claim \"%@\".", mode: mode),
+                format: wordZText("已从发现线索“%@”拆出新发现线索“%@”。", "Split finding \"%@\" into a new finding \"%@\".", mode: mode),
                 sourceGroupTitle,
                 targetGroupTitle
             )
@@ -447,9 +447,9 @@ extension EvidenceWorkbenchGroupingMode {
     func renameSelectedGroupTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("重命名当前章节", "Rename Current Section", mode: mode)
+            return wordZText("重命名当前证据组", "Rename Current Evidence Group", mode: mode)
         case .claim:
-            return wordZText("重命名当前论点", "Rename Current Claim", mode: mode)
+            return wordZText("重命名当前发现线索", "Rename Current Finding", mode: mode)
         case .corpusSet:
             return wordZText("重命名当前命中集", "Rename Current Hit Set", mode: mode)
         }
@@ -458,9 +458,9 @@ extension EvidenceWorkbenchGroupingMode {
     func renameGroupPromptTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("重命名章节", "Rename Section", mode: mode)
+            return wordZText("重命名证据组", "Rename Evidence Group", mode: mode)
         case .claim:
-            return wordZText("重命名论点", "Rename Claim", mode: mode)
+            return wordZText("重命名发现线索", "Rename Finding", mode: mode)
         case .corpusSet:
             return wordZText("重命名命中集", "Rename Hit Set", mode: mode)
         }
@@ -473,12 +473,12 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("为章节“%@”输入新标题；如果名称已存在，会自动并入那个章节。", "Enter a new title for section \"%@\". If the name already exists, the items will merge into that section.", mode: mode),
+                format: wordZText("为证据组“%@”输入新名称；如果名称已存在，会自动并入那个证据组。", "Enter a new name for evidence group \"%@\". If the name already exists, the items will merge into that evidence group.", mode: mode),
                 currentGroupTitle
             )
         case .claim:
             return String(
-                format: wordZText("为论点“%@”输入新名称；如果名称已存在，会自动并入那个论点。", "Enter a new name for claim \"%@\". If the name already exists, the items will merge into that claim.", mode: mode),
+                format: wordZText("为发现线索“%@”输入新名称；如果名称已存在，会自动并入那个发现线索。", "Enter a new name for finding \"%@\". If the name already exists, the items will merge into that finding.", mode: mode),
                 currentGroupTitle
             )
         case .corpusSet:
@@ -498,9 +498,9 @@ extension EvidenceWorkbenchGroupingMode {
     func missingRenamedGroupNameStatus(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("请输入新的章节标题。", "Enter a new section title.", mode: mode)
+            return wordZText("请输入新的证据组名称。", "Enter a new evidence group name.", mode: mode)
         case .claim:
-            return wordZText("请输入新的论点名称。", "Enter a new claim name.", mode: mode)
+            return wordZText("请输入新的发现线索名称。", "Enter a new finding name.", mode: mode)
         case .corpusSet:
             return wordZText("当前命中集视图不支持重命名分组。", "Renaming groups is not supported in the hit set view.", mode: mode)
         }
@@ -514,13 +514,13 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("已将章节“%@”重命名为“%@”。", "Renamed section \"%@\" to \"%@\".", mode: mode),
+                format: wordZText("已将证据组“%@”重命名为“%@”。", "Renamed evidence group \"%@\" to \"%@\".", mode: mode),
                 oldGroupTitle,
                 newGroupTitle
             )
         case .claim:
             return String(
-                format: wordZText("已将论点“%@”重命名为“%@”。", "Renamed claim \"%@\" to \"%@\".", mode: mode),
+                format: wordZText("已将发现线索“%@”重命名为“%@”。", "Renamed finding \"%@\" to \"%@\".", mode: mode),
                 oldGroupTitle,
                 newGroupTitle
             )
@@ -532,9 +532,9 @@ extension EvidenceWorkbenchGroupingMode {
     func mergeSelectedGroupTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("合并当前章节…", "Merge Current Section…", mode: mode)
+            return wordZText("合并当前证据组…", "Merge Current Evidence Group…", mode: mode)
         case .claim:
-            return wordZText("合并当前论点…", "Merge Current Claim…", mode: mode)
+            return wordZText("合并当前发现线索…", "Merge Current Finding…", mode: mode)
         case .corpusSet:
             return wordZText("合并当前命中集…", "Merge Current Hit Set…", mode: mode)
         }
@@ -543,9 +543,9 @@ extension EvidenceWorkbenchGroupingMode {
     func mergeGroupPromptTitle(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("合并章节", "Merge Section", mode: mode)
+            return wordZText("合并证据组", "Merge Evidence Group", mode: mode)
         case .claim:
-            return wordZText("合并论点", "Merge Claim", mode: mode)
+            return wordZText("合并发现线索", "Merge Finding", mode: mode)
         case .corpusSet:
             return wordZText("合并命中集", "Merge Hit Set", mode: mode)
         }
@@ -558,12 +558,12 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("输入要把章节“%@”并入的已有章节名。", "Enter the existing section name that section \"%@\" should merge into.", mode: mode),
+                format: wordZText("输入要把证据组“%@”并入的已有证据组名。", "Enter the existing evidence group name that evidence group \"%@\" should merge into.", mode: mode),
                 sourceGroupTitle
             )
         case .claim:
             return String(
-                format: wordZText("输入要把论点“%@”并入的已有论点名。", "Enter the existing claim name that claim \"%@\" should merge into.", mode: mode),
+                format: wordZText("输入要把发现线索“%@”并入的已有发现线索名。", "Enter the existing finding name that finding \"%@\" should merge into.", mode: mode),
                 sourceGroupTitle
             )
         case .corpusSet:
@@ -583,9 +583,9 @@ extension EvidenceWorkbenchGroupingMode {
     func missingMergeTargetStatus(in mode: AppLanguageMode) -> String {
         switch self {
         case .section:
-            return wordZText("请输入要并入的章节名称。", "Enter the section name to merge into.", mode: mode)
+            return wordZText("请输入要并入的证据组名称。", "Enter the evidence group name to merge into.", mode: mode)
         case .claim:
-            return wordZText("请输入要并入的论点名称。", "Enter the claim name to merge into.", mode: mode)
+            return wordZText("请输入要并入的发现线索名称。", "Enter the finding name to merge into.", mode: mode)
         case .corpusSet:
             return wordZText("当前命中集视图不支持合并分组。", "Merging groups is not supported in the hit set view.", mode: mode)
         }
@@ -598,12 +598,12 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("章节“%@”已经是当前分组。", "Section \"%@\" is already the current group.", mode: mode),
+                format: wordZText("证据组“%@”已经是当前分组。", "Evidence group \"%@\" is already the current group.", mode: mode),
                 groupTitle
             )
         case .claim:
             return String(
-                format: wordZText("论点“%@”已经是当前分组。", "Claim \"%@\" is already the current group.", mode: mode),
+                format: wordZText("发现线索“%@”已经是当前分组。", "Finding \"%@\" is already the current group.", mode: mode),
                 groupTitle
             )
         case .corpusSet:
@@ -618,12 +618,12 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("未找到要并入的章节：%@。", "Could not find the section to merge into: %@.", mode: mode),
+                format: wordZText("未找到要并入的证据组：%@。", "Could not find the evidence group to merge into: %@.", mode: mode),
                 groupTitle
             )
         case .claim:
             return String(
-                format: wordZText("未找到要并入的论点：%@。", "Could not find the claim to merge into: %@.", mode: mode),
+                format: wordZText("未找到要并入的发现线索：%@。", "Could not find the finding to merge into: %@.", mode: mode),
                 groupTitle
             )
         case .corpusSet:
@@ -639,13 +639,13 @@ extension EvidenceWorkbenchGroupingMode {
         switch self {
         case .section:
             return String(
-                format: wordZText("已将章节“%@”并入“%@”。", "Merged section \"%@\" into \"%@\".", mode: mode),
+                format: wordZText("已将证据组“%@”并入“%@”。", "Merged evidence group \"%@\" into \"%@\".", mode: mode),
                 sourceGroupTitle,
                 targetGroupTitle
             )
         case .claim:
             return String(
-                format: wordZText("已将论点“%@”并入“%@”。", "Merged claim \"%@\" into \"%@\".", mode: mode),
+                format: wordZText("已将发现线索“%@”并入“%@”。", "Merged finding \"%@\" into \"%@\".", mode: mode),
                 sourceGroupTitle,
                 targetGroupTitle
             )

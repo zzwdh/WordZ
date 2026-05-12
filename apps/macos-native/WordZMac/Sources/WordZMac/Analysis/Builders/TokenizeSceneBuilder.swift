@@ -15,7 +15,8 @@ struct TokenizeSceneBuilder {
         visibleColumns: Set<TokenizeColumnKey>,
         languageMode: AppLanguageMode = .system
     ) -> TokenizeSceneModel {
-        let presetFilteredTokens = filterPresetTokens(from: result, languagePreset: languagePreset)
+        let tokenizePreset = languagePreset.normalizedForTokenizeModule
+        let presetFilteredTokens = filterPresetTokens(from: result, languagePreset: tokenizePreset)
         let filtered = filterRows(
             presetFilteredTokens,
             query: query,
@@ -30,7 +31,7 @@ struct TokenizeSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
-            languagePreset: languagePreset,
+            languagePreset: tokenizePreset,
             annotationProfile: annotationProfile,
             lemmaStrategy: lemmaStrategy,
             sortMode: sortMode,
@@ -63,6 +64,7 @@ struct TokenizeSceneBuilder {
         sortedTokens: [TokenizedToken],
         searchError: String
     ) -> TokenizeSceneModel {
+        let tokenizePreset = languagePreset.normalizedForTokenizeModule
         let pagination = buildPagination(
             totalRows: sortedTokens.count,
             currentPage: currentPage,
@@ -127,8 +129,8 @@ struct TokenizeSceneBuilder {
                 value: "\(filteredTokens.count)"
             ),
             TokenizeMetricSceneItem(
-                id: "preset-tokens",
-                title: wordZText("预设保留 Token", "Preset-kept Tokens", mode: languageMode),
+                id: "english-tokens",
+                title: wordZText("英文 Token", "English Tokens", mode: languageMode),
                 value: "\(presetFilteredTokens.count)"
             )
         ]
@@ -137,8 +139,8 @@ struct TokenizeSceneBuilder {
             query: query,
             searchOptions: searchOptions,
             stopwordFilter: stopwordFilter,
-            languagePreset: languagePreset,
-            languagePresetSummary: languagePreset.summary(in: languageMode),
+            languagePreset: tokenizePreset,
+            languagePresetSummary: tokenizePreset.summary(in: languageMode),
             annotationSummary: annotationProfile.summary(in: languageMode),
             lemmaStrategy: lemmaStrategy,
             lemmaStrategySummary: lemmaStrategy.summary(in: languageMode),
@@ -146,7 +148,7 @@ struct TokenizeSceneBuilder {
             sorting: TokenizeSortingSceneModel(
                 selectedSort: sortMode,
                 selectedPageSize: pageSize,
-                selectedLanguagePreset: languagePreset,
+                selectedLanguagePreset: tokenizePreset,
                 selectedLemmaStrategy: lemmaStrategy
             ),
             pagination: pagination,
@@ -182,7 +184,8 @@ struct TokenizeSceneBuilder {
         from result: TokenizeResult,
         languagePreset: TokenizeLanguagePreset
     ) -> [TokenizedToken] {
-        result.tokens.filter { languagePreset.keeps($0.annotations) }
+        let tokenizePreset = languagePreset.normalizedForTokenizeModule
+        return result.tokens.filter { tokenizePreset.keeps($0.annotations) }
     }
 
     func presentation(for key: TokenizeColumnKey) -> NativeTableColumnPresentation {

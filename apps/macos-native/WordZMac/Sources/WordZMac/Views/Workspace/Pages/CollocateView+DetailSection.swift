@@ -38,7 +38,7 @@ extension CollocateView {
                     Button(t("在 KWIC 中打开", "Open in KWIC")) {
                         onAction(.openKWIC)
                     }
-                    Menu(t("研究导出", "Research Export")) {
+                    Menu(t("阅读导出", "Reading Export")) {
                         Button("Copy Current") {
                             onAction(.copyCurrent(.summary))
                         }
@@ -63,7 +63,7 @@ extension CollocateView {
         WorkbenchEmptyStateCard(
             title: t("尚未生成搭配词结果", "No collocate results yet"),
             systemImage: "point.3.filled.connected.trianglepath.dotted",
-            message: t("输入一个节点词，选择窗口范围，再运行搭配分析。WordZ 会同时提供频次、LogDice、MI 和 T-Score，方便课堂演示和研究判断。", "Enter a node word, choose the window, and run the collocate analysis. WordZ will report raw frequency, LogDice, MI, and T-Score for teaching and research workflows."),
+            message: t("输入一个节点词，选择窗口范围，再运行搭配分析。WordZ 会同时提供频次、LogDice、MI 和 T-Score，方便快速判断搭配关系。", "Enter a node word, choose the window, and run the collocate analysis. WordZ reports raw frequency, LogDice, MI, and T-Score for a quick association check."),
             suggestions: [
                 t("想先做稳定探索时，用“平衡探索”预设。", "Use the Balanced preset when you want a stable first-pass exploration."),
                 t("如果更关心专属性强的低频搭配，可以再切到“严格关联”。", "Switch to the Strict preset when you want to emphasize exclusive low-frequency associations.")

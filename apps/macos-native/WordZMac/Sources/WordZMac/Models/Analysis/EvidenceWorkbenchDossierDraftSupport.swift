@@ -100,19 +100,19 @@ struct EvidenceCaptureDraft: Equatable, Sendable {
     func summary(in mode: AppLanguageMode) -> String {
         var parts: [String] = []
         if let sectionTitle = normalizedSectionTitle {
-            parts.append(wordZText("章节", "Section", mode: mode) + ": " + sectionTitle)
+            parts.append(wordZText("证据组", "Evidence Group", mode: mode) + ": " + sectionTitle)
         }
         if let claim = normalizedClaim {
-            parts.append(wordZText("论点", "Claim", mode: mode) + ": " + claim)
+            parts.append(wordZText("发现线索", "Finding", mode: mode) + ": " + claim)
         }
         if !normalizedTags.isEmpty {
             parts.append(wordZText("标签", "Tags", mode: mode) + ": " + normalizedTags.joined(separator: ", "))
         }
         if citationFormat != .citationLine {
-            parts.append(wordZText("引文格式", "Citation Format", mode: mode) + ": " + citationFormat.title(in: mode))
+            parts.append(wordZText("引文文本", "Citation Text", mode: mode) + ": " + citationFormat.title(in: mode))
         }
         if citationStyle != .plain {
-            parts.append(wordZText("引用样式", "Citation Style", mode: mode) + ": " + citationStyle.title(in: mode))
+            parts.append(wordZText("引用样式", "Reference Style", mode: mode) + ": " + citationStyle.title(in: mode))
         }
         if normalizedNote != nil {
             parts.append(wordZText("附备注", "With note", mode: mode))

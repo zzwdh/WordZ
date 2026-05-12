@@ -5,6 +5,7 @@ extension RootContentView {
         MainWorkspaceSplitContainer(
             isSidebarVisible: layoutState.sidebarVisibilityBinding,
             isInspectorVisible: layoutState.inspectorVisibilityBinding,
+            contentRevision: workspaceSplitContentRevision,
             topAccessory: usesWorkspaceTopAccessory ? workspaceTopAccessoryContent : nil
         ) {
             workspaceSidebarPane
@@ -65,6 +66,17 @@ extension RootContentView {
         return AnyView(
             workspaceIssueBanner
                 .wordZVisualStyle(WordZVisualStyle.resolveAccessory(for: .mainWorkspace))
+        )
+    }
+
+    var workspaceSplitContentRevision: WorkspaceSplitContentRevision {
+        WorkspaceSplitContentRevision(
+            sceneGraphRevision: viewModel.lastAppliedSceneGraphRevision,
+            selectedRoute: viewModel.selectedRoute,
+            runningTaskKeys: viewModel.runningTaskKeys,
+            issueBannerID: viewModel.issueBanner?.id,
+            languageMode: languageMode,
+            annotationState: viewModel.annotationState
         )
     }
 }

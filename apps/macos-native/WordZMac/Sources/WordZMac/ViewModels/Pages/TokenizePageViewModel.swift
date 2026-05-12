@@ -41,7 +41,7 @@ final class TokenizePageViewModel: ObservableObject, AnalysisInputStateControlli
             onAnnotationProfileChange?(annotationProfile)
         }
     }
-    @Published var languagePreset: TokenizeLanguagePreset = .mixedChineseEnglish {
+    @Published var languagePreset: TokenizeLanguagePreset = .defaultTokenizePreset {
         didSet {
             guard oldValue != languagePreset else { return }
             handleInputChange(rebuildScene: true)

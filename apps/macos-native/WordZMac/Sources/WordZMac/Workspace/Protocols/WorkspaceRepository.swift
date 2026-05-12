@@ -122,3 +122,8 @@ protocol StoredTokenizedArtifactReadingRepository: AnyObject {
 protocol StoredFrequencyArtifactReadingRepository: AnyObject {
     func loadStoredFrequencyArtifact(corpusId: String) async throws -> StoredFrequencyArtifact?
 }
+
+@MainActor
+protocol StoredTokenPositionIndexReadingRepository: AnyObject {
+    func loadStoredTokenPositionIndex(corpusId: String) async throws -> StoredTokenPositionIndexArtifact?
+}

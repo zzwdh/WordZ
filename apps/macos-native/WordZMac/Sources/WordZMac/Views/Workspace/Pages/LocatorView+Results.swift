@@ -64,9 +64,9 @@ extension LocatorView {
             WorkbenchEmptyStateCard(
                 title: t("尚未生成定位结果", "No locator results yet"),
                 systemImage: "scope",
-                message: t("先从 KWIC 选择一条索引行，再运行定位器，这里会显示句内位置、完整句子和可复制的研究引文。", "Choose a concordance line from KWIC, then run Locator to inspect its sentence position, full sentence, and a citation-ready excerpt."),
+                message: t("先从 KWIC 选择一条索引行，再运行定位器，这里会显示句内位置、完整句子和可复制的引文。", "Choose a concordance line from KWIC, then run Locator to inspect its sentence position, full sentence, and a citation-ready excerpt."),
                 suggestions: [
-                    t("定位器适合确认节点词是否真的是你要研究的用法。", "Use Locator to verify whether the node really shows the usage you want to study."),
+                    t("定位器适合确认节点词是否真的是你要观察的用法。", "Use Locator to verify whether the node really shows the usage you want to inspect."),
                     t("双击任意句子可以把它作为新的定位源继续展开。", "Double-click any sentence to promote it as the next locator source.")
                 ]
             )
@@ -123,7 +123,7 @@ extension LocatorView {
                     Button {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     } label: {
-                        Label(t("加入摘录", "Add to Clips"), systemImage: "text.badge.plus")
+                        Label(t("加入证据篮", "Add to Evidence Basket"), systemImage: "text.badge.plus")
                     }
                     ConcordanceReadingExportMenu(
                         languageMode: languageMode,
@@ -149,8 +149,8 @@ extension LocatorView {
             languageMode: languageMode,
             addCurrentTitle: t("加入当前句", "Add Current Sentence"),
             emptyMessage: t(
-                "把当前定位句加入摘录后，这里会显示可复查、可标记、可备注的分析片段。",
-                "Add the current locator sentence to collect reviewable, annotatable analysis clips here."
+                "把当前定位句加入证据篮后，这里会显示可复查、可标记、可备注的分析片段。",
+                "Add the current locator sentence to collect reviewable, annotatable evidence here."
             ),
             currentSelectionAvailable: viewModel.selectedSceneRow != nil,
             itemPreviewText: { $0.fullSentenceText },

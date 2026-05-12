@@ -96,7 +96,7 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         annotationProfile: WorkspaceAnnotationProfile = .surface,
         annotationLexicalClasses: [TokenLexicalClass] = [],
         annotationScripts: [TokenScript] = [],
-        tokenizeLanguagePreset: TokenizeLanguagePreset = .mixedChineseEnglish,
+        tokenizeLanguagePreset: TokenizeLanguagePreset = .defaultTokenizePreset,
         tokenizeLemmaStrategy: TokenLemmaStrategy = .normalizedSurface,
         compareReferenceCorpusID: String = "",
         compareSelectedCorpusIDs: [String] = [],
@@ -177,7 +177,7 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
         self.annotationProfile = annotationProfile
         self.annotationLexicalClasses = annotationLexicalClasses
         self.annotationScripts = annotationScripts
-        self.tokenizeLanguagePreset = tokenizeLanguagePreset
+        self.tokenizeLanguagePreset = tokenizeLanguagePreset.normalizedForTokenizeModule
         self.tokenizeLemmaStrategy = tokenizeLemmaStrategy
         self.compareReferenceCorpusID = compareReferenceCorpusID
         self.compareSelectedCorpusIDs = compareSelectedCorpusIDs
@@ -275,8 +275,8 @@ struct WorkspaceSnapshotSummary: Equatable, Sendable {
             }
         let tokenize = JSONFieldReader.dictionary(json, key: "tokenize")
         self.tokenizeLanguagePreset = TokenizeLanguagePreset(
-            rawValue: JSONFieldReader.string(tokenize, key: "languagePreset", fallback: TokenizeLanguagePreset.mixedChineseEnglish.rawValue)
-        ) ?? .mixedChineseEnglish
+            rawValue: JSONFieldReader.string(tokenize, key: "languagePreset", fallback: TokenizeLanguagePreset.defaultTokenizePreset.rawValue)
+        )?.normalizedForTokenizeModule ?? .defaultTokenizePreset
         self.tokenizeLemmaStrategy = TokenLemmaStrategy(
             rawValue: JSONFieldReader.string(tokenize, key: "lemmaStrategy", fallback: TokenLemmaStrategy.normalizedSurface.rawValue)
         ) ?? .normalizedSurface

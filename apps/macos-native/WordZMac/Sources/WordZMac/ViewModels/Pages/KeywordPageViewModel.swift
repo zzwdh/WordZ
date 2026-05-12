@@ -208,7 +208,18 @@ final class KeywordPageViewModel: ObservableObject, AnalysisInputStateControllin
     }
 
     var currentResultRowCountForPaging: Int? {
-        scene?.totalRows
+        if let totalRows = scene?.totalRows {
+            return totalRows
+        }
+        let estimatedRows = estimatedSceneBuildRowCount(
+            result: result,
+            activeTab: activeTab,
+            listMode: savedListViewMode,
+            primarySavedList: selectedSavedList,
+            secondarySavedList: comparisonSavedList,
+            savedLists: savedLists
+        )
+        return estimatedRows > 0 ? estimatedRows : nil
     }
 
     var currentRunConfiguration: KeywordRunConfiguration {

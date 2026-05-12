@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT_DIR="${1:-${REPO_ROOT}/Sources/WordZMac}"
 PACKAGE_FILE="${REPO_ROOT}/Package.swift"
+ARCHITECTURE_CONTRACT_FILE="${REPO_ROOT}/ARCHITECTURE.md"
 FAILED=0
 
 readonly VIEWMODEL_ROOT_DIRS=(
@@ -115,6 +116,38 @@ check_package_declares_expected_targets() {
   done
 }
 
+check_architecture_contract_is_current() {
+  print_check "Checking architecture contract coverage..."
+
+  if [[ ! -f "$ARCHITECTURE_CONTRACT_FILE" ]]; then
+    mark_failure "Expected architecture contract to exist: $ARCHITECTURE_CONTRACT_FILE"
+    return
+  fi
+
+  local target
+  for target in "${PACKAGE_TARGETS[@]}"; do
+    if ! rg -q "\`$target\`" "$ARCHITECTURE_CONTRACT_FILE"; then
+      mark_failure "Architecture contract should document package target $target."
+    fi
+  done
+
+  local required_patterns=(
+    'Scripts/architecture-guard.sh'
+    'Scripts/engineering-guard.sh'
+    'App/Composition'
+    'Models/Workspace'
+    'Views/Workspace/WorkspaceFeatureFactory.swift'
+    'WorkspaceStateDraft'
+    'NativePersistedWorkspaceSnapshot'
+  )
+  local pattern
+  for pattern in "${required_patterns[@]}"; do
+    if ! rg -q "$pattern" "$ARCHITECTURE_CONTRACT_FILE"; then
+      mark_failure "Architecture contract should cover $pattern."
+    fi
+  done
+}
+
 check_engine_source_target_split() {
   print_check "Checking WordZEngine owns engine transport support..."
 
@@ -218,6 +251,36 @@ check_viewmodels_do_not_import_appkit() {
 
   if [[ -n "$result" ]]; then
     mark_failure "ViewModels should stay free of AppKit imports."
+    echo "$result"
+  fi
+}
+
+check_workspace_models_do_not_import_ui_frameworks() {
+  print_check "Checking Workspace models for UI framework imports..."
+
+  local pattern='^import SwiftUI|^import AppKit'
+  local result
+  result=$(rg -n --glob '*.swift' "$pattern" "$ROOT_DIR/Models/Workspace" || true)
+
+  if [[ -n "$result" ]]; then
+    mark_failure "Workspace model files should stay free of SwiftUI/AppKit imports."
+    echo "$result"
+  fi
+}
+
+check_workspace_feature_registry_is_data_only() {
+  print_check "Checking Workspace feature registry stays data-only..."
+
+  local registry_files=(
+    "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry.swift"
+    "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift"
+  )
+  local pattern='AnyView|detailViewBuilder|StatsView\(|WordView\(|TokenizeView\(|TopicsView\(|CompareView\(|SentimentView\(|KeywordView\(|ChiSquareView\(|PlotView\(|NgramView\(|ClusterView\(|KWICView\(|CollocateView\(|LocatorView\('
+  local result
+  result=$(rg -n "$pattern" "${registry_files[@]}" || true)
+
+  if [[ -n "$result" ]]; then
+    mark_failure "Workspace feature registry should describe feature metadata only; construct SwiftUI pages in Views/Workspace."
     echo "$result"
   fi
 }
@@ -343,6 +406,7 @@ check_hotspot_file_sizes() {
   check_file_line_limit "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Controls.swift" 440
   check_file_line_limit "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Results.swift" 340
   check_file_line_limit "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Inspector.swift" 260
+  check_file_line_limit "$ROOT_DIR/Views/Workspace/WorkspaceFeatureFactory.swift" 180
   check_file_line_limit "$ROOT_DIR/App/WordZMacApp.swift" 90
   check_file_line_limit "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchDossierModels.swift" 40
   check_file_line_limit "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchGroupingMode+Messages.swift" 700
@@ -590,6 +654,7 @@ check_migrated_feature_registry_companions() {
 
   local registry_file="$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry.swift"
   local registry_companion_file="$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift"
+  local feature_factory_file="$ROOT_DIR/Views/Workspace/WorkspaceFeatureFactory.swift"
   local app_file="$ROOT_DIR/App/WordZMacApp.swift"
   local app_feature_windows_file="$ROOT_DIR/App/WordZMacApp+FeatureWindows.swift"
 
@@ -609,8 +674,12 @@ check_migrated_feature_registry_companions() {
     mark_failure "WorkspaceFeatureRegistry should not inline Topics/Sentiment view assembly after migrated companion extraction."
   fi
 
-  if ! rg -q 'TopicsView\(|SentimentView\(' "$registry_companion_file"; then
-    mark_failure "Migrated registry companion should own Topics/Sentiment view assembly."
+  if rg -n 'TopicsView\(|SentimentView\(' "$registry_companion_file" >/dev/null; then
+    mark_failure "Migrated registry companion should stay data-only; Views/Workspace should own Topics/Sentiment view assembly."
+  fi
+
+  if ! rg -q 'TopicsView\(|SentimentView\(' "$feature_factory_file"; then
+    mark_failure "WorkspaceFeatureFactory should own Topics/Sentiment SwiftUI view assembly."
   fi
 
   if ! rg -q 'evidenceWorkbenchWindow\(' "$app_file"; then
@@ -673,11 +742,14 @@ check_topics_feature_layout() {
 
 main() {
   check_package_declares_expected_targets
+  check_architecture_contract_is_current
   check_engine_source_target_split
   check_legacy_services_removed
   check_root_level_boundaries
   check_app_composition_has_no_ui_imports
   check_viewmodels_do_not_import_appkit
+  check_workspace_models_do_not_import_ui_frameworks
+  check_workspace_feature_registry_is_data_only
   check_composition_types_stay_inside_app
   check_composition_has_no_workflow_mutation
   check_non_ui_domains_do_not_import_ui

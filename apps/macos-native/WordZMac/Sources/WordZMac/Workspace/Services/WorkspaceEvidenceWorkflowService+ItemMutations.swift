@@ -104,10 +104,10 @@ extension WorkspaceEvidenceWorkflowService {
         if let itemTitle, !itemTitle.isEmpty {
             resolvedItemTitle = itemTitle
         } else {
-            resolvedItemTitle = wordZText("该摘录", "this clip", mode: .system)
+            resolvedItemTitle = wordZText("该证据", "this evidence item", mode: .system)
         }
         let confirmed = await dialogService.confirm(
-            title: wordZText("删除摘录", "Delete Clip", mode: .system),
+            title: wordZText("删除证据", "Delete Evidence", mode: .system),
             message: wordZText(
                 "确定要删除「\(resolvedItemTitle)」吗？此操作无法撤销。",
                 "Delete \"\(resolvedItemTitle)\"? This cannot be undone.",

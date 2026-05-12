@@ -16,7 +16,7 @@ extension TokenizePageViewModel {
         let querySnapshot = AnalysisViewModelSupport.normalizedQuery(query)
         let searchOptionsSnapshot = searchOptions
         let stopwordSnapshot = stopwordFilter
-        let languagePresetSnapshot = languagePreset
+        let languagePresetSnapshot = languagePreset.normalizedForTokenizeModule
         let annotationProfileSnapshot = annotationProfile
         let lemmaStrategySnapshot = lemmaStrategy
         let sortSnapshot = sortMode
