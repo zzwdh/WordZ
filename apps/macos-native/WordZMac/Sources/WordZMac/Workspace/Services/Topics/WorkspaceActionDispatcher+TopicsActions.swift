@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleTopicsAction(_ action: TopicsPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runTopics() }
+            handleWorkspaceIntent(.runAnalysis(.topics))
         case .openKWIC:
             launch { await self.workspace.openTopicsKWIC() }
         case .openSentiment(let scope):
@@ -18,9 +18,9 @@ extension WorkspaceActionDispatcher {
             syncResult(.topics) { workspace.topics.handle(action) }
         case .activateRow(let rowID):
             syncResult(.topics) { workspace.topics.handle(.selectRow(rowID)) }
-            NativeAppCommandCenter.post(.openSourceReader)
+            handleWorkspaceIntent(.openSourceReader)
         case .openSourceReader:
-            NativeAppCommandCenter.post(.openSourceReader)
+            handleWorkspaceIntent(.openSourceReader)
         case .exportSummary:
             launch { await self.workspace.exportTopicsSummary(preferredWindowRoute: self.preferredWindowRoute) }
         case .exportSegments:

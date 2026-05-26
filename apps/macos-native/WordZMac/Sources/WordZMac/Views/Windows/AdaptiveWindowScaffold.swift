@@ -81,6 +81,34 @@ struct AdaptiveToolbarSurface<Content: View>: View {
     }
 }
 
+struct AdaptiveSelectionAccessorySurface<Content: View>: View {
+    @Environment(\.wordZVisualStyle) private var visualStyle
+
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        NativePlatformCapabilities.decorateSelectionAccessorySurface(content, style: visualStyle)
+    }
+}
+
+struct AdaptiveEmptyStateSurface<Content: View>: View {
+    @Environment(\.wordZVisualStyle) private var visualStyle
+
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        NativePlatformCapabilities.decorateEmptyStateSurface(content, style: visualStyle)
+    }
+}
+
 extension View {
     func adaptiveWindowScaffold(for route: NativeWindowRoute) -> some View {
         AdaptiveWindowScaffold(route: route) {

@@ -14,7 +14,7 @@ extension WorkspaceActionDispatcher {
     private func handleKeywordWorkflowAction(_ action: KeywordPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runKeyword() }
+            handleWorkspaceIntent(.runAnalysis(.keyword))
         case .saveCurrentList:
             launch { await self.workspace.saveKeywordCurrentList() }
         case .refreshSavedLists:

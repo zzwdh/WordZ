@@ -61,7 +61,7 @@ extension NativeCorpusStore {
         let content = try readStoredCorpusText(at: storageURL, record: record)
         return OpenedCorpus(json: [
             "mode": "saved",
-            "filePath": record.representedPath.isEmpty ? storageURL.path : record.representedPath,
+            "filePath": storageURL.path,
             "displayName": record.name,
             "content": content,
             "sourceType": record.sourceType
@@ -100,7 +100,8 @@ extension NativeCorpusStore {
                     importedAt: databaseDocument.metadata.importedAt,
                     metadataProfile: databaseDocument.metadata.metadataProfile.merged(over: record.metadata),
                     rawText: databaseDocument.rawText.isEmpty ? databaseDocument.text : databaseDocument.rawText,
-                    cleaningSummary: databaseDocument.metadata.cleaningSummary
+                    cleaningSummary: databaseDocument.metadata.cleaningSummary,
+                    sourceFileCount: databaseDocument.metadata.sourceFileCount
                 )
                 metadata = try NativeCorpusDatabaseSupport.readMetadata(at: storageURL) ?? metadata
             }
@@ -120,8 +121,10 @@ extension NativeCorpusStore {
             "folderName": record.folderName,
             "sourceType": record.sourceType,
             "representedPath": record.representedPath.isEmpty ? storageURL.path : record.representedPath,
+            "storageFileName": record.storageFileName,
             "detectedEncoding": "",
             "importedAt": "",
+            "fileCount": 1,
             "tokenCount": stats.tokenCount,
             "typeCount": stats.typeCount,
             "sentenceCount": stats.sentenceCount,

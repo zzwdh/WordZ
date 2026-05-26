@@ -15,6 +15,18 @@
   { "term": "problem", "score": -1.2, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "either" },
   { "term": "problematic", "score": -1.5, "category": "coreNegative", "domainTags": ["core", "general", "academic"], "matchMode": "either" },
   { "term": "harmful", "score": -1.8, "category": "coreNegative", "domainTags": ["general", "news"], "matchMode": "either" },
+  { "term": "好", "score": 1.2, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "优秀", "score": 2.0, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "出色", "score": 1.9, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "有效", "score": 1.5, "category": "corePositive", "domainTags": ["core", "general", "academic"], "matchMode": "surface" },
+  { "term": "有用", "score": 1.2, "category": "weakEvaluative", "domainTags": ["general", "academic"], "matchMode": "surface" },
+  { "term": "积极", "score": 1.5, "category": "corePositive", "domainTags": ["core", "general", "news"], "matchMode": "surface" },
+  { "term": "差", "score": -1.3, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "糟糕", "score": -2.0, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "严重", "score": -1.4, "category": "coreNegative", "domainTags": ["core", "general", "news"], "matchMode": "surface" },
+  { "term": "问题", "score": -1.2, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "surface" },
+  { "term": "风险", "score": -1.1, "category": "coreNegative", "domainTags": ["core", "general", "news"], "matchMode": "surface" },
+  { "term": "负面", "score": -1.5, "category": "coreNegative", "domainTags": ["core", "general", "news"], "matchMode": "surface" },
   { "term": "high quality", "score": 2.0, "category": "corePositive", "domainTags": ["core", "general"], "matchMode": "surface" },
   { "term": "low quality", "score": -1.9, "category": "coreNegative", "domainTags": ["core", "general"], "matchMode": "surface" }
 ]

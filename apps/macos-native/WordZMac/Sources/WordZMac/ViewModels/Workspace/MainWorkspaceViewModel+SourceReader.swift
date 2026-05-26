@@ -4,11 +4,11 @@ import Foundation
 extension MainWorkspaceViewModel {
     func openCurrentSourceReader() async -> Bool {
         guard let context = await currentSourceReaderLaunchContext() else {
-            let message = t("当前页面没有可打开的原文定位。", "The current page does not have a source location to open.")
+            let message = t("当前页面没有可打开的 DB 来源定位。", "The current page does not have a DB source location to open.")
             settings.setSupportStatus(message)
             activeIssue = WorkspaceIssueBanner(
                 tone: .warning,
-                title: t("无法打开原文阅读器", "Unable to Open Source Reader"),
+                title: t("无法打开 DB 来源预览", "Unable to Open DB Source Preview"),
                 message: message,
                 recoveryAction: .refreshWorkspace
             )
@@ -17,11 +17,11 @@ extension MainWorkspaceViewModel {
 
         do {
             try await sourceReader.load(context: context, repository: appCoordinator.repository)
-            settings.setSupportStatus(t("已更新原文阅读器。", "Updated the source reader."))
+            settings.setSupportStatus(t("已更新 DB 来源预览。", "Updated the DB source preview."))
             clearActiveIssue()
             return true
         } catch {
-            presentIssue(error, titleZh: "无法打开原文阅读器", titleEn: "Unable to Open Source Reader")
+            presentIssue(error, titleZh: "无法打开 DB 来源预览", titleEn: "Unable to Open DB Source Preview")
             return false
         }
     }
@@ -33,30 +33,30 @@ extension MainWorkspaceViewModel {
                     domain: "WordZMac.SourceReader",
                     code: 1,
                     userInfo: [
-                        NSLocalizedDescriptionKey: t("当前没有可打开的原始文件。", "There is no source file available to open right now.")
+                        NSLocalizedDescriptionKey: t("当前没有可打开的来源文件。", "There is no source file available to open right now.")
                     ]
                 ),
-                titleZh: "无法打开原始文件",
+                titleZh: "无法打开来源文件",
                 titleEn: "Unable to Open Source File"
             )
             return
         }
         do {
             try await hostActionService.openFile(path: filePath)
-            settings.setSupportStatus(t("已打开原始文件。", "Opened the source file."))
+            settings.setSupportStatus(t("已打开来源文件。", "Opened the source file."))
             clearActiveIssue()
         } catch {
-            presentIssue(error, titleZh: "无法打开原始文件", titleEn: "Unable to Open Source File")
+            presentIssue(error, titleZh: "无法打开来源文件", titleEn: "Unable to Open Source File")
         }
     }
 
     func quickLookSourceReaderContent() async {
         let targetPath: String?
-        if let filePath = sourceReader.currentFilePath,
+        if let document = sourceReader.currentReadingExportDocument {
+            targetPath = try? quickLookPreviewFileService.prepare(textDocument: document)
+        } else if let filePath = sourceReader.currentFilePath,
            FileManager.default.fileExists(atPath: filePath) {
             targetPath = filePath
-        } else if let document = sourceReader.currentReadingExportDocument {
-            targetPath = try? quickLookPreviewFileService.prepare(textDocument: document)
         } else {
             targetPath = nil
         }
@@ -68,7 +68,7 @@ extension MainWorkspaceViewModel {
 
         do {
             try await hostActionService.quickLook(path: targetPath)
-            settings.setSupportStatus(t("已打开原文阅读内容的 Quick Look 预览。", "Opened Quick Look for the source reader content."))
+            settings.setSupportStatus(t("已打开 DB 来源文本的 Quick Look 预览。", "Opened Quick Look for the DB source text."))
             clearActiveIssue()
         } catch {
             presentIssue(error, titleZh: "无法打开 Quick Look 预览", titleEn: "Unable to Open Quick Look")
@@ -142,11 +142,6 @@ extension MainWorkspaceViewModel {
     ) -> EvidenceCaptureDraft {
         guard let base else { return fallback }
         return EvidenceCaptureDraft(
-            sectionTitle: base.sectionTitle.isEmpty ? fallback.sectionTitle : base.sectionTitle,
-            claim: base.claim.isEmpty ? fallback.claim : base.claim,
-            tagsText: [base.tagsText, fallback.tagsText]
-                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                .joined(separator: ", "),
             citationFormat: base.citationFormat == .citationLine ? fallback.citationFormat : base.citationFormat,
             citationStyle: base.citationStyle == .plain ? fallback.citationStyle : base.citationStyle,
             note: [base.note, fallback.note]
@@ -156,7 +151,11 @@ extension MainWorkspaceViewModel {
     }
 
     var canOpenSourceReaderCurrentContent: Bool {
-        switch selectedTab {
+        canOpenSourceReaderContent(for: selectedTab)
+    }
+
+    func canOpenSourceReaderContent(for tab: WorkspaceDetailTab) -> Bool {
+        switch tab {
         case .kwic:
             return kwic.selectedSceneRow != nil && sidebar.selectedCorpusID != nil
         case .locator:
@@ -178,7 +177,7 @@ extension MainWorkspaceViewModel {
            !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return title
         }
-        return t("原文阅读器", "Source Reader")
+        return t("DB 来源预览", "DB Source Preview")
     }
 
     private func currentSourceReaderLaunchContext() async -> SourceReaderLaunchContext? {

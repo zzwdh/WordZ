@@ -55,86 +55,6 @@ extension MainWorkspaceViewModel {
         )
     }
 
-    func moveSelectedEvidenceGroup(_ direction: EvidenceWorkbenchMoveDirection) async {
-        await flowCoordinator.moveSelectedEvidenceGroup(
-            direction: direction,
-            features: features
-        )
-    }
-
-    func moveEvidenceGroup(
-        _ groupID: String,
-        direction: EvidenceWorkbenchMoveDirection
-    ) async {
-        await flowCoordinator.moveEvidenceGroup(
-            groupID: groupID,
-            direction: direction,
-            features: features
-        )
-    }
-
-    func moveEvidenceGroup(
-        _ groupID: String,
-        to targetGroupID: String,
-        placement: EvidenceWorkbenchGroupInsertPlacement
-    ) async {
-        await flowCoordinator.moveEvidenceGroup(
-            groupID: groupID,
-            to: targetGroupID,
-            placement: placement,
-            features: features
-        )
-    }
-
-    func assignEvidenceItem(
-        _ itemID: String,
-        to targetGroupID: String
-    ) async {
-        await flowCoordinator.assignEvidenceItem(
-            itemID: itemID,
-            to: targetGroupID,
-            features: features
-        )
-    }
-
-    func createGroupAndAssignEvidenceItem(
-        _ itemID: String,
-        preferredWindowRoute: NativeWindowRoute? = .evidenceWorkbench
-    ) async {
-        await flowCoordinator.createGroupAndAssignEvidenceItem(
-            itemID: itemID,
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-    }
-
-    func renameSelectedEvidenceGroup(
-        preferredWindowRoute: NativeWindowRoute? = .evidenceWorkbench
-    ) async {
-        await flowCoordinator.renameSelectedEvidenceGroup(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-    }
-
-    func splitSelectedEvidenceGroup(
-        preferredWindowRoute: NativeWindowRoute? = .evidenceWorkbench
-    ) async {
-        await flowCoordinator.splitSelectedEvidenceGroup(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-    }
-
-    func mergeSelectedEvidenceGroup(
-        preferredWindowRoute: NativeWindowRoute? = .evidenceWorkbench
-    ) async {
-        await flowCoordinator.mergeSelectedEvidenceGroup(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-    }
-
     func deleteEvidenceItem(_ itemID: String) async {
         await flowCoordinator.deleteEvidenceItem(itemID: itemID, features: features)
     }
@@ -179,25 +99,11 @@ extension MainWorkspaceViewModel {
     }
 
     private func sentimentEvidenceCaptureDraft() -> EvidenceCaptureDraft {
-        guard let rawRow = features.sentiment.selectedResultRow,
-              let effectiveRow = features.sentiment.selectedEffectiveRow
-        else {
+        guard let effectiveRow = features.sentiment.selectedEffectiveRow else {
             return EvidenceCaptureDraft()
         }
 
-        let tags = [
-            effectiveRow.effectiveLabel.rawValue,
-            rawRow.finalLabel.rawValue,
-            features.sentiment.selectedDomainPackID.rawValue,
-            features.sentiment.selectedRuleProfileID
-        ]
-        .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        .joined(separator: ", ")
-
         return EvidenceCaptureDraft(
-            sectionTitle: wordZText("情感分析", "Sentiment Analysis", mode: .system),
-            claim: effectiveRow.effectiveLabel.title(in: .system),
-            tagsText: tags,
             note: effectiveRow.reviewNote ?? ""
         )
     }

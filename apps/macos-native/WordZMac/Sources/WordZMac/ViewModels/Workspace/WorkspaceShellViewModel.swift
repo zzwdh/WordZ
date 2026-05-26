@@ -26,6 +26,7 @@ final class WorkspaceShellViewModel: ObservableObject {
     private var hasPreviewableCorpus = false
     private var corpusCount = 0
     private var hasLocatorSource = false
+    private var hasCopyableContent = false
     private var hasExportableContent = false
     private var runSentimentEnabled = false
     private var annotationState = WorkspaceAnnotationState.default
@@ -67,6 +68,7 @@ final class WorkspaceShellViewModel: ObservableObject {
         hasPreviewableCorpus: Bool,
         corpusCount: Int,
         hasLocatorSource: Bool,
+        hasCopyableContent: Bool = false,
         hasExportableContent: Bool,
         runSentimentEnabled: Bool = false
     ) {
@@ -75,6 +77,7 @@ final class WorkspaceShellViewModel: ObservableObject {
             self.hasPreviewableCorpus != hasPreviewableCorpus ||
             self.corpusCount != corpusCount ||
             self.hasLocatorSource != hasLocatorSource ||
+            self.hasCopyableContent != hasCopyableContent ||
             self.hasExportableContent != hasExportableContent ||
             self.runSentimentEnabled != runSentimentEnabled
         guard hasChanged else { return }
@@ -83,6 +86,7 @@ final class WorkspaceShellViewModel: ObservableObject {
         self.hasPreviewableCorpus = hasPreviewableCorpus
         self.corpusCount = corpusCount
         self.hasLocatorSource = hasLocatorSource
+        self.hasCopyableContent = hasCopyableContent
         self.hasExportableContent = hasExportableContent
         self.runSentimentEnabled = runSentimentEnabled
         syncScene()
@@ -110,30 +114,20 @@ final class WorkspaceShellViewModel: ObservableObject {
             buildSummary: context.buildSummary,
             annotationSummary: annotationState.summary(in: languageMode),
             toolbar: WorkspaceToolbarSceneModel(
-                items: [
-                    WorkspaceToolbarActionItem(action: .refresh, title: wordZText("刷新", "Refresh", mode: languageMode), isEnabled: actionEnabled),
-                    WorkspaceToolbarActionItem(action: .showLibrary, title: wordZText("语料库", "Library", mode: languageMode), isEnabled: actionEnabled),
-                    WorkspaceToolbarActionItem(action: .openSelected, title: wordZText("打开选中", "Open Selected", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .openSourceReader, title: wordZText("原文视图", "Open Source View", mode: languageMode), isEnabled: actionEnabled && hasSourceReaderContext),
-                    WorkspaceToolbarActionItem(action: .annotationControls, title: wordZText("标注显示", "Annotation Display", mode: languageMode), isEnabled: actionEnabled),
-                    WorkspaceToolbarActionItem(action: .previewCurrentCorpus, title: wordZText("快速预览", "Quick Look", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
-                    WorkspaceToolbarActionItem(action: .shareCurrentContent, title: wordZText("分享当前", "Share Current", mode: languageMode), isEnabled: actionEnabled && hasPreviewableCorpus),
-                    WorkspaceToolbarActionItem(action: .runStats, title: wordZText("统计", "Stats", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runWord, title: wordZText("词表", "Word", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runTokenize, title: wordZText("分词", "Tokenize", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runTopics, title: wordZText("主题", "Topics", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runCompare, title: wordZText("对比", "Compare", mode: languageMode), isEnabled: actionEnabled && corpusCount >= 2),
-                    WorkspaceToolbarActionItem(action: .runSentiment, title: wordZText("情感", "Sentiment", mode: languageMode), isEnabled: actionEnabled && runSentimentEnabled),
-                    WorkspaceToolbarActionItem(action: .runKeyword, title: wordZText("关键词", "Keyword", mode: languageMode), isEnabled: actionEnabled && corpusCount >= 2),
-                    WorkspaceToolbarActionItem(action: .runChiSquare, title: wordZText("卡方", "Chi-Square", mode: languageMode), isEnabled: actionEnabled),
-                    WorkspaceToolbarActionItem(action: .runPlot, title: wordZText("图表", "Plot", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runNgram, title: "N-Gram", isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runCluster, title: wordZText("词串簇", "Cluster", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runKWIC, title: "KWIC", isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runCollocate, title: wordZText("搭配词", "Collocate", mode: languageMode), isEnabled: actionEnabled && hasSelection),
-                    WorkspaceToolbarActionItem(action: .runLocator, title: wordZText("定位", "Locator", mode: languageMode), isEnabled: actionEnabled && hasSelection && hasLocatorSource),
-                    WorkspaceToolbarActionItem(action: .exportCurrent, title: wordZText("导出当前", "Export Current", mode: languageMode), isEnabled: actionEnabled && hasExportableContent)
-                ]
+                items: WorkspaceActionRegistry.toolbarItems(
+                    languageMode: languageMode,
+                    availability: WorkspaceToolbarAvailabilityContext(
+                        actionEnabled: actionEnabled,
+                        hasSelection: hasSelection,
+                        hasSourceReaderContext: hasSourceReaderContext,
+                        hasPreviewableContent: hasPreviewableCorpus,
+                        corpusCount: corpusCount,
+                        hasLocatorSource: hasLocatorSource,
+                        hasCopyableContent: hasCopyableContent,
+                        hasExportableContent: hasExportableContent,
+                        runSentimentEnabled: runSentimentEnabled
+                    )
+                )
             )
         )
     }

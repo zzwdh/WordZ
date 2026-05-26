@@ -80,6 +80,18 @@ APP_BUNDLE_NAME="$(read_json_value "$MANIFEST_PATH" appBundle.name || true)"
 CHECKSUMS_PATH="$DIST_DIR/$CHECKSUMS_NAME"
 APP_BUNDLE="$DIST_DIR/$APP_BUNDLE_NAME"
 INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
+PKG_NAME=""
+for asset_index in {0..9}; do
+  candidate_name="$(read_json_value "$MANIFEST_PATH" assets.$asset_index.name || true)"
+  if [[ "$candidate_name" == *.pkg ]]; then
+    PKG_NAME="$candidate_name"
+    break
+  fi
+done
+PKG_PATH=""
+if [[ -n "$PKG_NAME" && "$PKG_NAME" == *.pkg ]]; then
+  PKG_PATH="$DIST_DIR/$PKG_NAME"
+fi
 APP_RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 FEATURE_RESOURCE_BUNDLE="$APP_RESOURCES_DIR/WordZMac_WordZMac.bundle"
 BUILD_INFO_PATH="$APP_RESOURCES_DIR/WordZMacBuildInfo.json"
@@ -133,6 +145,14 @@ ZH_LOCALIZATION_PATH="$(first_existing_path \
 [[ -f "$BUILD_INFO_PATH" ]] || { echo "missing build info file: $BUILD_INFO_PATH" >&2; exit 1; }
 [[ -x "$EXECUTABLE_PATH" ]] || { echo "missing executable: $EXECUTABLE_PATH" >&2; exit 1; }
 [[ -f "$CHECKSUMS_PATH" ]] || { echo "missing checksums file: $CHECKSUMS_PATH" >&2; exit 1; }
+if [[ -n "$PKG_PATH" ]]; then
+  [[ -f "$PKG_PATH" ]] || { echo "missing pkg installer: $PKG_PATH" >&2; exit 1; }
+  if ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | /usr/bin/grep -Fq "Applications/$APP_BUNDLE_NAME/Contents/Info.plist" \
+    && ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | /usr/bin/grep -Fq "./$APP_BUNDLE_NAME/Contents/Info.plist"; then
+    echo "pkg installer does not contain $APP_BUNDLE_NAME Info.plist" >&2
+    exit 1
+  fi
+fi
 [[ -n "$TOPIC_MANIFEST_PATH" ]] || { echo "missing topic manifest resource" >&2; exit 1; }
 [[ -n "$TOPIC_EMBEDDING_PATH" ]] || { echo "missing topic embedding resource" >&2; exit 1; }
 [[ -f "$SENTIMENT_MANIFEST_PATH" ]] || { echo "missing sentiment manifest: $SENTIMENT_MANIFEST_PATH" >&2; exit 1; }
@@ -186,4 +206,7 @@ else
 fi
 echo "[native-release-smoke] build info: OK"
 echo "[native-release-smoke] bundled resources: Topics/Sentiment/localizations OK"
+if [[ -n "$PKG_PATH" ]]; then
+  echo "[native-release-smoke] pkg installer payload: OK"
+fi
 echo "[native-release-smoke] packaged app structural smoke passed."

@@ -91,11 +91,11 @@ extension TokenLemmaStrategy {
 
 extension TokenizeLanguagePreset {
     static var defaultTokenizePreset: TokenizeLanguagePreset {
-        .latinFocused
+        .mixedChineseEnglish
     }
 
     var normalizedForTokenizeModule: TokenizeLanguagePreset {
-        .latinFocused
+        self
     }
 
     func title(in mode: AppLanguageMode) -> String {

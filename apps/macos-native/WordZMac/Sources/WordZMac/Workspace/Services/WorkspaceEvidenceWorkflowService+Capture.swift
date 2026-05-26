@@ -17,7 +17,7 @@ extension WorkspaceEvidenceWorkflowService {
         draft: EvidenceCaptureDraft? = nil
     ) async {
         guard let scene = features.kwic.scene, let selectedRow = features.kwic.selectedSceneRow else {
-            features.sidebar.setError(wordZText("当前没有可加入的 KWIC 证据条目。", "There is no KWIC row available to add as evidence.", mode: .system))
+            features.sidebar.setError(wordZText("当前没有可暂存的 KWIC 摘录。", "There is no KWIC row available to save as an excerpt.", mode: .system))
             return
         }
 
@@ -59,9 +59,9 @@ extension WorkspaceEvidenceWorkflowService {
             searchOptionsSnapshot: scene.searchOptions,
             stopwordFilterSnapshot: scene.stopwordFilter,
             reviewStatus: .pending,
-            sectionTitle: metadataDraft.normalizedSectionTitle,
-            claim: metadataDraft.normalizedClaim,
-            tags: metadataDraft.normalizedTags,
+            sectionTitle: nil,
+            claim: nil,
+            tags: [],
             note: metadataDraft.normalizedNote,
             createdAt: timestamp,
             updatedAt: timestamp
@@ -69,7 +69,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已加入证据篮。", "Added the row to the evidence basket.", mode: .system),
+            successMessage: wordZText("已暂存摘录。", "Saved the excerpt.", mode: .system),
             features: features
         )
     }
@@ -79,7 +79,7 @@ extension WorkspaceEvidenceWorkflowService {
         draft: EvidenceCaptureDraft? = nil
     ) async {
         guard let scene = features.locator.scene, let selectedRow = features.locator.selectedSceneRow else {
-            features.sidebar.setError(wordZText("当前没有可加入的定位证据条目。", "There is no locator row available to add as evidence.", mode: .system))
+            features.sidebar.setError(wordZText("当前没有可暂存的定位摘录。", "There is no locator row available to save as an excerpt.", mode: .system))
             return
         }
 
@@ -115,9 +115,9 @@ extension WorkspaceEvidenceWorkflowService {
             searchOptionsSnapshot: nil,
             stopwordFilterSnapshot: nil,
             reviewStatus: .pending,
-            sectionTitle: metadataDraft.normalizedSectionTitle,
-            claim: metadataDraft.normalizedClaim,
-            tags: metadataDraft.normalizedTags,
+            sectionTitle: nil,
+            claim: nil,
+            tags: [],
             note: metadataDraft.normalizedNote,
             createdAt: timestamp,
             updatedAt: timestamp
@@ -125,7 +125,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已加入证据篮。", "Added the sentence to the evidence basket.", mode: .system),
+            successMessage: wordZText("已暂存摘录。", "Saved the excerpt.", mode: .system),
             features: features
         )
     }
@@ -139,7 +139,7 @@ extension WorkspaceEvidenceWorkflowService {
         draft: EvidenceCaptureDraft? = nil
     ) async {
         guard let corpus = sourceReaderCorpusMetadata(context: context, features: features) else {
-            features.sidebar.setError(wordZText("当前原文阅读结果没有关联语料。", "The current source reader result is not attached to a corpus.", mode: .system))
+            features.sidebar.setError(wordZText("当前 DB 来源预览没有关联语料。", "The current DB source preview is not attached to a corpus.", mode: .system))
             return
         }
 
@@ -174,9 +174,9 @@ extension WorkspaceEvidenceWorkflowService {
             searchOptionsSnapshot: nil,
             stopwordFilterSnapshot: nil,
             reviewStatus: .pending,
-            sectionTitle: metadataDraft.normalizedSectionTitle,
-            claim: metadataDraft.normalizedClaim,
-            tags: metadataDraft.normalizedTags,
+            sectionTitle: nil,
+            claim: nil,
+            tags: [],
             note: metadataDraft.normalizedNote,
             sentimentMetadata: sentimentMetadata,
             crossAnalysisMetadata: crossAnalysisMetadata,
@@ -186,7 +186,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已从原文阅读器加入证据篮。", "Added the source reader hit to the evidence basket.", mode: .system),
+            successMessage: wordZText("已从 DB 来源预览暂存摘录。", "Saved the DB source preview excerpt.", mode: .system),
             features: features
         )
     }

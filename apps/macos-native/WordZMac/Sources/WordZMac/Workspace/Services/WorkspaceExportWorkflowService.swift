@@ -42,6 +42,39 @@ final class WorkspaceExportWorkflowService {
         }
     }
 
+    func exportArtifact(
+        _ artifact: WorkspaceResultArtifact,
+        features: WorkspaceFeatureSet,
+        preferredRoute: NativeWindowRoute? = nil
+    ) async {
+        do {
+            let savedPath: String?
+            switch artifact.payload {
+            case .table(let snapshot):
+                savedPath = try await exportCoordinator.export(
+                    snapshot: snapshot,
+                    title: wordZText("导出当前结果", "Export Current Result", mode: .system),
+                    preferredRoute: preferredRoute
+                )
+            case .textDocument(let document):
+                savedPath = try await exportCoordinator.export(
+                    textDocument: document,
+                    title: artifact.sourceTab == .tokenize
+                        ? wordZText("导出分词结果", "Export Tokenized Text", mode: .system)
+                        : wordZText("导出当前文本", "Export Current Text", mode: .system),
+                    preferredRoute: preferredRoute
+                )
+            }
+
+            if let savedPath {
+                features.library.setStatus("已导出到 \(savedPath)")
+                features.sidebar.clearError()
+            }
+        } catch {
+            features.sidebar.setError(error.localizedDescription)
+        }
+    }
+
     func exportTextDocument(
         _ document: PlainTextExportDocument,
         title: String,

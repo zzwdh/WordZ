@@ -28,7 +28,7 @@ package enum GitHubReleaseAssetSelector {
     package static func preferredAsset(from assets: [NativeUpdateAsset]) -> NativeUpdateAsset? {
         let installables = assets.filter { asset in
             let lowercased = asset.name.lowercased()
-            return lowercased.hasSuffix(".dmg") || lowercased.hasSuffix(".zip")
+            return lowercased.hasSuffix(".dmg") || lowercased.hasSuffix(".pkg") || lowercased.hasSuffix(".zip")
         }
         guard !installables.isEmpty else { return nil }
 
@@ -39,15 +39,22 @@ package enum GitHubReleaseAssetSelector {
         #endif
 
         for hint in architectureHints {
-            if let matched = installables.first(where: { $0.name.lowercased().contains(hint) }) {
-                return matched
+            for suffix in [".dmg", ".pkg", ".zip"] {
+                if let matched = installables.first(where: {
+                    let lowercased = $0.name.lowercased()
+                    return lowercased.contains(hint) && lowercased.hasSuffix(suffix)
+                }) {
+                    return matched
+                }
             }
         }
 
-        if let dmg = installables.first(where: { $0.name.lowercased().hasSuffix(".dmg") }) {
-            return dmg
+        for suffix in [".dmg", ".pkg", ".zip"] {
+            if let matched = installables.first(where: { $0.name.lowercased().hasSuffix(suffix) }) {
+                return matched
+            }
         }
-        return installables.first
+        return nil
     }
 }
 

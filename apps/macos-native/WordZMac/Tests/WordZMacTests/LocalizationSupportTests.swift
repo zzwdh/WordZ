@@ -46,7 +46,7 @@ final class LocalizationSupportTests: XCTestCase {
     func testWindowRouteTitlesReadLocalizedResources() {
         XCTAssertEqual(NativeWindowRoute.help.title(in: .english), "Usage Guide")
         XCTAssertEqual(NativeWindowRoute.help.title(in: .chinese), "使用说明")
-        XCTAssertEqual(NativeWindowRoute.sourceReader.title(in: .english), "Source Reader")
-        XCTAssertEqual(NativeWindowRoute.sourceReader.title(in: .chinese), "原文阅读器")
+        XCTAssertEqual(NativeWindowRoute.sourceReader.title(in: .english), "DB Source Preview")
+        XCTAssertEqual(NativeWindowRoute.sourceReader.title(in: .chinese), "DB 来源预览")
     }
 }

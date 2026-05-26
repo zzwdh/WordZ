@@ -176,6 +176,6 @@ if [[ "$RUN_NOTARIZE" -eq 0 ]]; then
   echo "  [ ] Notarize with Scripts/notarize-app.sh if this build will be distributed externally."
 fi
 if [[ "$RUN_UPLOAD" -eq 0 ]]; then
-  echo "  [ ] Upload zip/dmg/checksums/manifest to the GitHub release."
+  echo "  [ ] Upload zip/dmg/pkg/checksums/manifest to the GitHub release."
 fi
 echo "  [ ] Spot-check launch on a clean machine before announcing the release."

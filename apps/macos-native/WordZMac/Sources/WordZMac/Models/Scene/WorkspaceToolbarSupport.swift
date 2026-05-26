@@ -8,74 +8,10 @@ extension WorkspaceToolbarSceneModel {
 
 extension WorkspaceToolbarAction {
     var nativeCommand: NativeAppCommand {
-        switch self {
-        case .refresh:
-            return .refreshWorkspace
-        case .showLibrary:
-            return .showLibrary
-        case .openSelected:
-            return .openSelectedCorpus
-        case .openSourceReader:
-            return .openSourceReader
-        case .annotationControls:
-            return .refreshWorkspace
-        case .previewCurrentCorpus:
-            return .quickLookCurrentCorpus
-        case .shareCurrentContent:
-            return .shareCurrentContent
-        case .runStats:
-            return .runStats
-        case .runWord:
-            return .runWord
-        case .runTokenize:
-            return .runTokenize
-        case .runTopics:
-            return .runTopics
-        case .runCompare:
-            return .runCompare
-        case .runSentiment:
-            return .runSentiment
-        case .runKeyword:
-            return .runKeyword
-        case .runChiSquare:
-            return .runChiSquare
-        case .runPlot:
-            return .runPlot
-        case .runNgram:
-            return .runNgram
-        case .runCluster:
-            return .runCluster
-        case .runKWIC:
-            return .runKWIC
-        case .runCollocate:
-            return .runCollocate
-        case .runLocator:
-            return .runLocator
-        case .exportCurrent:
-            return .exportCurrent
-        }
+        WorkspaceActionRegistry.nativeCommand(for: self) ?? .refreshWorkspace
     }
 
     var toolbarSymbolName: String {
-        switch self {
-        case .refresh:
-            return "arrow.clockwise"
-        case .showLibrary:
-            return "books.vertical"
-        case .openSelected:
-            return "arrow.up.right.square"
-        case .openSourceReader:
-            return "doc.text.magnifyingglass"
-        case .annotationControls:
-            return "slider.horizontal.3"
-        case .previewCurrentCorpus:
-            return "space"
-        case .shareCurrentContent:
-            return "square.and.arrow.up"
-        case .runStats, .runWord, .runTokenize, .runTopics, .runCompare, .runSentiment, .runKeyword, .runChiSquare, .runPlot, .runNgram, .runCluster, .runKWIC, .runCollocate, .runLocator:
-            return "play.fill"
-        case .exportCurrent:
-            return "square.and.arrow.up"
-        }
+        WorkspaceActionRegistry.systemImage(for: self)
     }
 }

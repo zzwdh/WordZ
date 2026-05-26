@@ -33,12 +33,12 @@ extension RootContentView {
             currentDetailView
                 .environmentObject(viewModel.lexicalAutocomplete)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .safeAreaInset(edge: .bottom) {
+                    workspaceResultActionAccessory
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        // Keep the main workspace on the stable window background until the
-        // 26-specific detail pane treatment is tuned. The adaptive glass path
-        // currently makes the analysis pane read as dimmed.
-        .background(WordZTheme.workspaceBackground)
+        .background(WordZTheme.workspaceBackground(for: WordZVisualStyle.resolve(for: .mainWorkspace)))
     }
 
     var workspaceInspectorPane: some View {
@@ -70,13 +70,49 @@ extension RootContentView {
     }
 
     var workspaceSplitContentRevision: WorkspaceSplitContentRevision {
-        WorkspaceSplitContentRevision(
-            sceneGraphRevision: viewModel.lastAppliedSceneGraphRevision,
-            selectedRoute: viewModel.selectedRoute,
-            runningTaskKeys: viewModel.runningTaskKeys,
-            issueBannerID: viewModel.issueBanner?.id,
-            languageMode: languageMode,
-            annotationState: viewModel.annotationState
+        let sceneRevisions = viewModel.lastAppliedSceneGraphContentRevisions
+        let selectedRoute = viewModel.selectedRoute
+        let activeResultRevision = sceneRevisions.resultRevision(for: viewModel.selectedTab)
+        let issueBannerID = viewModel.issueBanner?.id
+        let activeRunningTaskKeys: Set<WorkspaceRuntimeTaskKey>
+        if let activeTaskKey = selectedRoute.tab.runtimeTaskKey,
+           viewModel.runningTaskKeys.contains(activeTaskKey) {
+            activeRunningTaskKeys = [activeTaskKey]
+        } else {
+            activeRunningTaskKeys = []
+        }
+
+        return WorkspaceSplitContentRevision(
+            sidebar: WorkspaceSplitPaneContentRevision(
+                components: [
+                    sceneRevisions.sidebar,
+                    sceneRevisions.activeTab
+                ],
+                selectedRoute: selectedRoute,
+                languageMode: languageMode
+            ),
+            detail: WorkspaceSplitPaneContentRevision(
+                components: [
+                    sceneRevisions.activeTab,
+                    sceneRevisions.shell
+                ],
+                selectedRoute: selectedRoute,
+                runningTaskKeys: activeRunningTaskKeys,
+                languageMode: languageMode,
+                annotationState: viewModel.annotationState
+            ),
+            inspector: WorkspaceSplitPaneContentRevision(
+                components: [
+                    sceneRevisions.sidebar,
+                    sceneRevisions.shell,
+                    sceneRevisions.activeTab,
+                    activeResultRevision
+                ],
+                selectedRoute: selectedRoute,
+                issueBannerID: usesWorkspaceTopAccessory ? nil : issueBannerID,
+                languageMode: languageMode
+            ),
+            accessoryRevisionID: usesWorkspaceTopAccessory ? issueBannerID : nil
         )
     }
 }

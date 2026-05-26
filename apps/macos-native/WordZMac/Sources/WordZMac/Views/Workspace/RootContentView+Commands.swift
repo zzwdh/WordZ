@@ -51,7 +51,11 @@ struct RootContentCommandHandler {
     }
 
     func handle(_ command: NativeAppCommand) {
-        switch command {
+        execute(WorkspaceWorkflowPlanner.plan(for: WorkspaceIntent(nativeCommand: command)))
+    }
+
+    private func execute(_ plan: WorkspaceWorkflowPlan) {
+        switch plan.stateMutation {
         case .importCorpora:
             shellActionHandler.handle(.openWindow(.library))
             Task { await workspace.importCorpusFromDialog() }
@@ -61,20 +65,10 @@ struct RootContentCommandHandler {
             Task { await workspace.restoreSavedWorkspace() }
         case .showWelcome:
             shellActionHandler.handle(.presentWelcome)
-        case .showLibrary:
-            shellActionHandler.handle(.openWindow(.library))
+        case .openWindow(let route):
+            shellActionHandler.handle(.openWindow(route))
         case .showSettings:
             openSettings()
-        case .showTaskCenterWindow:
-            shellActionHandler.handle(.openWindow(.taskCenter))
-        case .showUpdateWindow:
-            shellActionHandler.handle(.openWindow(.updatePrompt))
-        case .showAboutWindow:
-            shellActionHandler.handle(.openWindow(.about))
-        case .showHelpWindow:
-            shellActionHandler.handle(.openWindow(.help))
-        case .showReleaseNotesWindow:
-            shellActionHandler.handle(.openWindow(.releaseNotes))
         case .toggleInspector:
             shellActionHandler.handle(.toggleInspector)
         case .refreshWorkspace:
@@ -82,44 +76,14 @@ struct RootContentCommandHandler {
         case .openSelectedCorpus:
             Task { await workspace.openSelectedCorpus() }
         case .openSourceReader:
-            Task {
-                guard await workspace.openCurrentSourceReader() else { return }
+            Task { @MainActor in
+                guard await workspace.performResultArtifactAction(.openSourceReader) else { return }
                 shellActionHandler.handle(.openWindow(.sourceReader))
             }
-        case .quickLookCurrentCorpus:
-            Task { await workspace.quickLookCurrentCorpus() }
-        case .shareCurrentContent:
-            Task { await workspace.shareCurrentContent() }
-        case .runStats:
-            Task { await workspace.runStats() }
-        case .runWord:
-            Task { await workspace.runWord() }
-        case .runTokenize:
-            Task { await workspace.runTokenize() }
-        case .runTopics:
-            Task { await workspace.runTopics() }
-        case .runCompare:
-            Task { await workspace.runCompare() }
-        case .runSentiment:
-            Task { await workspace.runSentiment() }
-        case .runKeyword:
-            Task { await workspace.runKeyword() }
-        case .runChiSquare:
-            Task { await workspace.runChiSquare() }
-        case .runPlot:
-            Task { await workspace.runPlot() }
-        case .runNgram:
-            Task { await workspace.runNgram() }
-        case .runCluster:
-            Task { await workspace.runCluster() }
-        case .runKWIC:
-            Task { await workspace.runKWIC() }
-        case .runCollocate:
-            Task { await workspace.runCollocate() }
-        case .runLocator:
-            Task { await workspace.runLocator() }
-        case .exportCurrent:
-            Task { await workspace.exportCurrent() }
+        case .resultArtifact(let action):
+            Task { await workspace.performResultArtifactAction(action) }
+        case .runAnalysis(let analysisIntent):
+            Task { await workspace.runAnalysis(analysisIntent) }
         case .checkForUpdates:
             Task { await workspace.checkForUpdatesNow() }
         case .downloadUpdate:
@@ -136,6 +100,8 @@ struct RootContentCommandHandler {
             Task { await workspace.openFeedback() }
         case .clearRecentDocuments:
             Task { await workspace.clearRecentDocuments() }
+        case .noOp:
+            break
         }
     }
 }

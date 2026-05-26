@@ -2,28 +2,39 @@ import SwiftUI
 
 struct WordZVisualStyle: Equatable {
     let route: NativeWindowRoute
-    let tier: WindowEnhancementTier
+    let chromeTier: WindowEnhancementTier
+    let contentTier: WindowEnhancementTier
+    let accessoryTier: WindowEnhancementTier
 
-    static let baseline = WordZVisualStyle(route: .mainWorkspace, tier: .baseline)
+    static let baseline = WordZVisualStyle(
+        route: .mainWorkspace,
+        chromeTier: .baseline,
+        contentTier: .baseline,
+        accessoryTier: .baseline
+    )
+
+    var tier: WindowEnhancementTier {
+        contentTier
+    }
 
     var usesAdaptiveHeaderSurface: Bool {
-        tier != .baseline
+        chromeTier != .baseline
     }
 
     var usesAdaptiveSectionSurface: Bool {
-        tier != .baseline
+        contentTier != .baseline
     }
 
     var usesAdaptiveToolbarSurface: Bool {
-        tier >= .glassSurface
+        chromeTier >= .glassSurface
     }
 
     var headerHorizontalPadding: CGFloat {
-        tier == .baseline ? 0 : 14
+        chromeTier == .baseline ? 0 : 14
     }
 
     var headerVerticalPadding: CGFloat {
-        tier == .baseline ? 0 : 12
+        chromeTier == .baseline ? 0 : 12
     }
 
     var sectionInnerPadding: CGFloat {
@@ -35,35 +46,33 @@ struct WordZVisualStyle: Equatable {
         capabilities: NativePlatformCapabilities = .current
     ) -> WordZVisualStyle {
         let profile = NativeWindowPresentationProfile.profile(for: route)
-        let resolvedTier = profile.resolvedTier(capabilities: capabilities)
-        let stableTier: WindowEnhancementTier
-
-        if route == .mainWorkspace, resolvedTier == .fullVisualRefresh {
-            // The analysis workspace still shows unstable card stacking when the
-            // result area uses Liquid Glass surfaces inside long scrolling panes.
-            // Keep the main window on the macOS 15 chrome path until that
-            // section layout is fully hardened for 26-specific materials.
-            stableTier = .chromeOnly
-        } else {
-            stableTier = resolvedTier
-        }
-
-        return WordZVisualStyle(route: route, tier: stableTier)
+        return WordZVisualStyle(
+            route: route,
+            chromeTier: profile.resolvedChromeTier(capabilities: capabilities),
+            contentTier: profile.resolvedContentTier(capabilities: capabilities),
+            accessoryTier: profile.resolvedAccessoryTier(capabilities: capabilities)
+        )
     }
 
     static func resolveAccessory(
         for route: NativeWindowRoute,
         capabilities: NativePlatformCapabilities = .current
     ) -> WordZVisualStyle {
-        let baseStyle = resolve(for: route, capabilities: capabilities)
         guard route == .mainWorkspace,
               capabilities.supportsAccessoryGlassSurfaces,
               NativeWindowPresentationProfile.profile(for: route)
                 .resolvedSplitAccessoryMode(capabilities: capabilities) == .mainWorkspaceTopAccessory else {
-            return baseStyle
+            return resolve(for: route, capabilities: capabilities)
         }
 
-        return WordZVisualStyle(route: route, tier: .glassSurface)
+        let profile = NativeWindowPresentationProfile.profile(for: route)
+        let resolvedAccessoryTier = profile.resolvedAccessoryTier(capabilities: capabilities)
+        return WordZVisualStyle(
+            route: route,
+            chromeTier: resolvedAccessoryTier,
+            contentTier: resolvedAccessoryTier,
+            accessoryTier: resolvedAccessoryTier
+        )
     }
 }
 

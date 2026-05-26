@@ -51,22 +51,20 @@ package final class NativeApplicationDelegate: NSObject, NSApplicationDelegate, 
         presentWindow = presenter
         guard let pendingWindowRoute else { return }
         self.pendingWindowRoute = nil
-        presenter(pendingWindowRoute)
+        presentWindowRoute(pendingWindowRoute)
     }
 
     func presentWindowRoute(_ route: NativeWindowRoute) {
-        let application = NSApplication.shared
-        application.setActivationPolicy(.regular)
-        application.activate(ignoringOtherApps: true)
-
-        if let window = NativeWindowRouting.window(for: route) {
-            window.makeKeyAndOrderFront(nil)
-            return
-        }
-
         if let presentWindow {
+            guard NativeWindowRouting.shouldRequestPresentation(for: route) else { return }
             presentWindow(route)
         } else {
+            let application = NSApplication.shared
+            application.setActivationPolicy(.regular)
+            application.activate(ignoringOtherApps: true)
+            if NativeWindowRouting.activate(route) {
+                return
+            }
             pendingWindowRoute = route
         }
     }

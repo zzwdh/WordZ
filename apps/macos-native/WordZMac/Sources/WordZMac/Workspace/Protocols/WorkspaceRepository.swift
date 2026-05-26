@@ -79,6 +79,16 @@ protocol LibraryImportProgressReportingRepository: AnyObject {
 }
 
 @MainActor
+protocol MergedCorpusImportingRepository: AnyObject {
+    func importMergedCorpusPaths(
+        _ paths: [String],
+        name: String,
+        folderId: String,
+        progress: (@Sendable (LibraryImportProgressSnapshot) -> Void)?
+    ) async throws -> LibraryImportResult
+}
+
+@MainActor
 protocol LibraryCorpusCleaningProgressReportingRepository: AnyObject {
     func cleanCorpora(
         corpusIds: [String],
@@ -94,6 +104,11 @@ protocol CorpusSetManagingRepository: AnyObject {
         metadataFilterState: CorpusMetadataFilterState
     ) async throws -> LibraryCorpusSetItem
     func deleteCorpusSet(corpusSetID: String) async throws
+}
+
+@MainActor
+protocol CorpusSetOpeningRepository: AnyObject {
+    func openSavedCorpusSet(corpusSetID: String) async throws -> OpenedCorpus
 }
 
 @MainActor

@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleStatsAction(_ action: StatsPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runStats() }
+            handleWorkspaceIntent(.runAnalysis(.stats))
         case .changeNormalizationUnit(let unit):
             workspace.updateFrequencyMetricDefinition(
                 FrequencyMetricDefinition(

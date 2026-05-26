@@ -36,39 +36,41 @@ extension TopicsPageViewModel {
         case .selectCluster(let clusterID):
             selectedClusterID = clusterID
             selectedRowID = nil
-            resetToFirstPageAndRebuild()
+            resetTableToFirstPageAndRebuild()
         case .selectRow(let rowID):
             selectedRowID = rowID
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
-    func toggleColumn(_ column: TopicsColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort || mutation == .pageReset else { return }
+        invalidateSortedSegmentsCache()
     }
 
-    func sortByColumn(_ column: TopicsColumnKey) {
-        let nextSort: TopicSegmentSortMode
+    func nextSortMode(
+        for column: TopicsColumnKey,
+        currentSortMode: TopicSegmentSortMode
+    ) -> TopicSegmentSortMode? {
         switch column {
         case .paragraph:
-            nextSort = sortMode == .paragraphAscending ? .paragraphDescending : .paragraphAscending
+            return currentSortMode == .paragraphAscending ? .paragraphDescending : .paragraphAscending
         case .score:
-            nextSort = sortMode == .relevanceDescending ? .relevanceAscending : .relevanceDescending
+            return currentSortMode == .relevanceDescending ? .relevanceAscending : .relevanceDescending
         case .excerpt:
-            nextSort = sortMode == .alphabeticalAscending ? .alphabeticalDescending : .alphabeticalAscending
+            return currentSortMode == .alphabeticalAscending ? .alphabeticalDescending : .alphabeticalAscending
         }
-        applySortModeChange(nextSort)
     }
 
     func visibleTopicSegmentsForSentiment(

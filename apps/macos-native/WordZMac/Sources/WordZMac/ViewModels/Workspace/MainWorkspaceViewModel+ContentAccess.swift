@@ -4,6 +4,7 @@ import Foundation
 extension MainWorkspaceViewModel {
     enum CurrentContentTarget {
         case file(String)
+        case resultArtifact(WorkspaceResultArtifact)
         case tableSnapshot(NativeTableExportSnapshot)
         case textDocument(PlainTextExportDocument)
     }
@@ -13,9 +14,10 @@ extension MainWorkspaceViewModel {
     }
 
     var currentPreviewablePath: String? {
-        if let selectedCorpusPreviewablePath {
-            return selectedCorpusPreviewablePath
-        }
+        openedCorpusPreviewablePath ?? selectedCorpusPreviewablePath
+    }
+
+    var openedCorpusPreviewablePath: String? {
         let trimmedOpenedPath = sessionStore.openedCorpus?.filePath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmedOpenedPath.isEmpty ? nil : trimmedOpenedPath
     }
@@ -33,17 +35,9 @@ extension MainWorkspaceViewModel {
         in graph: WorkspaceSceneGraph,
         selectedTab: WorkspaceDetailTab
     ) -> CurrentContentTarget? {
-        switch selectedTab {
-        case .tokenize:
-            if let document = tokenize.exportDocument {
-                return .textDocument(document)
-            }
-        case .stats, .word, .topics, .compare, .sentiment, .keyword, .chiSquare, .plot, .ngram, .cluster, .kwic, .collocate, .locator:
-            if let snapshot = currentExportSnapshot(in: graph, selectedTab: selectedTab) {
-                return .tableSnapshot(snapshot)
-            }
-        case .library, .settings:
-            break
+        if let artifact = currentResultArtifact(in: graph, selectedTab: selectedTab),
+           artifact.supports(.preview) {
+            return .resultArtifact(artifact)
         }
 
         guard let path = currentPreviewablePath else { return nil }
@@ -54,7 +48,18 @@ extension MainWorkspaceViewModel {
         switch target {
         case .file(let path):
             return path
+        case .resultArtifact(let artifact):
+            return try preparedPath(for: artifact)
         case .tableSnapshot(let snapshot):
+            return try quickLookPreviewFileService.prepare(snapshot: snapshot)
+        case .textDocument(let document):
+            return try quickLookPreviewFileService.prepare(textDocument: document)
+        }
+    }
+
+    func preparedPath(for artifact: WorkspaceResultArtifact) throws -> String {
+        switch artifact.payload {
+        case .table(let snapshot):
             return try quickLookPreviewFileService.prepare(snapshot: snapshot)
         case .textDocument(let document):
             return try quickLookPreviewFileService.prepare(textDocument: document)
@@ -87,15 +92,42 @@ extension MainWorkspaceViewModel {
         currentExportSnapshot(in: sceneGraph, selectedTab: selectedTab)
     }
 
+    var currentResultArtifact: WorkspaceResultArtifact? {
+        currentResultArtifact(in: sceneGraph, selectedTab: selectedTab)
+    }
+
+    func currentResultArtifact(
+        in graph: WorkspaceSceneGraph,
+        selectedTab: WorkspaceDetailTab
+    ) -> WorkspaceResultArtifact? {
+        if selectedTab == .tokenize, let document = tokenize.exportDocument {
+            return WorkspaceResultArtifact(
+                sourceTab: .tokenize,
+                title: selectedTab.displayTitle(in: languageMode),
+                status: graph.tokenize.status,
+                totalRows: graph.tokenize.totalRows,
+                visibleRows: graph.tokenize.visibleRows,
+                payload: .textDocument(document),
+                capabilities: resultArtifactCapabilities(for: .tokenize)
+            )
+        }
+
+        guard let artifact = currentResultSceneNode(in: graph, selectedTab: selectedTab)?
+            .makeArtifact(sourceTab: selectedTab)
+        else { return nil }
+        return artifact.addingCapabilities(resultArtifactCapabilities(for: selectedTab))
+    }
+
     func hasPreviewableCurrentContent(
         in graph: WorkspaceSceneGraph,
         selectedTab: WorkspaceDetailTab
     ) -> Bool {
         switch selectedTab {
         case .tokenize:
-            return tokenize.exportDocument != nil || currentPreviewablePath != nil
+            return currentResultArtifact(in: graph, selectedTab: selectedTab)?.supports(.preview) == true ||
+                currentPreviewablePath != nil
         case .stats, .word, .topics, .compare, .sentiment, .keyword, .chiSquare, .plot, .ngram, .cluster, .kwic, .collocate, .locator:
-            return hasExportableCurrentContent(in: graph, selectedTab: selectedTab)
+            return currentResultArtifact(in: graph, selectedTab: selectedTab)?.supports(.preview) == true
         case .library, .settings:
             return currentPreviewablePath != nil
         }
@@ -105,7 +137,7 @@ extension MainWorkspaceViewModel {
         in graph: WorkspaceSceneGraph,
         selectedTab: WorkspaceDetailTab
     ) -> Bool {
-        currentResultSceneNode(in: graph, selectedTab: selectedTab)?.isExportable == true
+        currentResultArtifact(in: graph, selectedTab: selectedTab)?.supports(.export) == true
     }
 
     func currentExportSnapshot(
@@ -113,6 +145,32 @@ extension MainWorkspaceViewModel {
         selectedTab: WorkspaceDetailTab
     ) -> NativeTableExportSnapshot? {
         currentResultSceneNode(in: graph, selectedTab: selectedTab)?.exportSnapshot
+    }
+
+    private func resultArtifactCapabilities(
+        for tab: WorkspaceDetailTab
+    ) -> Set<WorkspaceResultArtifactCapability> {
+        var capabilities: Set<WorkspaceResultArtifactCapability> = [.copy, .preview, .export, .share]
+        if canOpenSourceReaderContent(for: tab) {
+            capabilities.insert(.openSourceReader)
+        }
+        if canCaptureExcerptFromCurrentResult(for: tab) {
+            capabilities.insert(.captureExcerpt)
+        }
+        return capabilities
+    }
+
+    private func canCaptureExcerptFromCurrentResult(for tab: WorkspaceDetailTab) -> Bool {
+        switch tab {
+        case .kwic:
+            return kwic.selectedSceneRow != nil
+        case .locator:
+            return locator.selectedSceneRow != nil
+        case .sentiment:
+            return sentiment.canOpenSelectedRowSourceReader
+        case .stats, .word, .tokenize, .topics, .compare, .keyword, .chiSquare, .plot, .ngram, .cluster, .collocate, .library, .settings:
+            return false
+        }
     }
 
     var currentReportTextDocuments: [AnalysisReportBundleTextDocument] {
@@ -156,14 +214,13 @@ extension MainWorkspaceViewModel {
     var currentEvidenceDossierDocument: AnalysisReportBundleTextDocument? {
         guard let document = try? EvidenceMarkdownPacketSupport.document(
             items: evidenceWorkbench.filteredItems,
-            grouping: evidenceWorkbench.groupingMode,
             filterSummary: evidenceWorkbench.exportScopeSummary(in: .system)
         ) else {
             return nil
         }
         return AnalysisReportBundleTextDocument(
-            relativePath: "reading/writing-material.txt",
-            description: "Current kept evidence material for writing.",
+            relativePath: "reading/excerpts.txt",
+            description: "Current kept excerpts for handoff.",
             document: document
         )
     }

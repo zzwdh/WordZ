@@ -173,7 +173,7 @@ final class SentimentModelManager: @unchecked Sendable {
 
     private let bundle: Bundle
     private let manifestProvider: () -> Data?
-    private let modelLoader: (URL) throws -> MLModel
+    private let modelLoader: (URL, MLModelConfiguration) throws -> MLModel
     private let cacheLock = NSLock()
     private var cachedManifest: SentimentModelManifest?
     private var cachedModels: [String: SentimentLoadedModel] = [:]
@@ -181,7 +181,7 @@ final class SentimentModelManager: @unchecked Sendable {
     init(
         bundle: Bundle = WordZAnalysisResources.bundle,
         manifestProvider: (() -> Data?)? = nil,
-        modelLoader: ((URL) throws -> MLModel)? = nil
+        modelLoader: ((URL, MLModelConfiguration) throws -> MLModel)? = nil
     ) {
         self.bundle = bundle
         self.manifestProvider = manifestProvider ?? {
@@ -194,8 +194,8 @@ final class SentimentModelManager: @unchecked Sendable {
             }
             return try? Data(contentsOf: url)
         }
-        self.modelLoader = modelLoader ?? { url in
-            try MLModel(contentsOf: url)
+        self.modelLoader = modelLoader ?? { url, configuration in
+            try MLModel(contentsOf: url, configuration: configuration)
         }
     }
 
@@ -329,7 +329,14 @@ final class SentimentModelManager: @unchecked Sendable {
         provider: SentimentModelProviderManifest,
         modelURL: URL
     ) throws -> SentimentLoadedModel {
-        let model = try modelLoader(modelURL)
+        let expectedProviderFamily = resolveProviderFamily(
+            provider: provider,
+            inputKind: provider.inputSchema.map(inputKindHint)
+        )
+        let model = try modelLoader(
+            modelURL,
+            HardwareAccelerationPolicy.coreMLConfiguration(for: expectedProviderFamily)
+        )
         guard let inputKind = resolveInputKind(
             provider: provider,
             inputs: model.modelDescription.inputDescriptionsByName
@@ -430,10 +437,13 @@ final class SentimentModelManager: @unchecked Sendable {
 
     private func resolveProviderFamily(
         provider: SentimentModelProviderManifest,
-        inputKind: SentimentModelInputKind
+        inputKind: SentimentModelInputKind?
     ) -> SentimentModelProviderFamily {
         if let providerFamily = provider.providerFamily {
             return providerFamily
+        }
+        guard let inputKind else {
+            return .unknown
         }
         switch inputKind {
         case .denseFeatures:
@@ -442,6 +452,27 @@ final class SentimentModelManager: @unchecked Sendable {
             return .textMaxEnt
         case .tokenizedText:
             return .transformerCoreML
+        }
+    }
+
+    private func inputKindHint(
+        from schema: SentimentModelInputSchemaManifest
+    ) -> SentimentModelInputKind {
+        switch schema.kind {
+        case .text:
+            return .text(featureName: schema.textFeatureName ?? "")
+        case .denseFeatures:
+            return .denseFeatures(featureNames: schema.denseFeatureNames ?? [])
+        case .tokenizedText:
+            return .tokenizedText(
+                inputIDsFeatureName: schema.inputIDsFeatureName ?? "",
+                attentionMaskFeatureName: schema.attentionMaskFeatureName ?? "",
+                tokenTypeIDsFeatureName: schema.tokenTypeIDsFeatureName,
+                maxSequenceLength: max(
+                    8,
+                    schema.maxSequenceLength ?? Constants.defaultTokenSequenceLength
+                )
+            )
         }
     }
 

@@ -36,7 +36,7 @@ final class WorkspaceSentimentWorkflowService {
         case .pastedText:
             let trimmed = features.sentiment.manualText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else {
-                features.sidebar.setError(wordZText("请先输入要分析的英文文本。", "Enter some English text to analyze first.", mode: .system))
+                features.sidebar.setError(wordZText("请先输入要分析的文本。", "Enter some text to analyze first.", mode: .system))
                 return
             }
             await analysisWorkflow.performResultRunTask(

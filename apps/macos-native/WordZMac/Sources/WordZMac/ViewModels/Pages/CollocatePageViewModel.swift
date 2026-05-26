@@ -61,14 +61,14 @@ final class CollocatePageViewModel: ObservableObject, AnalysisInputStateControll
     var onInputChange: (() -> Void)?
     let sceneBuilder: CollocateSceneBuilder
     var result: CollocateResult?
-    var sortMode: CollocateSortMode = .logDiceDescending
-    var pageSize: CollocatePageSize = .fifty
-    var currentPage = 1
-    var visibleColumns: Set<CollocateColumnKey> = CollocatePageViewModel.defaultVisibleColumns
+    var tablePresentation = AnalysisTablePresentationState<CollocateColumnKey, CollocateSortMode, CollocatePageSize>(
+        sortMode: .logDiceDescending,
+        pageSize: .fifty,
+        visibleColumns: CollocatePageViewModel.defaultVisibleColumns
+    )
     var annotationState = WorkspaceAnnotationState.default
     var focusMetric: CollocateAssociationMetric = .logDice
     var lastRunConfiguration: CollocateRunConfiguration?
-    var sceneBuildRevision = 0
     var cachedFilteredRows: [CollocateRow]?
     var cachedStopwordFilter = StopwordFilterState.default
     var cachedSortedRows: [CollocateRow]?

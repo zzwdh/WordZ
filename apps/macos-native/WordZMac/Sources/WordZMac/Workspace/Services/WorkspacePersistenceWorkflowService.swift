@@ -115,10 +115,10 @@ final class WorkspacePersistenceWorkflowService {
             sentimentSelectedCorpusIDs: Array(features.sentiment.selectedCorpusIDs).sorted(),
             sentimentReferenceCorpusID: features.sentiment.selectedReferenceCorpusID,
             evidenceReviewFilter: features.evidenceWorkbench.reviewFilter,
-            evidenceSourceFilter: features.evidenceWorkbench.sourceFilter,
-            evidenceSentimentFilter: features.evidenceWorkbench.sentimentFilter,
-            evidenceTagFilterQuery: features.evidenceWorkbench.tagFilterQuery,
-            evidenceCorpusFilterQuery: features.evidenceWorkbench.corpusFilterQuery,
+            evidenceSourceFilter: .all,
+            evidenceSentimentFilter: .all,
+            evidenceTagFilterQuery: "",
+            evidenceCorpusFilterQuery: "",
             keywordActiveTab: features.keyword.activeTab,
             keywordSuiteConfiguration: features.keyword.suiteConfiguration,
             keywordTargetCorpusID: features.keyword.targetCorpusIDSnapshot,
@@ -198,7 +198,7 @@ final class WorkspacePersistenceWorkflowService {
             let snapshot = try hostPreferencesStore.recordRecentDocument(
                 corpusID: selectedCorpus.id,
                 title: openedCorpus.displayName.isEmpty ? selectedCorpus.name : openedCorpus.displayName,
-                subtitle: selectedCorpus.folderName,
+                subtitle: selectedCorpus.databaseLocationSummary(mode: .system),
                 representedPath: openedCorpus.filePath
             )
             Task { await self.hostActionService.noteRecentDocument(path: openedCorpus.filePath) }

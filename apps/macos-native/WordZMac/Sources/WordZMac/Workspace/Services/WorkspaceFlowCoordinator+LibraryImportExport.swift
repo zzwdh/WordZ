@@ -9,6 +9,18 @@ extension WorkspaceFlowCoordinator {
         await exportWorkflow.exportCurrent(features: features, preferredRoute: preferredRoute)
     }
 
+    func exportArtifact(
+        _ artifact: WorkspaceResultArtifact,
+        features: WorkspaceFeatureSet,
+        preferredRoute: NativeWindowRoute? = nil
+    ) async {
+        await exportWorkflow.exportArtifact(
+            artifact,
+            features: features,
+            preferredRoute: preferredRoute
+        )
+    }
+
     func exportTextDocument(
         _ document: PlainTextExportDocument,
         title: String,

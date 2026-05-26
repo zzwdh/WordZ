@@ -8,6 +8,7 @@ extension NativeCorpusDatabaseSupport {
             importedAt: stringColumn(statement, index: offset + 1),
             sourceType: stringColumn(statement, index: offset + 2),
             representedPath: stringColumn(statement, index: offset + 3),
+            sourceFileCount: max(1, Int(sqlite3_column_int(statement, offset + 22))),
             detectedEncoding: stringColumn(statement, index: offset + 4),
             metadataProfile: CorpusMetadataProfile(
                 sourceLabel: stringColumn(statement, index: offset + 5),
@@ -65,11 +66,12 @@ extension NativeCorpusDatabaseSupport {
                 original_character_count,
                 cleaned_character_count,
                 cleaned_text_digest,
+                source_file_count,
                 tokenized_sentences_json,
                 raw_text,
                 cleaned_text,
                 text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             on: db
         )
@@ -98,10 +100,11 @@ extension NativeCorpusDatabaseSupport {
         sqlite3_bind_int(statement, 21, Int32(metadata.originalCharacterCount))
         sqlite3_bind_int(statement, 22, Int32(metadata.cleanedCharacterCount))
         bindText(metadata.cleanedTextDigest, to: statement, index: 23)
-        bindText("", to: statement, index: 24)
-        bindText(rawText, to: statement, index: 25)
-        bindText(cleanedText, to: statement, index: 26)
+        sqlite3_bind_int(statement, 24, Int32(max(1, metadata.sourceFileCount)))
+        bindText("", to: statement, index: 25)
+        bindText(rawText, to: statement, index: 26)
         bindText(cleanedText, to: statement, index: 27)
+        bindText(cleanedText, to: statement, index: 28)
 
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw databaseError(on: db, message: "无法写入语料正文")

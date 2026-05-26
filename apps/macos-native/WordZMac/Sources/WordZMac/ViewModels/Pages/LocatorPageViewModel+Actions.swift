@@ -15,9 +15,9 @@ extension LocatorPageViewModel {
             selectedSavedSetID = setID
             normalizeSavedSetSelection()
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyPagedPageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            togglePagedColumnAndRebuild(column)
         case .selectRow(let rowID):
             selectRow(rowID)
         case .activateRow(let rowID):
@@ -28,14 +28,10 @@ extension LocatorPageViewModel {
         case .openSourceReader, .copyCurrent, .copyVisible, .exportCurrent, .exportVisible:
             return
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousPagedPage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextPagedPage(canGoForward: scene?.pagination.canGoForward == true)
         }
-    }
-
-    func toggleColumn(_ column: LocatorColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
     }
 
     func selectRow(_ rowID: String?) {

@@ -2,6 +2,60 @@ import Foundation
 
 @MainActor
 extension MainWorkspaceViewModel {
+    func refreshKeywordSavedLists() async {
+        await flowCoordinator.refreshKeywordSavedLists(features: features)
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func saveKeywordCurrentList() async {
+        await flowCoordinator.saveKeywordCurrentList(features: features)
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func deleteKeywordSavedList(_ listID: String) async {
+        await flowCoordinator.deleteKeywordSavedList(listID: listID, features: features)
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func importKeywordSavedListsJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
+        await flowCoordinator.importKeywordSavedListsJSON(features: features, preferredRoute: preferredWindowRoute)
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func exportSelectedKeywordSavedListJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
+        await flowCoordinator.exportKeywordSavedListsJSON(
+            scope: .selected,
+            features: features,
+            preferredRoute: preferredWindowRoute
+        )
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func exportAllKeywordSavedListsJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
+        await flowCoordinator.exportKeywordSavedListsJSON(
+            scope: .all,
+            features: features,
+            preferredRoute: preferredWindowRoute
+        )
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func importKeywordReferenceWordList(preferredWindowRoute: NativeWindowRoute? = nil) async {
+        await flowCoordinator.importKeywordReferenceWordList(
+            features: features,
+            preferredRoute: preferredWindowRoute
+        )
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
+    func exportKeywordRowContext(preferredWindowRoute: NativeWindowRoute? = nil) async {
+        await flowCoordinator.exportKeywordRowContext(
+            features: features,
+            preferredRoute: preferredWindowRoute
+        )
+        syncResultContentSceneGraph(for: .keyword)
+    }
+
     func analyzeCompareSelectionInKeywordSuite() {
         let focusCorpusIDs: [String]
         switch compare.selectedReferenceSelection {

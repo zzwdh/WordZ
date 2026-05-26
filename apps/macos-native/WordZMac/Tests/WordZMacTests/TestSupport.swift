@@ -3,11 +3,12 @@ import Foundation
 @testable import WordZWorkspaceCore
 
 @MainActor
-final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepository, AnalysisPresetManagingRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository, StoredTokenPositionIndexReadingRepository {
+final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingRepository, CorpusSetManagingRepository, CorpusSetOpeningRepository, AnalysisPresetManagingRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository, StoredTokenPositionIndexReadingRepository {
     var startedUserDataURL: URL?
     var stopCalled = false
     var loadBootstrapStateCallCount = 0
     var openSavedCorpusCallCount = 0
+    var openSavedCorpusSetCallCount = 0
     var loadCorpusInfoCallCount = 0
     var updateCorpusMetadataCallCount = 0
     var runStatsCallCount = 0
@@ -25,6 +26,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var runCollocateCallCount = 0
     var runLocatorCallCount = 0
     var lastRunPlotRequest: PlotRunRequest?
+    var lastRunStatsText: String?
     var lastRunTopicsText: String?
     var lastRunTopicsOptions: TopicAnalysisOptions?
     var lastSentimentRequest: SentimentRunRequest?
@@ -36,6 +38,10 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var lastRunLocatorSentenceId: Int?
     var lastRunLocatorNodeIndex: Int?
     var importCorpusPathsCallCount = 0
+    var importMergedCorpusPathsCallCount = 0
+    var lastMergedImportPaths: [String] = []
+    var lastMergedImportName = ""
+    var lastMergedImportFolderID = ""
     var cleanCorporaCallCount = 0
     var listLibraryCallCount = 0
     var fullTextListLibraryCallCount = 0
@@ -81,6 +87,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
     var bootstrapState: WorkspaceBootstrapState
     var openedCorpus: OpenedCorpus
     var openedCorporaByID: [String: OpenedCorpus]
+    var openedCorpusSetsByID: [String: OpenedCorpus] = [:]
     var storedFrequencyArtifactsByCorpusID: [String: StoredFrequencyArtifact] = [:]
     var storedTokenizedArtifactsByCorpusID: [String: StoredTokenizedArtifact] = [:]
     var storedTokenPositionIndexesByCorpusID: [String: StoredTokenPositionIndexArtifact] = [:]
@@ -398,6 +405,76 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
         ])
     }
 
+    func importMergedCorpusPaths(
+        _ paths: [String],
+        name: String,
+        folderId: String,
+        progress: (@Sendable (LibraryImportProgressSnapshot) -> Void)?
+    ) async throws -> LibraryImportResult {
+        importMergedCorpusPathsCallCount += 1
+        lastMergedImportPaths = paths
+        lastMergedImportName = name
+        lastMergedImportFolderID = folderId
+        if let importError { throw importError }
+        progress?(
+            LibraryImportProgressSnapshot(
+                phase: .completed,
+                totalCount: paths.count,
+                completedCount: paths.count,
+                importedCount: 1,
+                skippedCount: 0,
+                currentPath: "",
+                currentName: name
+            )
+        )
+        let cleaningSummary = makeCleaningReportSummary(
+            status: .cleanedWithChanges,
+            cleanedAt: "2026-04-11T00:00:00Z",
+            originalCharacterCount: 120,
+            cleanedCharacterCount: 116,
+            ruleHits: [
+                LibraryCorpusCleaningRuleHit(id: "space-normalization", count: 2),
+                LibraryCorpusCleaningRuleHit(id: "blank-line-collapse", count: 1)
+            ]
+        )
+        let nextCorpus = LibraryCorpusItem(json: makeLibraryCorpusJSON(
+            id: "merged-\(importMergedCorpusPathsCallCount)",
+            name: name,
+            folderId: folderId,
+            folderName: librarySnapshot.folders.first(where: { $0.id == folderId })?.name ?? "Imported",
+            sourceType: "db",
+            representedPath: "",
+            metadata: .empty,
+            cleaningSummary: cleaningSummary
+        ))
+        librarySnapshot = LibrarySnapshot(
+            folders: librarySnapshot.folders,
+            corpora: librarySnapshot.corpora + [nextCorpus],
+            corpusSets: librarySnapshot.corpusSets
+        )
+        return LibraryImportResult(json: [
+            "importedCount": 1,
+            "skippedCount": 0,
+            "importedItems": [[
+                "id": nextCorpus.id,
+                "name": nextCorpus.name,
+                "folderId": nextCorpus.folderId,
+                "folderName": nextCorpus.folderName,
+                "sourceType": nextCorpus.sourceType,
+                "representedPath": nextCorpus.representedPath,
+                "metadata": nextCorpus.metadata.jsonObject,
+                "cleaningStatus": nextCorpus.cleaningStatus.rawValue,
+                "cleaningSummary": nextCorpus.cleaningSummary?.jsonObject ?? [:]
+            ]],
+            "cleaningSummary": [
+                "cleanedCount": 1,
+                "changedCount": 1,
+                "ruleHits": cleaningSummary.ruleHits.map(\.jsonObject)
+            ],
+            "cancelled": false
+        ])
+    }
+
     func cleanCorpora(corpusIds: [String]) async throws -> LibraryCorpusCleaningBatchResult {
         cleanCorporaCallCount += 1
         if let cleanCorporaError { throw cleanCorporaError }
@@ -459,6 +536,21 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
         return openedCorpus
     }
 
+    func openSavedCorpusSet(corpusSetID: String) async throws -> OpenedCorpus {
+        openSavedCorpusSetCallCount += 1
+        if let openError { throw openError }
+        if let openedCorpus = openedCorpusSetsByID[corpusSetID] {
+            return openedCorpus
+        }
+        return OpenedCorpus(json: [
+            "mode": "corpus-set",
+            "filePath": "/tmp/\(corpusSetID).db",
+            "displayName": "Corpus Set \(corpusSetID)",
+            "content": openedCorpus.content,
+            "sourceType": "db"
+        ])
+    }
+
     func loadStoredFrequencyArtifact(corpusId: String) async throws -> StoredFrequencyArtifact? {
         storedFrequencyArtifactsByCorpusID[corpusId]
     }
@@ -496,6 +588,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
 
     func runStats(text: String) async throws -> StatsResult {
         runStatsCallCount += 1
+        lastRunStatsText = text
         if let statsError { throw statsError }
         return statsResult
     }
@@ -895,6 +988,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
         sourceType: String,
         representedPath: String,
         metadata: CorpusMetadataProfile,
+        storageFileName: String? = nil,
         cleaningSummary: LibraryCorpusCleaningReportSummary? = nil
     ) -> JSONObject {
         var json: JSONObject = [
@@ -904,6 +998,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
             "folderName": folderName,
             "sourceType": sourceType,
             "representedPath": representedPath,
+            "storageFileName": storageFileName ?? "\(name).db",
             "metadata": metadata.jsonObject,
             "cleaningStatus": (cleaningSummary?.status ?? .pending).rawValue
         ]
@@ -930,6 +1025,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
             sourceType: corpus.sourceType,
             representedPath: corpus.representedPath,
             metadata: metadata ?? corpus.metadata,
+            storageFileName: corpus.storageFileName,
             cleaningSummary: resolvedCleaningSummary
         )
     }
@@ -947,8 +1043,10 @@ final class FakeWorkspaceRepository: WorkspaceRepository, CorpusSetManagingRepos
             "folderName": summary.folderName,
             "sourceType": summary.sourceType,
             "representedPath": summary.representedPath,
+            "storageFileName": summary.storageFileName,
             "detectedEncoding": summary.detectedEncoding,
             "importedAt": summary.importedAt,
+            "fileCount": summary.fileCount,
             "tokenCount": summary.tokenCount,
             "typeCount": summary.typeCount,
             "sentenceCount": summary.sentenceCount,
@@ -1177,6 +1275,10 @@ final class FakeDialogService: NativeDialogServicing {
     var confirmCallCount = 0
     var confirmTitle: String?
     var confirmMessage: String?
+    var promptTextTitle: String?
+    var promptTextMessage: String?
+    var promptTextDefaultValue: String?
+    var promptTextConfirmTitle: String?
 
     func chooseImportPaths(preferredRoute: NativeWindowRoute?) async -> [String]? {
         return importPathsResult
@@ -1217,6 +1319,10 @@ final class FakeDialogService: NativeDialogServicing {
         confirmTitle: String,
         preferredRoute: NativeWindowRoute?
     ) async -> String? {
+        promptTextTitle = title
+        promptTextMessage = message
+        promptTextDefaultValue = defaultValue
+        promptTextConfirmTitle = confirmTitle
         promptTextPreferredRoute = preferredRoute
         return promptTextResult
     }
@@ -1841,8 +1947,10 @@ func makeCorpusInfoSummary(title: String = "Demo Corpus") -> CorpusInfoSummary {
         "folderName": "Default",
         "sourceType": "txt",
         "representedPath": "/tmp/demo.txt",
+        "storageFileName": "Demo Corpus.db",
         "detectedEncoding": "UTF-8",
         "importedAt": "2026-04-03T00:00:00Z",
+        "fileCount": 1,
         "tokenCount": 30,
         "typeCount": 12,
         "sentenceCount": 6,

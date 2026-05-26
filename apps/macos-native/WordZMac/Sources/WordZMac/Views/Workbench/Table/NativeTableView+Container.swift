@@ -9,6 +9,22 @@ extension NativeTableView {
     final class ActionTableView: NSTableView {
         weak var actionCoordinator: Coordinator?
 
+        override func mouseDown(with event: NSEvent) {
+            let point = convert(event.locationInWindow, from: nil)
+            let clickedRow = row(at: point)
+            let clickedColumn = column(at: point)
+            if clickedRow >= 0,
+               clickedColumn >= 0,
+               actionCoordinator?.handleCellSelectionMouseDown(
+                   rowIndex: clickedRow,
+                   columnIndex: clickedColumn,
+                   modifierFlags: event.modifierFlags
+               ) == true {
+                return
+            }
+            super.mouseDown(with: event)
+        }
+
         override func keyDown(with event: NSEvent) {
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                event.charactersIgnoringModifiers?.lowercased() == "c",
@@ -32,10 +48,16 @@ extension NativeTableView {
             super.keyDown(with: event)
         }
 
+        @objc
+        func copy(_ sender: Any?) {
+            _ = actionCoordinator?.copySelectedRowsToPasteboard()
+        }
+
         override func menu(for event: NSEvent) -> NSMenu? {
             let point = convert(event.locationInWindow, from: nil)
             let clickedRow = row(at: point)
             if clickedRow >= 0, !selectedRowIndexes.contains(clickedRow) {
+                actionCoordinator?.clearCellSelection()
                 selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
             }
             return super.menu(for: event)
@@ -126,9 +148,12 @@ extension NativeTableView {
         var markers: [NativeTableMarkerValue] = []
         var selectedMarkerID: String?
         var isSelectedRow = false
+        var isCellSelected = false
         var onSelectMarker: ((String?, Bool) -> Void)?
         var onNavigateMarker: ((MarkerNavigationDirection) -> Bool)?
         var onActivateMarker: (() -> Bool)?
+        var onToggleCellSelection: (() -> Bool)?
+        var onCopy: (() -> Bool)?
 
         override var isFlipped: Bool { true }
         override var acceptsFirstResponder: Bool { true }
@@ -218,10 +243,12 @@ extension NativeTableView {
 
             let borderRect = bounds.insetBy(dx: 4, dy: 4)
             let borderPath = NSBezierPath(roundedRect: borderRect, xRadius: 4, yRadius: 4)
-            NSColor.controlAccentColor.withAlphaComponent(isSelectedRow ? 0.10 : 0.04).setFill()
+            NSColor.controlAccentColor.withAlphaComponent(isCellSelected ? 0.18 : (isSelectedRow ? 0.10 : 0.04)).setFill()
             borderPath.fill()
-            NSColor.separatorColor.withAlphaComponent(isSelectedRow ? 0.55 : 0.28).setStroke()
-            borderPath.lineWidth = 1
+            (isCellSelected ? NSColor.controlAccentColor : NSColor.separatorColor)
+                .withAlphaComponent(isCellSelected ? 0.9 : (isSelectedRow ? 0.55 : 0.28))
+                .setStroke()
+            borderPath.lineWidth = isCellSelected ? 1.5 : 1
             borderPath.stroke()
 
             guard !markers.isEmpty else { return }
@@ -250,6 +277,10 @@ extension NativeTableView {
         }
 
         override func mouseDown(with event: NSEvent) {
+            if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+               onToggleCellSelection?() == true {
+                return
+            }
             window?.makeFirstResponder(self)
             let shouldActivate = event.clickCount > 1
             guard !markers.isEmpty else {
@@ -262,6 +293,11 @@ extension NativeTableView {
         }
 
         override func keyDown(with event: NSEvent) {
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+               event.charactersIgnoringModifiers?.lowercased() == "c",
+               onCopy?() == true {
+                return
+            }
             if event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
                event.keyCode == 123,
                onNavigateMarker?(.previous) == true {

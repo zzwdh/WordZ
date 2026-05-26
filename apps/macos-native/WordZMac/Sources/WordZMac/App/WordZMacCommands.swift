@@ -71,7 +71,7 @@ struct WordZMacCommands: Commands {
             .keyboardShortcut(.downArrow, modifiers: [.command, .shift])
             .disabled(!isContextEnabled(\.canOpenSelectedCorpus))
 
-            Button(t("打开原文视图", "Open Source View")) {
+            Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
                 performFocusedCommand("openSourceView") { context in
                     await openSourceView(using: context)
                 }
@@ -94,6 +94,14 @@ struct WordZMacCommands: Commands {
             .disabled(!isContextEnabled(\.canShareContent))
 
             Divider()
+
+            Button(t("复制当前结果", "Copy Current Result")) {
+                performFocusedCommand("copyCurrentResult") { context in
+                    await copyCurrentResult(using: context)
+                }
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(!isContextEnabled(\.canCopyCurrentResult))
 
             Button(t("导出当前结果…", "Export Current Result…")) {
                 performFocusedCommand("exportCurrent") { context in
@@ -165,18 +173,6 @@ struct WordZMacCommands: Commands {
 
             windowButton(.taskCenter)
                 .keyboardShortcut("2", modifiers: [.command])
-
-            Divider()
-
-            Button(t("设置…", "Settings…")) {
-                openSettingsWindow()
-            }
-
-            Divider()
-
-            windowButton(.help)
-            windowButton(.releaseNotes)
-            windowButton(.about)
         }
 
         CommandMenu(t("分析", "Analysis")) {
@@ -243,48 +239,7 @@ struct WordZMacCommands: Commands {
     @CommandsBuilder
     private var dossierAndAnnotationCommands: some Commands {
         CommandMenu(t("证据", "Evidence")) {
-            Section(t("当前分组", "Current Group")) {
-                Button(evidenceGroupingMode.moveSelectedGroupTitle(.up, in: localization.effectiveMode)) {
-                    performFocusedCommand("moveSelectedEvidenceGroup.up") { context in
-                        await moveSelectedEvidenceGroup(.up, using: context)
-                    }
-                }
-                .disabled(!isContextEnabled(\.canMoveEvidenceGroupUp))
-
-                Button(evidenceGroupingMode.moveSelectedGroupTitle(.down, in: localization.effectiveMode)) {
-                    performFocusedCommand("moveSelectedEvidenceGroup.down") { context in
-                        await moveSelectedEvidenceGroup(.down, using: context)
-                    }
-                }
-                .disabled(!isContextEnabled(\.canMoveEvidenceGroupDown))
-
-                Divider()
-
-                Button(evidenceGroupingMode.splitSelectedGroupTitle(in: localization.effectiveMode)) {
-                    performFocusedCommand("splitSelectedEvidenceGroup") { context in
-                        await splitSelectedEvidenceGroup(using: context)
-                    }
-                }
-                .disabled(!isContextEnabled(\.canSplitEvidenceGroup))
-
-                Button(evidenceGroupingMode.renameSelectedGroupTitle(in: localization.effectiveMode)) {
-                    performFocusedCommand("renameSelectedEvidenceGroup") { context in
-                        await renameSelectedEvidenceGroup(using: context)
-                    }
-                }
-                .disabled(!isContextEnabled(\.canRenameEvidenceGroup))
-
-                Button(evidenceGroupingMode.mergeSelectedGroupTitle(in: localization.effectiveMode)) {
-                    performFocusedCommand("mergeSelectedEvidenceGroup") { context in
-                        await mergeSelectedEvidenceGroup(using: context)
-                    }
-                }
-                .disabled(!isContextEnabled(\.canMergeEvidenceGroup))
-            }
-
-            Divider()
-
-            Button(t("保存保留条目为文本…", "Save Kept Items as Text…")) {
+            Button(t("保存保留摘录为文本…", "Save Kept Excerpts as Text…")) {
                 performFocusedCommand("exportEvidenceDossier") { context in
                     await exportEvidenceDossier(using: context)
                 }
@@ -348,6 +303,16 @@ struct WordZMacCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
+            Button(t("使用指南", "Usage Guide")) {
+                openWindowRoute(.help)
+            }
+
+            Button(t("版本说明", "Release Notes")) {
+                openWindowRoute(.releaseNotes)
+            }
+
+            Divider()
+
             Button(t("检查更新…", "Check for Updates…")) {
                 performAsyncCommand("checkForUpdates") {
                     await workspace.checkForUpdatesNow()
@@ -453,10 +418,6 @@ struct WordZMacCommands: Commands {
         commandContext?.canConfigureAnnotation ?? false
     }
 
-    private var evidenceGroupingMode: EvidenceWorkbenchGroupingMode {
-        workspace.evidenceWorkbench.groupingMode
-    }
-
     private func analysisCommand(_ title: String, action: WorkspaceToolbarAction) -> some View {
         Button(title) {
             postCommand(action.nativeCommand, name: action.rawValue)
@@ -515,7 +476,7 @@ struct WordZMacCommands: Commands {
 
     private func openSourceView(using context: WorkspaceCommandContext) async {
         guard context.canOpenSourceView else { return }
-        guard await workspace.openCurrentSourceReader() else { return }
+        guard await workspace.performResultArtifactAction(.openSourceReader, preferredWindowRoute: context.route) else { return }
         openWindowRoute(.sourceReader)
     }
 
@@ -525,7 +486,7 @@ struct WordZMacCommands: Commands {
         case .library:
             await workspace.quickLookSelectedCorpus()
         default:
-            await workspace.quickLookCurrentCorpus()
+            await workspace.performResultArtifactAction(.preview, preferredWindowRoute: context.route)
         }
     }
 
@@ -535,41 +496,18 @@ struct WordZMacCommands: Commands {
         case .library:
             await workspace.shareSelectedCorpus()
         default:
-            await workspace.shareCurrentContent()
+            await workspace.performResultArtifactAction(.share, preferredWindowRoute: context.route)
         }
+    }
+
+    private func copyCurrentResult(using context: WorkspaceCommandContext) async {
+        guard context.canCopyCurrentResult else { return }
+        await workspace.performResultArtifactAction(.copy, preferredWindowRoute: context.route)
     }
 
     private func exportCurrent(using context: WorkspaceCommandContext) async {
         guard context.canExportCurrent else { return }
-        await workspace.exportCurrent(preferredWindowRoute: context.route)
-    }
-
-    private func moveSelectedEvidenceGroup(
-        _ direction: EvidenceWorkbenchMoveDirection,
-        using context: WorkspaceCommandContext
-    ) async {
-        switch direction {
-        case .up:
-            guard context.canMoveEvidenceGroupUp else { return }
-        case .down:
-            guard context.canMoveEvidenceGroupDown else { return }
-        }
-        await workspace.moveSelectedEvidenceGroup(direction)
-    }
-
-    private func splitSelectedEvidenceGroup(using context: WorkspaceCommandContext) async {
-        guard context.canSplitEvidenceGroup else { return }
-        await workspace.splitSelectedEvidenceGroup(preferredWindowRoute: context.route)
-    }
-
-    private func renameSelectedEvidenceGroup(using context: WorkspaceCommandContext) async {
-        guard context.canRenameEvidenceGroup else { return }
-        await workspace.renameSelectedEvidenceGroup(preferredWindowRoute: context.route)
-    }
-
-    private func mergeSelectedEvidenceGroup(using context: WorkspaceCommandContext) async {
-        guard context.canMergeEvidenceGroup else { return }
-        await workspace.mergeSelectedEvidenceGroup(preferredWindowRoute: context.route)
+        await workspace.performResultArtifactAction(.export, preferredWindowRoute: context.route)
     }
 
     private func exportEvidenceDossier(using context: WorkspaceCommandContext) async {
@@ -609,6 +547,7 @@ struct WordZMacCommands: Commands {
 
     private func openWindowRoute(_ route: NativeWindowRoute) {
         logCommand("openWindow", route: route)
+        guard NativeWindowRouting.shouldRequestPresentation(for: route) else { return }
         openWindow(id: route.id)
     }
 

@@ -37,6 +37,16 @@ protocol ProgressReportingLibraryStore: LibraryStore {
     ) throws -> LibraryImportResult
 }
 
+protocol MergedCorpusImportingLibraryStore: LibraryStore {
+    func importMergedCorpusPaths(
+        _ paths: [String],
+        name: String,
+        folderId: String,
+        progress: LibraryImportProgressHandler?,
+        isCancelled: LibraryImportCancellationHandler?
+    ) throws -> LibraryImportResult
+}
+
 protocol CorpusCleaningProgressReportingLibraryStore: LibraryStore {
     func cleanCorpora(
         corpusIds: [String],
@@ -78,6 +88,10 @@ protocol CorpusSetManagingLibraryStore: LibraryStore {
         metadataFilterState: CorpusMetadataFilterState
     ) throws -> LibraryCorpusSetItem
     func deleteCorpusSet(corpusSetID: String) throws
+}
+
+protocol CorpusSetOpeningLibraryStore: LibraryStore {
+    func openSavedCorpusSet(corpusSetID: String) throws -> OpenedCorpus
 }
 
 protocol MetadataFilteringLibraryStore: LibraryStore {

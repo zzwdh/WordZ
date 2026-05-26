@@ -8,9 +8,9 @@ extension NativeWindowRoute {
         case .library:
             return l10n("语料库", table: "Windows", mode: mode, fallback: "Library")
         case .evidenceWorkbench:
-            return l10n("证据篮", table: "Windows", mode: mode, fallback: "Evidence Basket")
+            return l10n("摘录篮", table: "Windows", mode: mode, fallback: "Excerpt Tray")
         case .sourceReader:
-            return l10n("原文阅读器", table: "Windows", mode: mode, fallback: "Source Reader")
+            return l10n("DB 来源预览", table: "Windows", mode: mode, fallback: "DB Source Preview")
         case .settings:
             return l10n("设置", table: "Windows", mode: mode, fallback: "Settings")
         case .taskCenter:

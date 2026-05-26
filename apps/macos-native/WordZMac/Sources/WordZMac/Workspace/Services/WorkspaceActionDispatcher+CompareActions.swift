@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleCompareAction(_ action: ComparePageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runCompare() }
+            handleWorkspaceIntent(.runAnalysis(.compare))
         case .openKWIC:
             launch { await self.workspace.openCompareKWIC() }
         case .openCollocate:

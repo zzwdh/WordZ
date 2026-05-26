@@ -53,7 +53,7 @@ extension MenuBarStatusMenuView {
             Button(t("快速预览当前内容", "Quick Look Current Content")) {
                 performMenuBarAction("quickLookContent", detail: NativeWindowRoute.mainWorkspace.id) {
                     await openWindowRouteAndAwaitActivation(.mainWorkspace)
-                    await workspace.quickLookCurrentCorpus()
+                    await workspace.performResultArtifactAction(.preview, preferredWindowRoute: .mainWorkspace)
                 }
             }
             .disabled(!workspace.canQuickLookCurrentCorpus)
@@ -61,7 +61,7 @@ extension MenuBarStatusMenuView {
             Button(t("分享当前内容", "Share Current Content")) {
                 performMenuBarAction("shareContent", detail: NativeWindowRoute.mainWorkspace.id) {
                     await openWindowRouteAndAwaitActivation(.mainWorkspace)
-                    await workspace.shareCurrentContent()
+                    await workspace.performResultArtifactAction(.share, preferredWindowRoute: .mainWorkspace)
                 }
             }
             .disabled(!workspace.canShareCurrentContent)

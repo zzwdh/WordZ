@@ -47,10 +47,12 @@ struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
     }
 
     func updateShellAvailability(features: WorkspaceFeatureSet) {
+        let openedPath = sessionStore.openedCorpus?.filePath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let selectedPath = features.library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         features.shell.updateSelectionAvailability(
             hasSelection: features.sidebar.selectedCorpusID != nil,
             hasSourceReaderContext: false,
-            hasPreviewableCorpus: !(features.library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty,
+            hasPreviewableCorpus: !openedPath.isEmpty || !selectedPath.isEmpty,
             corpusCount: features.sidebar.librarySnapshot.corpora.count,
             hasLocatorSource: features.kwic.primaryLocatorSource != nil,
             hasExportableContent: false,

@@ -8,74 +8,98 @@ struct LibraryCorpusInfoSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            NativeWindowHeader(title: scene.title, subtitle: scene.subtitle) {
-                Button(t("重新清洗", "Re-clean")) {
+            NativeWindowHeader(title: t("Corpus Details", "Corpus Details"), subtitle: scene.title) {
+                Button(t("打开语料", "Open Corpus")) {
                     dismiss()
-                    onAction(.cleanSelectedCorpus)
-                }
-                Button(t("编辑元数据", "Edit Metadata")) {
-                    dismiss()
-                    onAction(.editSelectedCorpusMetadata)
+                    onAction(.openSelectedCorpus)
                 }
                 Button(t("关闭", "Close")) {
                     dismiss()
                 }
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
-                NativeMetricTile(title: "Tokens", value: scene.tokenCountText)
-                NativeMetricTile(title: "Types", value: scene.typeCountText)
-                NativeMetricTile(title: "TTR", value: scene.ttrText)
-                NativeMetricTile(title: "STTR", value: scene.sttrText)
-                NativeMetricTile(title: "Sentences", value: scene.sentenceCountText)
-                NativeMetricTile(title: "Paragraphs", value: scene.paragraphCountText)
-                NativeMetricTile(title: "Characters", value: scene.characterCountText)
-                NativeMetricTile(title: "Encoding", value: scene.encodingText)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(t("Corpus name:", "Corpus name:"))
+                    .font(.callout.weight(.semibold))
+                Text(scene.title)
+                    .font(.callout)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            NativeWindowSection(
-                title: t("语料详情", "Corpus Details"),
-                subtitle: t("当前语料的基础统计与来源信息", "Core statistics and source information for the selected corpus")
-            ) {
-                detailRow(title: t("文件夹", "Folder"), value: scene.folderName)
-                detailRow(title: t("来源类型", "Source Type"), value: scene.sourceType.uppercased())
-                detailRow(title: t("来源", "Source"), value: scene.sourceLabelText)
-                detailRow(title: t("年份", "Year"), value: scene.yearText)
-                detailRow(title: t("体裁", "Genre"), value: scene.genreText)
-                detailRow(title: t("标签", "Tags"), value: scene.tagsText)
-                detailRow(title: t("导入时间", "Imported At"), value: scene.importedAtText)
-                detailRow(title: t("文本编码", "Text Encoding"), value: scene.encodingText)
-                detailRow(title: t("原始路径", "Original Path"), value: scene.representedPath.isEmpty ? "—" : scene.representedPath)
-            }
+            ScrollView {
+                Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+                    GridRow {
+                        Text("")
+                            .frame(width: 34, alignment: .trailing)
+                        Text(t("Category", "Category"))
+                            .font(.callout.weight(.semibold))
+                        Text(t("Description", "Description"))
+                            .font(.callout.weight(.semibold))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
 
-            NativeWindowSection(
-                title: t("自动清洗", "Auto-Cleaning"),
-                subtitle: t("导入期与手动重跑时记录的文本清洗摘要", "Text-cleaning summary recorded during import and manual reruns")
-            ) {
-                detailRow(title: t("状态", "Status"), value: scene.cleaningStatusTitle)
-                detailRow(title: t("最近清洗", "Last Cleaned"), value: scene.cleanedAtText)
-                detailRow(title: t("原文字符", "Original Characters"), value: scene.originalCharacterCountText)
-                detailRow(title: t("清洗后字符", "Cleaned Characters"), value: scene.cleanedCharacterCountText)
-                detailRow(title: t("规则命中", "Rule Hits"), value: scene.cleaningRuleHitsText)
+                    ForEach(Array(detailRows.enumerated()), id: \.offset) { index, row in
+                        Divider()
+                            .gridCellColumns(3)
+                        GridRow {
+                            Text("\(index + 1)")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 34, alignment: .trailing)
+                            Text(row.title)
+                                .font(.callout.weight(.semibold))
+                            Text(row.value)
+                                .font(.callout)
+                                .textSelection(.enabled)
+                                .lineLimit(2)
+                                .truncationMode(.middle)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
 
             Spacer(minLength: 0)
         }
         .padding(20)
-        .frame(minWidth: 560, minHeight: 360, alignment: .topLeading)
+        .frame(minWidth: 680, minHeight: 500, alignment: .topLeading)
+        .librarySheetSurface()
     }
 
-    private func detailRow(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.callout)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private var detailRows: [(title: String, value: String)] {
+        [
+            ("Project ID", scene.projectIDText),
+            ("DB Project", scene.dbProjectSummaryText),
+            ("DB File", scene.databaseFileNameText),
+            ("Source Chain", scene.sourceChainText),
+            ("Full Name", scene.title),
+            ("Short Name", scene.title),
+            ("File Count", scene.fileCountText),
+            ("Token Count", scene.tokenCountText),
+            ("Type Count", scene.typeCountText),
+            ("Indexed", "TRUE"),
+            ("Encoding", scene.encodingText),
+            ("Token Definition", "[\\p{L}\\p{N}]+"),
+            ("Format", "db"),
+            ("Indexer Type", "type"),
+            ("Indexer", "WordZ native indexer"),
+            ("Analysis Readiness", scene.analysisReadinessTitle),
+            ("Readiness Detail", scene.analysisReadinessDetail),
+            ("Action", scene.missingActionText),
+            ("Chinese Analysis", scene.chineseAnalysisText),
+            ("Source Format", scene.sourceType.uppercased()),
+            ("Folder", scene.folderName),
+            ("Imported At", scene.importedAtText),
+            ("Character Count", scene.characterCountText),
+            ("Sentence Count", scene.sentenceCountText),
+            ("Paragraph Count", scene.paragraphCountText),
+            ("TTR", scene.ttrText),
+            ("STTR", scene.sttrText),
+            ("Source", scene.representedPath.isEmpty ? "WordZ DB" : scene.representedPath)
+        ]
     }
 
     private func t(_ zh: String, _ en: String) -> String {
@@ -117,6 +141,7 @@ struct LibraryImportSummarySheetView: View {
         }
         .padding(20)
         .frame(minWidth: 480, minHeight: 300, alignment: .topLeading)
+        .librarySheetSurface()
     }
 
     private func detailRow(title: String, value: String) -> some View {
@@ -182,7 +207,7 @@ struct LibraryCorpusMetadataEditorSheetView: View {
                         )
                     )
                 }
-                .buttonStyle(.borderedProminent)
+                .adaptiveGlassButtonStyle(prominent: true)
             }
 
             NativeWindowSection(
@@ -209,6 +234,7 @@ struct LibraryCorpusMetadataEditorSheetView: View {
         }
         .padding(20)
         .frame(minWidth: 520, minHeight: 320, alignment: .topLeading)
+        .librarySheetSurface()
     }
 
     private var sourceEditorField: some View {
@@ -313,19 +339,44 @@ struct LibraryCorpusMetadataEditorSheetView: View {
 }
 
 struct LibraryInspectorView: View {
+    @Environment(\.wordZLanguageMode) private var languageMode
     let scene: LibraryManagementInspectorSceneModel
     let onAction: (LibraryManagementAction) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(scene.title)
-                .font(.headline)
-            Text(scene.subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            AdaptiveInspectorSurface {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "sidebar.right")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(scene.title)
+                            .font(.headline)
+                        Text(scene.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if !scene.statusItems.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(scene.statusItems) { item in
+                        inspectorStatusRow(item)
+                    }
+                }
+            }
 
             if !scene.details.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                NativeWindowSection(
+                    title: wordZText("字段", "Fields", mode: languageMode),
+                    subtitle: wordZText("当前选择的可复制属性", "Copyable properties for the current selection", mode: languageMode)
+                ) {
                     ForEach(scene.details) { detail in
                         HStack(alignment: .firstTextBaseline) {
                             Text(detail.title)
@@ -341,22 +392,69 @@ struct LibraryInspectorView: View {
             }
 
             if !scene.actions.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(scene.actions) { item in
-                        if item.role == .primary {
-                            Button(item.title) { onAction(item.action) }
-                                .buttonStyle(.borderedProminent)
-                        } else {
-                            Button(item.title) { onAction(item.action) }
-                                .buttonStyle(.bordered)
-                                .tint(item.role == .destructive ? .red : .accentColor)
-                        }
-                    }
-                }
+                LibraryInspectorActionsView(
+                    actions: scene.actions,
+                    onAction: onAction
+                )
             }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func inspectorStatusRow(_ item: LibraryManagementInspectorStatusItem) -> some View {
+        let tint = statusTint(for: item.level)
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: item.systemImage)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title)
+                    .font(.caption.weight(.semibold))
+                Text(item.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(tint.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func statusTint(for level: LibraryManagementInspectorStatusLevel) -> Color {
+        switch level {
+        case .info:
+            return .secondary
+        case .success:
+            return .green
+        case .warning:
+            return .orange
+        case .blocked:
+            return .red
+        }
+    }
+}
+
+struct LibrarySheetSurfaceModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        NativePlatformCapabilities.decorateSheetSurface(
+            content,
+            style: WordZVisualStyle.resolve(for: .library)
+        )
+    }
+}
+
+extension View {
+    func librarySheetSurface() -> some View {
+        modifier(LibrarySheetSurfaceModifier())
     }
 }

@@ -21,7 +21,7 @@ extension TopicsView {
                             onAction(.openSourceReader)
                         } label: {
                             Label(
-                                t("打开原文视图", "Open Source View"),
+                                t("打开 DB 来源预览", "Open DB Source Preview"),
                                 systemImage: "doc.text.magnifyingglass"
                             )
                         }
@@ -59,7 +59,7 @@ extension TopicsView {
                     allowsMultipleSelection: false,
                     emptyMessage: t("当前主题没有可显示的片段。", "No topic segments are available to display."),
                     accessibilityLabel: t("Topics 片段结果表格", "Topics segments results table"),
-                    activationHint: t("使用方向键浏览主题片段，按 Return 或空格可打开原文视图。", "Use arrow keys to browse topic segments, then press Return or Space to open source view.")
+                    activationHint: t("使用方向键浏览主题片段，按 Return 或空格可打开 DB 来源预览。", "Use arrow keys to browse topic segments, then press Return or Space to open DB source preview.")
                 )
                 .frame(
                     maxWidth: .infinity,

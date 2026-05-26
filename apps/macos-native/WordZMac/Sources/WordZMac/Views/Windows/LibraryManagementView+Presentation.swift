@@ -10,6 +10,17 @@ struct LibraryManagementPresentationModifier: ViewModifier {
             .sheet(item: $viewModel.corpusInfoSheet) { scene in
                 LibraryCorpusInfoSheetView(scene: scene, onAction: onAction)
             }
+            .sheet(item: $viewModel.importPreflightSheet) { scene in
+                LibraryImportPreflightSheetView(
+                    scene: scene,
+                    onConfirm: { paths, corpusName in
+                        onAction(.confirmImportPreflight(paths: paths, corpusName: corpusName))
+                    },
+                    onDismiss: {
+                        viewModel.dismissImportPreflight()
+                    }
+                )
+            }
             .sheet(item: $viewModel.importSummarySheet) { scene in
                 LibraryImportSummarySheetView(
                     scene: scene,
@@ -66,28 +77,80 @@ struct LibraryManagementPresentationModifier: ViewModifier {
 }
 
 extension LibraryManagementView {
-    var librarySplitContent: some View {
-        HSplitView {
-            navigationPane
-                .frame(minWidth: 220, idealWidth: 240)
-
+    var libraryContentColumn: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            NativeWindowHeader(
+                title: viewModel.scene.content.title,
+                subtitle: viewModel.scene.content.subtitle
+            )
+            libraryManagerCommandBar
             libraryPrimaryContentPane
-                .frame(minWidth: 420, idealWidth: 540)
-
-            if let inspector = viewModel.scene.inspector {
-                NativeWindowSection(
-                    title: t("详情", "Inspector"),
-                    subtitle: inspector.subtitle
-                ) {
-                    LibraryInspectorView(
-                        scene: inspector,
-                        onAction: onAction
-                    )
-                }
-                .frame(minWidth: 280, idealWidth: 320)
-            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var libraryManagerCommandBar: some View {
+        AdaptiveToolbarSurface {
+            HStack(spacing: 12) {
+                Label(viewModel.scene.currentScopeSummary, systemImage: "externaldrive")
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+
+                Spacer(minLength: 12)
+
+                if let importProgress = viewModel.scene.importProgress {
+                    ProgressView(value: importProgress)
+                        .frame(width: 120)
+                    Text(viewModel.scene.importDetail ?? viewModel.scene.statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Button {
+                    onAction(.showCorpusBuilder)
+                } label: {
+                    Label(t("构建器", "Builder"), systemImage: "hammer")
+                }
+                .controlSize(.small)
+
+                Button {
+                    onAction(.importPaths)
+                } label: {
+                    Label(t("制作 DB", "Build DB"), systemImage: "plus")
+                }
+                .controlSize(.small)
+                .adaptiveGlassButtonStyle(prominent: true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+    }
+
+    @ViewBuilder
+    var libraryInspectorColumn: some View {
+        if let inspector = viewModel.scene.inspector {
+            ScrollView {
+                LibraryInspectorView(
+                    scene: inspector,
+                    onAction: onAction
+                )
+                .padding(20)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            AdaptiveEmptyStateSurface {
+                ContentUnavailableView(
+                    t("选择项目", "Select an Item"),
+                    systemImage: "sidebar.right",
+                    description: Text(t("选择文件夹、语料集或语料后查看详情。", "Select a folder, corpus set, or corpus to inspect details."))
+                )
+                .padding(24)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
     }
 
     var libraryManagementPresentationModifier: LibraryManagementPresentationModifier {

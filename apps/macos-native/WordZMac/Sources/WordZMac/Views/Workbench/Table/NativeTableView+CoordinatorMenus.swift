@@ -55,14 +55,26 @@ extension NativeTableView.Coordinator {
         guard let tableView else { return }
         let menu = NSMenu(title: wordZText("行", "Rows", mode: .system))
 
+        let hasCellSelection = !selectedCellKeys.isEmpty
         let copyItem = NSMenuItem(
-            title: wordZText("复制所选行", "Copy Selected Rows", mode: .system),
+            title: hasCellSelection
+                ? wordZText("复制所选单元格", "Copy Selected Cells", mode: .system)
+                : wordZText("复制所选行", "Copy Selected Rows", mode: .system),
             action: #selector(handleCopySelectedRows(_:)),
             keyEquivalent: ""
         )
         copyItem.target = self
-        copyItem.isEnabled = !resolvedSelectedRowIndexes().isEmpty
+        copyItem.isEnabled = hasCellSelection || !resolvedSelectedRowIndexes().isEmpty
         menu.addItem(copyItem)
+
+        let copyVisibleItem = NSMenuItem(
+            title: wordZText("复制整张可见表格", "Copy Visible Table", mode: .system),
+            action: #selector(handleCopyVisibleRows(_:)),
+            keyEquivalent: ""
+        )
+        copyVisibleItem.target = self
+        copyVisibleItem.isEnabled = !rows.isEmpty && !orderedVisibleColumns().isEmpty
+        menu.addItem(copyVisibleItem)
 
         let selectAllItem = NSMenuItem(
             title: wordZText("全选", "Select All", mode: .system),
@@ -113,8 +125,17 @@ extension NativeTableView.Coordinator {
     }
 
     @MainActor @objc
+    func handleCopyVisibleRows(_ sender: Any?) {
+        guard let payload = visibleRowsCopyPayload() else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.declareTypes([.string], owner: nil)
+        NSPasteboard.general.setString(payload, forType: .string)
+    }
+
+    @MainActor @objc
     func handleSelectAllRows(_ sender: Any?) {
         guard let tableView, !rows.isEmpty else { return }
+        clearCellSelection()
         tableView.selectRowIndexes(IndexSet(integersIn: 0..<rows.count), byExtendingSelection: false)
     }
 

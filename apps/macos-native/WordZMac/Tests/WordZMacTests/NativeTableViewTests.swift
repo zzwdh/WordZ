@@ -190,6 +190,50 @@ final class NativeTableViewTests: XCTestCase {
     }
 
     @MainActor
+    func testCoordinatorUsesSelectedTextColorForSelectedKeywordCells() {
+        let descriptor = NativeTableDescriptor(columns: [
+            NativeTableColumnDescriptor(
+                id: "word",
+                title: "词",
+                isVisible: true,
+                sortIndicator: nil,
+                presentation: .keyword
+            )
+        ])
+        let rows = [
+            NativeTableRowDescriptor(id: "alpha", values: ["word": "alpha"])
+        ]
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: "alpha",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = NativeTableView.ActionTableView(frame: .zero)
+        let containerView = NativeTableView.IntrinsicTableContainerView(frame: .zero)
+        containerView.scrollView.documentView = tableView
+
+        coordinator.attach(tableView: tableView, containerView: containerView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: "alpha",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+
+        let selectedCell = coordinator.tableView(
+            tableView,
+            viewFor: tableView.tableColumns[0],
+            row: 0
+        ) as? NSTextField
+
+        XCTAssertEqual(selectedCell?.textColor, .selectedControlTextColor)
+        XCTAssertEqual(coordinator.textColor(for: descriptor.visibleColumns[0], isSelected: false), .controlAccentColor)
+    }
+
+    @MainActor
     func testCoordinatorInvokesHeaderSortAndColumnMenuCallbacks() {
         let descriptor = NativeTableDescriptor(columns: [
             NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil),
@@ -499,6 +543,92 @@ final class NativeTableViewTests: XCTestCase {
     }
 
     @MainActor
+    func testCoordinatorBuildsCopyPayloadFromDiscontiguousSelectedCellsWithHeaders() {
+        let descriptor = NativeTableDescriptor(columns: [
+            NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil),
+            NativeTableColumnDescriptor(id: "count", title: "频次", isVisible: true, sortIndicator: nil),
+            NativeTableColumnDescriptor(id: "source", title: "来源", isVisible: true, sortIndicator: nil),
+            NativeTableColumnDescriptor(id: "year", title: "年份", isVisible: true, sortIndicator: nil)
+        ])
+        let rows = [
+            NativeTableRowDescriptor(
+                id: "alpha",
+                values: ["word": "alpha", "count": "10", "source": "A", "year": "2024"]
+            ),
+            NativeTableRowDescriptor(
+                id: "beta",
+                values: ["word": "beta", "count": "5", "source": "B", "year": "2025"]
+            )
+        ]
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: "alpha",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = NativeTableView.ActionTableView(frame: .zero)
+        let containerView = NativeTableView.IntrinsicTableContainerView(frame: .zero)
+        containerView.scrollView.documentView = tableView
+
+        coordinator.attach(tableView: tableView, containerView: containerView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: "alpha",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+
+        XCTAssertTrue(coordinator.selectCellForCopy(rowID: "alpha", columnID: "word", extending: false))
+        XCTAssertTrue(coordinator.selectCellForCopy(rowID: "alpha", columnID: "year", extending: true))
+
+        XCTAssertEqual(
+            coordinator.selectedCellsCopyPayload(),
+            "词\t年份\nalpha\t2024"
+        )
+        XCTAssertEqual(
+            coordinator.selectedRowsCopyPayload(),
+            "词\t频次\t来源\t年份\nalpha\t10\tA\t2024"
+        )
+    }
+
+    @MainActor
+    func testCoordinatorCopiesSelectedCellsToPasteboardBeforeFallingBackToRows() {
+        let descriptor = NativeTableDescriptor(columns: [
+            NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil),
+            NativeTableColumnDescriptor(id: "year", title: "年份", isVisible: true, sortIndicator: nil)
+        ])
+        let rows = [
+            NativeTableRowDescriptor(id: "alpha", values: ["word": "alpha", "year": "2024"])
+        ]
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: "alpha",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = NativeTableView.ActionTableView(frame: .zero)
+        coordinator.attach(tableView: tableView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: "alpha",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        defer { pasteboard.clearContents() }
+
+        XCTAssertTrue(coordinator.selectCellForCopy(rowID: "alpha", columnID: "year", extending: false))
+        XCTAssertTrue(coordinator.copySelectedRowsToPasteboard(pasteboard))
+
+        XCTAssertEqual(pasteboard.string(forType: .string), "年份\n2024")
+    }
+
+    @MainActor
     func testCoordinatorCopyPayloadIsNilWithoutSelection() {
         let descriptor = NativeTableDescriptor(columns: [
             NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil)
@@ -523,6 +653,39 @@ final class NativeTableViewTests: XCTestCase {
         XCTAssertEqual(
             coordinator.selectedRowsCopyPayload(),
             nil
+        )
+    }
+
+    @MainActor
+    func testCoordinatorVisibleRowsCopyPayloadCopiesWholeVisibleTable() {
+        let descriptor = NativeTableDescriptor(columns: [
+            NativeTableColumnDescriptor(id: "word", title: "词", isVisible: true, sortIndicator: nil),
+            NativeTableColumnDescriptor(id: "count", title: "频次", isVisible: true, sortIndicator: nil)
+        ])
+        let rows = [
+            NativeTableRowDescriptor(id: "alpha", values: ["word": "alpha", "count": "10"]),
+            NativeTableRowDescriptor(id: "beta", values: ["word": "beta", "count": "5"])
+        ]
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = NativeTableView.ActionTableView(frame: .zero)
+        coordinator.attach(tableView: tableView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: rows,
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+
+        XCTAssertEqual(
+            coordinator.visibleRowsCopyPayload(),
+            "词\t频次\nalpha\t10\nbeta\t5"
         )
     }
 

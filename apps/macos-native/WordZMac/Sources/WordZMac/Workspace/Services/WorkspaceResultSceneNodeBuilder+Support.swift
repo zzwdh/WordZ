@@ -4,7 +4,8 @@ extension WorkspaceResultSceneNodeBuilder {
     func emptyNode(for tab: WorkspaceDetailTab, zh: String, en: String) -> WorkspaceResultSceneNode {
         .empty(
             title: tab.displayTitle(in: languageMode),
-            status: wordZText(zh, en, mode: languageMode)
+            status: wordZText(zh, en, mode: languageMode),
+            sourceTab: tab
         )
     }
 
@@ -19,6 +20,7 @@ extension WorkspaceResultSceneNodeBuilder {
         exportMetadataLines: [String] = []
     ) -> WorkspaceResultSceneNode {
         WorkspaceResultSceneNode(
+            sourceTab: tab,
             title: tab.displayTitle(in: languageMode),
             status: status,
             totalRows: totalRows,

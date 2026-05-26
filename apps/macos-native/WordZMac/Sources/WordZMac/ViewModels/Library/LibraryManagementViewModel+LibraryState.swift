@@ -48,6 +48,7 @@ extension LibraryManagementViewModel {
     }
 
     func selectFolder(_ folderID: String?) {
+        showsCorpusBuilder = false
         showsRecycleBin = false
         selectedFolderID = folderID
         selectedCorpusSetID = nil
@@ -56,6 +57,7 @@ extension LibraryManagementViewModel {
     }
 
     func selectCorpusSet(_ corpusSetID: String?) {
+        showsCorpusBuilder = false
         showsRecycleBin = false
         selectedCorpusSetID = corpusSetID
         selectedRecycleEntryID = nil
@@ -69,6 +71,7 @@ extension LibraryManagementViewModel {
     }
 
     func selectCorpus(_ corpusID: String?) {
+        showsCorpusBuilder = false
         showsRecycleBin = false
         applyCorpusSelection(corpusID.map { [$0] } ?? [], preferredPrimaryID: corpusID)
         if corpusID != nil {
@@ -77,6 +80,7 @@ extension LibraryManagementViewModel {
     }
 
     func selectCorpusIDs(_ corpusIDs: Set<String>) {
+        showsCorpusBuilder = false
         showsRecycleBin = false
         applyCorpusSelection(corpusIDs, preferredPrimaryID: selectedCorpusID)
         if !corpusIDs.isEmpty {
@@ -85,10 +89,20 @@ extension LibraryManagementViewModel {
     }
 
     func selectRecycleEntry(_ recycleEntryID: String?) {
+        showsCorpusBuilder = false
         showsRecycleBin = true
         selectedFolderID = nil
         selectedCorpusSetID = nil
         selectedRecycleEntryID = recycleEntryID
+        applyCorpusSelection([], preferredPrimaryID: nil)
+    }
+
+    func selectCorpusBuilder() {
+        showsCorpusBuilder = true
+        showsRecycleBin = false
+        selectedFolderID = nil
+        selectedCorpusSetID = nil
+        selectedRecycleEntryID = nil
         applyCorpusSelection([], preferredPrimaryID: nil)
     }
 

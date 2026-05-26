@@ -39,10 +39,11 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
 
     let sceneBuilder: CompareSceneBuilder
     var result: CompareResult?
-    var sortMode: CompareSortMode = .keynessDescending
-    var pageSize: ComparePageSize = .fifty
-    var currentPage = 1
-    var visibleColumns: Set<CompareColumnKey> = ComparePageViewModel.defaultVisibleColumns
+    var tablePresentation = AnalysisTablePresentationState<CompareColumnKey, CompareSortMode, ComparePageSize>(
+        sortMode: .keynessDescending,
+        pageSize: .fifty,
+        visibleColumns: ComparePageViewModel.defaultVisibleColumns
+    )
     var annotationState = WorkspaceAnnotationState.default
     var availableCorpora: [LibraryCorpusItem] = []
     var availableCorpusSets: [LibraryCorpusSetItem] = []
@@ -52,7 +53,6 @@ final class ComparePageViewModel: ObservableObject, AnalysisInputStateControllin
     var sentimentSummary: CompareSentimentSummary?
     var sentimentExplainer: CompareSentimentExplainer?
     var topicsSummary: CompareTopicsSummary?
-    var sceneBuildRevision = 0
     var cachedFilteredRows: [CompareRow]?
     var cachedFilteredError = ""
     var cachedFilterQuery = ""

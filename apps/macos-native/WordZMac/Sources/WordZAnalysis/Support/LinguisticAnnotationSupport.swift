@@ -2,6 +2,19 @@ import Foundation
 import NaturalLanguage
 
 package enum LinguisticAnnotationSupport {
+    package static func preferredTokenizationLanguage(for text: String) -> NLLanguage {
+        containsCJKContent(text) ? .simplifiedChinese : .english
+    }
+
+    package static func preferredAnnotationLanguage(for script: TokenScript) -> NLLanguage {
+        switch script {
+        case .cjk, .mixed:
+            return .simplifiedChinese
+        case .latin, .numeric, .other:
+            return .english
+        }
+    }
+
     package static func makeAnnotations(
         for token: String,
         in sentenceText: String,
@@ -10,6 +23,7 @@ package enum LinguisticAnnotationSupport {
     ) -> TokenLinguisticAnnotations {
         let script = classifyScript(in: token)
         let lemma = normalizedLemma(at: index, in: sentenceText, tagger: tagger)
+            ?? fallbackLemma(for: token, script: script)
         let lexicalClass = lexicalClass(at: index, in: sentenceText, tagger: tagger)
         return TokenLinguisticAnnotations(script: script, lemma: lemma, lexicalClass: lexicalClass)
     }
@@ -61,6 +75,41 @@ package enum LinguisticAnnotationSupport {
         guard !lemma.isEmpty else { return nil }
         let normalized = AnalysisTextNormalizationSupport.normalizeToken(lemma)
         return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func fallbackLemma(for token: String, script: TokenScript) -> String? {
+        guard script == .latin else { return nil }
+        let trimmed = token.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let tagger = NLTagger(tagSchemes: [.lemma])
+        tagger.string = trimmed
+        tagger.setLanguage(.english, range: trimmed.startIndex..<trimmed.endIndex)
+        let (lemmaTag, _) = tagger.tag(at: trimmed.startIndex, unit: .word, scheme: .lemma)
+        let lemma = (lemmaTag?.rawValue ?? "").trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+        let normalized = lemma.isEmpty
+            ? fallbackLatinLemma(for: trimmed)
+            : AnalysisTextNormalizationSupport.normalizeToken(lemma)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func fallbackLatinLemma(for token: String) -> String {
+        let normalized = AnalysisTextNormalizationSupport.normalizeToken(token)
+        let irregularPluralLemmas = [
+            "analyses": "analysis",
+            "corpora": "corpus",
+            "criteria": "criterion",
+            "indices": "index",
+            "matrices": "matrix",
+            "phenomena": "phenomenon"
+        ]
+        if let lemma = irregularPluralLemmas[normalized] {
+            return lemma
+        }
+        if normalized.count > 4, normalized.hasSuffix("ies") {
+            return String(normalized.dropLast(3)) + "y"
+        }
+        return ""
     }
 
     private static func lexicalClass(
@@ -123,5 +172,9 @@ package enum LinguisticAnnotationSupport {
         default:
             return false
         }
+    }
+
+    private static func containsCJKContent(_ text: String) -> Bool {
+        text.unicodeScalars.contains(where: isCJK)
     }
 }

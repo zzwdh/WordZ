@@ -16,6 +16,7 @@ enum NativeAppCommand: String {
     case refreshWorkspace
     case openSelectedCorpus
     case openSourceReader
+    case copyCurrentResult
     case quickLookCurrentCorpus
     case shareCurrentContent
     case runStats

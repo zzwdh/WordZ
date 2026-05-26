@@ -8,12 +8,12 @@ extension WorkspaceEvidenceWorkflowService {
         features: WorkspaceEvidenceWorkflowContext
     ) async {
         guard var existingItem = features.evidenceWorkbench.items.first(where: { $0.id == itemID }) else {
-            features.sidebar.setError(wordZText("未找到要更新的证据条目。", "The evidence item could not be found.", mode: .system))
+            features.sidebar.setError(wordZText("未找到要更新的摘录。", "The excerpt could not be found.", mode: .system))
             return
         }
 
         if existingItem.reviewStatus == reviewStatus {
-            features.library.setStatus(wordZText("证据条目状态没有变化。", "The evidence item status is already up to date.", mode: .system))
+            features.library.setStatus(wordZText("摘录状态没有变化。", "The excerpt status is already up to date.", mode: .system))
             features.sidebar.clearError()
             return
         }
@@ -21,44 +21,35 @@ extension WorkspaceEvidenceWorkflowService {
         existingItem.reviewStatus = reviewStatus
         await saveEvidenceItem(
             existingItem,
-            successMessage: wordZText("已更新证据条目状态。", "Updated the evidence review status.", mode: .system),
+            successMessage: wordZText("已更新摘录状态。", "Updated the excerpt status.", mode: .system),
             features: features
         )
     }
 
     func saveSelectedEvidenceDetails(features: WorkspaceEvidenceWorkflowContext) async {
         guard var selectedItem = features.evidenceWorkbench.selectedItem else {
-            features.sidebar.setError(wordZText("请先选择一个证据条目。", "Select an evidence item first.", mode: .system))
+            features.sidebar.setError(wordZText("请先选择一个摘录。", "Select an excerpt first.", mode: .system))
             return
         }
 
-        let nextSectionTitle = features.evidenceWorkbench.normalizedText(features.evidenceWorkbench.sectionDraft)
-        let nextClaim = features.evidenceWorkbench.normalizedText(features.evidenceWorkbench.claimDraft)
-        let nextTags = features.evidenceWorkbench.normalizedTags(from: features.evidenceWorkbench.tagsDraft)
         let nextCitationFormat = features.evidenceWorkbench.citationFormatDraft
         let nextCitationStyle = features.evidenceWorkbench.citationStyleDraft
         let nextNote = features.evidenceWorkbench.normalizedText(features.evidenceWorkbench.noteDraft)
-        if features.evidenceWorkbench.normalizedText(selectedItem.sectionTitle) == nextSectionTitle &&
-            features.evidenceWorkbench.normalizedText(selectedItem.claim) == nextClaim &&
-            features.evidenceWorkbench.normalizedTags(selectedItem.tags) == nextTags &&
-            selectedItem.citationFormat == nextCitationFormat &&
+        if selectedItem.citationFormat == nextCitationFormat &&
             selectedItem.citationStyle == nextCitationStyle &&
             features.evidenceWorkbench.normalizedText(selectedItem.note) == nextNote
         {
-            features.library.setStatus(wordZText("证据整理字段没有变化。", "The evidence details are already up to date.", mode: .system))
+            features.library.setStatus(wordZText("摘录信息没有变化。", "The excerpt details are already up to date.", mode: .system))
             features.sidebar.clearError()
             return
         }
 
-        selectedItem.sectionTitle = nextSectionTitle
-        selectedItem.claim = nextClaim
-        selectedItem.tags = nextTags
         selectedItem.citationFormat = nextCitationFormat
         selectedItem.citationStyle = nextCitationStyle
         selectedItem.note = nextNote
         await saveEvidenceItem(
             selectedItem,
-            successMessage: wordZText("已保存证据整理字段。", "Saved the evidence details.", mode: .system),
+            successMessage: wordZText("已保存摘录信息。", "Saved the excerpt details.", mode: .system),
             features: features
         )
     }
@@ -72,7 +63,7 @@ extension WorkspaceEvidenceWorkflowService {
         features: WorkspaceEvidenceWorkflowContext
     ) async {
         guard let selectedItemID = features.evidenceWorkbench.selectedItem?.id else {
-            features.sidebar.setError(wordZText("请先选择一个证据条目。", "Select an evidence item first.", mode: .system))
+            features.sidebar.setError(wordZText("请先选择一个摘录。", "Select an excerpt first.", mode: .system))
             return
         }
 
@@ -82,16 +73,12 @@ extension WorkspaceEvidenceWorkflowService {
             return
         }
 
-        do {
-            try await repository.replaceEvidenceItems(reorderedItems)
-            let items = try await repository.listEvidenceItems()
-            applyEvidenceItems(items, features: features)
-            features.evidenceWorkbench.selectedItemID = selectedItemID
-            features.library.setStatus(direction.successStatus(in: .system))
-            features.sidebar.clearError()
-        } catch {
-            features.sidebar.setError(error.localizedDescription)
-        }
+        await commitEvidenceItemsReplacement(
+            reorderedItems,
+            preferredSelectionID: selectedItemID,
+            successStatus: direction.successStatus(in: .system),
+            features: features
+        )
     }
 
     func deleteEvidenceItem(
@@ -104,10 +91,10 @@ extension WorkspaceEvidenceWorkflowService {
         if let itemTitle, !itemTitle.isEmpty {
             resolvedItemTitle = itemTitle
         } else {
-            resolvedItemTitle = wordZText("该证据", "this evidence item", mode: .system)
+            resolvedItemTitle = wordZText("该摘录", "this excerpt", mode: .system)
         }
         let confirmed = await dialogService.confirm(
-            title: wordZText("删除证据", "Delete Evidence", mode: .system),
+                title: wordZText("删除摘录", "Delete Excerpt", mode: .system),
             message: wordZText(
                 "确定要删除「\(resolvedItemTitle)」吗？此操作无法撤销。",
                 "Delete \"\(resolvedItemTitle)\"? This cannot be undone.",
@@ -122,7 +109,7 @@ extension WorkspaceEvidenceWorkflowService {
             try await repository.deleteEvidenceItem(itemID: itemID)
             let items = try await repository.listEvidenceItems()
             applyEvidenceItems(items, features: features)
-            features.library.setStatus(wordZText("已删除证据条目。", "Deleted the evidence item.", mode: .system))
+            features.library.setStatus(wordZText("已删除摘录。", "Deleted the excerpt.", mode: .system))
             features.sidebar.clearError()
         } catch {
             features.sidebar.setError(error.localizedDescription)

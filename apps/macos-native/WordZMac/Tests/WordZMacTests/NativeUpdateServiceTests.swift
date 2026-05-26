@@ -41,6 +41,44 @@ final class NativeUpdateServiceTests: XCTestCase {
         XCTAssertEqual(result.asset?.name, "WordZ-1.1.1-mac-arm64.dmg")
     }
 
+    func testGitHubReleasePayloadParserPrefersDmgInstallerOverPkgAndZip() {
+        let result = GitHubReleasePayloadParser.parse([
+            "tag_name": "v1.3.9",
+            "name": "WordZ 1.3.9",
+            "assets": [
+                [
+                    "name": "WordZ-1.3.9-mac-arm64.zip",
+                    "browser_download_url": "https://example.com/WordZ-1.3.9.zip"
+                ],
+                [
+                    "name": "WordZ-1.3.9-mac-arm64.pkg",
+                    "browser_download_url": "https://example.com/WordZ-1.3.9.pkg"
+                ],
+                [
+                    "name": "WordZ-1.3.9-mac-arm64.dmg",
+                    "browser_download_url": "https://example.com/WordZ-1.3.9.dmg"
+                ]
+            ]
+        ], currentVersion: "1.3.8")
+
+        XCTAssertEqual(result.asset?.name, "WordZ-1.3.9-mac-arm64.dmg")
+    }
+
+    func testGitHubReleasePayloadParserAcceptsPkgInstallerWhenNoDmgExists() {
+        let result = GitHubReleasePayloadParser.parse([
+            "tag_name": "v1.3.9",
+            "name": "WordZ 1.3.9",
+            "assets": [
+                [
+                    "name": "WordZ-1.3.9-mac-arm64.pkg",
+                    "browser_download_url": "https://example.com/WordZ-1.3.9.pkg"
+                ]
+            ]
+        ], currentVersion: "1.3.8")
+
+        XCTAssertEqual(result.asset?.name, "WordZ-1.3.9-mac-arm64.pkg")
+    }
+
     @MainActor
     func testCheckForUpdatesThrowsForNonSuccessfulHTTPStatus() async throws {
         MockUpdateURLProtocol.handler = { request in

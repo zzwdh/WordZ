@@ -32,7 +32,7 @@ struct SourceReaderWindowView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(sourceReader.scene?.title ?? t("原文阅读器", "Source Reader"))
+                        Text(sourceReader.scene?.title ?? t("DB 来源预览", "DB Source Preview"))
                             .font(.title3.weight(.semibold))
                         if let subtitle = sourceReader.scene?.subtitle, !subtitle.isEmpty {
                             Text(subtitle)
@@ -77,17 +77,17 @@ struct SourceReaderWindowView: View {
                         }
                         .disabled(sourceReader.currentPreparedCitationText == nil)
 
-                        Button(t("加入证据篮", "Add to Evidence Basket")) {
+                        Button(t("暂存摘录", "Save Excerpt")) {
                             Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
                         }
                         .disabled(!sourceReader.canAddEvidence)
 
-                        Button(t("打开原文件", "Open Source File")) {
+                        Button(t("打开来源文件", "Open Source File")) {
                             Task { await workspace.openSourceReaderOriginalFile() }
                         }
                         .disabled(sourceReader.currentFilePath == nil)
 
-                        Button("Quick Look") {
+                        Button(t("预览 DB 文本", "Preview DB Text")) {
                             Task { await workspace.quickLookSourceReaderContent() }
                         }
                     }
@@ -95,16 +95,9 @@ struct SourceReaderWindowView: View {
                 }
 
                 if let hitCountSummary = sourceReader.scene?.hitCountSummary {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(hitCountSummary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if let captureDraftSummary = sourceReader.captureDraftSummary {
-                            Text(captureDraftSummary)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Text(hitCountSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(20)
@@ -116,7 +109,7 @@ struct SourceReaderWindowView: View {
         if sourceReader.isLoading {
             VStack(spacing: 12) {
                 ProgressView()
-                Text(t("正在准备原文阅读内容…", "Preparing source reader content…"))
+                Text(t("正在准备 DB 来源文本…", "Preparing DB source text…"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -185,7 +178,7 @@ struct SourceReaderWindowView: View {
                                     )
 
                                     detailBlock(
-                                        title: t("完整原句", "Full Sentence"),
+                                        title: t("完整来源句", "Full Source Sentence"),
                                         content: selection.hit.fullSentenceText
                                     )
 
@@ -221,7 +214,7 @@ struct SourceReaderWindowView: View {
 
                         WorkbenchSectionCard {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text(t("原文句子", "Source Sentences"))
+                                Text(t("DB 来源句子", "DB Source Sentences"))
                                     .font(.headline)
 
                                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -264,11 +257,11 @@ struct SourceReaderWindowView: View {
             .navigationSplitViewStyle(.balanced)
         } else {
             WorkbenchEmptyStateCard(
-                title: t("还没有原文阅读内容", "No source reader content yet"),
+                title: t("还没有 DB 来源预览内容", "No DB source preview yet"),
                 systemImage: "doc.text.magnifyingglass",
                 message: t(
-                    "先从 KWIC、定位器或 Plot 选择一条带来源记录的结果，再打开原文阅读器。",
-                    "Select a source-backed result from KWIC, Locator, or Plot, then open the source reader."
+                    "先从 KWIC、定位器或 Plot 选择一条带来源记录的结果，再打开 DB 来源预览。",
+                    "Select a source-backed result from KWIC, Locator, or Plot, then open the DB source preview."
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)

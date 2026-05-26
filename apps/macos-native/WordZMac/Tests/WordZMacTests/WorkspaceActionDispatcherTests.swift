@@ -3,6 +3,88 @@ import XCTest
 
 @MainActor
 final class WorkspaceActionDispatcherTests: XCTestCase {
+    func testWorkspaceActionRegistryCoversToolbarActionsAndAnalysisCommands() {
+        let availability = WorkspaceToolbarAvailabilityContext(
+            actionEnabled: true,
+            hasSelection: true,
+            hasSourceReaderContext: true,
+            hasPreviewableContent: true,
+            corpusCount: 2,
+            hasLocatorSource: true,
+            hasCopyableContent: true,
+            hasExportableContent: true,
+            runSentimentEnabled: true
+        )
+        let items = WorkspaceActionRegistry.toolbarItems(
+            languageMode: .english,
+            availability: availability
+        )
+
+        XCTAssertEqual(WorkspaceActionRegistry.toolbarActions, WorkspaceToolbarAction.allCases)
+        XCTAssertEqual(items.map(\.action), WorkspaceToolbarAction.allCases)
+
+        for item in items {
+            XCTAssertFalse(item.title.isEmpty)
+            XCTAssertFalse(item.systemImage.isEmpty)
+            if item.action == .annotationControls {
+                XCTAssertNil(item.nativeCommand)
+            } else {
+                XCTAssertNotNil(item.nativeCommand)
+            }
+        }
+
+        for analysisIntent in WorkspaceAnalysisIntent.allCases {
+            XCTAssertEqual(WorkspaceActionRegistry.analysisIntent(for: analysisIntent.toolbarAction), analysisIntent)
+            XCTAssertEqual(WorkspaceActionRegistry.analysisIntent(for: analysisIntent.nativeCommand), analysisIntent)
+            XCTAssertEqual(WorkspaceActionRegistry.intent(for: analysisIntent.toolbarAction), .runAnalysis(analysisIntent))
+        }
+
+        XCTAssertEqual(WorkspaceActionRegistry.intent(for: .copyCurrentResult), .resultArtifact(.copy))
+        XCTAssertNil(WorkspaceActionRegistry.analysisIntent(for: WorkspaceToolbarAction.copyCurrentResult))
+        XCTAssertNil(WorkspaceActionRegistry.analysisIntent(for: NativeAppCommand.copyCurrentResult))
+    }
+
+    func testWorkspaceIntentPlannerKeepsToolbarAndNativeCommandsAligned() {
+        let pairs: [(WorkspaceToolbarAction, NativeAppCommand, WorkspaceStateMutation, WorkspaceWorkflowSceneSync)] = [
+            (.refresh, .refreshWorkspace, .refreshWorkspace, .handledByWorkflow(.full)),
+            (.showLibrary, .showLibrary, .openWindow(.library), .none),
+            (.openSelected, .openSelectedCorpus, .openSelectedCorpus, .handledByWorkflow(.librarySelection)),
+            (.openSourceReader, .openSourceReader, .openSourceReader, .none),
+            (.copyCurrentResult, .copyCurrentResult, .resultArtifact(.copy), .none),
+            (.previewCurrentCorpus, .quickLookCurrentCorpus, .resultArtifact(.preview), .none),
+            (.shareCurrentContent, .shareCurrentContent, .resultArtifact(.share), .none),
+            (.exportCurrent, .exportCurrent, .resultArtifact(.export), .handledByWorkflow(.resultContent))
+        ]
+
+        for (toolbarAction, nativeCommand, stateMutation, sceneSync) in pairs {
+            let toolbarIntent = WorkspaceIntent(toolbarAction: toolbarAction)
+            let commandIntent = WorkspaceIntent(nativeCommand: nativeCommand)
+
+            XCTAssertEqual(toolbarIntent, commandIntent)
+            XCTAssertEqual(toolbarIntent.nativeCommand, nativeCommand)
+            XCTAssertEqual(WorkspaceWorkflowPlanner.plan(for: toolbarIntent).stateMutation, stateMutation)
+            XCTAssertEqual(WorkspaceWorkflowPlanner.plan(for: toolbarIntent).sceneSync, sceneSync)
+        }
+
+        let copyIntent = WorkspaceIntent(nativeCommand: .copyCurrentResult)
+        XCTAssertEqual(copyIntent, .resultArtifact(.copy))
+        XCTAssertEqual(copyIntent.nativeCommand, .copyCurrentResult)
+        XCTAssertEqual(WorkspaceWorkflowPlanner.plan(for: copyIntent).sceneSync, .none)
+    }
+
+    func testWorkspaceIntentPlannerRoutesAnalysisActionsThroughSingleRunOperation() {
+        for analysisIntent in WorkspaceAnalysisIntent.allCases {
+            let toolbarIntent = WorkspaceIntent(toolbarAction: analysisIntent.toolbarAction)
+            let commandIntent = WorkspaceIntent(nativeCommand: analysisIntent.nativeCommand)
+            let plan = WorkspaceWorkflowPlanner.plan(for: toolbarIntent)
+
+            XCTAssertEqual(toolbarIntent, .runAnalysis(analysisIntent))
+            XCTAssertEqual(commandIntent, toolbarIntent)
+            XCTAssertEqual(plan.stateMutation, .runAnalysis(analysisIntent))
+            XCTAssertEqual(plan.sceneSync, .handledByResultRun)
+        }
+    }
+
     func testDispatcherRefreshActionRunsWorkspaceRefreshFlow() async {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)
@@ -741,6 +823,25 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
 
         XCTAssertEqual(hostActions.shareCallCount, 1)
         XCTAssertEqual(hostActions.lastSharedPaths.count, 1)
+    }
+
+    func testDispatcherResultCopyActionCopiesCurrentResultTable() async {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions
+        )
+        await workspace.initializeIfNeeded()
+        await workspace.runStats()
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleWorkspaceIntent(.resultArtifact(.copy))
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(hostActions.copiedClipboardTexts.count, 1)
+        XCTAssertTrue(hostActions.copiedClipboardTexts[0].contains("\t"))
     }
 
     func testDispatcherSettingsSavePersistsSnapshot() async {

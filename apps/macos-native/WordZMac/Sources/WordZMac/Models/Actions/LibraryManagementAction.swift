@@ -3,6 +3,8 @@ import Foundation
 enum LibraryManagementAction: Equatable {
     case refresh
     case importPaths
+    case confirmImportPreflight(paths: [String], corpusName: String)
+    case showCorpusBuilder
     case createFolder
     case saveCurrentCorpusSet
     case selectFolder(String?)

@@ -14,6 +14,9 @@ struct SentimentAnalysisCoordinator {
         case .lexicon:
             return analyzeWithLexicon(request)
         case .coreML:
+            guard !containsCJKText(request) else {
+                return analyzeWithLexicon(request)
+            }
             if let coreMLAnalyzer {
                 do {
                     let modelResult = try coreMLAnalyzer.analyze(request)
@@ -30,6 +33,26 @@ struct SentimentAnalysisCoordinator {
                 }
             }
             return analyzeWithLexiconFallback(request)
+        }
+    }
+
+    private func containsCJKText(_ request: SentimentRunRequest) -> Bool {
+        request.texts.contains { input in
+            containsCJKContent(input.text) || input.documentText.map { containsCJKContent($0) } == true
+        }
+    }
+
+    private func containsCJKContent(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3040...0x30FF,
+                 0x3400...0x4DBF,
+                 0x4E00...0x9FFF,
+                 0xF900...0xFAFF:
+                return true
+            default:
+                return false
+            }
         }
     }
 

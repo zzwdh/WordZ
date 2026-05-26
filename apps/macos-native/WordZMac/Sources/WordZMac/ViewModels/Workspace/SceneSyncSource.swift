@@ -1,6 +1,6 @@
 import Foundation
 
-enum SceneSyncSource {
+enum SceneSyncSource: Equatable {
     case full
     case navigation
     case librarySelection

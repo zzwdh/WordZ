@@ -25,21 +25,20 @@ extension LibraryManagementCoordinator {
         let defaultName: String
         if let existingSet = library.selectedCorpusSet {
             defaultName = existingSet.name
-        } else if library.metadataFilterState.activeFilterCount > 0 {
-            defaultName = wordZText("筛选语料集", "Filtered Corpus Set", mode: .system)
-        } else if targetCorpora.count == 1 {
-            defaultName = targetCorpora[0].name
         } else {
-            defaultName = wordZText("命名语料集", "Named Corpus Set", mode: .system)
+            defaultName = wordZText("我的语料库", "My Corpus Library", mode: .system)
         }
 
-        guard let name = await dialogService.promptText(
-            title: wordZText("保存语料集", "Save Corpus Set", mode: .system),
-            message: wordZText("为当前语料子集输入一个名称。", "Enter a name for the current corpus subset.", mode: .system),
+        guard let promptedName = await dialogService.promptText(
+            title: wordZText("制作 DB 语料集", "Create DB Corpus Set", mode: .system),
+            message: wordZText("为当前选择输入名称；所选 DB 会合并为一个可分析的 .db 语料集。", "Enter a name; the selected DB corpora will be merged into one analyzable .db corpus set.", mode: .system),
             defaultValue: defaultName,
-            confirmTitle: wordZText("保存", "Save", mode: .system),
+            confirmTitle: wordZText("制作 DB", "Create DB", mode: .system),
             preferredRoute: preferredRoute
         ) else { return }
+        let name = promptedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? defaultName
+            : promptedName
 
         let savedSet = try await repository.saveCorpusSet(
             name: name,

@@ -5,6 +5,11 @@ package struct NativePlatformCapabilities: Equatable, Sendable {
     package let supportsLiquidGlass: Bool
     package let supportsAdvancedWindowPlacement: Bool
     package let supportsToolbarSearchEnhancements: Bool
+    package let supportsToolbarSpacer: Bool
+    package let supportsToolbarSharedBackground: Bool
+    package let supportsSearchToolbarBehavior: Bool
+    package let supportsWindowPlacementModifiers: Bool
+    package let supportsWindowContainerBackground: Bool
     package let supportsScrollEdgeEffects: Bool
     package let supportsSplitViewAccessories: Bool
     package let supportsGlassButtons: Bool
@@ -37,6 +42,11 @@ package struct NativePlatformCapabilities: Equatable, Sendable {
             supportsLiquidGlass: isAtLeastMacOS26,
             supportsAdvancedWindowPlacement: isAtLeastMacOS15,
             supportsToolbarSearchEnhancements: isAtLeastMacOS26,
+            supportsToolbarSpacer: isAtLeastMacOS26,
+            supportsToolbarSharedBackground: isAtLeastMacOS26,
+            supportsSearchToolbarBehavior: isAtLeastMacOS26,
+            supportsWindowPlacementModifiers: isAtLeastMacOS26,
+            supportsWindowContainerBackground: isAtLeastMacOS26,
             supportsScrollEdgeEffects: isAtLeastMacOS26,
             supportsSplitViewAccessories: isAtLeastMacOS26,
             supportsGlassButtons: isAtLeastMacOS26,

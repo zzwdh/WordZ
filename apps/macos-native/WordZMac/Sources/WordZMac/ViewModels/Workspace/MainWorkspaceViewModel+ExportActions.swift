@@ -3,7 +3,18 @@ import Foundation
 @MainActor
 extension MainWorkspaceViewModel {
     func exportCurrent(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.exportCurrent(
+        guard let artifact = currentResultArtifact,
+              artifact.supports(.export)
+        else { return }
+        await exportResultArtifact(artifact, preferredWindowRoute: preferredWindowRoute)
+    }
+
+    func exportResultArtifact(
+        _ artifact: WorkspaceResultArtifact,
+        preferredWindowRoute: NativeWindowRoute? = nil
+    ) async {
+        await flowCoordinator.exportArtifact(
+            artifact,
             features: features,
             preferredRoute: preferredWindowRoute
         )

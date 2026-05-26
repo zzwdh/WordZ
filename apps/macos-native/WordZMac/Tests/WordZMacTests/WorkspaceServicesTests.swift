@@ -57,7 +57,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.annotationProfile, .lemmaPreferred)
         XCTAssertEqual(draft.annotationLexicalClasses, [.noun, .verb])
         XCTAssertEqual(draft.annotationScripts, [.cjk, .latin])
-        XCTAssertEqual(draft.tokenizeLanguagePreset, .latinFocused)
+        XCTAssertEqual(draft.tokenizeLanguagePreset, .cjkFocused)
         XCTAssertEqual(draft.tokenizeLemmaStrategy, .lemmaPreferred)
         XCTAssertEqual(draft.ngramSize, "3")
         XCTAssertEqual(draft.ngramPageSize, "100")
@@ -343,7 +343,7 @@ final class WorkspaceServicesTests: XCTestCase {
 
         XCTAssertEqual(presentation.displayName, "Opened Corpus")
         XCTAssertEqual(presentation.representedPath, "/tmp/corpus.txt")
-        XCTAssertEqual(presentation.workspaceSummary, "工作区：Opened Corpus ｜ 当前语料：Opened Corpus")
+        XCTAssertEqual(presentation.workspaceSummary, "工作区：Opened Corpus ｜ 当前 DB 语料库：Opened Corpus")
     }
 
     @MainActor
@@ -567,6 +567,66 @@ final class WorkspaceServicesTests: XCTestCase {
     }
 
     @MainActor
+    func testWorkspaceSceneGraphStoreTracksFieldLevelContentRevisions() {
+        let store = WorkspaceSceneGraphStore()
+        let shell = WorkspaceShellSceneModel(
+            workspaceSummary: "工作区：空",
+            buildSummary: "SwiftUI + Node.js sidecar",
+            toolbar: WorkspaceToolbarSceneModel(items: [])
+        )
+        let initialStatsScene = StatsSceneBuilder().build(
+            from: makeStatsResult(rowCount: 2),
+            sortMode: .frequencyDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: Set(StatsColumnKey.allCases)
+        )
+        let updatedStatsScene = StatsSceneBuilder().build(
+            from: makeStatsResult(rowCount: 3),
+            sortMode: .frequencyDescending,
+            pageSize: .fifty,
+            currentPage: 1,
+            visibleColumns: Set(StatsColumnKey.allCases)
+        )
+
+        store.sync(
+            context: .empty,
+            sidebar: .empty,
+            shell: shell,
+            library: .empty,
+            settings: .empty,
+            activeTab: .stats,
+            stats: initialStatsScene,
+            topics: nil,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+        let revisionsAfterInitialSync = store.contentRevisions
+
+        store.syncResult(
+            shell: shell,
+            activeTab: .stats,
+            resultTab: .stats,
+            stats: updatedStatsScene,
+            compare: nil,
+            chiSquare: nil,
+            ngram: nil,
+            kwic: nil,
+            collocate: nil,
+            locator: nil
+        )
+
+        XCTAssertEqual(store.contentRevisions.stats, revisionsAfterInitialSync.stats + 1)
+        XCTAssertEqual(store.contentRevisions.sidebar, revisionsAfterInitialSync.sidebar)
+        XCTAssertEqual(store.contentRevisions.shell, revisionsAfterInitialSync.shell)
+        XCTAssertEqual(store.contentRevisions.kwic, revisionsAfterInitialSync.kwic)
+    }
+
+    @MainActor
     func testWorkspaceSceneGraphStoreSyncResultUpdatesSentimentNode() {
         let store = WorkspaceSceneGraphStore()
         let statsScene = StatsSceneBuilder().build(
@@ -760,6 +820,176 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertTrue(snapshot.corpusSets.isEmpty)
     }
 
+    func testNativeCorpusStoreMaterializesCorpusSetAsMergedDatabase() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-corpus-set-db-\(UUID().uuidString)", isDirectory: true)
+        let firstURL = rootURL.appendingPathComponent("first.txt")
+        let secondURL = rootURL.appendingPathComponent("second.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta".write(to: firstURL, atomically: true, encoding: .utf8)
+        try "gamma delta".write(to: secondURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importCorpusPaths(
+            [firstURL.path, secondURL.path],
+            folderId: "",
+            preserveHierarchy: false
+        )
+
+        let savedSet = try store.saveCorpusSet(
+            name: "合并语料集",
+            corpusIDs: imported.importedItems.map(\.id),
+            metadataFilterState: .empty
+        )
+        let opened = try store.openSavedCorpusSet(corpusSetID: savedSet.id)
+        let setDatabaseURL = store.corpusSetsDirectoryURL.appendingPathComponent("\(savedSet.id).db")
+        let sourceID = CorpusSetSourceID.sourceID(for: savedSet.id)
+        let frequencyArtifact = try store.loadStoredFrequencyArtifact(corpusId: sourceID)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: setDatabaseURL.path))
+        XCTAssertEqual(opened.mode, "corpus-set")
+        XCTAssertEqual(opened.sourceType, "db")
+        XCTAssertEqual(opened.filePath, setDatabaseURL.path)
+        XCTAssertTrue(opened.content.contains("alpha beta"))
+        XCTAssertTrue(opened.content.contains("gamma delta"))
+        XCTAssertEqual(frequencyArtifact?.frequencyMap["alpha"], 1)
+        XCTAssertEqual(frequencyArtifact?.frequencyMap["gamma"], 1)
+    }
+
+    func testNativeCorpusStoreImportsOverlappingFileSelectionsAsNamedDBCorpora() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-merged-import-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let aURL = rootURL.appendingPathComponent("a.txt")
+        let bURL = rootURL.appendingPathComponent("b.txt")
+        let cURL = rootURL.appendingPathComponent("c.txt")
+        let dURL = rootURL.appendingPathComponent("d.txt")
+        try "alpha only-a".write(to: aURL, atomically: true, encoding: .utf8)
+        try "beta shared-b".write(to: bURL, atomically: true, encoding: .utf8)
+        try "gamma shared-c".write(to: cURL, atomically: true, encoding: .utf8)
+        try "delta only-d".write(to: dURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        let dbA = try store.importMergedCorpusPaths(
+            [aURL.path, bURL.path, cURL.path],
+            name: "dbA",
+            folderId: ""
+        )
+        let dbB = try store.importMergedCorpusPaths(
+            [bURL.path, cURL.path, dURL.path],
+            name: "dbB",
+            folderId: ""
+        )
+
+        let snapshot = try store.listLibrary()
+        let importedA = try XCTUnwrap(dbA.importedItems.first)
+        let importedB = try XCTUnwrap(dbB.importedItems.first)
+        let openedA = try store.openSavedCorpus(corpusId: importedA.id)
+        let openedB = try store.openSavedCorpus(corpusId: importedB.id)
+
+        XCTAssertEqual(snapshot.corpora.map(\.name), ["dbA", "dbB"])
+        XCTAssertEqual(snapshot.corpora.map(\.sourceType), ["db", "db"])
+        XCTAssertEqual(snapshot.corpora.map(\.storageFileName), ["dbA.db", "dbB.db"])
+        XCTAssertEqual(dbA.importedCount, 1)
+        XCTAssertEqual(dbB.importedCount, 1)
+        XCTAssertTrue(openedA.filePath.hasSuffix("/dbA.db"))
+        XCTAssertTrue(openedB.filePath.hasSuffix("/dbB.db"))
+        XCTAssertTrue(openedA.content.contains("alpha only-a"))
+        XCTAssertTrue(openedA.content.contains("beta shared-b"))
+        XCTAssertTrue(openedA.content.contains("gamma shared-c"))
+        XCTAssertFalse(openedA.content.contains("delta only-d"))
+        XCTAssertFalse(openedB.content.contains("alpha only-a"))
+        XCTAssertTrue(openedB.content.contains("beta shared-b"))
+        XCTAssertTrue(openedB.content.contains("gamma shared-c"))
+        XCTAssertTrue(openedB.content.contains("delta only-d"))
+    }
+
+    func testNativeCorpusStoreMergedDBCorpusInfoReportsSourceFileCountAndStats() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-merged-info-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let aURL = rootURL.appendingPathComponent("a.txt")
+        let bURL = rootURL.appendingPathComponent("b.txt")
+        let cURL = rootURL.appendingPathComponent("c.txt")
+        try "alpha beta".write(to: aURL, atomically: true, encoding: .utf8)
+        try "beta gamma".write(to: bURL, atomically: true, encoding: .utf8)
+        try "gamma delta".write(to: cURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importMergedCorpusPaths(
+            [aURL.path, bURL.path, cURL.path],
+            name: "dbInfo",
+            folderId: ""
+        )
+        let corpus = try XCTUnwrap(imported.importedItems.first)
+        let info = try store.loadCorpusInfo(corpusId: corpus.id)
+
+        XCTAssertEqual(info.title, "dbInfo")
+        XCTAssertEqual(info.sourceType, "db")
+        XCTAssertEqual(info.fileCount, 3)
+        XCTAssertEqual(info.tokenCount, 6)
+        XCTAssertEqual(info.typeCount, 4)
+        XCTAssertGreaterThan(info.characterCount, 0)
+    }
+
+    func testNativeCorpusStoreUsesDefaultNameForUnnamedMergedDBCorpus() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-merged-default-name-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        let sourceURL = rootURL.appendingPathComponent("source.txt")
+        try "alpha beta".write(to: sourceURL, atomically: true, encoding: .utf8)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+        let imported = try store.importMergedCorpusPaths(
+            [sourceURL.path],
+            name: "  ",
+            folderId: ""
+        )
+
+        XCTAssertEqual(imported.importedItems.first?.name, "我的语料库")
+        XCTAssertEqual(imported.importedItems.first?.storageFileName, "我的语料库.db")
+        XCTAssertEqual(try store.listLibrary().corpora.first?.sourceType, "db")
+    }
+
+    @MainActor
+    func testNativeWorkspaceRepositoryOpensCorpusSetDatabaseForAnalysis() async throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-corpus-set-repo-\(UUID().uuidString)", isDirectory: true)
+        let firstURL = rootURL.appendingPathComponent("first.txt")
+        let secondURL = rootURL.appendingPathComponent("second.txt")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "alpha beta".write(to: firstURL, atomically: true, encoding: .utf8)
+        try "gamma delta".write(to: secondURL, atomically: true, encoding: .utf8)
+
+        let repository = NativeWorkspaceRepository(rootURL: rootURL)
+        try await repository.start(userDataURL: rootURL)
+        let imported = try await repository.importCorpusPaths(
+            [firstURL.path, secondURL.path],
+            folderId: "",
+            preserveHierarchy: false
+        )
+        let savedSet = try await repository.saveCorpusSet(
+            name: "分析语料集",
+            corpusIDs: imported.importedItems.map(\.id),
+            metadataFilterState: .empty
+        )
+
+        let opened = try await repository.openSavedCorpusSet(corpusSetID: savedSet.id)
+        let stats = try await repository.runStats(text: opened.content)
+
+        XCTAssertEqual(opened.mode, "corpus-set")
+        XCTAssertEqual(opened.sourceType, "db")
+        XCTAssertTrue(opened.filePath.hasSuffix(".db"))
+        XCTAssertGreaterThanOrEqual(stats.tokenCount, 4)
+        XCTAssertTrue(stats.frequencyRows.contains { $0.word == "alpha" })
+        XCTAssertTrue(stats.frequencyRows.contains { $0.word == "gamma" })
+    }
+
     func testNativeCorpusStorePersistsConcordanceSavedSetRoundTrip() throws {
         let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("wordz-native-hit-set-\(UUID().uuidString)", isDirectory: true)
@@ -920,17 +1150,21 @@ final class WorkspaceServicesTests: XCTestCase {
         let corpus = try XCTUnwrap(imported.importedItems.first)
         let record = try XCTUnwrap(store.loadCorpora().first(where: { $0.id == corpus.id }))
         let storageFileName = record.storageFileName
+        let storageURL = rootURL.appendingPathComponent("corpora").appendingPathComponent(storageFileName)
+        let opened = try store.openSavedCorpus(corpusId: corpus.id)
         XCTAssertTrue(storageFileName.hasSuffix(".db"))
         XCTAssertEqual(corpus.representedPath, sourceURL.path)
+        XCTAssertEqual(opened.filePath, storageURL.path)
+        XCTAssertNotEqual(opened.filePath, sourceURL.path)
         XCTAssertTrue(
             FileManager.default.fileExists(
-                atPath: rootURL.appendingPathComponent("corpora").appendingPathComponent(storageFileName).path
+                atPath: storageURL.path
             )
         )
 
         let storedDocument = try XCTUnwrap(
             try NativeCorpusDatabaseSupport.readDocument(
-                at: rootURL.appendingPathComponent("corpora").appendingPathComponent(storageFileName)
+                at: storageURL
             )
         )
         XCTAssertEqual(storedDocument.metadata.schemaVersion, NativeCorpusDatabaseSupport.currentSchemaVersion)
@@ -1178,9 +1412,19 @@ final class WorkspaceServicesTests: XCTestCase {
         let openedPDF = try store.openSavedCorpus(corpusId: pdfCorpus.id)
         let docxInfo = try store.loadCorpusInfo(corpusId: docxCorpus.id)
         let pdfInfo = try store.loadCorpusInfo(corpusId: pdfCorpus.id)
+        let docxStoragePath = rootURL
+            .appendingPathComponent("corpora")
+            .appendingPathComponent(docxCorpus.storageFileName)
+            .path
+        let pdfStoragePath = rootURL
+            .appendingPathComponent("corpora")
+            .appendingPathComponent(pdfCorpus.storageFileName)
+            .path
 
-        XCTAssertEqual(openedDOCX.filePath, docxURL.path)
-        XCTAssertEqual(openedPDF.filePath, pdfURL.path)
+        XCTAssertEqual(openedDOCX.filePath, docxStoragePath)
+        XCTAssertEqual(openedPDF.filePath, pdfStoragePath)
+        XCTAssertNotEqual(openedDOCX.filePath, docxURL.path)
+        XCTAssertNotEqual(openedPDF.filePath, pdfURL.path)
         XCTAssertEqual(openedDOCX.content.trimmingCharacters(in: .whitespacesAndNewlines), "Hello DOCX")
         XCTAssertEqual(openedPDF.content.trimmingCharacters(in: .whitespacesAndNewlines), "Hello PDF")
         XCTAssertEqual(docxInfo.sourceType, "docx")
@@ -1317,7 +1561,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.annotationProfile, .surface)
         XCTAssertTrue(snapshot.annotationLexicalClasses.isEmpty)
         XCTAssertTrue(snapshot.annotationScripts.isEmpty)
-        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .latinFocused)
+        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertEqual(snapshot.topicsMinTopicSize, "2")
         XCTAssertEqual(snapshot.topicsKeywordDisplayCount, "5")
@@ -1351,7 +1595,7 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(snapshot.annotationProfile, .surface)
         XCTAssertTrue(snapshot.annotationLexicalClasses.isEmpty)
         XCTAssertTrue(snapshot.annotationScripts.isEmpty)
-        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .latinFocused)
+        XCTAssertEqual(snapshot.tokenizeLanguagePreset, .mixedChineseEnglish)
         XCTAssertEqual(snapshot.tokenizeLemmaStrategy, .normalizedSurface)
         XCTAssertTrue(snapshot.compareSelectedCorpusIDs.isEmpty)
         XCTAssertEqual(snapshot.topicsKeywordDisplayCount, "5")
@@ -1415,7 +1659,12 @@ final class WorkspaceServicesTests: XCTestCase {
     func testWorkspaceExportCoordinatorWritesCSVForActiveScene() async throws {
         let dialog = FakeDialogService()
         let exportPath = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("wordz-export.csv")
+        let metadataPath = exportPath
+            .deletingPathExtension()
+            .deletingLastPathComponent()
+            .appendingPathComponent("\(exportPath.deletingPathExtension().lastPathComponent)-metadata.txt")
         try? FileManager.default.removeItem(at: exportPath)
+        try? FileManager.default.removeItem(at: metadataPath)
         dialog.savePathResult = exportPath.path
         let coordinator = WorkspaceExportCoordinator(dialogService: dialog)
         let statsScene = StatsSceneBuilder().build(
@@ -1459,6 +1708,11 @@ final class WorkspaceServicesTests: XCTestCase {
         let contents = try String(contentsOf: exportPath, encoding: .utf8)
         XCTAssertTrue(contents.contains("词"))
         XCTAssertTrue(contents.contains("word-0"))
+
+        let metadataContents = try String(contentsOf: metadataPath, encoding: .utf8)
+        XCTAssertTrue(metadataContents.contains("WordZ Export Metadata"))
+        XCTAssertTrue(metadataContents.contains("Data Dictionary"))
+        XCTAssertTrue(metadataContents.contains("Column ID\tTitle\tPresentation"))
     }
 
     @MainActor
@@ -1506,7 +1760,8 @@ final class WorkspaceServicesTests: XCTestCase {
         _ = try await coordinator.exportActiveScene(graph: graph)
 
         let lines = try String(contentsOf: exportPath, encoding: .utf8).components(separatedBy: .newlines)
-        XCTAssertEqual(lines.first, "\"排名\",\"词\",\"标准频次 /10K\",\"Range (句)\"")
+        let header = lines.first?.replacingOccurrences(of: "\u{FEFF}", with: "")
+        XCTAssertEqual(header, "\"排名\",\"词\",\"标准频次 /10K\",\"Range (句)\"")
         XCTAssertFalse(lines.first?.contains("\"频次\"") ?? false)
         XCTAssertFalse(lines.first?.contains("\"Norm Range %\"") ?? false)
         XCTAssertTrue(lines.dropFirst().first?.contains("\"1000.00\"") ?? false)
@@ -1562,7 +1817,8 @@ final class WorkspaceServicesTests: XCTestCase {
         _ = try await coordinator.exportActiveScene(graph: graph)
 
         let lines = try String(contentsOf: exportPath, encoding: .utf8).components(separatedBy: .newlines)
-        XCTAssertEqual(lines.first, "\"词\",\"标准频次 /10K\",\"Norm Range % (句)\"")
+        let header = lines.first?.replacingOccurrences(of: "\u{FEFF}", with: "")
+        XCTAssertEqual(header, "\"词\",\"标准频次 /10K\",\"Norm Range % (句)\"")
         XCTAssertFalse(lines.first?.contains("\"频次\"") ?? false)
         XCTAssertFalse(lines.first?.contains("\"Range\"") ?? false)
         XCTAssertTrue(lines.dropFirst().first?.contains("\"100.00\"") ?? false)

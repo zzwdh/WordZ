@@ -38,10 +38,11 @@ extension NgramPageViewModel {
         ngramSize = "2"
         isEditingStopwords = false
         result = nil
-        sortMode = .frequencyDescending
-        pageSize = .oneHundred
-        currentPage = 1
-        visibleColumns = Self.defaultVisibleColumns
+        tablePresentation.reset(
+            sortMode: .frequencyDescending,
+            pageSize: .oneHundred,
+            visibleColumns: Self.defaultVisibleColumns
+        )
         invalidateCaches()
         scene = nil
     }

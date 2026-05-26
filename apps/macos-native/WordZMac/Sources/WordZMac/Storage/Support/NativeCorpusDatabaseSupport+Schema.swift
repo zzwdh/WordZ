@@ -44,6 +44,7 @@ extension NativeCorpusDatabaseSupport {
                 original_character_count INTEGER NOT NULL DEFAULT 0,
                 cleaned_character_count INTEGER NOT NULL DEFAULT 0,
                 cleaned_text_digest TEXT NOT NULL DEFAULT '',
+                source_file_count INTEGER NOT NULL DEFAULT 1,
                 tokenized_sentences_json TEXT NOT NULL DEFAULT '',
                 raw_text TEXT NOT NULL DEFAULT '',
                 cleaned_text TEXT NOT NULL DEFAULT '',
@@ -138,6 +139,7 @@ extension NativeCorpusDatabaseSupport {
         try ensureColumn("original_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
         try ensureColumn("cleaned_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
         try ensureColumn("cleaned_text_digest", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        try ensureColumn("source_file_count", definition: "INTEGER NOT NULL DEFAULT 1", onTable: "corpus_document", db: db)
         try ensureColumn("tokenized_sentences_json", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
         try ensureColumn("raw_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
         try ensureColumn("cleaned_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)

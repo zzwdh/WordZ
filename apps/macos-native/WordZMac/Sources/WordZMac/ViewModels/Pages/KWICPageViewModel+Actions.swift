@@ -15,13 +15,13 @@ extension KWICPageViewModel {
             selectedSavedSetID = setID
             normalizeSavedSetSelection()
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .selectRow(let rowID):
             selectRow(rowID)
         case .activateRow(let rowID):
@@ -29,29 +29,31 @@ extension KWICPageViewModel {
         case .openSourceReader, .copyCurrent, .copyVisible, .exportCurrent, .exportVisible:
             return
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
-    func sortByColumn(_ column: KWICColumnKey) {
-        let nextSort: KWICSortMode
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort else { return }
+        invalidateSortedRowsCache()
+    }
+
+    func nextSortMode(
+        for column: KWICColumnKey,
+        currentSortMode: KWICSortMode
+    ) -> KWICSortMode? {
         switch column {
         case .sentenceIndex:
-            nextSort = sortMode == .sentenceAscending ? .original : .sentenceAscending
+            return currentSortMode == .sentenceAscending ? .original : .sentenceAscending
         case .leftContext:
-            nextSort = sortMode == .leftContextAscending ? .original : .leftContextAscending
+            return currentSortMode == .leftContextAscending ? .original : .leftContextAscending
         case .keyword:
-            nextSort = sortMode == .keywordAscending ? .original : .keywordAscending
+            return currentSortMode == .keywordAscending ? .original : .keywordAscending
         case .rightContext:
-            nextSort = sortMode == .rightContextAscending ? .original : .rightContextAscending
+            return currentSortMode == .rightContextAscending ? .original : .rightContextAscending
         }
-        applySortModeChange(nextSort)
-    }
-
-    func toggleColumn(_ column: KWICColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
     }
 
     func selectRow(_ rowID: String?) {

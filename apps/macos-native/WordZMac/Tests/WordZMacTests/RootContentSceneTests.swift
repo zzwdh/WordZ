@@ -29,11 +29,12 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertEqual(workspace.rootScene.tabs.count, WorkspaceDetailTab.mainWorkspaceTabs.count)
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .library }))
         XCTAssertFalse(workspace.rootScene.tabs.contains(where: { $0.tab == .settings }))
-        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 22)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.count, 23)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first?.action, .refresh)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .showLibrary })?.isEnabled, true)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .openSelected })?.isEnabled, true)
         XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .annotationControls })?.isEnabled, true)
+        XCTAssertEqual(workspace.shell.scene.toolbar.items.first(where: { $0.action == .copyCurrentResult })?.isEnabled, false)
     }
 
     func testMainWorkspaceCommandContextSharesToolbarSceneModel() async {
@@ -46,9 +47,11 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertTrue(context.supportsWorkspaceCommands)
         XCTAssertEqual(context.toolbar, workspace.shell.scene.toolbar)
         XCTAssertEqual(context.toolbar?.item(for: .refresh)?.action, .refresh)
+        XCTAssertEqual(context.toolbar?.item(for: .copyCurrentResult)?.action, .copyCurrentResult)
         XCTAssertEqual(context.toolbar?.item(for: .exportCurrent)?.action, .exportCurrent)
         XCTAssertEqual(context.toolbar?.item(for: workspace.selectedRoute.toolbarRunAction ?? .runKWIC)?.isEnabled, true)
         XCTAssertTrue(context.canRefreshWorkspace)
+        XCTAssertFalse(context.canCopyCurrentResult)
         XCTAssertEqual(context.selectedMainRoute, workspace.selectedRoute)
         XCTAssertFalse(context.canSelectMainRoute)
         XCTAssertFalse(context.canToggleInspector)
@@ -108,7 +111,7 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertFalse(libraryContext.canConfigureAnnotation)
     }
 
-    func testEvidenceWorkbenchCommandContextTracksDossierGroupActions() async {
+    func testEvidenceWorkbenchCommandContextKeepsExcerptExportOnly() async {
         let repository = FakeWorkspaceRepository()
         repository.evidenceItems = [
             makeEvidenceItem(
@@ -141,24 +144,13 @@ final class RootContentSceneTests: XCTestCase {
         await workspace.initializeIfNeeded()
         await workspace.refreshEvidenceItems()
         workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
         workspace.evidenceWorkbench.selectedItemID = "evidence-body-2"
 
-        let splitContext = workspace.commandContext(for: .evidenceWorkbench)
-        XCTAssertTrue(splitContext.canMoveEvidenceGroupUp)
-        XCTAssertTrue(splitContext.canMoveEvidenceGroupDown)
-        XCTAssertTrue(splitContext.canSplitEvidenceGroup)
-        XCTAssertTrue(splitContext.canRenameEvidenceGroup)
-        XCTAssertTrue(splitContext.canMergeEvidenceGroup)
-        XCTAssertTrue(splitContext.canExportEvidenceDossier)
-        XCTAssertTrue(splitContext.canExportEvidenceJSON)
-
-        workspace.evidenceWorkbench.selectedItemID = "evidence-body-1"
-
-        let unsplittableContext = workspace.commandContext(for: .evidenceWorkbench)
-        XCTAssertTrue(unsplittableContext.canRenameEvidenceGroup)
-        XCTAssertTrue(unsplittableContext.canMergeEvidenceGroup)
-        XCTAssertFalse(unsplittableContext.canSplitEvidenceGroup)
+        let context = workspace.commandContext(for: .evidenceWorkbench)
+        XCTAssertTrue(context.canExportEvidenceDossier)
+        XCTAssertTrue(context.canExportEvidenceJSON)
+        XCTAssertFalse(context.canExportCurrent)
+        XCTAssertFalse(context.canShareContent)
     }
 
     func testMainWorkspaceCommandContextAppliesSceneViewMenuState() async {
@@ -369,6 +361,19 @@ final class RootContentSceneTests: XCTestCase {
         NativeWindowRouting.register(nil, for: .library)
     }
 
+    func testNativeWindowRoutingDebouncesPendingPresentationRequests() {
+        NativeWindowRouting.register(nil, for: .taskCenter)
+        NativeWindowRouting.cancelPendingPresentationRequest(for: .taskCenter)
+
+        XCTAssertTrue(NativeWindowRouting.shouldRequestPresentation(for: .taskCenter))
+        XCTAssertFalse(NativeWindowRouting.shouldRequestPresentation(for: .taskCenter))
+
+        NativeWindowRouting.cancelPendingPresentationRequest(for: .taskCenter)
+        XCTAssertTrue(NativeWindowRouting.shouldRequestPresentation(for: .taskCenter))
+
+        NativeWindowRouting.cancelPendingPresentationRequest(for: .taskCenter)
+    }
+
     func testWorkspaceMainRouteMapsKeywordTab() {
         let route = WorkspaceMainRoute(tab: .keyword)
 
@@ -525,9 +530,181 @@ final class RootContentSceneTests: XCTestCase {
             animateLayoutChanges: false
         )
 
-        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 1)
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 0)
         XCTAssertEqual(detailHost.rootViewUpdateCount, 1)
         XCTAssertEqual(inspectorHost.rootViewUpdateCount, 1)
+
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: nextRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 1)
+    }
+
+    func testMainWorkspaceSplitControllerUpdatesOnlyChangedPaneRevision() throws {
+        let initialRevision = WorkspaceSplitContentRevision(
+            sidebar: makeSplitPaneRevision(1),
+            detail: makeSplitPaneRevision(10),
+            inspector: makeSplitPaneRevision(20)
+        )
+        let controller = MainWorkspaceSplitController(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: initialRevision
+        )
+
+        _ = controller.view
+        let sidebarHost = try XCTUnwrap(controller.splitViewItems[0].viewController as? HostedPaneViewController<EmptyView>)
+        let detailHost = try XCTUnwrap(controller.splitViewItems[1].viewController as? HostedPaneViewController<EmptyView>)
+        let inspectorHost = try XCTUnwrap(controller.splitViewItems[2].viewController as? HostedPaneViewController<EmptyView>)
+
+        let detailOnlyRevision = WorkspaceSplitContentRevision(
+            sidebar: makeSplitPaneRevision(1),
+            detail: makeSplitPaneRevision(11),
+            inspector: makeSplitPaneRevision(20)
+        )
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: detailOnlyRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(detailHost.rootViewUpdateCount, 1)
+        XCTAssertEqual(inspectorHost.rootViewUpdateCount, 0)
+    }
+
+    func testMainWorkspaceSplitControllerDefersHiddenInspectorRootUpdateUntilVisible() throws {
+        let initialRevision = WorkspaceSplitContentRevision(
+            sidebar: makeSplitPaneRevision(1),
+            detail: makeSplitPaneRevision(10),
+            inspector: makeSplitPaneRevision(20)
+        )
+        let controller = MainWorkspaceSplitController(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: initialRevision
+        )
+
+        _ = controller.view
+        let sidebarHost = try XCTUnwrap(controller.splitViewItems[0].viewController as? HostedPaneViewController<EmptyView>)
+        let detailHost = try XCTUnwrap(controller.splitViewItems[1].viewController as? HostedPaneViewController<EmptyView>)
+        let inspectorHost = try XCTUnwrap(controller.splitViewItems[2].viewController as? HostedPaneViewController<EmptyView>)
+
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: initialRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: false
+            ),
+            animateLayoutChanges: false
+        )
+
+        let hiddenInspectorRevision = WorkspaceSplitContentRevision(
+            sidebar: makeSplitPaneRevision(1),
+            detail: makeSplitPaneRevision(10),
+            inspector: makeSplitPaneRevision(21)
+        )
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: hiddenInspectorRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: false
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(detailHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(inspectorHost.rootViewUpdateCount, 0)
+
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            contentRevision: hiddenInspectorRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(detailHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(inspectorHost.rootViewUpdateCount, 1)
+    }
+
+    func testMainWorkspaceSplitControllerDoesNotRebuildPanesForAccessoryOnlyChanges() throws {
+        let initialRevision = WorkspaceSplitContentRevision(
+            sceneGraphRevision: 1,
+            selectedRoute: .stats,
+            runningTaskKeys: [],
+            issueBannerID: nil,
+            accessoryRevisionID: "issue-a",
+            languageMode: .system,
+            annotationState: .default
+        )
+        let controller = MainWorkspaceSplitController(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            topAccessory: AnyView(Text("Issue A")),
+            contentRevision: initialRevision
+        )
+
+        _ = controller.view
+        let sidebarHost = try XCTUnwrap(controller.splitViewItems[0].viewController as? HostedPaneViewController<EmptyView>)
+        let detailHost = try XCTUnwrap(controller.splitViewItems[1].viewController as? HostedPaneViewController<EmptyView>)
+        let inspectorHost = try XCTUnwrap(controller.splitViewItems[2].viewController as? HostedPaneViewController<EmptyView>)
+
+        let accessoryOnlyRevision = WorkspaceSplitContentRevision(
+            sceneGraphRevision: 1,
+            selectedRoute: .stats,
+            runningTaskKeys: [],
+            issueBannerID: nil,
+            accessoryRevisionID: "issue-b",
+            languageMode: .system,
+            annotationState: .default
+        )
+        controller.update(
+            sidebar: EmptyView(),
+            detail: EmptyView(),
+            inspector: EmptyView(),
+            topAccessory: AnyView(Text("Issue B")),
+            contentRevision: accessoryOnlyRevision,
+            layout: WorkspaceSplitLayout(
+                isSidebarVisible: true,
+                isInspectorVisible: true
+            ),
+            animateLayoutChanges: false
+        )
+
+        XCTAssertEqual(sidebarHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(detailHost.rootViewUpdateCount, 0)
+        XCTAssertEqual(inspectorHost.rootViewUpdateCount, 0)
     }
 
     func testRootContentDefaultLaunchControllerPresentsLibraryWindowOnFirstLaunch() async {
@@ -747,12 +924,32 @@ final class RootContentSceneTests: XCTestCase {
         let delegate = NativeApplicationDelegate()
         var openedRoutes: [String] = []
 
+        defer {
+            NativeWindowRouting.cancelPendingPresentationRequest(for: .mainWorkspace)
+        }
         delegate.presentWindowRoute(.mainWorkspace)
         delegate.registerWindowPresenter { route in
             openedRoutes.append(route.id)
         }
 
         XCTAssertEqual(openedRoutes, [NativeWindowRoute.mainWorkspace.id])
+    }
+
+    func testNativeApplicationDelegateDoesNotRequestDuplicateWindowWhilePresentationIsPending() {
+        let delegate = NativeApplicationDelegate()
+        var openedRoutes: [String] = []
+
+        defer {
+            NativeWindowRouting.cancelPendingPresentationRequest(for: .library)
+        }
+        delegate.registerWindowPresenter { route in
+            openedRoutes.append(route.id)
+        }
+
+        delegate.presentWindowRoute(.library)
+        delegate.presentWindowRoute(.library)
+
+        XCTAssertEqual(openedRoutes, [NativeWindowRoute.library.id])
     }
 
     func testNativeApplicationDelegateDoesNotAutoPresentMainWorkspaceOnLaunch() {
@@ -780,5 +977,12 @@ final class RootContentSceneTests: XCTestCase {
         NativeWindowRouting.register(window, for: .library)
 
         XCTAssertEqual(window.identifier?.rawValue, NativeWindowRoute.library.id)
+    }
+
+    private func makeSplitPaneRevision(_ component: Int) -> WorkspaceSplitPaneContentRevision {
+        WorkspaceSplitPaneContentRevision(
+            components: [component],
+            languageMode: .system
+        )
     }
 }

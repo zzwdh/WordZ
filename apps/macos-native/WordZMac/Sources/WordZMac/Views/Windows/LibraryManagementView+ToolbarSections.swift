@@ -17,8 +17,13 @@ extension LibraryManagementView {
                             .lineLimit(1)
                     }
 
+                    Spacer(minLength: 16)
+
+                    libraryProcessingStatusBadge
+                    libraryReadinessButton
+                    metadataStudioButton
+
                     if viewModel.scene.metadataFilterSummary != nil || !viewModel.scene.filterChips.isEmpty {
-                        Spacer(minLength: 16)
                         filterButton
                     }
                 }
@@ -69,6 +74,21 @@ extension LibraryManagementView {
                 utilityStatusView
             }
         }
+    }
+
+    var libraryToolbarStatus: LibraryToolbarStatus? {
+        if let importProgress = viewModel.scene.importProgress {
+            return LibraryToolbarStatus(
+                title: t("构建中", "Building"),
+                detail: viewModel.scene.importDetail ?? viewModel.scene.statusMessage,
+                systemImage: "arrow.down.doc",
+                tint: .blue,
+                badgeCount: 0,
+                progress: importProgress
+            )
+        }
+
+        return nil
     }
 
     private var filterButton: some View {
@@ -178,6 +198,31 @@ extension LibraryManagementView {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var libraryProcessingStatusBadge: some View {
+        if let status = libraryToolbarStatus {
+            HStack(spacing: 6) {
+                Image(systemName: status.systemImage)
+                if let progress = status.progress {
+                    ProgressView(value: progress)
+                        .frame(width: 92)
+                } else {
+                    Text(status.title)
+                    if status.badgeCount > 0 {
+                        Text("\(status.badgeCount)")
+                            .monospacedDigit()
+                    }
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(status.tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(status.tint.opacity(0.12), in: Capsule())
+            .help(status.detail)
         }
     }
 

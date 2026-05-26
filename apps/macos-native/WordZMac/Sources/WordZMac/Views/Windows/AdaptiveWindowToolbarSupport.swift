@@ -29,10 +29,13 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
             if let refreshItem = toolbar.item(for: .refresh) {
                 toolbarButton(
                     title: refreshItem.title,
-                    systemImage: WorkspaceToolbarAction.refresh.toolbarSymbolName,
+                    systemImage: refreshItem.systemImage,
                     help: refreshItem.title,
                     isEnabled: refreshItem.isEnabled,
-                    action: { onPostCommand(.refreshWorkspace) }
+                    action: {
+                        guard let command = refreshItem.nativeCommand else { return }
+                        onPostCommand(command)
+                    }
                 )
             }
         }
@@ -43,45 +46,82 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
             if let openSelectedItem = toolbar.item(for: .openSelected) {
                 toolbarButton(
                     title: openSelectedItem.title,
-                    systemImage: WorkspaceToolbarAction.openSelected.toolbarSymbolName,
+                    systemImage: openSelectedItem.systemImage,
                     help: openSelectedItem.title,
                     isEnabled: openSelectedItem.isEnabled,
-                    action: { onPostCommand(.openSelectedCorpus) }
+                    action: {
+                        guard let command = openSelectedItem.nativeCommand else { return }
+                        onPostCommand(command)
+                    }
                 )
             }
 
             if let openSourceReaderItem = toolbar.item(for: .openSourceReader) {
                 toolbarButton(
                     title: openSourceReaderItem.title,
-                    systemImage: WorkspaceToolbarAction.openSourceReader.toolbarSymbolName,
+                    systemImage: openSourceReaderItem.systemImage,
                     help: openSourceReaderItem.title,
                     isEnabled: openSourceReaderItem.isEnabled,
-                    action: { onPostCommand(.openSourceReader) }
+                    action: {
+                        guard let command = openSourceReaderItem.nativeCommand else { return }
+                        onPostCommand(command)
+                    }
+                )
+            }
+        }
+
+        AdaptiveToolbarSpacer()
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            if let annotationItem = toolbar.item(for: .annotationControls) {
+                annotationToolbarMenu(
+                    title: annotationItem.title,
+                    systemImage: annotationItem.systemImage,
+                    isEnabled: annotationItem.isEnabled
                 )
             }
 
-            if let annotationItem = toolbar.item(for: .annotationControls) {
-                annotationToolbarMenu(title: annotationItem.title, isEnabled: annotationItem.isEnabled)
-            }
-
+            let runItem = selectedRoute.toolbarRunAction.flatMap { toolbar.item(for: $0) }
             toolbarButton(
                 title: wordZText("运行", "Run", mode: languageMode),
-                systemImage: "play.fill",
+                systemImage: runItem?.systemImage ?? "play.fill",
                 help: wordZText("运行当前分析：", "Run current analysis: ", mode: languageMode) + selectedRoute.displayTitle(in: languageMode),
-                isEnabled: selectedRoute.toolbarRunAction.flatMap { toolbar.item(for: $0)?.isEnabled } ?? false,
+                isEnabled: runItem?.isEnabled ?? false,
+                isProminent: true,
                 action: {
-                    guard let command = selectedRoute.toolbarRunAction?.nativeCommand else { return }
+                    guard let command = runItem?.nativeCommand else { return }
                     onPostCommand(command)
                 }
             )
+        }
+
+        AdaptiveToolbarSpacer()
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            if let copyItem = toolbar.item(for: .copyCurrentResult) {
+                toolbarButton(
+                    title: copyItem.title,
+                    systemImage: copyItem.systemImage,
+                    help: wordZText("复制当前结果，可直接粘贴到 Excel", "Copy current result for pasting into Excel", mode: languageMode),
+                    isEnabled: copyItem.isEnabled,
+                    action: {
+                        guard let command = copyItem.nativeCommand else { return }
+                        onPostCommand(command)
+                    }
+                )
+            }
 
             if let exportItem = toolbar.item(for: .exportCurrent) {
                 toolbarButton(
                     title: exportItem.title,
-                    systemImage: WorkspaceToolbarAction.exportCurrent.toolbarSymbolName,
+                    systemImage: exportItem.systemImage,
                     help: exportItem.title,
                     isEnabled: exportItem.isEnabled,
-                    action: { onPostCommand(.exportCurrent) }
+                    isProminent: true,
+                    action: {
+                        guard let command = exportItem.nativeCommand else { return }
+                        onPostCommand(command)
+                    }
                 )
             }
 
@@ -101,17 +141,23 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
         systemImage: String,
         help: String,
         isEnabled: Bool = true,
+        isProminent: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
         }
+        .adaptiveGlassButtonStyle(prominent: isProminent)
         .help(help)
         .disabled(!isEnabled)
         .accessibilityLabel(title)
     }
 
-    private func annotationToolbarMenu(title: String, isEnabled: Bool) -> some View {
+    private func annotationToolbarMenu(
+        title: String,
+        systemImage: String,
+        isEnabled: Bool
+    ) -> some View {
         Menu {
             Section(wordZText("显示口径", "Display Profile", mode: languageMode)) {
                 ForEach(WorkspaceAnnotationProfile.allCases) { profile in
@@ -162,11 +208,12 @@ struct MainWorkspaceWindowToolbar: ToolbarContent {
             }
             .disabled(annotationState.lexicalClasses.isEmpty && annotationState.scripts.isEmpty)
         } label: {
-            Image(systemName: WorkspaceToolbarAction.annotationControls.toolbarSymbolName)
+            Image(systemName: systemImage)
         }
         .help("\(title)\n\(annotationSummary)")
         .disabled(!isEnabled)
         .accessibilityLabel(title)
+        .adaptiveGlassButtonStyle()
     }
 }
 
@@ -176,29 +223,47 @@ struct LibraryWindowToolbar: ToolbarContent {
     let canTriggerCleaning: Bool
     let cleaningToolbarTitle: String
     let cleaningToolbarAction: LibraryManagementAction
+    let status: LibraryToolbarStatus?
     let overflowActions: [LibraryManagementOverflowActionSceneItem]
     let onAction: (LibraryManagementAction) -> Void
 
     @ToolbarContentBuilder
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            Button(wordZText("导入语料", "Import Corpora", mode: languageMode)) {
-                onAction(.importPaths)
-            }
+            toolbarButton(
+                title: wordZText("制作 DB", "Build DB", mode: languageMode),
+                systemImage: "plus",
+                isProminent: true,
+                action: { onAction(.importPaths) }
+            )
 
-            Button(cleaningToolbarTitle) {
-                onAction(cleaningToolbarAction)
-            }
-            .disabled(!canTriggerCleaning)
-
+            toolbarButton(
+                title: wordZText("新建文件夹", "New Folder", mode: languageMode),
+                systemImage: "folder.badge.plus",
+                action: { onAction(.createFolder) }
+            )
         }
 
         AdaptiveToolbarSpacer()
 
-        if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSearchEnhancements {
+        if let status {
+            ToolbarItem(placement: .automatic) {
+                libraryStatusView(status)
+            }
+        }
+
+        AdaptiveToolbarSpacer()
+
+        if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSharedBackground {
             ToolbarItem(placement: .automatic) {
                 Menu {
-                    Toggle(wordZText("保留目录结构", "Preserve Folder Structure", mode: languageMode), isOn: $preserveHierarchy)
+                    Button(wordZText("语料构建器", "Corpus Builder", mode: languageMode)) {
+                        onAction(.showCorpusBuilder)
+                    }
+
+                    Button(wordZText("保存当前选择为语料集", "Save Selection as Set", mode: languageMode)) {
+                        onAction(.saveCurrentCorpusSet)
+                    }
 
                     Divider()
 
@@ -215,7 +280,13 @@ struct LibraryWindowToolbar: ToolbarContent {
         } else {
             ToolbarItem(placement: .automatic) {
                 Menu {
-                    Toggle(wordZText("保留目录结构", "Preserve Folder Structure", mode: languageMode), isOn: $preserveHierarchy)
+                    Button(wordZText("语料构建器", "Corpus Builder", mode: languageMode)) {
+                        onAction(.showCorpusBuilder)
+                    }
+
+                    Button(wordZText("保存当前选择为语料集", "Save Selection as Set", mode: languageMode)) {
+                        onAction(.saveCurrentCorpusSet)
+                    }
 
                     Divider()
 
@@ -230,6 +301,59 @@ struct LibraryWindowToolbar: ToolbarContent {
             }
         }
     }
+
+    private func toolbarButton(
+        title: String,
+        systemImage: String,
+        isEnabled: Bool = true,
+        isProminent: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+        }
+        .adaptiveGlassButtonStyle(prominent: isProminent)
+        .help(title)
+        .disabled(!isEnabled)
+        .accessibilityLabel(title)
+    }
+
+    @ViewBuilder
+    private func libraryStatusView(_ status: LibraryToolbarStatus) -> some View {
+        let content = HStack(spacing: 6) {
+            Image(systemName: status.systemImage)
+            if let progress = status.progress {
+                ProgressView(value: progress)
+                    .frame(width: 54)
+            } else {
+                Text(status.title)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(status.tint)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(status.tint.opacity(0.12), in: Capsule())
+        .help(status.detail)
+        .accessibilityLabel(status.title)
+
+        if status.badgeCount > 0 {
+            content.badge(status.badgeCount)
+        } else {
+            content
+        }
+    }
+}
+
+struct LibraryToolbarStatus: Equatable {
+    let title: String
+    let detail: String
+    let systemImage: String
+    let tint: Color
+    let badgeCount: Int
+    let progress: Double?
 }
 
 struct SettingsWindowToolbar: ToolbarContent {
@@ -246,7 +370,7 @@ struct SettingsWindowToolbar: ToolbarContent {
 
         AdaptiveToolbarSpacer()
 
-        if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSearchEnhancements {
+        if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSharedBackground {
             ToolbarItem(placement: .primaryAction) {
                 Button(wordZText("保存设置", "Save Settings", mode: languageMode)) {
                     onAction(.save)
@@ -268,7 +392,7 @@ struct SettingsWindowToolbar: ToolbarContent {
 struct AdaptiveToolbarSpacer: ToolbarContent {
     @ToolbarContentBuilder
     var body: some ToolbarContent {
-        if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSearchEnhancements {
+        if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSpacer {
             ToolbarSpacer(.fixed)
         }
     }
@@ -280,6 +404,7 @@ struct NativeLibrarySearchPresentationModifier: ViewModifier {
         let profile = NativeWindowPresentationProfile.profile(for: .library)
 
         if #available(macOS 26.0, *),
+           capabilities.supportsSearchToolbarBehavior,
            profile.resolvedSearchMode(capabilities: capabilities) == .libraryToolbar {
             content.searchToolbarBehavior(.automatic)
         } else {
@@ -294,6 +419,7 @@ struct NativeTaskCenterSearchPresentationModifier: ViewModifier {
         let profile = NativeWindowPresentationProfile.profile(for: .taskCenter)
 
         if #available(macOS 26.0, *),
+           capabilities.supportsSearchToolbarBehavior,
            profile.resolvedSearchMode(capabilities: capabilities) == .taskCenterToolbar {
             content.searchToolbarBehavior(.automatic)
         } else {

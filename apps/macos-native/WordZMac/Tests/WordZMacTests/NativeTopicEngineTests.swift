@@ -32,6 +32,24 @@ final class NativeTopicEngineTests: XCTestCase {
         XCTAssertEqual(Set(slices.map(\.id)).count, slices.count)
     }
 
+    func testMakeSlicesKeepsChineseTopicTerms() async throws {
+        let engine = NativeTopicEngine()
+        let text = """
+        城市交通系统正在优化公交调度和地铁换乘，新的数据平台能够减少拥堵并改善通勤体验。
+
+        医疗团队评估远程问诊流程，重点关注患者安全、服务质量和基层医院协作。
+        """
+
+        let slices = try await engine.makeSlices(
+            for: text,
+            cacheKey: "slice-chinese-topic-test"
+        )
+
+        XCTAssertGreaterThanOrEqual(slices.count, 2)
+        XCTAssertTrue(slices.allSatisfy { !$0.tokens.isEmpty })
+        XCTAssertTrue(slices.flatMap(\.keywordTerms).contains { $0.contains("交通") || $0.contains("医疗") })
+    }
+
     func testMakeSlicesSplitsVeryLongSentenceByClausesBeforeChunkAssembly() async throws {
         let engine = NativeTopicEngine()
         let text = """

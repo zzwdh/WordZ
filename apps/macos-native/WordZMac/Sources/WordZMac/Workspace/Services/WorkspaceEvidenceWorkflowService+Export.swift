@@ -7,11 +7,11 @@ extension WorkspaceEvidenceWorkflowService {
         features: WorkspaceEvidenceWorkflowContext
     ) async {
         guard let item = features.evidenceWorkbench.items.first(where: { $0.id == itemID }) else {
-            features.sidebar.setError(wordZText("未找到要复制的证据条目。", "The evidence item could not be found.", mode: .system))
+            features.sidebar.setError(wordZText("未找到要复制的摘录。", "The excerpt could not be found.", mode: .system))
             return
         }
         hostActionService.copyTextToClipboard(item.styledCitationText)
-        features.library.setStatus(wordZText("已复制证据引文。", "Copied the evidence citation.", mode: .system))
+        features.library.setStatus(wordZText("已复制摘录引文。", "Copied the excerpt citation.", mode: .system))
         features.sidebar.clearError()
     }
 
@@ -22,13 +22,12 @@ extension WorkspaceEvidenceWorkflowService {
         do {
             let document = try EvidenceMarkdownPacketSupport.document(
                 items: features.evidenceWorkbench.filteredItems,
-                grouping: features.evidenceWorkbench.groupingMode,
                 filterSummary: features.evidenceWorkbench.exportScopeSummary(in: .system)
             )
             await exportTextDocument(
                 document,
-                title: wordZText("保存保留条目", "Save Kept Evidence", mode: .system),
-                successStatus: wordZText("已保存写作素材到", "Saved writing material to", mode: .system),
+                title: wordZText("保存保留摘录", "Save Kept Excerpts", mode: .system),
+                successStatus: wordZText("已保存摘录到", "Saved excerpts to", mode: .system),
                 features: features,
                 preferredRoute: preferredRoute
             )
@@ -43,13 +42,13 @@ extension WorkspaceEvidenceWorkflowService {
     ) async {
         let exportItems = features.evidenceWorkbench.filteredItems
         guard !exportItems.isEmpty else {
-            features.sidebar.setError(wordZText("当前没有可导出的证据条目。", "There are no evidence items to export.", mode: .system))
+            features.sidebar.setError(wordZText("当前没有可导出的摘录。", "There are no excerpts to export.", mode: .system))
             return
         }
 
         guard let path = await dialogService.chooseSavePath(
-            title: wordZText("导出证据 JSON", "Export Evidence JSON", mode: .system),
-            suggestedName: "wordz-evidence.json",
+            title: wordZText("导出摘录 JSON", "Export Excerpts JSON", mode: .system),
+            suggestedName: "wordz-excerpts.json",
             allowedExtension: "json",
             preferredRoute: preferredRoute
         ) else {
@@ -59,7 +58,7 @@ extension WorkspaceEvidenceWorkflowService {
         do {
             let data = try EvidenceTransferSupport.exportData(items: exportItems)
             try data.write(to: URL(fileURLWithPath: path), options: .atomic)
-            features.library.setStatus(wordZText("已导出证据 JSON 到", "Exported evidence JSON to", mode: .system) + " " + path)
+            features.library.setStatus(wordZText("已导出摘录 JSON 到", "Exported excerpts JSON to", mode: .system) + " " + path)
             features.sidebar.clearError()
         } catch {
             features.sidebar.setError(error.localizedDescription)

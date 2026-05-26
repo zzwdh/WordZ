@@ -88,6 +88,8 @@ enum TrainTopicModelScript {
     private static let minimumUnigramFrequency = 1
     private static let minimumBigramFrequency = 1
     private static let minimumDocumentFrequency = 1
+    // Surrogate precision fixtures are evaluation-only and must not leak into training.
+    private static let trainingBenchmarkFixtureName = "topic-benchmark-v2-baselines.json"
 
     private static let defaultStopwords: Set<String> = [
         "a", "about", "across", "after", "against", "all", "also", "an", "and", "any",
@@ -220,7 +222,7 @@ enum TrainTopicModelScript {
             .appendingPathComponent("WordZMacTests", isDirectory: true)
             .appendingPathComponent("Fixtures", isDirectory: true)
             .appendingPathComponent("Topics", isDirectory: true)
-            .appendingPathComponent("topic-benchmark-v2-baselines.json")
+            .appendingPathComponent(Self.trainingBenchmarkFixtureName)
 
         guard let data = try? Data(contentsOf: fixtureURL),
               let bundle = try? JSONDecoder().decode(TopicBenchmarkFixtureBundle.self, from: data) else {

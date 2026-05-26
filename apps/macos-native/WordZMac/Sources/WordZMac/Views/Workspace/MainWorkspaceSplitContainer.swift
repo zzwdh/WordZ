@@ -8,13 +8,73 @@ struct WorkspaceSplitLayout: Equatable {
     var isInspectorVisible: Bool
 }
 
-struct WorkspaceSplitContentRevision: Equatable {
-    var sceneGraphRevision: Int
-    var selectedRoute: WorkspaceMainRoute
+struct WorkspaceSplitPaneContentRevision: Equatable {
+    var components: [Int]
+    var selectedRoute: WorkspaceMainRoute?
     var runningTaskKeys: Set<WorkspaceRuntimeTaskKey>
     var issueBannerID: String?
     var languageMode: AppLanguageMode
-    var annotationState: WorkspaceAnnotationState
+    var annotationState: WorkspaceAnnotationState?
+
+    init(
+        components: [Int] = [],
+        selectedRoute: WorkspaceMainRoute? = nil,
+        runningTaskKeys: Set<WorkspaceRuntimeTaskKey> = [],
+        issueBannerID: String? = nil,
+        languageMode: AppLanguageMode,
+        annotationState: WorkspaceAnnotationState? = nil
+    ) {
+        self.components = components
+        self.selectedRoute = selectedRoute
+        self.runningTaskKeys = runningTaskKeys
+        self.issueBannerID = issueBannerID
+        self.languageMode = languageMode
+        self.annotationState = annotationState
+    }
+}
+
+struct WorkspaceSplitContentRevision: Equatable {
+    var sidebar: WorkspaceSplitPaneContentRevision
+    var detail: WorkspaceSplitPaneContentRevision
+    var inspector: WorkspaceSplitPaneContentRevision
+    var accessoryRevisionID: String? = nil
+
+    init(
+        sidebar: WorkspaceSplitPaneContentRevision,
+        detail: WorkspaceSplitPaneContentRevision,
+        inspector: WorkspaceSplitPaneContentRevision,
+        accessoryRevisionID: String? = nil
+    ) {
+        self.sidebar = sidebar
+        self.detail = detail
+        self.inspector = inspector
+        self.accessoryRevisionID = accessoryRevisionID
+    }
+
+    init(
+        sceneGraphRevision: Int,
+        selectedRoute: WorkspaceMainRoute,
+        runningTaskKeys: Set<WorkspaceRuntimeTaskKey>,
+        issueBannerID: String?,
+        accessoryRevisionID: String? = nil,
+        languageMode: AppLanguageMode,
+        annotationState: WorkspaceAnnotationState
+    ) {
+        let legacyPaneRevision = WorkspaceSplitPaneContentRevision(
+            components: [sceneGraphRevision],
+            selectedRoute: selectedRoute,
+            runningTaskKeys: runningTaskKeys,
+            issueBannerID: issueBannerID,
+            languageMode: languageMode,
+            annotationState: annotationState
+        )
+        self.init(
+            sidebar: legacyPaneRevision,
+            detail: legacyPaneRevision,
+            inspector: legacyPaneRevision,
+            accessoryRevisionID: accessoryRevisionID
+        )
+    }
 }
 
 struct MainWorkspaceSplitContainer<Sidebar: View, Detail: View, Inspector: View>: NSViewControllerRepresentable {
@@ -86,6 +146,7 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
     private let detailItem: NSSplitViewItem
     private let inspectorItem: NSSplitViewItem
     private var topAccessory: AnyView?
+    private var hasTopAccessory: Bool
     private var detailAccessoryController: NSViewController?
 
     private var currentLayout = WorkspaceSplitLayout(
@@ -93,7 +154,8 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         isInspectorVisible: true
     )
     private var hasAppliedInitialLayout = false
-    private var currentContentRevision: WorkspaceSplitContentRevision?
+    private var appliedContentRevision: WorkspaceSplitContentRevision?
+    private var currentAccessoryRevisionID: String?
 
     init(
         sidebar: Sidebar,
@@ -106,7 +168,9 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         detailController = HostedPaneViewController(rootView: detail)
         inspectorController = HostedPaneViewController(rootView: inspector)
         self.topAccessory = topAccessory
-        currentContentRevision = contentRevision
+        hasTopAccessory = topAccessory != nil
+        appliedContentRevision = contentRevision
+        currentAccessoryRevisionID = contentRevision?.accessoryRevisionID
 
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarController)
         detailItem = NSSplitViewItem(viewController: detailController)
@@ -171,28 +235,109 @@ final class MainWorkspaceSplitController<Sidebar: View, Detail: View, Inspector:
         layout: WorkspaceSplitLayout,
         animateLayoutChanges: Bool? = nil
     ) {
-        if shouldUpdateHostedContent(for: contentRevision) {
-            sidebarController.update(rootView: sidebar)
-            detailController.update(rootView: detail)
-            inspectorController.update(rootView: inspector)
-            self.topAccessory = topAccessory
+        let shouldUpdateAccessory = shouldUpdateTopAccessory(
+            for: contentRevision,
+            nextTopAccessory: topAccessory
+        )
+
+        self.topAccessory = topAccessory
+        hasTopAccessory = topAccessory != nil
+
+        if shouldUpdateAccessory {
             if NativePlatformCapabilities.current.supportsSplitViewAccessories {
                 if #available(macOS 26.0, *) {
                     updateTopAccessoryIfNeeded()
                 }
             }
-            currentContentRevision = contentRevision
         }
-        guard currentLayout != layout else { return }
-        currentLayout = layout
-        applyLayout(animated: animateLayoutChanges ?? hasAppliedInitialLayout)
+        currentAccessoryRevisionID = contentRevision?.accessoryRevisionID
+
+        let layoutChanged = currentLayout != layout
+        if layoutChanged {
+            currentLayout = layout
+            applyLayout(animated: animateLayoutChanges ?? hasAppliedInitialLayout)
+        }
+
+        applyVisiblePaneUpdates(
+            sidebar: sidebar,
+            detail: detail,
+            inspector: inspector,
+            contentRevision: contentRevision,
+            layout: layout
+        )
     }
 
-    private func shouldUpdateHostedContent(
-        for contentRevision: WorkspaceSplitContentRevision?
+    private func shouldUpdateTopAccessory(
+        for contentRevision: WorkspaceSplitContentRevision?,
+        nextTopAccessory: AnyView?
     ) -> Bool {
-        guard let contentRevision else { return true }
-        return currentContentRevision != contentRevision
+        guard let contentRevision else {
+            return hasTopAccessory != (nextTopAccessory != nil)
+        }
+        return currentAccessoryRevisionID != contentRevision.accessoryRevisionID ||
+            hasTopAccessory != (nextTopAccessory != nil)
+    }
+
+    private func applyVisiblePaneUpdates(
+        sidebar: Sidebar,
+        detail: Detail,
+        inspector: Inspector,
+        contentRevision: WorkspaceSplitContentRevision?,
+        layout: WorkspaceSplitLayout
+    ) {
+        guard let contentRevision else {
+            sidebarController.update(rootView: sidebar)
+            detailController.update(rootView: detail)
+            inspectorController.update(rootView: inspector)
+            appliedContentRevision = nil
+            return
+        }
+
+        if shouldUpdateSidebar(for: contentRevision), layout.isSidebarVisible {
+            sidebarController.update(rootView: sidebar)
+            markSidebarApplied(contentRevision)
+        }
+        if shouldUpdateDetail(for: contentRevision) {
+            detailController.update(rootView: detail)
+            markDetailApplied(contentRevision)
+        }
+        if shouldUpdateInspector(for: contentRevision), layout.isInspectorVisible {
+            inspectorController.update(rootView: inspector)
+            markInspectorApplied(contentRevision)
+        }
+    }
+
+    private func shouldUpdateSidebar(for contentRevision: WorkspaceSplitContentRevision) -> Bool {
+        guard let appliedContentRevision else { return true }
+        return appliedContentRevision.sidebar != contentRevision.sidebar
+    }
+
+    private func shouldUpdateDetail(for contentRevision: WorkspaceSplitContentRevision) -> Bool {
+        guard let appliedContentRevision else { return true }
+        return appliedContentRevision.detail != contentRevision.detail
+    }
+
+    private func shouldUpdateInspector(for contentRevision: WorkspaceSplitContentRevision) -> Bool {
+        guard let appliedContentRevision else { return true }
+        return appliedContentRevision.inspector != contentRevision.inspector
+    }
+
+    private func markSidebarApplied(_ contentRevision: WorkspaceSplitContentRevision) {
+        var nextRevision = appliedContentRevision ?? contentRevision
+        nextRevision.sidebar = contentRevision.sidebar
+        appliedContentRevision = nextRevision
+    }
+
+    private func markDetailApplied(_ contentRevision: WorkspaceSplitContentRevision) {
+        var nextRevision = appliedContentRevision ?? contentRevision
+        nextRevision.detail = contentRevision.detail
+        appliedContentRevision = nextRevision
+    }
+
+    private func markInspectorApplied(_ contentRevision: WorkspaceSplitContentRevision) {
+        var nextRevision = appliedContentRevision ?? contentRevision
+        nextRevision.inspector = contentRevision.inspector
+        appliedContentRevision = nextRevision
     }
 
     private func applyLayout(force: Bool = false, animated: Bool = false) {

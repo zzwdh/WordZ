@@ -82,51 +82,6 @@ protocol WorkspaceEvidenceWorkflowServing {
         features: WorkspaceEvidenceWorkflowContext
     ) async
 
-    func moveSelectedEvidenceGroup(
-        direction: EvidenceWorkbenchMoveDirection,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func moveEvidenceGroup(
-        groupID: String,
-        direction: EvidenceWorkbenchMoveDirection,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func moveEvidenceGroup(
-        groupID: String,
-        to targetGroupID: String,
-        placement: EvidenceWorkbenchGroupInsertPlacement,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func assignEvidenceItem(
-        itemID: String,
-        to targetGroupID: String,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func createGroupAndAssignEvidenceItem(
-        itemID: String,
-        features: WorkspaceEvidenceWorkflowContext,
-        preferredRoute: NativeWindowRoute?
-    ) async
-
-    func renameSelectedEvidenceGroup(
-        features: WorkspaceEvidenceWorkflowContext,
-        preferredRoute: NativeWindowRoute?
-    ) async
-
-    func splitSelectedEvidenceGroup(
-        features: WorkspaceEvidenceWorkflowContext,
-        preferredRoute: NativeWindowRoute?
-    ) async
-
-    func mergeSelectedEvidenceGroup(
-        features: WorkspaceEvidenceWorkflowContext,
-        preferredRoute: NativeWindowRoute?
-    ) async
-
     func deleteEvidenceItem(
         itemID: String,
         features: WorkspaceEvidenceWorkflowContext

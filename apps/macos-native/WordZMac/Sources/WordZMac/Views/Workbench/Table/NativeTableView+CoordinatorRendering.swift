@@ -24,7 +24,12 @@ extension NativeTableView.Coordinator {
             textField.identifier = identifier
             textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         }
-        configure(textField, for: column)
+        configure(
+            textField,
+            for: column,
+            isSelected: isRowSelected(rows[row].id),
+            isCellSelected: isCellSelected(rowID: rows[row].id, columnID: columnID)
+        )
 
         let rawValue = rows[row].value(for: columnID)
         textField.stringValue = displayValue(rawValue, for: column)
@@ -59,6 +64,7 @@ extension NativeTableView.Coordinator {
         cellView.markers = markers
         cellView.selectedMarkerID = isSelected ? selectedMarkerID : nil
         cellView.isSelectedRow = isSelected
+        cellView.isCellSelected = isCellSelected(rowID: row.id, columnID: columnID)
         cellView.toolTip = markerStripToolTip(for: markers)
         cellView.setAccessibilityLabel(markerStripAccessibilityLabel(for: markers))
         cellView.onSelectMarker = { [weak self] markerID, shouldActivate in
@@ -69,6 +75,20 @@ extension NativeTableView.Coordinator {
         }
         cellView.onActivateMarker = { [weak self] in
             self?.activateMarker(rowID: row.id) ?? false
+        }
+        cellView.onToggleCellSelection = { [weak self] in
+            guard
+                let self,
+                let tableView = self.tableView,
+                let rowIndex = self.rowIndexByID[row.id],
+                let columnIndex = tableView.tableColumns.firstIndex(where: { $0.identifier.rawValue == columnID })
+            else {
+                return false
+            }
+            return self.toggleCellSelection(rowIndex: rowIndex, columnIndex: columnIndex)
+        }
+        cellView.onCopy = { [weak self] in
+            self?.copySelectedRowsToPasteboard() ?? false
         }
         cellView.needsDisplay = true
         return cellView
@@ -93,20 +113,35 @@ extension NativeTableView.Coordinator {
     }
 
     @MainActor
-    func configure(_ textField: NSTextField, for columnID: String) {
+    func configure(_ textField: NSTextField, for columnID: String, isSelected: Bool = false) {
         guard let column = descriptor.column(id: columnID) else { return }
-        configure(textField, for: column)
+        configure(textField, for: column, isSelected: isSelected)
     }
 
     @MainActor
-    func configure(_ textField: NSTextField, for column: NativeTableColumnDescriptor) {
+    func configure(
+        _ textField: NSTextField,
+        for column: NativeTableColumnDescriptor,
+        isSelected: Bool = false,
+        isCellSelected: Bool = false
+    ) {
         let metrics = NativeTableView.metrics(for: resolvedDensity())
         textField.maximumNumberOfLines = 1
         textField.alignment = alignment(for: column)
         textField.font = font(for: column, metrics: metrics)
-        textField.textColor = textColor(for: column)
+        textField.textColor = textColor(for: column, isSelected: isSelected)
         textField.lineBreakMode = lineBreakMode(for: column)
         textField.backgroundColor = .clear
         textField.drawsBackground = false
+        textField.wantsLayer = true
+        textField.layer?.cornerRadius = 4
+        textField.layer?.masksToBounds = true
+        textField.layer?.backgroundColor = isCellSelected
+            ? NSColor.controlAccentColor.withAlphaComponent(isSelected ? 0.24 : 0.12).cgColor
+            : NSColor.clear.cgColor
+        textField.layer?.borderColor = isCellSelected
+            ? NSColor.controlAccentColor.withAlphaComponent(isSelected ? 0.95 : 0.68).cgColor
+            : NSColor.clear.cgColor
+        textField.layer?.borderWidth = isCellSelected ? 1 : 0
     }
 }

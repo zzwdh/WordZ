@@ -84,10 +84,11 @@ extension ComparePageViewModel {
             self.stopwordFilter = .default
             self.isEditingStopwords = false
             self.result = nil
-            self.sortMode = .keynessDescending
-            self.pageSize = .fifty
-            self.currentPage = 1
-            self.visibleColumns = Self.defaultVisibleColumns
+            self.tablePresentation.reset(
+                sortMode: .keynessDescending,
+                pageSize: .fifty,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             self.selectedReferenceSelection = .automatic
             self.referenceOptions = []
             self.selectedRowID = nil

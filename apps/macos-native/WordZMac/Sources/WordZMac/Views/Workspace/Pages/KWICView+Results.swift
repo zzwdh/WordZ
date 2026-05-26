@@ -105,7 +105,7 @@ extension KWICView {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    Text(t("原文阅读视图", "Source Reading View"))
+                    Text(t("DB 来源预览", "DB Source Preview"))
                         .font(.headline)
                     Spacer()
                     Text(t("句", "Sentence") + " \(selectedRow.sentenceId + 1)")
@@ -129,7 +129,7 @@ extension KWICView {
                     Button {
                         onAction(.openSourceReader)
                     } label: {
-                        Label(t("打开原文视图", "Open Source View"), systemImage: "doc.text.magnifyingglass")
+                        Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
                     }
                     WorkbenchCopyTextButton(
                         title: t("复制引文", "Copy Citation"),
@@ -138,7 +138,7 @@ extension KWICView {
                     Button {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     } label: {
-                        Label(t("加入证据篮", "Add to Evidence Basket"), systemImage: "text.badge.plus")
+                        Label(t("暂存摘录", "Save Excerpt"), systemImage: "text.badge.plus")
                     }
                     ConcordanceReadingExportMenu(
                         languageMode: languageMode,
@@ -164,8 +164,8 @@ extension KWICView {
             languageMode: languageMode,
             addCurrentTitle: t("加入当前行", "Add Current Row"),
             emptyMessage: t(
-                "把当前 KWIC 行加入证据篮后，这里会显示可复查、可标记、可备注的分析片段。",
-                "Add the current KWIC row to collect reviewable, annotatable evidence here."
+                "把少量关键 KWIC 行暂存到摘录篮；表格和截图仍建议直接复制到 Word。",
+                "Save a few key KWIC rows to the excerpt tray; copy tables and screenshots directly to Word."
             ),
             currentSelectionAvailable: viewModel.selectedSceneRow != nil,
             itemPreviewText: { $0.concordanceText },

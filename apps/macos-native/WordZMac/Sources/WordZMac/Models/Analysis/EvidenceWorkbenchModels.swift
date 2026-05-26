@@ -381,10 +381,6 @@ struct EvidenceItem: Identifiable, Codable, Equatable, Sendable {
         "\"" + value.replacingOccurrences(of: "\"", with: "'") + "\""
     }
 
-    var tagSummaryText: String {
-        tags.joined(separator: ", ")
-    }
-
     var hasSavedSetProvenance: Bool {
         !(savedSetID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
     }
@@ -405,26 +401,6 @@ struct EvidenceItem: Identifiable, Codable, Equatable, Sendable {
         }
         if parts.isEmpty {
             return wordZText("无额外参数", "No extra parameters", mode: mode)
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    func dossierSummary(in mode: AppLanguageMode) -> String {
-        var parts: [String] = []
-        if let claim = normalizedValue(claim) {
-            parts.append(wordZText("发现线索", "Finding", mode: mode) + ": " + claim)
-        }
-        if !tags.isEmpty {
-            parts.append(wordZText("标签", "Tags", mode: mode) + ": " + tagSummaryText)
-        }
-        if let sectionTitle = normalizedValue(sectionTitle) {
-            parts.append(wordZText("证据组", "Evidence Group", mode: mode) + ": " + sectionTitle)
-        }
-        if citationFormat != .citationLine {
-            parts.append(wordZText("引文文本", "Citation Text", mode: mode) + ": " + citationFormat.title(in: mode))
-        }
-        if citationStyle != .plain {
-            parts.append(wordZText("引用样式", "Reference Style", mode: mode) + ": " + citationStyle.title(in: mode))
         }
         return parts.joined(separator: " · ")
     }
@@ -550,7 +526,7 @@ enum EvidenceTransferSupport {
         var errorDescription: String? {
             switch self {
             case .emptySelection:
-                return wordZText("没有可导出的证据条目。", "There are no evidence items to export.", mode: .system)
+                return wordZText("没有可导出的摘录。", "There are no excerpts to export.", mode: .system)
             }
         }
     }
@@ -582,13 +558,11 @@ enum EvidenceTransferSupport {
 enum EvidenceMarkdownPacketSupport {
     static func document(
         items: [EvidenceItem],
-        grouping: EvidenceWorkbenchGroupingMode = .section,
         exportedAt: Date = Date(),
         filterSummary: String? = nil
     ) throws -> PlainTextExportDocument {
         try EvidenceMarkdownDossierSupport.document(
             items: items,
-            grouping: grouping,
             exportedAt: exportedAt,
             filterSummary: filterSummary
         )

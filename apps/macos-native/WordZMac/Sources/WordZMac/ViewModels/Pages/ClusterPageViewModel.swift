@@ -80,10 +80,11 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
     var onInputChange: (() -> Void)?
     let sceneBuilder: ClusterSceneBuilder
     var result: ClusterResult?
-    var sortMode: ClusterSortMode = .frequencyDescending
-    var pageSize: ClusterPageSize = .oneHundred
-    var currentPage = 1
-    var visibleColumns: Set<ClusterColumnKey> = ClusterPageViewModel.defaultVisibleColumns
+    var tablePresentation = AnalysisTablePresentationState<ClusterColumnKey, ClusterSortMode, ClusterPageSize>(
+        sortMode: .frequencyDescending,
+        pageSize: .oneHundred,
+        visibleColumns: ClusterPageViewModel.defaultVisibleColumns
+    )
     var annotationState = WorkspaceAnnotationState.default
 
     init(sceneBuilder: ClusterSceneBuilder = ClusterSceneBuilder()) {
@@ -143,21 +144,21 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
         case .changeMinFrequency(let value):
             minimumFrequency = value
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .changeCaseSensitive(let nextValue):
             caseSensitive = nextValue
         case .changePunctuationMode(let nextMode):
             punctuationMode = nextMode
         case .toggleColumn(let column):
-            toggleVisibleColumnAndRebuild(column)
+            toggleTableColumnAndRebuild(column)
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         case .selectRow(let rowID):
             selectedRowID = rowID
             rebuildScene()
@@ -242,11 +243,12 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
         punctuationMode = .boundary
         isEditingStopwords = false
         result = nil
-        sortMode = .frequencyDescending
-        pageSize = .oneHundred
-        currentPage = 1
+        tablePresentation.reset(
+            sortMode: .frequencyDescending,
+            pageSize: .oneHundred,
+            visibleColumns: Self.defaultVisibleColumns
+        )
         selectedRowID = nil
-        visibleColumns = Self.defaultVisibleColumns
         scene = nil
     }
 
@@ -263,14 +265,15 @@ final class ClusterPageViewModel: ObservableObject, AnalysisInputStateControllin
         }
     }
 
-    private func sortByColumn(_ column: ClusterColumnKey) {
-        let nextSort: ClusterSortMode
+    func nextSortMode(
+        for column: ClusterColumnKey,
+        currentSortMode _: ClusterSortMode
+    ) -> ClusterSortMode? {
         switch column {
         case .phrase:
-            nextSort = .alphabeticalAscending
+            return .alphabeticalAscending
         default:
-            nextSort = .frequencyDescending
+            return .frequencyDescending
         }
-        applySortModeChange(nextSort)
     }
 }

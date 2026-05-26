@@ -6,6 +6,7 @@ enum WorkspaceToolbarAction: String, Identifiable, CaseIterable {
     case openSelected
     case openSourceReader
     case annotationControls
+    case copyCurrentResult
     case previewCurrentCorpus
     case shareCurrentContent
     case runStats
@@ -30,6 +31,8 @@ enum WorkspaceToolbarAction: String, Identifiable, CaseIterable {
 struct WorkspaceToolbarActionItem: Identifiable, Equatable {
     let action: WorkspaceToolbarAction
     let title: String
+    let systemImage: String
+    let nativeCommand: NativeAppCommand?
     let isEnabled: Bool
 
     var id: String { action.id }

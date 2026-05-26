@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleCollocateAction(_ action: CollocatePageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runCollocate() }
+            handleWorkspaceIntent(.runAnalysis(.collocate))
         case .openKWIC:
             launch { await self.workspace.openCollocateKWIC() }
         case .applyPreset, .changeFocusMetric, .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .selectRow, .previousPage, .nextPage:

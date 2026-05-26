@@ -160,10 +160,11 @@ extension KeywordPageViewModel {
             self.selectedSavedListID = nil
             self.comparisonSavedListID = nil
             self.result = nil
-            self.sortMode = .keynessDescending
-            self.pageSize = .fifty
-            self.currentPage = 1
-            self.visibleColumns = Self.defaultVisibleColumns
+            self.tablePresentation.reset(
+                sortMode: .keynessDescending,
+                pageSize: .fifty,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             self.selectedRowID = nil
             self.lastRunConfiguration = nil
             self.scene = nil

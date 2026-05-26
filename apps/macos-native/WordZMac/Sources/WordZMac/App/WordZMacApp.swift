@@ -37,7 +37,7 @@ package enum WordZCoreAppScenes {
             localization: localization
         )
 
-        Window("Source Reader", id: NativeWindowRoute.sourceReader.id) {
+        Window("DB Source Preview", id: NativeWindowRoute.sourceReader.id) {
             SourceReaderWindowView(workspace: workspace)
                 .wordZLocalizedEnvironment(localization)
         }

@@ -19,6 +19,24 @@ final class AnalysisStateSupportTests: XCTestCase {
         let id: String
     }
 
+    private enum FakeColumn: Hashable {
+        case alpha
+        case beta
+    }
+
+    private enum FakeSortMode: Equatable {
+        case alpha
+        case beta
+    }
+
+    private enum FakePageSize: Equatable, InteractiveAllPageSizing {
+        case ten
+        case all
+
+        var isAllSelection: Bool { self == .all }
+        static var safeInteractiveFallback: FakePageSize { .ten }
+    }
+
     func testApplyStateChangeTogglesFlagAndTriggersRebuild() {
         let controller = FakeStateController()
         var rebuilt = false
@@ -99,5 +117,96 @@ final class AnalysisStateSupportTests: XCTestCase {
         ])
 
         XCTAssertEqual(controller.selectedRowID, "alpha")
+    }
+
+    func testSelectionOnlyUpdateClassifiesNoOpsAndValidSelectionChanges() {
+        let controller = FakeSelectionController()
+        controller.selectedRowID = "alpha"
+        let rows = [
+            FakeRow(id: "alpha"),
+            FakeRow(id: "beta")
+        ]
+
+        XCTAssertEqual(
+            controller.applySelectionOnlyUpdate("alpha", within: rows),
+            .none
+        )
+        XCTAssertEqual(controller.selectedRowID, "alpha")
+
+        XCTAssertEqual(
+            controller.applySelectionOnlyUpdate("beta", within: rows),
+            .selectionOnly
+        )
+        XCTAssertEqual(controller.selectedRowID, "beta")
+
+        XCTAssertEqual(
+            controller.applySelectionOnlyUpdate("missing", within: rows),
+            .selectionOnly
+        )
+        XCTAssertEqual(controller.selectedRowID, "alpha")
+    }
+
+    func testSceneUpdatePlannerClassifiesTableMutationsAsViewportChanges() {
+        XCTAssertEqual(AnalysisSceneUpdatePlanner.scope(for: .sort), .tableViewport)
+        XCTAssertEqual(AnalysisSceneUpdatePlanner.scope(for: .pageSize), .tableViewport)
+        XCTAssertEqual(AnalysisSceneUpdatePlanner.scope(for: .pageNavigation), .tableViewport)
+        XCTAssertEqual(AnalysisSceneUpdatePlanner.scope(for: .columnVisibility), .tableViewport)
+    }
+
+    func testTablePresentationMutationsResetPagingAndIgnoreNoOps() {
+        var state = AnalysisTablePresentationState<FakeColumn, FakeSortMode, FakePageSize>(
+            sortMode: .alpha,
+            pageSize: .ten,
+            currentPage: 3,
+            visibleColumns: [.alpha]
+        )
+
+        XCTAssertFalse(state.applySortModeChange(.alpha))
+        XCTAssertEqual(state.currentPage, 3)
+
+        XCTAssertTrue(state.applySortModeChange(.beta))
+        XCTAssertEqual(state.sortMode, .beta)
+        XCTAssertEqual(state.currentPage, 1)
+
+        state.currentPage = 4
+        XCTAssertFalse(state.applyPageSizeChange(.ten))
+        XCTAssertEqual(state.currentPage, 4)
+
+        XCTAssertTrue(state.applyPageSizeChange(.all))
+        XCTAssertEqual(state.pageSize, .all)
+        XCTAssertEqual(state.currentPage, 1)
+    }
+
+    func testTablePresentationKeepsLargeAllSelectionGuardrail() {
+        var state = AnalysisTablePresentationState<FakeColumn, FakeSortMode, FakePageSize>(
+            sortMode: .alpha,
+            pageSize: .all,
+            currentPage: 3,
+            visibleColumns: [.alpha]
+        )
+
+        XCTAssertTrue(state.applyResolvedPageSizeChange(
+            .all,
+            totalRows: ResultPerformanceGuardrails.maximumInteractiveAllRows + 1
+        ))
+        XCTAssertEqual(state.pageSize, .ten)
+        XCTAssertEqual(state.currentPage, 1)
+    }
+
+    func testTablePresentationColumnToggleProtectsLastVisibleColumn() {
+        var state = AnalysisTablePresentationState<FakeColumn, FakeSortMode, FakePageSize>(
+            sortMode: .alpha,
+            pageSize: .ten,
+            visibleColumns: [.alpha]
+        )
+
+        XCTAssertFalse(state.toggleColumn(.alpha))
+        XCTAssertEqual(state.visibleColumns, [.alpha])
+
+        XCTAssertTrue(state.toggleColumn(.beta))
+        XCTAssertEqual(state.visibleColumns, [.alpha, .beta])
+
+        XCTAssertTrue(state.toggleColumn(.beta))
+        XCTAssertEqual(state.visibleColumns, [.alpha])
     }
 }

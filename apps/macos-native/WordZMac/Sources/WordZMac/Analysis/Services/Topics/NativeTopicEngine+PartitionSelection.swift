@@ -11,15 +11,32 @@ struct TopicPartitionEvaluation {
 
 struct TopicPartitionSelectionPolicy {
     let vectorCount: Int
+    let scoringProfile: TopicPartitionScoringProfile
+
+    init(
+        vectorCount: Int,
+        scoringProfile: TopicPartitionScoringProfile = .balanced
+    ) {
+        self.vectorCount = vectorCount
+        self.scoringProfile = scoringProfile
+    }
 
     private let smallCorpusVectorLimit = 12
-    private let smallCorpusMultiClusterScoreTolerance = 0.05
-    private let smallCorpusCoverageFloor = 0.6
+    private var smallCorpusMultiClusterScoreTolerance: Double {
+        scoringProfile == .precisionFirst ? 0.075 : 0.05
+    }
+    private var smallCorpusCoverageFloor: Double {
+        scoringProfile == .precisionFirst ? 0.48 : 0.6
+    }
     private let protectedCoverageFloor = 0.75
     private let protectedWithinClusterFloor = 0.16
     private let protectedSilhouetteFloor = 0.01
-    private let exactConservativeScoreTolerance = 0.03
-    private let approximateConservativeScoreTolerance = 0.02
+    private var exactConservativeScoreTolerance: Double {
+        scoringProfile == .precisionFirst ? 0.045 : 0.03
+    }
+    private var approximateConservativeScoreTolerance: Double {
+        scoringProfile == .precisionFirst ? 0.035 : 0.02
+    }
     private let exactLowQualitySilhouetteThreshold = 0.08
     private let exactLowQualityWithinClusterThreshold = 0.22
     private let approximateLowQualitySilhouetteThreshold = 0.12
@@ -128,7 +145,9 @@ struct TopicPartitionSelectionPolicy {
         }
 
         let prefersPrecisionRefinement = useLexicalRefinement && vectorCount <= smallCorpusVectorLimit
-        let refinedOutlierBudget = max(3, vectorCount / 4)
+        let refinedOutlierBudget = scoringProfile == .precisionFirst
+            ? max(4, vectorCount / 3)
+            : max(3, vectorCount / 4)
         if prefersPrecisionRefinement,
            refinedCandidate.validClusters.count >= basePartition.validClusters.count,
            refinedCandidate.outlierIndices.count <= refinedOutlierBudget {

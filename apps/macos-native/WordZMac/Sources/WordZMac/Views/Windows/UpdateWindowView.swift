@@ -3,6 +3,7 @@ import SwiftUI
 
 struct UpdateWindowView: View {
     @Environment(\.wordZLanguageMode) var languageMode
+    @Environment(\.openWindow) var openWindow
     @ObservedObject var workspace: MainWorkspaceViewModel
     @State private var window: NSWindow?
 
@@ -60,17 +61,6 @@ struct UpdateWindowView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 }
 
-                NativeWindowSection(title: t("版本亮点", "Release Highlights"), subtitle: releaseNotesSubtitle) {
-                    if releaseNotes.isEmpty {
-                        Text(t("当前没有可显示的版本说明。", "No release notes are available right now."))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(Array(releaseNotes.enumerated()), id: \.offset) { _, line in
-                            Text("• \(line)")
-                        }
-                    }
-                }
-
                 HStack(alignment: .center, spacing: 10) {
                     Button(t("取消", "Cancel")) {
                         closeWindow()
@@ -78,8 +68,8 @@ struct UpdateWindowView: View {
 
                     Spacer(minLength: 12)
 
-                    Button(t("查看发布页", "Open Release Page")) {
-                        Task { await workspace.openReleaseNotes() }
+                    Button(t("版本说明", "Release Notes")) {
+                        openWindowRoute(.releaseNotes)
                     }
 
                     Button(t("关闭自动下载安装", "Turn Off Auto Install")) {
@@ -158,18 +148,6 @@ struct UpdateWindowView: View {
         return workspace.settings.scene.updateSummary
     }
 
-    private var releaseNotes: [String] {
-        workspace.settings.scene.latestReleaseNotes.isEmpty
-            ? workspace.settings.scene.releaseNotes
-            : workspace.settings.scene.latestReleaseNotes
-    }
-
-    private var releaseNotesSubtitle: String {
-        workspace.settings.scene.latestReleaseTitle.isEmpty
-            ? displayLatestVersion
-            : workspace.settings.scene.latestReleaseTitle
-    }
-
     private var windowTitle: String {
         if workspace.settings.scene.canInstallDownloadedUpdate {
             return t("准备安装更新", "Ready to Install Update")
@@ -194,6 +172,11 @@ struct UpdateWindowView: View {
 
     private func closeWindow() {
         window?.close()
+    }
+
+    private func openWindowRoute(_ route: NativeWindowRoute) {
+        guard NativeWindowRouting.shouldRequestPresentation(for: route) else { return }
+        openWindow(id: route.id)
     }
 
     private func t(_ zh: String, _ en: String) -> String {

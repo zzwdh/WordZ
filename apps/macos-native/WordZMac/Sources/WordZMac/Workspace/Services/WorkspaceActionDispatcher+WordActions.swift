@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleWordAction(_ action: WordPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runWord() }
+            handleWorkspaceIntent(.runAnalysis(.word))
         case .changeNormalizationUnit(let unit):
             workspace.updateFrequencyMetricDefinition(
                 FrequencyMetricDefinition(

@@ -246,6 +246,19 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertTrue(viewModel.scene?.table.isVisible(SentimentColumnKey.evidence) == true)
     }
 
+    func testSentimentRowSelectionDoesNotRebuildScene() {
+        let viewModel = SentimentPageViewModel()
+        viewModel.apply(makeSentimentResult())
+        let initialRevision = viewModel.sceneBuildRevision
+        let initialSnapshotVersion = viewModel.scene?.tableSnapshot.version
+
+        viewModel.handle(.selectRow("sentiment-negative"))
+
+        XCTAssertEqual(viewModel.selectedRowID, "sentiment-negative")
+        XCTAssertEqual(viewModel.sceneBuildRevision, initialRevision)
+        XCTAssertEqual(viewModel.scene?.tableSnapshot.version, initialSnapshotVersion)
+    }
+
     func testSentimentPageViewModelRestoresReferenceCorpusSetFromSnapshot() {
         let referenceSet = LibraryCorpusSetItem(json: [
             "id": "set-1",
@@ -672,9 +685,16 @@ final class ViewModelsTests: XCTestCase {
         )
 
         XCTAssertEqual(viewModel.scene.targetCorpus.summary, "Demo Corpus")
+        XCTAssertEqual(viewModel.scene.targetCorpus.title, wordZText("目标 DB", "Target DB Corpus", mode: viewModel.languageMode))
+        XCTAssertEqual(viewModel.scene.targetCorpus.detail, "Demo Corpus.db · Default")
+        XCTAssertEqual(viewModel.scene.corpusOptions.first?.subtitle, "Demo Corpus.db · Default")
         XCTAssertEqual(
             viewModel.scene.referenceCorpus.summary,
             wordZText("可选", "Optional", mode: viewModel.languageMode)
+        )
+        XCTAssertEqual(
+            viewModel.scene.referenceCorpus.title,
+            wordZText("参照 DB", "Reference DB Corpus", mode: viewModel.languageMode)
         )
         XCTAssertFalse(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? true)
         XCTAssertNil(viewModel.scene.results)
@@ -691,6 +711,7 @@ final class ViewModelsTests: XCTestCase {
         )
 
         XCTAssertTrue(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? false)
+        XCTAssertEqual(viewModel.scene.referenceCorpus.detail, "Compare Corpus.db · Default")
         XCTAssertEqual(viewModel.scene.results?.title, "Keyword")
 
         viewModel.metadataSourceQuery = "教材"
@@ -761,7 +782,8 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.metadataFilterState.yearTo, "2024")
         XCTAssertEqual(viewModel.filteredCorpusCount, 1)
         XCTAssertEqual(viewModel.selectedCorpusID, "corpus-1")
-        XCTAssertTrue(viewModel.scene.selectedCorpusSetSummary?.contains("教材集") ?? false)
+        XCTAssertEqual(viewModel.scene.targetCorpus.detail, "1 个 DB 语料库 · DB 语料集")
+        XCTAssertEqual(viewModel.scene.selectedCorpusSetSummary, "当前 DB 语料集：教材集")
         XCTAssertEqual(callbackCount, 1)
     }
 
@@ -1052,8 +1074,12 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.inspector?.title, "Compare Corpus")
         XCTAssertEqual(viewModel.scene.inspector?.actions.first?.action, .openSelectedCorpus)
         XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .showSelectedCorpusInfo }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .editSelectedCorpusMetadata }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "体裁" && $0.value == "学术" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .renameSelectedCorpus }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "db-project" && $0.detail.contains(".db") }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "zh-analysis" && $0.detail.contains("KWIC") }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Format" && $0.value == "db" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Source Format" && $0.value == "TXT" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Project ID" && $0.value == "corpus-2" }) ?? false)
     }
 
     func testLibraryManagementViewModelSupportsBatchSelectionAndIntegritySummary() {
@@ -1096,10 +1122,72 @@ final class ViewModelsTests: XCTestCase {
         viewModel.selectCorpusIDs(["corpus-1", "corpus-2"])
 
         XCTAssertEqual(viewModel.scene.selectedCorpusIDs, Set(["corpus-1", "corpus-2"]))
-        XCTAssertEqual(viewModel.scene.inspector?.title, "已选择 2 条语料")
+        XCTAssertEqual(viewModel.scene.inspector?.title, "已选择 2 个 DB")
         XCTAssertEqual(viewModel.scene.integritySummary.missingYearCount, 1)
         XCTAssertEqual(viewModel.scene.integritySummary.missingGenreCount, 1)
         XCTAssertEqual(viewModel.scene.integritySummary.missingTagsCount, 1)
+        XCTAssertEqual(viewModel.scene.metadataStudio.missingYearCount, 1)
+        XCTAssertEqual(viewModel.scene.metadataStudio.missingGenreCount, 1)
+        XCTAssertEqual(viewModel.scene.metadataStudio.missingTagsCount, 1)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-build" && $0.detail.contains("dbA") }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-readiness" && $0.detail.contains("清洗") }) ?? false)
+    }
+
+    func testLibraryManagementViewModelBuildsCorpusReadinessAndMetadataStudio() {
+        let viewModel = LibraryManagementViewModel()
+        let snapshot = LibrarySnapshot(
+            folders: [LibraryFolderItem(json: ["id": "folder-1", "name": "Default"])],
+            corpora: [
+                LibraryCorpusItem(json: [
+                    "id": "ready",
+                    "name": "Ready Corpus",
+                    "folderId": "folder-1",
+                    "folderName": "Default",
+                    "sourceType": "txt",
+                    "representedPath": "/tmp/ready.txt",
+                    "cleaningStatus": "cleaned",
+                    "metadata": [
+                        "sourceLabel": "期刊",
+                        "yearLabel": "2024",
+                        "genreLabel": "学术",
+                        "tags": ["研究"]
+                    ]
+                ]),
+                LibraryCorpusItem(json: [
+                    "id": "pending",
+                    "name": "Pending Corpus",
+                    "folderId": "folder-1",
+                    "folderName": "Default",
+                    "sourceType": "txt",
+                    "cleaningStatus": "pending"
+                ])
+            ]
+        )
+
+        viewModel.applyBootstrap(snapshot)
+
+        XCTAssertEqual(viewModel.scene.readinessSummary.readyCount, 1)
+        XCTAssertEqual(viewModel.scene.readinessSummary.blockedCount, 1)
+        XCTAssertEqual(viewModel.scene.metadataStudio.completeMetadataCount, 1)
+        XCTAssertEqual(viewModel.scene.metadataStudio.completionText, "50%")
+        XCTAssertEqual(viewModel.scene.corpora.first?.readiness.level, .ready)
+        XCTAssertEqual(viewModel.scene.corpora.last?.readiness.level, .blocked)
+        viewModel.selectCorpus("pending")
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.level == .blocked && $0.detail.contains("待自动清洗") }) ?? false)
+    }
+
+    func testLibraryManagementViewModelBuildsCorpusInfoProjectAndAnalysisDetails() {
+        let viewModel = LibraryManagementViewModel()
+        let scene = viewModel.makeCorpusInfoScene(summary: makeCorpusInfoSummary())
+
+        XCTAssertEqual(scene.projectIDText, "corpus-1")
+        XCTAssertEqual(scene.databaseFileNameText, "Demo Corpus.db")
+        XCTAssertEqual(scene.dbProjectSummaryText, "WordZ DB 项目 · 分析以 .db 为单位运行")
+        XCTAssertEqual(scene.sourceChainText, "Demo Corpus.db ← TXT ← /tmp/demo.txt")
+        XCTAssertEqual(scene.analysisReadinessTitle, "可分析")
+        XCTAssertEqual(scene.missingActionText, "可直接分析")
+        XCTAssertTrue(scene.chineseAnalysisText.contains("Compare"))
+        XCTAssertTrue(scene.chineseAnalysisText.contains("Collocate"))
     }
 
     func testLibraryManagementViewModelSelectingCorpusSetAppliesSavedMembersAndMetadataFilter() {
@@ -1133,6 +1221,7 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.saveableCorpusSetMembers.map(\.id), ["corpus-1"])
         XCTAssertEqual(viewModel.scene.selectedCorpusSetID, "set-1")
         XCTAssertEqual(viewModel.scene.navigationSelection, .savedCorpusSet("set-1"))
+        XCTAssertEqual(viewModel.scene.corpusSets.first?.kindTitle, "智能语料集")
     }
 
     func testLibraryManagementViewModelBuildsRecentCorpusSetSceneItems() {
@@ -1162,6 +1251,67 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.recentCorpusSets.map(\.id), ["set-2"])
         XCTAssertEqual(viewModel.scene.corpusSets.map(\.id), ["set-1"])
         XCTAssertEqual(viewModel.scene.recentCorpusSetsSummary, "最近使用 1 项")
+        XCTAssertEqual(viewModel.scene.corpusSets.first?.kindTitle, "固定语料集")
+    }
+
+    func testLibraryManagementViewModelBuildsImportPreflightScene() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wordz-import-preflight-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let txtURL = root.appendingPathComponent("paper.txt")
+        let pdfURL = root.appendingPathComponent("scan.pdf")
+        let mdURL = root.appendingPathComponent("notes.md")
+        try "sample".write(to: txtURL, atomically: true, encoding: .utf8)
+        try Data().write(to: pdfURL)
+        try "# notes".write(to: mdURL, atomically: true, encoding: .utf8)
+
+        let viewModel = LibraryManagementViewModel()
+        viewModel.applyBootstrap(
+            LibrarySnapshot(
+                folders: [LibraryFolderItem(json: ["id": "folder-1", "name": "Default"])],
+                corpora: [
+                    LibraryCorpusItem(json: [
+                        "id": "existing-paper",
+                        "name": "paper",
+                        "folderId": "folder-1",
+                        "folderName": "Default",
+                        "sourceType": "txt",
+                        "representedPath": txtURL.path
+                    ])
+                ]
+            )
+        )
+
+        viewModel.presentImportPreflight(paths: [root.path], preserveHierarchy: true)
+
+        let scene = try XCTUnwrap(viewModel.importPreflightSheet)
+        XCTAssertEqual(scene.defaultCorpusName, "我的语料库")
+        XCTAssertEqual(scene.fileCountText, "3")
+        XCTAssertEqual(scene.folderCountText, "1")
+        XCTAssertEqual(scene.supportedCountText, "2")
+        XCTAssertEqual(scene.unsupportedCountText, "1")
+        XCTAssertEqual(scene.duplicateRiskCountText, "1")
+        XCTAssertTrue(scene.warnings.contains(where: { $0.id == "unsupported-files" }))
+        XCTAssertTrue(scene.warnings.contains(where: { $0.id == "duplicate-risk" }))
+        XCTAssertTrue(scene.warnings.contains(where: { $0.id == "preserve-hierarchy" }))
+    }
+
+    func testLibraryManagementViewModelSeparatesCorpusBuilderFromDBLibrary() {
+        let viewModel = LibraryManagementViewModel()
+        viewModel.applyBootstrap(makeBootstrapState().librarySnapshot)
+
+        XCTAssertEqual(viewModel.scene.navigationSelection, .allCorpora)
+        XCTAssertEqual(viewModel.scene.content.title, "Corpus Library (.db)")
+        XCTAssertEqual(viewModel.scene.corpora.first?.databaseFileName, "Demo Corpus.db")
+
+        viewModel.selectCorpusBuilder()
+
+        XCTAssertEqual(viewModel.scene.navigationSelection, .corpusBuilder)
+        XCTAssertEqual(viewModel.scene.content.mode, .corpusBuilder)
+        XCTAssertEqual(viewModel.scene.content.title, "Corpus Builder (Files)")
+        XCTAssertTrue(viewModel.scene.selectedCorpusIDs.isEmpty)
     }
 
     func testLibraryManagementViewModelSelectingRecycleBinSwitchesPrimaryContent() {
@@ -1418,26 +1568,10 @@ final class ViewModelsTests: XCTestCase {
         )
     }
 
-    func testEvidenceWorkbenchViewModelCombinesTagCorpusSourceAndSentimentFilters() {
-        var positiveSentiment = makeEvidenceItem(
-            id: "evidence-positive",
+    func testEvidenceWorkbenchViewModelUsesReviewFilterOnly() {
+        let kept = makeEvidenceItem(
+            id: "evidence-keep",
             sourceKind: .sentiment,
-            reviewStatus: .keep,
-            tags: ["teaching", "alpha"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
-        )
-        positiveSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .positive)
-        var negativeSentiment = makeEvidenceItem(
-            id: "evidence-negative",
-            sourceKind: .sentiment,
-            reviewStatus: .keep,
-            tags: ["teaching", "beta"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
-        )
-        negativeSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .negative)
-        let locator = makeEvidenceItem(
-            id: "evidence-locator",
-            sourceKind: .locator,
             reviewStatus: .keep,
             tags: ["teaching", "alpha"],
             corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
@@ -1451,28 +1585,19 @@ final class ViewModelsTests: XCTestCase {
         )
         let viewModel = EvidenceWorkbenchViewModel()
 
-        viewModel.applyItems([positiveSentiment, negativeSentiment, locator, hiddenPending])
+        viewModel.applyItems([kept, hiddenPending])
         viewModel.reviewFilter = .keep
-        viewModel.sourceFilter = .sentiment
-        viewModel.sentimentFilter = .positive
-        viewModel.tagFilterQuery = "teaching, alpha"
-        viewModel.corpusFilterQuery = "archive"
 
-        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-positive"])
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-keep"])
         XCTAssertTrue(viewModel.hasActiveNarrowingFilters)
 
         viewModel.clearFilters()
 
-        XCTAssertEqual(viewModel.filteredItems.map(\.id), [
-            "evidence-positive",
-            "evidence-negative",
-            "evidence-locator",
-            "evidence-pending"
-        ])
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-keep", "evidence-pending"])
         XCTAssertFalse(viewModel.hasActiveNarrowingFilters)
     }
 
-    func testEvidenceWorkbenchViewModelAppliesSnapshotFilters() {
+    func testEvidenceWorkbenchViewModelAppliesSnapshotReviewFilter() {
         var positiveSentiment = makeEvidenceItem(
             id: "evidence-positive",
             sourceKind: .sentiment,
@@ -1490,11 +1615,7 @@ final class ViewModelsTests: XCTestCase {
         )
         negativeSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .negative)
         let snapshot = makeWorkspaceSnapshot(
-            evidenceReviewFilter: .keep,
-            evidenceSourceFilter: .sentiment,
-            evidenceSentimentFilter: .positive,
-            evidenceTagFilterQuery: "teaching",
-            evidenceCorpusFilterQuery: "archive"
+            evidenceReviewFilter: .keep
         )
         let viewModel = EvidenceWorkbenchViewModel()
 
@@ -1502,19 +1623,11 @@ final class ViewModelsTests: XCTestCase {
         viewModel.apply(snapshot)
 
         let expectedScope = [
-            wordZText("审阅", "Review", mode: .system) + ": " + EvidenceReviewFilter.keep.title(in: .system),
-            wordZText("来源", "Source", mode: .system) + ": " + EvidenceSourceFilter.sentiment.title(in: .system),
-            wordZText("情感", "Sentiment", mode: .system) + ": " + EvidenceSentimentFilter.positive.title(in: .system),
-            wordZText("标签", "Tags", mode: .system) + ": teaching",
-            wordZText("语料", "Corpus", mode: .system) + ": archive"
+            wordZText("审阅", "Review", mode: .system) + ": " + EvidenceReviewFilter.keep.title(in: .system)
         ].joined(separator: " · ")
 
         XCTAssertEqual(viewModel.reviewFilter, .keep)
-        XCTAssertEqual(viewModel.sourceFilter, .sentiment)
-        XCTAssertEqual(viewModel.sentimentFilter, .positive)
-        XCTAssertEqual(viewModel.tagFilterQuery, "teaching")
-        XCTAssertEqual(viewModel.corpusFilterQuery, "archive")
-        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-positive"])
+        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-positive", "evidence-negative"])
         XCTAssertEqual(viewModel.exportScopeSummary(in: .system), expectedScope)
     }
 
@@ -1570,206 +1683,6 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertFalse(viewModel.hasMetadataGapsInVisibleKeptItems)
     }
 
-    func testEvidenceWorkbenchViewModelReordersVisibleGroupForManualSorting() {
-        let first = makeEvidenceItem(id: "evidence-group-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hidden = makeEvidenceItem(id: "evidence-group-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")
-        let second = makeEvidenceItem(id: "evidence-group-b-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let third = makeEvidenceItem(id: "evidence-group-b-2", sourceKind: .plot, reviewStatus: .keep, sectionTitle: "Section B")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, hidden, second, third])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-        viewModel.selectedItemID = first.id
-
-        XCTAssertEqual(viewModel.selectedGroup(in: .system)?.title, "Section A")
-        XCTAssertFalse(viewModel.canMoveSelectedGroupUp)
-        XCTAssertTrue(viewModel.canMoveSelectedGroupDown)
-        XCTAssertEqual(
-            viewModel.reorderedItemsMovingSelectedGroup(.down)?.map(\.id),
-            [second.id, hidden.id, third.id, first.id]
-        )
-    }
-
-    func testEvidenceWorkbenchViewModelReordersFallbackGroupUsingStableCrossLocaleID() throws {
-        let unsectioned = makeEvidenceItem(id: "evidence-unsectioned-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: nil)
-        let sectioned = makeEvidenceItem(id: "evidence-sectioned-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([unsectioned, sectioned])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-
-        let englishGroupID = try XCTUnwrap(viewModel.groupedItems(in: .english).first?.id)
-
-        XCTAssertEqual(englishGroupID, "section:__unsectioned__")
-        XCTAssertTrue(viewModel.canMoveGroup(id: englishGroupID, .down, in: .system))
-        XCTAssertEqual(
-            viewModel.reorderedItemsMovingGroup(id: englishGroupID, .down, in: .system)?.map(\.id),
-            [sectioned.id, unsectioned.id]
-        )
-    }
-
-    func testEvidenceWorkbenchViewModelReordersGroupAfterDropTarget() {
-        let first = makeEvidenceItem(id: "evidence-group-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hidden = makeEvidenceItem(id: "evidence-group-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")
-        let second = makeEvidenceItem(id: "evidence-group-b-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let third = makeEvidenceItem(id: "evidence-group-c-1", sourceKind: .plot, reviewStatus: .keep, sectionTitle: "Section C")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, hidden, second, third])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-
-        XCTAssertEqual(
-            viewModel.reorderedItemsMovingGroup(
-                id: "section:Section A",
-                to: "section:Section C",
-                placement: .after,
-                in: .system
-            )?.map(\.id),
-            [second.id, hidden.id, third.id, first.id]
-        )
-    }
-
-    func testEvidenceWorkbenchViewModelAssignsDraggedItemToSectionGroup() throws {
-        let first = makeEvidenceItem(id: "evidence-section-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hidden = makeEvidenceItem(id: "evidence-section-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")
-        let second = makeEvidenceItem(id: "evidence-section-b-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let third = makeEvidenceItem(id: "evidence-section-c-1", sourceKind: .plot, reviewStatus: .keep, sectionTitle: "Section C")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, hidden, second, third])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-
-        let reordered = try XCTUnwrap(
-            viewModel.reorderedItemsAssigningItem(
-                id: first.id,
-                to: "section:Section C",
-                in: .system
-            )
-        )
-
-        XCTAssertEqual(reordered.map(\.id), [second.id, hidden.id, third.id, first.id])
-        XCTAssertEqual(reordered.last?.sectionTitle, "Section C")
-    }
-
-    func testEvidenceWorkbenchViewModelAssignsDraggedItemToUnclaimedGroup() throws {
-        let first = makeEvidenceItem(id: "evidence-claim-a-1", sourceKind: .kwic, reviewStatus: .keep, claim: "Claim A")
-        let second = makeEvidenceItem(id: "evidence-unclaimed-1", sourceKind: .topics, reviewStatus: .keep, claim: nil)
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, second])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .claim
-
-        let reordered = try XCTUnwrap(
-            viewModel.reorderedItemsAssigningItem(
-                id: first.id,
-                to: "claim:__unclaimed__",
-                in: .system
-            )
-        )
-
-        XCTAssertEqual(reordered.map(\.id), [second.id, first.id])
-        XCTAssertNil(reordered.last?.claim)
-    }
-
-    func testEvidenceWorkbenchViewModelAssignsDraggedItemToNewSectionGroupAtEnd() throws {
-        let first = makeEvidenceItem(id: "evidence-section-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hidden = makeEvidenceItem(id: "evidence-section-hidden-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")
-        let second = makeEvidenceItem(id: "evidence-section-b-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, hidden, second])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-
-        let reordered = try XCTUnwrap(
-            viewModel.reorderedItemsAssigningItem(
-                id: first.id,
-                toNewGroup: "Section Z"
-            )
-        )
-
-        XCTAssertEqual(reordered.map(\.id), [second.id, hidden.id, first.id])
-        XCTAssertEqual(reordered.last?.sectionTitle, "Section Z")
-    }
-
-    func testEvidenceWorkbenchViewModelRenamesGroupAcrossHiddenItems() throws {
-        let first = makeEvidenceItem(id: "evidence-section-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hidden = makeEvidenceItem(id: "evidence-section-a-2", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section A")
-        let second = makeEvidenceItem(id: "evidence-section-b-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, hidden, second])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-
-        let reordered = try XCTUnwrap(
-            viewModel.reorderedItemsRenamingGroup(
-                id: "section:Section A",
-                to: "Methods"
-            )
-        )
-
-        XCTAssertEqual(reordered.map(\.id), [first.id, hidden.id, second.id])
-        XCTAssertEqual(reordered[0].sectionTitle, "Methods")
-        XCTAssertEqual(reordered[1].sectionTitle, "Methods")
-    }
-
-    func testEvidenceWorkbenchViewModelMergesGroupIntoTargetPosition() throws {
-        let source = makeEvidenceItem(id: "evidence-section-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hiddenSource = makeEvidenceItem(id: "evidence-section-a-2", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section A")
-        let target = makeEvidenceItem(id: "evidence-section-c-1", sourceKind: .plot, reviewStatus: .keep, sectionTitle: "Section C")
-        let trailing = makeEvidenceItem(id: "evidence-section-d-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section D")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([source, hiddenSource, target, trailing])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-
-        let reordered = try XCTUnwrap(
-            viewModel.reorderedItemsMergingGroup(
-                id: "section:Section A",
-                into: "section:Section C"
-            )
-        )
-
-        XCTAssertEqual(reordered.map(\.id), [target.id, source.id, hiddenSource.id, trailing.id])
-        XCTAssertEqual(reordered[1].sectionTitle, "Section C")
-        XCTAssertEqual(reordered[2].sectionTitle, "Section C")
-    }
-
-    func testEvidenceWorkbenchViewModelSplitsGroupFromSelectedItemIntoAdjacentNewGroup() throws {
-        let lead = makeEvidenceItem(id: "evidence-section-a-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let interleaved = makeEvidenceItem(id: "evidence-section-b-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section B")
-        let selected = makeEvidenceItem(id: "evidence-section-a-2", sourceKind: .plot, reviewStatus: .keep, sectionTitle: "Section A")
-        let hiddenSuffix = makeEvidenceItem(id: "evidence-section-a-3", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section A")
-        let trailing = makeEvidenceItem(id: "evidence-section-c-1", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section C")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([lead, interleaved, selected, hiddenSuffix, trailing])
-        viewModel.reviewFilter = .keep
-        viewModel.groupingMode = .section
-        viewModel.selectedItemID = selected.id
-
-        XCTAssertTrue(viewModel.canSplitSelectedGroup)
-
-        let reordered = try XCTUnwrap(
-            viewModel.reorderedItemsSplittingSelectedGroup(
-                to: "Findings"
-            )
-        )
-
-        XCTAssertEqual(reordered.map(\.id), [lead.id, selected.id, hiddenSuffix.id, interleaved.id, trailing.id])
-        XCTAssertEqual(reordered[0].sectionTitle, "Section A")
-        XCTAssertEqual(reordered[1].sectionTitle, "Findings")
-        XCTAssertEqual(reordered[2].sectionTitle, "Findings")
-        XCTAssertEqual(reordered[3].sectionTitle, "Section B")
-    }
-
     @MainActor
     func testSourceReaderViewModelUsesStoredTokenizedArtifactBeforeFallbackTokenization() async throws {
         let repository = FakeWorkspaceRepository(tokenizeResult: makeTokenizeResult())
@@ -1815,6 +1728,14 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene?.selection?.hit.fullSentenceText, "Delta alpha.")
         XCTAssertEqual(viewModel.scene?.sourceChainItems.map(\.id), ["origin", "query", "corpus", "source-file", "current-highlight"])
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "origin" })?.value, "KWIC")
+        XCTAssertEqual(
+            viewModel.scene?.sourceChainItems.first(where: { $0.id == "corpus" })?.title,
+            wordZText("DB 语料库", "DB Corpus", mode: WordZLocalization.shared.effectiveMode)
+        )
+        XCTAssertEqual(
+            viewModel.scene?.sourceChainItems.first(where: { $0.id == "source-file" })?.title,
+            wordZText("来源文件", "Original Source", mode: WordZLocalization.shared.effectiveMode)
+        )
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "query" })?.detail, "L1 / R1 · Phrase")
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.isCurrent, true)
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.detail, "Delta alpha.")

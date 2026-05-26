@@ -6,6 +6,7 @@ struct NativeStoredCorpusMetadata: Equatable {
     let importedAt: String
     let sourceType: String
     let representedPath: String
+    let sourceFileCount: Int
     let detectedEncoding: String
     let metadataProfile: CorpusMetadataProfile
     let tokenCount: Int
@@ -42,7 +43,7 @@ struct NativeStoredCorpusDatabaseDocument: Equatable {
 }
 
 enum NativeCorpusDatabaseSupport {
-    static let currentSchemaVersion = 8
+    static let currentSchemaVersion = 10
     static let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     static func writeDocument(
@@ -53,7 +54,8 @@ enum NativeCorpusDatabaseSupport {
         importedAt: String,
         metadataProfile: CorpusMetadataProfile = .empty,
         rawText: String? = nil,
-        cleaningSummary: LibraryCorpusCleaningReportSummary? = nil
+        cleaningSummary: LibraryCorpusCleaningReportSummary? = nil,
+        sourceFileCount: Int = 1
     ) throws {
         let resolvedRawText = rawText ?? document.text
         let engine = NativeAnalysisEngine()
@@ -77,6 +79,7 @@ enum NativeCorpusDatabaseSupport {
             importedAt: importedAt,
             sourceType: sourceType,
             representedPath: representedPath,
+            sourceFileCount: max(1, sourceFileCount),
             detectedEncoding: document.encodingName,
             metadataProfile: metadataProfile,
             tokenCount: analysis.tokenCount,
@@ -215,7 +218,8 @@ enum NativeCorpusDatabaseSupport {
                        cleaning_rule_hits_json,
                        original_character_count,
                        cleaned_character_count,
-                       cleaned_text_digest
+                       cleaned_text_digest,
+                       source_file_count
                 FROM corpus_document
                 WHERE id = 1;
                 """,
@@ -267,6 +271,7 @@ enum NativeCorpusDatabaseSupport {
                        original_character_count,
                        cleaned_character_count,
                        cleaned_text_digest,
+                       source_file_count,
                        tokenized_sentences_json,
                        raw_text,
                        cleaned_text,
@@ -286,10 +291,10 @@ enum NativeCorpusDatabaseSupport {
 
             return NativeStoredCorpusDatabaseDocument(
                 text: preferredStoredText(
-                    cleanedText: stringColumn(statement, index: 24),
-                    legacyText: stringColumn(statement, index: 25)
+                    cleanedText: stringColumn(statement, index: 25),
+                    legacyText: stringColumn(statement, index: 26)
                 ),
-                rawText: stringColumn(statement, index: 23),
+                rawText: stringColumn(statement, index: 24),
                 metadata: metadata(from: statement, offset: 0)
             )
         } catch {

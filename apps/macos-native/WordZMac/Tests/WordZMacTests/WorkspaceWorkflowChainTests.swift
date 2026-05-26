@@ -555,12 +555,11 @@ final class WorkspaceWorkflowChainTests: XCTestCase {
         workspace.syncSceneGraph()
         _ = await workspace.openCurrentSourceReader()
 
-        workspace.sourceReader.captureClaim = "Negative sentence evidence."
         await workspace.captureCurrentSourceReaderEvidenceItem()
 
         XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .sentiment)
         XCTAssertEqual(repository.evidenceItems.first?.sentenceId, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.claim, "Negative sentence evidence.")
+        XCTAssertNil(repository.evidenceItems.first?.claim)
         XCTAssertEqual(repository.evidenceItems.first?.keyword, "bad")
     }
 
@@ -579,7 +578,6 @@ final class WorkspaceWorkflowChainTests: XCTestCase {
         workspace.topics.selectedRowID = "paragraph-2"
         _ = await workspace.openCurrentSourceReader()
 
-        workspace.sourceReader.captureTagsText = "topics, security"
         await workspace.captureCurrentSourceReaderEvidenceItem()
 
         XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .topics)
@@ -589,7 +587,7 @@ final class WorkspaceWorkflowChainTests: XCTestCase {
             repository.evidenceItems.first?.fullSentenceText,
             "Hackers shared exploit mitigation strategies and coordinated fixes."
         )
-        XCTAssertEqual(repository.evidenceItems.first?.tags, ["topics", "security"])
+        XCTAssertEqual(repository.evidenceItems.first?.tags, [])
     }
 
     func testTopicsSentimentSourceReaderCapturePreservesTopicsCrossAnalysisMetadata() async {

@@ -19,11 +19,13 @@ extension TokenizeView {
 
                 WorkbenchAdaptiveControls {
                     HStack(spacing: 12) {
+                        languagePresetPicker
                         annotationProfilePicker
                         Spacer(minLength: 0)
                     }
                 } compact: {
                     VStack(alignment: .leading, spacing: 12) {
+                        languagePresetPicker
                         annotationProfilePicker
                     }
                 }
@@ -56,6 +58,16 @@ extension TokenizeView {
         }
     }
 
+    var languagePresetPicker: some View {
+        WorkbenchMenuPicker(
+            title: t("语言预设", "Language Preset"),
+            selection: $viewModel.languagePreset,
+            options: Array(TokenizeLanguagePreset.allCases)
+        ) {
+            $0.title(in: languageMode)
+        }
+    }
+
     var tokenizeRunButton: some View {
         Button(t("开始分词", "Run Tokenize")) { onAction(.run) }
             .buttonStyle(.borderedProminent)
@@ -69,6 +81,9 @@ extension TokenizeView {
     }
 
     var tokenizeControlSummary: String {
-        viewModel.annotationProfile.title(in: languageMode)
+        [
+            viewModel.languagePreset.title(in: languageMode),
+            viewModel.annotationProfile.title(in: languageMode)
+        ].joined(separator: " · ")
     }
 }

@@ -13,14 +13,10 @@ struct WorkspaceCommandContext: Equatable {
     let canOpenSelectedCorpus: Bool
     let canOpenSourceView: Bool
     let canConfigureAnnotation: Bool
+    let canCopyCurrentResult: Bool
     let canQuickLookContent: Bool
     let canShareContent: Bool
     let canExportCurrent: Bool
-    let canMoveEvidenceGroupUp: Bool
-    let canMoveEvidenceGroupDown: Bool
-    let canSplitEvidenceGroup: Bool
-    let canRenameEvidenceGroup: Bool
-    let canMergeEvidenceGroup: Bool
     let canExportEvidenceDossier: Bool
     let canExportEvidenceJSON: Bool
     let canSaveAnalysisPreset: Bool
@@ -39,14 +35,10 @@ struct WorkspaceCommandContext: Equatable {
         canOpenSelectedCorpus: Bool = false,
         canOpenSourceView: Bool = false,
         canConfigureAnnotation: Bool = false,
+        canCopyCurrentResult: Bool = false,
         canQuickLookContent: Bool = false,
         canShareContent: Bool = false,
         canExportCurrent: Bool = false,
-        canMoveEvidenceGroupUp: Bool = false,
-        canMoveEvidenceGroupDown: Bool = false,
-        canSplitEvidenceGroup: Bool = false,
-        canRenameEvidenceGroup: Bool = false,
-        canMergeEvidenceGroup: Bool = false,
         canExportEvidenceDossier: Bool = false,
         canExportEvidenceJSON: Bool = false,
         canSaveAnalysisPreset: Bool = false,
@@ -64,14 +56,10 @@ struct WorkspaceCommandContext: Equatable {
         self.canOpenSelectedCorpus = canOpenSelectedCorpus
         self.canOpenSourceView = canOpenSourceView
         self.canConfigureAnnotation = canConfigureAnnotation
+        self.canCopyCurrentResult = canCopyCurrentResult
         self.canQuickLookContent = canQuickLookContent
         self.canShareContent = canShareContent
         self.canExportCurrent = canExportCurrent
-        self.canMoveEvidenceGroupUp = canMoveEvidenceGroupUp
-        self.canMoveEvidenceGroupDown = canMoveEvidenceGroupDown
-        self.canSplitEvidenceGroup = canSplitEvidenceGroup
-        self.canRenameEvidenceGroup = canRenameEvidenceGroup
-        self.canMergeEvidenceGroup = canMergeEvidenceGroup
         self.canExportEvidenceDossier = canExportEvidenceDossier
         self.canExportEvidenceJSON = canExportEvidenceJSON
         self.canSaveAnalysisPreset = canSaveAnalysisPreset
@@ -95,14 +83,10 @@ struct WorkspaceCommandContext: Equatable {
             lhs.canOpenSelectedCorpus == rhs.canOpenSelectedCorpus &&
             lhs.canOpenSourceView == rhs.canOpenSourceView &&
             lhs.canConfigureAnnotation == rhs.canConfigureAnnotation &&
+            lhs.canCopyCurrentResult == rhs.canCopyCurrentResult &&
             lhs.canQuickLookContent == rhs.canQuickLookContent &&
             lhs.canShareContent == rhs.canShareContent &&
             lhs.canExportCurrent == rhs.canExportCurrent &&
-            lhs.canMoveEvidenceGroupUp == rhs.canMoveEvidenceGroupUp &&
-            lhs.canMoveEvidenceGroupDown == rhs.canMoveEvidenceGroupDown &&
-            lhs.canSplitEvidenceGroup == rhs.canSplitEvidenceGroup &&
-            lhs.canRenameEvidenceGroup == rhs.canRenameEvidenceGroup &&
-            lhs.canMergeEvidenceGroup == rhs.canMergeEvidenceGroup &&
             lhs.canExportEvidenceDossier == rhs.canExportEvidenceDossier &&
             lhs.canExportEvidenceJSON == rhs.canExportEvidenceJSON &&
             lhs.canSaveAnalysisPreset == rhs.canSaveAnalysisPreset &&
@@ -126,14 +110,10 @@ struct WorkspaceCommandContext: Equatable {
             canOpenSelectedCorpus: canOpenSelectedCorpus,
             canOpenSourceView: canOpenSourceView,
             canConfigureAnnotation: canConfigureAnnotation,
+            canCopyCurrentResult: canCopyCurrentResult,
             canQuickLookContent: canQuickLookContent,
             canShareContent: canShareContent,
             canExportCurrent: canExportCurrent,
-            canMoveEvidenceGroupUp: canMoveEvidenceGroupUp,
-            canMoveEvidenceGroupDown: canMoveEvidenceGroupDown,
-            canSplitEvidenceGroup: canSplitEvidenceGroup,
-            canRenameEvidenceGroup: canRenameEvidenceGroup,
-            canMergeEvidenceGroup: canMergeEvidenceGroup,
             canExportEvidenceDossier: canExportEvidenceDossier,
             canExportEvidenceJSON: canExportEvidenceJSON,
             canSaveAnalysisPreset: canSaveAnalysisPreset,
@@ -165,11 +145,12 @@ extension MainWorkspaceViewModel {
                 selectedMainRoute: selectedRoute,
                 canImportCorpora: true,
                 canOpenSelectedCorpus: shell.scene.toolbar.item(for: .openSelected)?.isEnabled ?? false,
-                canOpenSourceView: shell.scene.toolbar.item(for: .openSourceReader)?.isEnabled ?? false,
+                canOpenSourceView: currentResultArtifact?.supports(.openSourceReader) == true,
                 canConfigureAnnotation: shell.scene.toolbar.item(for: .annotationControls)?.isEnabled ?? false,
+                canCopyCurrentResult: currentResultArtifact?.supports(.copy) == true,
                 canQuickLookContent: canQuickLookCurrentCorpus,
                 canShareContent: canShareCurrentContent,
-                canExportCurrent: shell.scene.toolbar.item(for: .exportCurrent)?.isEnabled ?? false,
+                canExportCurrent: currentResultArtifact?.supports(.export) == true,
                 canSaveAnalysisPreset: canManageAnalysisPresets,
                 canManageAnalysisPresets: canManageAnalysisPresets,
                 canExportReportBundle: canExportCurrentReportBundle
@@ -189,8 +170,6 @@ extension MainWorkspaceViewModel {
                 canExportReportBundle: false
             )
         case .evidenceWorkbench:
-            let groupingMode = evidenceWorkbench.groupingMode
-            let hasSelectedGroup = evidenceWorkbench.selectedGroup(in: .system) != nil
             return WorkspaceCommandContext(
                 route: route,
                 canImportCorpora: false,
@@ -200,11 +179,6 @@ extension MainWorkspaceViewModel {
                 canQuickLookContent: false,
                 canShareContent: false,
                 canExportCurrent: false,
-                canMoveEvidenceGroupUp: evidenceWorkbench.canMoveSelectedGroupUp,
-                canMoveEvidenceGroupDown: evidenceWorkbench.canMoveSelectedGroupDown,
-                canSplitEvidenceGroup: evidenceWorkbench.canSplitSelectedGroup,
-                canRenameEvidenceGroup: groupingMode.supportsItemAssignment && hasSelectedGroup,
-                canMergeEvidenceGroup: groupingMode.supportsItemAssignment && hasSelectedGroup,
                 canExportEvidenceDossier: evidenceWorkbench.items.contains(where: { $0.reviewStatus == .keep }),
                 canExportEvidenceJSON: !evidenceWorkbench.items.isEmpty,
                 canSaveAnalysisPreset: false,

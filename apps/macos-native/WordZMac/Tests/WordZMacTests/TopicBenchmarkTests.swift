@@ -51,6 +51,7 @@ final class TopicBenchmarkTests: XCTestCase {
     func testTopicBenchmarkSmokeDurationsStayWithinConfiguredBudget() async throws {
         let monitoredIDs = Set(["three-theme-exact-300", "three-theme-approx-450"])
         let corpora = try TopicBenchmarkCatalog.load().filter { monitoredIDs.contains($0.id) }
+        var snapshots: [TopicBenchmarkReportSnapshot] = []
 
         for corpus in corpora {
             let report = try await TopicBenchmarkHarness.analyze(corpus: corpus)
@@ -59,6 +60,34 @@ final class TopicBenchmarkTests: XCTestCase {
                 corpus.maxDurationMs * 2,
                 report.summaryLine
             )
+            snapshots.append(
+                TopicBenchmarkReporter.snapshot(
+                    corpus: corpus,
+                    report: report
+                )
+            )
         }
+
+        let hardware = TopicBenchmarkHardwareProfile.current()
+        XCTAssertFalse(hardware.summaryLine.isEmpty)
+        XCTAssertEqual(
+            Set(hardware.coreMLComputeUnits.keys),
+            Set(SentimentModelProviderFamily.allCases.map(\.rawValue))
+        )
+        try TopicBenchmarkReporter.writeSnapshots(
+            snapshots,
+            hardware: hardware,
+            to: defaultReportOutputURL
+        )
+    }
+
+    private var defaultReportOutputURL: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".build", isDirectory: true)
+            .appendingPathComponent("reports", isDirectory: true)
+            .appendingPathComponent("topic-benchmark-report.generated.json")
     }
 }

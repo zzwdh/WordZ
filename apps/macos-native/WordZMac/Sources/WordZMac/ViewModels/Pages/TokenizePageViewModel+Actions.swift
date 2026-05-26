@@ -10,39 +10,45 @@ extension TokenizePageViewModel {
         case .run, .exportText:
             return
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleVisibleColumnAndRebuild(column)
+            toggleTableColumnAndRebuild(column)
         case .selectRow(let rowID):
             selectRow(rowID)
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
-    func sortByColumn(_ column: TokenizeColumnKey) {
-        let nextSort: TokenizeSortMode
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort else { return }
+        invalidateSortedRowsCache()
+    }
+
+    func nextSortMode(
+        for column: TokenizeColumnKey,
+        currentSortMode: TokenizeSortMode
+    ) -> TokenizeSortMode? {
         switch column {
         case .sentence, .position:
-            nextSort = sortMode == .sequenceAscending ? .sequenceDescending : .sequenceAscending
+            return currentSortMode == .sequenceAscending ? .sequenceDescending : .sequenceAscending
         case .original:
-            nextSort = sortMode == .originalAscending ? .originalDescending : .originalAscending
+            return currentSortMode == .originalAscending ? .originalDescending : .originalAscending
         case .normalized:
-            nextSort = sortMode == .normalizedAscending ? .normalizedDescending : .normalizedAscending
+            return currentSortMode == .normalizedAscending ? .normalizedDescending : .normalizedAscending
         case .lemma:
-            nextSort = sortMode == .lemmaAscending ? .lemmaDescending : .lemmaAscending
+            return currentSortMode == .lemmaAscending ? .lemmaDescending : .lemmaAscending
         case .lexicalClass:
-            nextSort = sortMode == .lexicalClassAscending ? .lexicalClassDescending : .lexicalClassAscending
+            return currentSortMode == .lexicalClassAscending ? .lexicalClassDescending : .lexicalClassAscending
         case .script:
-            nextSort = sortMode == .scriptAscending ? .scriptDescending : .scriptAscending
+            return currentSortMode == .scriptAscending ? .scriptDescending : .scriptAscending
         }
-        applySortModeChange(nextSort)
     }
 
     func selectRow(_ rowID: String?) {

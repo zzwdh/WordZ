@@ -57,12 +57,12 @@ final class KWICPageViewModel: ObservableObject, AnalysisInputStateControlling, 
     var onInputChange: (() -> Void)?
     let sceneBuilder: KWICSceneBuilder
     var result: KWICResult?
-    var sortMode: KWICSortMode = .original
-    var pageSize: KWICPageSize = .fifty
-    var currentPage = 1
-    var visibleColumns: Set<KWICColumnKey> = KWICPageViewModel.defaultVisibleColumns
+    var tablePresentation = AnalysisTablePresentationState<KWICColumnKey, KWICSortMode, KWICPageSize>(
+        sortMode: .original,
+        pageSize: .fifty,
+        visibleColumns: KWICPageViewModel.defaultVisibleColumns
+    )
     var annotationState = WorkspaceAnnotationState.default
-    var sceneBuildRevision = 0
     var cachedFilteredRows: [KWICRow]?
     var cachedStopwordFilter = StopwordFilterState.default
     var cachedSortedRows: [KWICRow]?

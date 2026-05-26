@@ -61,6 +61,8 @@ final class WorkspaceLibraryWorkflowService {
             }
 
             switch action {
+            case .showCorpusBuilder:
+                features.library.selectCorpusBuilder()
             case .selectFolder,
                     .selectCorpusSet,
                     .selectCorpus,
@@ -82,6 +84,16 @@ final class WorkspaceLibraryWorkflowService {
                     features: features,
                     preferredRoute: preferredRoute,
                     syncFeatureContexts: syncFeatureContexts
+                )
+            case .confirmImportPreflight(let paths, let corpusName):
+                features.library.dismissImportPreflight()
+                await runLibraryImport(
+                    paths,
+                    folderId: features.library.selectedFolderID ?? "",
+                    preserveHierarchy: false,
+                    features: features,
+                    syncFeatureContexts: syncFeatureContexts,
+                    mergedCorpusName: corpusName
                 )
             case .cleanSelectedCorpus:
                 if let selectedCorpusID = features.library.selectedCorpusID {
@@ -227,12 +239,9 @@ final class WorkspaceLibraryWorkflowService {
         guard let paths = await libraryManagementCoordinator.chooseImportPaths(preferredRoute: preferredRoute) else {
             return
         }
-        await runLibraryImport(
-            paths,
-            folderId: features.library.selectedFolderID ?? "",
-            preserveHierarchy: features.library.preserveHierarchy,
-            features: features,
-            syncFeatureContexts: syncFeatureContexts
+        features.library.presentImportPreflight(
+            paths: paths,
+            preserveHierarchy: features.library.preserveHierarchy
         )
     }
 
@@ -277,9 +286,12 @@ final class WorkspaceLibraryWorkflowService {
         folderId: String,
         preserveHierarchy: Bool,
         features: WorkspaceFeatureSet,
-        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
+        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void,
+        mergedCorpusName: String? = nil
     ) async {
         guard !paths.isEmpty else { return }
+        let normalizedMergedCorpusName = mergedCorpusName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isMergedImport = mergedCorpusName != nil
 
         var taskID: UUID?
         do {
@@ -290,13 +302,40 @@ final class WorkspaceLibraryWorkflowService {
             }
 
             let createdTaskID = taskCenter.beginTask(
-                title: wordZText("导入语料", "Import Corpora", mode: .system),
+                title: isMergedImport
+                    ? wordZText("制作 DB 语料库", "Create DB Corpus", mode: .system)
+                    : wordZText("导入语料", "Import Corpora", mode: .system),
                 detail: wordZText("正在准备导入语料…", "Preparing corpus import…", mode: .system),
                 progress: 0
             )
             taskID = createdTaskID
 
             let importTask = Task { () throws -> LibraryImportResult in
+                if let normalizedMergedCorpusName {
+                    guard let mergedRepository = repository as? MergedCorpusImportingRepository else {
+                        throw NSError(
+                            domain: "WordZMac.WorkspaceLibraryWorkflowService",
+                            code: 501,
+                            userInfo: [NSLocalizedDescriptionKey: wordZText("当前仓储尚不支持制作 DB 语料库。", "The current repository cannot create DB corpora.", mode: .system)]
+                        )
+                    }
+                    return try await mergedRepository.importMergedCorpusPaths(
+                        paths,
+                        name: normalizedMergedCorpusName,
+                        folderId: folderId
+                    ) { [weak taskCenter] snapshot in
+                        Task { @MainActor in
+                            let detail = self.localizedLibraryImportStatus(snapshot)
+                            features.library.setImportProgress(snapshot)
+                            features.library.setStatus(detail)
+                            taskCenter?.updateTask(
+                                id: createdTaskID,
+                                detail: detail,
+                                progress: snapshot.progress
+                            )
+                        }
+                    }
+                }
                 if let progressRepository = repository as? LibraryImportProgressReportingRepository {
                     return try await progressRepository.importCorpusPaths(
                         paths,
@@ -428,6 +467,7 @@ final class WorkspaceLibraryWorkflowService {
     private func shouldTrackLibraryBusyState(for action: LibraryManagementAction) -> Bool {
         switch action {
         case .refresh,
+                .showCorpusBuilder,
                 .selectFolder,
                 .selectCorpusSet,
                 .selectCorpus,
@@ -440,6 +480,7 @@ final class WorkspaceLibraryWorkflowService {
                 .cleanSelectedCorpora,
                 .editSelectedCorpusMetadata,
                 .editSelectedCorporaMetadata,
+                .confirmImportPreflight(_, _),
                 .importPaths:
             return false
         default:

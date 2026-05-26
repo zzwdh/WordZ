@@ -18,21 +18,21 @@ extension ComparePageViewModel {
         case .changeReferenceCorpus(let corpusID):
             changeReferenceCorpus(corpusID)
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .selectRow(let rowID):
             selectedRowID = rowID
         case .copyCurrent, .copyVisible, .copyMethodSummary, .exportCurrent, .exportVisible:
             return
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
@@ -64,30 +64,30 @@ extension ComparePageViewModel {
         }
     }
 
-    func toggleColumn(_ column: CompareColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort else { return }
+        invalidateSortedRowsCache()
     }
 
-    func sortByColumn(_ column: CompareColumnKey) {
-        let nextSort: CompareSortMode?
+    func nextSortMode(
+        for column: CompareColumnKey,
+        currentSortMode: CompareSortMode
+    ) -> CompareSortMode? {
         switch column {
         case .word:
-            nextSort = .alphabeticalAscending
+            return .alphabeticalAscending
         case .keyness:
-            nextSort = .keynessDescending
+            return .keynessDescending
         case .effect:
-            nextSort = .effectDescending
+            return .effectDescending
         case .spread:
-            nextSort = .spreadDescending
+            return .spreadDescending
         case .total:
-            nextSort = .totalDescending
+            return .totalDescending
         case .range:
-            nextSort = .rangeDescending
+            return .rangeDescending
         case .dominantCorpus, .distribution:
-            nextSort = nil
+            return nil
         }
-        guard let nextSort, sortMode != nextSort else { return }
-        sortMode = nextSort
-        resetToFirstPageAndRebuild()
     }
 }

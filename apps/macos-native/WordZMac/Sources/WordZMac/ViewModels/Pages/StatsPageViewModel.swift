@@ -11,19 +11,20 @@ final class StatsPageViewModel: ObservableObject, AnalysisColumnVisibilityContro
 
     let sceneBuilder: StatsSceneBuilder
     var result: StatsResult?
-    var sortMode: StatsSortMode = .frequencyDescending
-    var pageSize: StatsPageSize = .oneHundred
-    var currentPage = 1
-    var visibleColumns: Set<StatsColumnKey> = StatsPageViewModel.defaultVisibleColumns
+    var tablePresentation = AnalysisTablePresentationState<StatsColumnKey, StatsSortMode, StatsPageSize>(
+        sortMode: .frequencyDescending,
+        pageSize: .oneHundred,
+        visibleColumns: StatsPageViewModel.defaultVisibleColumns
+    )
     var definition = FrequencyMetricDefinition.default
     var cachedSortedRows: [FrequencyRow]?
     var cachedSortMode: StatsSortMode?
     var cachedDefinition: FrequencyMetricDefinition?
-    var sceneBuildRevision = 0
     var resultGeneration = 0
     var sceneResultGeneration = 0
 
     init(sceneBuilder: StatsSceneBuilder = StatsSceneBuilder()) {
         self.sceneBuilder = sceneBuilder
     }
+
 }

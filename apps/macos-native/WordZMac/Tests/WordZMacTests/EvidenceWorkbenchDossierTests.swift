@@ -2,60 +2,6 @@ import XCTest
 @testable import WordZWorkspaceCore
 
 final class EvidenceWorkbenchDossierTests: XCTestCase {
-    func testCurrentGroupToolbarSummaryUsesSelectedGroupTitleAndCount() {
-        let group = EvidenceWorkbenchGroup(
-            id: "section:Methods",
-            title: "Methods",
-            subtitle: nil,
-            assignmentValue: "Methods",
-            itemCountSummary: "2 items",
-            items: []
-        )
-
-        XCTAssertEqual(
-            EvidenceWorkbenchGroupingMode.section.currentGroupToolbarSummary(
-                group: group,
-                in: .english
-            ),
-            "Methods · 2 items"
-        )
-        XCTAssertEqual(
-            EvidenceWorkbenchGroupingMode.section.currentGroupToolbarSummary(
-                group: nil,
-                in: .english
-            ),
-            "No Evidence Group Selected"
-        )
-    }
-
-    func testCurrentGroupWindowTitleAppendsSelectedGroupSummary() {
-        let group = EvidenceWorkbenchGroup(
-            id: "section:Methods",
-            title: "Methods",
-            subtitle: nil,
-            assignmentValue: "Methods",
-            itemCountSummary: "2 items",
-            items: []
-        )
-
-        XCTAssertEqual(
-            EvidenceWorkbenchGroupingMode.section.currentGroupWindowTitle(
-                baseTitle: "Evidence Basket",
-                group: group,
-                in: .english
-            ),
-            "Evidence Basket · Current Evidence Group: Methods · 2 items"
-        )
-        XCTAssertEqual(
-            EvidenceWorkbenchGroupingMode.section.currentGroupWindowTitle(
-                baseTitle: "Evidence Basket",
-                group: nil,
-                in: .english
-            ),
-            "Evidence Basket"
-        )
-    }
-
     func testLegacyEvidenceItemDecodeDefaultsDossierFields() throws {
         let legacyJSON = """
         {
@@ -95,7 +41,7 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertEqual(item.note, "legacy note")
     }
 
-    func testMarkdownDossierGroupsKeptItemsAndIncludesDossierMetadata() throws {
+    func testExcerptExportKeepsOnlyKeptItemsAndReadableCopyText() throws {
         let kept = EvidenceItem(
             id: "evidence-keep-1",
             sourceKind: .kwic,
@@ -129,172 +75,61 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
             createdAt: "2026-04-13T00:00:00Z",
             updatedAt: "2026-04-13T00:00:00Z"
         )
-        let pending = EvidenceItem(
+        let pending = makeEvidenceItem(
             id: "evidence-pending-1",
             sourceKind: .locator,
-            savedSetID: nil,
-            savedSetName: nil,
-            corpusID: "corpus-2",
-            corpusName: "Locator Corpus",
-            sentenceId: 3,
-            sentenceTokenIndex: 4,
-            leftContext: "left",
-            keyword: "pending-only",
-            rightContext: "right",
-            fullSentenceText: "left pending-only right",
-            citationText: "Sentence 4: left pending-only right",
-            query: "pending-only",
-            leftWindow: 5,
-            rightWindow: 5,
-            searchOptionsSnapshot: nil,
-            stopwordFilterSnapshot: nil,
             reviewStatus: .pending,
-            sectionTitle: "Section B",
-            claim: "Claim Beta",
-            tags: ["pending"],
-            note: "Should not export to markdown.",
-            createdAt: "2026-04-13T00:00:00Z",
-            updatedAt: "2026-04-13T00:00:00Z"
+            note: "Should not export."
         )
 
         let document = try EvidenceMarkdownDossierSupport.document(
-            items: [kept, pending],
-            grouping: .section
+            items: [kept, pending]
         )
 
-        XCTAssertTrue(document.text.contains("Section A"))
-        XCTAssertTrue(document.text.contains("Claim Alpha"))
-        XCTAssertTrue(document.text.contains("teaching, pattern"))
-        XCTAssertTrue(document.text.contains(wordZText("整理摘要", "Review Summary", mode: .system)))
-        XCTAssertTrue(document.text.contains(wordZText("证据索引", "Evidence Index", mode: .system)))
-        XCTAssertTrue(document.text.contains(wordZText("来源元数据检查", "Source Metadata Check", mode: .system)))
-        XCTAssertTrue(document.text.contains("Demo Corpus (E1): " + wordZText("体裁", "Genre", mode: .system)))
-        let citationFormatLine = wordZText("引文文本", "Citation Text", mode: .system) +
-            ": " +
-            EvidenceCitationFormat.fullSentence.title(in: .system)
-        let citationStyleLine = wordZText("引用样式", "Reference Style", mode: .system) +
-            ": " +
-            EvidenceCitationStyle.apa.title(in: .system)
-        let citationHeading = wordZText("引文", "Citation", mode: .system) + ":"
-        XCTAssertTrue(document.text.contains(citationFormatLine))
-        XCTAssertTrue(document.text.contains(citationStyleLine))
-        XCTAssertTrue(document.text.contains(citationHeading + "\nDemo Corpus. (2024). left keyword-a right [Sentence 2, Course Reader]. WordZ evidence export."))
-        XCTAssertFalse(document.text.contains(citationHeading + "\nSentence 2: left keyword-a right"))
+        XCTAssertEqual(document.suggestedName, "wordz-excerpts.txt")
+        XCTAssertTrue(document.text.contains(wordZText("摘录文本", "Excerpt Text", mode: .system)))
+        XCTAssertTrue(document.text.contains("[1] keyword-a"))
+        XCTAssertTrue(document.text.contains(wordZText("命中集", "Hit Set", mode: .system) + ": Lesson Set"))
+        XCTAssertTrue(document.text.contains("left keyword-a right"))
+        XCTAssertTrue(document.text.contains("Demo Corpus. (2024). left keyword-a right [Sentence 2, Course Reader]. WordZ evidence export."))
         XCTAssertTrue(document.text.contains("Use this in the handout."))
-        XCTAssertTrue(document.text.contains(wordZText("参考来源", "References", mode: .system)))
-        XCTAssertTrue(document.text.contains("Demo Corpus. Course Reader. 2024. WordZ."))
-        XCTAssertFalse(document.text.contains("pending-only"))
+        XCTAssertFalse(document.text.contains("locator-node"))
+        XCTAssertFalse(document.text.contains("Claim Alpha"))
+        XCTAssertFalse(document.text.contains("teaching, pattern"))
+        XCTAssertFalse(document.text.contains(wordZText("证据索引", "Evidence Index", mode: .system)))
     }
 
-    func testMarkdownDossierAddsResearchIndexAndAggregatedReferences() throws {
-        let metadata = CorpusMetadataProfile(
-            sourceLabel: "Research Archive",
-            yearLabel: "2026",
-            genreLabel: "Interview",
-            tags: ["oral", "fieldwork"]
-        )
-        let first = makeEvidenceItem(
-            id: "evidence-index-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Findings",
-            claim: "Claim Alpha",
-            citationStyle: .mla,
-            corpusMetadata: metadata
-        )
-        let second = makeEvidenceItem(
-            id: "evidence-index-2",
-            sourceKind: .sentiment,
-            reviewStatus: .keep,
-            sectionTitle: "Findings",
-            claim: "Claim Beta",
-            citationFormat: .fullSentence,
-            citationStyle: .apa,
-            corpusMetadata: metadata
-        )
-
-        let document = try EvidenceMarkdownDossierSupport.document(
-            items: [first, second],
-            grouping: .section
-        )
-
-        XCTAssertTrue(document.text.contains("E1\tnode\tDemo Corpus\tFindings\tClaim Alpha\tMLA-like"))
-        XCTAssertTrue(document.text.contains("E2\tsentiment-hit\tDemo Corpus\tFindings\tClaim Beta\tAPA-like"))
-        XCTAssertTrue(document.text.contains(wordZText("来源分布", "Source Mix", mode: .system) + ": KWIC 1 · " + wordZText("情感", "Sentiment", mode: .system) + " 1"))
-        XCTAssertTrue(document.text.contains(wordZText("未发现关键元数据缺口。", "No key metadata gaps detected.", mode: .system)))
-        XCTAssertTrue(document.text.contains("Demo Corpus. Research Archive. 2026. " + wordZText("体裁", "Genre", mode: .system) + ": Interview. " + wordZText("标签", "Tags", mode: .system) + ": oral, fieldwork. WordZ. " + wordZText("证据", "Evidence", mode: .system) + ": E1, E2."))
-    }
-
-    func testMarkdownDossierRecordsFilterScopeWhenProvided() throws {
+    func testExcerptExportRecordsFilterScopeWhenProvided() throws {
         let item = makeEvidenceItem(id: "evidence-filter-scope", reviewStatus: .keep)
         let filterSummary = wordZText("审阅", "Review", mode: .system) + ": " + EvidenceReviewFilter.keep.title(in: .system)
 
         let document = try EvidenceMarkdownDossierSupport.document(
             items: [item],
-            grouping: .section,
             filterSummary: filterSummary
         )
 
         XCTAssertTrue(document.text.contains(wordZText("保存范围", "Save Scope", mode: .system) + ": " + filterSummary))
     }
 
-    func testMarkdownDossierPreservesManualSectionOrderFromWorkbenchSequence() throws {
-        let sectionB = makeEvidenceItem(
-            id: "evidence-section-b",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B",
-            claim: "Claim Beta"
+    func testExcerptExportPreservesCaptureOrder() throws {
+        let second = makeEvidenceItem(
+            id: "evidence-second",
+            sourceKind: .locator,
+            reviewStatus: .keep
         )
-        let sectionA = makeEvidenceItem(
-            id: "evidence-section-a",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A",
-            claim: "Claim Alpha"
+        let first = makeEvidenceItem(
+            id: "evidence-first",
+            sourceKind: .topics,
+            reviewStatus: .keep
         )
 
         let document = try EvidenceMarkdownDossierSupport.document(
-            items: [sectionB, sectionA],
-            grouping: .section
+            items: [second, first]
         )
 
-        let sectionBRange = try XCTUnwrap(document.text.range(of: "\nSection B\n"))
-        let sectionARange = try XCTUnwrap(document.text.range(of: "\nSection A\n"))
-        XCTAssertLessThan(sectionBRange.lowerBound, sectionARange.lowerBound)
-    }
-
-    func testMarkdownDossierPreservesManualClaimOrderFromWorkbenchSequence() throws {
-        let claimBetaPrimary = makeEvidenceItem(
-            id: "evidence-claim-beta-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B",
-            claim: "Claim Beta"
-        )
-        let claimBetaSecondary = makeEvidenceItem(
-            id: "evidence-claim-beta-2",
-            sourceKind: .plot,
-            reviewStatus: .keep,
-            sectionTitle: "Section B",
-            claim: "Claim Beta"
-        )
-        let claimAlpha = makeEvidenceItem(
-            id: "evidence-claim-alpha-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A",
-            claim: "Claim Alpha"
-        )
-
-        let document = try EvidenceMarkdownDossierSupport.document(
-            items: [claimBetaPrimary, claimBetaSecondary, claimAlpha],
-            grouping: .claim
-        )
-
-        let claimBetaRange = try XCTUnwrap(document.text.range(of: "\nClaim Beta\n"))
-        let claimAlphaRange = try XCTUnwrap(document.text.range(of: "\nClaim Alpha\n"))
-        XCTAssertLessThan(claimBetaRange.lowerBound, claimAlphaRange.lowerBound)
+        let secondRange = try XCTUnwrap(document.text.range(of: "[1] locator-node"))
+        let firstRange = try XCTUnwrap(document.text.range(of: "[2] topic-hit"))
+        XCTAssertLessThan(secondRange.lowerBound, firstRange.lowerBound)
     }
 
     func testEvidenceItemRoundTripsStructuredSentimentMetadata() throws {
@@ -384,87 +219,5 @@ final class EvidenceWorkbenchDossierTests: XCTestCase {
         XCTAssertEqual(decoded.corpusMetadata?.sourceLabel, "Research Archive")
         XCTAssertEqual(decoded.crossAnalysisMetadata?.originKind, .compareSentiment)
         XCTAssertEqual(decoded.crossAnalysisMetadata?.focusTerm, "alpha")
-    }
-
-    func testMarkdownDossierIncludesSentimentProvenanceSections() throws {
-        let item = EvidenceItem(
-            id: "evidence-sentiment-2",
-            sourceKind: .sentiment,
-            savedSetID: nil,
-            savedSetName: nil,
-            corpusID: "corpus-1",
-            corpusName: "Demo Corpus",
-            sentenceId: 0,
-            sentenceTokenIndex: 0,
-            leftContext: "left",
-            keyword: "good",
-            rightContext: "right",
-            fullSentenceText: "left good right",
-            citationText: "Sentence 1: left good right",
-            query: "good",
-            leftWindow: 0,
-            rightWindow: 0,
-            searchOptionsSnapshot: nil,
-            stopwordFilterSnapshot: nil,
-            reviewStatus: .keep,
-            sectionTitle: "Section A",
-            claim: "Positive example",
-            tags: ["positive"],
-            note: "Reviewed",
-            sentimentMetadata: EvidenceSentimentMetadata(
-                source: .openedCorpus,
-                unit: .sourceSentence,
-                contextBasis: .fullSentenceWhenAvailable,
-                backendKind: .lexicon,
-                backendRevision: "lexicon-v2",
-                resourceRevision: "resource-v2",
-                providerID: nil,
-                providerFamily: nil,
-                domainPackID: .general,
-                ruleProfileID: "default",
-                calibrationProfileRevision: "calibration-v2",
-                activePackIDs: [.general],
-                rawLabel: .positive,
-                rawScores: SentimentScoreTriple(positivityScore: 0.8, neutralityScore: 0.1, negativityScore: 0.1, netScore: 0.7),
-                effectiveLabel: .positive,
-                effectiveScores: SentimentScoreTriple(positivityScore: 0.8, neutralityScore: 0.1, negativityScore: 0.1, netScore: 0.7),
-                reviewDecision: .confirmRaw,
-                reviewStatus: .confirmed,
-                reviewNote: "Confirmed",
-                reviewSampleID: "review-2",
-                reviewedAt: "2026-04-18T08:00:00Z",
-                rowID: "row-2",
-                sourceID: "corpus-1",
-                sentenceID: 0,
-                tokenIndex: 0,
-                ruleSummary: "positive lexical cue",
-                topRuleTraceSteps: [
-                    SentimentRuleTraceStep(tag: "lexicon", note: "good -> +1.0", multiplier: 1.0)
-                ],
-                inferencePath: .lexicon,
-                modelInputKind: nil
-            ),
-            crossAnalysisMetadata: EvidenceCrossAnalysisMetadata(
-                originKind: .sentimentDirect,
-                scopeSummary: "Opened Corpus",
-                focusTerm: nil,
-                focusedTopicID: nil,
-                groupTitle: "Target",
-                compareSide: nil,
-                topicTitle: nil
-            ),
-            createdAt: "2026-04-18T08:00:00Z",
-            updatedAt: "2026-04-18T08:00:00Z"
-        )
-
-        let document = try EvidenceMarkdownDossierSupport.document(
-            items: [item],
-            grouping: .section
-        )
-
-        XCTAssertTrue(document.text.contains(wordZText("情感溯源", "Sentiment Trace", mode: .system)))
-        XCTAssertTrue(document.text.contains(wordZText("跨分析溯源", "Cross-analysis Trace", mode: .system)))
-        XCTAssertTrue(document.text.contains(wordZText("生效标签", "Effective Label", mode: .system)))
-        XCTAssertTrue(document.text.contains(wordZText("原始标签", "Raw Label", mode: .system)))
     }
 }

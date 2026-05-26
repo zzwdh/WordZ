@@ -30,10 +30,11 @@ extension TokenizePageViewModel {
             lemmaStrategy = .normalizedSurface
             isEditingStopwords = false
             result = nil
-            sortMode = .sequenceAscending
-            pageSize = .oneHundred
-            currentPage = 1
-            visibleColumns = Self.defaultVisibleColumns
+            tablePresentation.reset(
+                sortMode: .sequenceAscending,
+                pageSize: .oneHundred,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             selectedRowID = nil
             invalidateCaches()
             scene = nil

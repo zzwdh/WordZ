@@ -31,7 +31,7 @@ extension WorkspaceActionDispatcher {
                 workspace.selectedTab = tab
             }
         case .exportCurrent:
-            launch { await self.workspace.exportCurrent(preferredWindowRoute: self.preferredWindowRoute) }
+            launch { await self.workspace.performResultArtifactAction(.export, preferredWindowRoute: self.preferredWindowRoute) }
         case .quickLookSelected(let corpusID):
             sync(.librarySelection) {
                 workspace.sidebar.selectedCorpusID = corpusID

@@ -13,7 +13,7 @@ final class NativeTaskCenterToolbarProgressCoordinator {
     }
 
     func update(rootView: AnyView?) {
-        guard NativePlatformCapabilities.current.supportsToolbarSearchEnhancements else {
+        guard NativePlatformCapabilities.current.supportsSearchToolbarBehavior else {
             removeAccessory()
             return
         }

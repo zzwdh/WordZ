@@ -2,11 +2,7 @@ import Foundation
 
 extension NativeCorpusStore: StoredFrequencyArtifactProvidingLibraryStore {
     func loadStoredFrequencyArtifact(corpusId: String) throws -> StoredFrequencyArtifact? {
-        let corpora = try loadCorpora()
-        guard let existingRecord = corpora.first(where: { $0.id == corpusId }) else {
-            return nil
-        }
-        let (_, storageURL) = try resolvedStorage(for: existingRecord)
+        guard let storageURL = try storedDatabaseURL(for: corpusId) else { return nil }
         guard fileManager.fileExists(atPath: storageURL.path) else {
             return nil
         }

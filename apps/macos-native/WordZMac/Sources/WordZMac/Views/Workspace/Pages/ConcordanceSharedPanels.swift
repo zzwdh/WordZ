@@ -104,7 +104,7 @@ struct ConcordanceEvidenceWorkbenchSection: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Text(t("证据篮", "Evidence Basket"))
+            Text(t("摘录篮", "Excerpt Tray"))
                 .font(.headline)
             Spacer()
             Picker(
@@ -125,7 +125,7 @@ struct ConcordanceEvidenceWorkbenchSection: View {
             }
             .disabled(!currentSelectionAvailable)
 
-            Button(t("查看证据篮", "View Evidence Basket")) {
+            Button(t("查看摘录篮", "View Excerpt Tray")) {
                 openWorkbench()
             }
         }
@@ -175,7 +175,7 @@ struct ConcordanceEvidenceWorkbenchSection: View {
         if evidenceWorkbench.filteredItems.count > 5 {
             Text(
                 String(
-                    format: t("另有 %d 条证据可在独立窗口中继续整理。", "%d more evidence items are available in the dedicated window."),
+                    format: t("另有 %d 条摘录可在独立窗口中查看。", "%d more excerpts are available in the dedicated window."),
                     evidenceWorkbench.filteredItems.count - 5
                 )
             )

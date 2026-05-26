@@ -12,7 +12,7 @@ extension TaskCenterWindowView {
                 }
                 .disabled(!scene.hasFinishedItems)
             }
-            if !NativePlatformCapabilities.current.supportsToolbarSearchEnhancements,
+            if !NativePlatformCapabilities.current.supportsSearchToolbarBehavior,
                scene.showsAggregateProgress,
                let aggregateProgress = scene.aggregateProgress {
                 TaskCenterAggregateProgressView(

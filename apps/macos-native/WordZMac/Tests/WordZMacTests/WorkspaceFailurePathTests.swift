@@ -3,37 +3,6 @@ import XCTest
 
 @MainActor
 final class WorkspaceFailurePathTests: XCTestCase {
-    func testCreateGroupAndAssignEvidenceItemSkipsMutationWhenPromptIsCancelled() async throws {
-        let dialogService = FakeDialogService()
-        dialogService.promptTextResult = nil
-
-        let repository = FakeWorkspaceRepository()
-        let dragged = makeEvidenceItem(
-            id: "evidence-unsectioned-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: nil
-        )
-        repository.evidenceItems = [dragged]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-
-        await workspace.createGroupAndAssignEvidenceItem(
-            dragged.id,
-            preferredWindowRoute: .evidenceWorkbench
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 0)
-        XCTAssertNil(repository.evidenceItems.first?.sectionTitle)
-        XCTAssertEqual(dialogService.promptTextPreferredRoute, .evidenceWorkbench)
-    }
-
     func testIssueBannerAppearsWhenBootstrapFails() async {
         let repository = FakeWorkspaceRepository()
         repository.startError = NSError(domain: "Test", code: 1, userInfo: [NSLocalizedDescriptionKey: "boom"])

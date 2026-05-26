@@ -1,15 +1,40 @@
 import Foundation
 
-private let analysisLogger = WordZTelemetry.logger(category: "Analysis")
-
-private struct ManagedResultRunContext {
-    let taskID: UUID
-    let startedAt: Date
-    let previousTab: WorkspaceDetailTab
-}
-
 @MainActor
 extension MainWorkspaceViewModel {
+    func runAnalysis(_ intent: WorkspaceAnalysisIntent) async {
+        switch intent {
+        case .stats:
+            await runStats()
+        case .word:
+            await runWord()
+        case .tokenize:
+            await runTokenize()
+        case .topics:
+            await runTopics()
+        case .compare:
+            await runCompare()
+        case .sentiment:
+            await runSentiment()
+        case .keyword:
+            await runKeyword()
+        case .chiSquare:
+            await runChiSquare()
+        case .plot:
+            await runPlot()
+        case .ngram:
+            await runNgram()
+        case .cluster:
+            await runCluster()
+        case .kwic:
+            await runKWIC()
+        case .collocate:
+            await runCollocate()
+        case .locator:
+            await runLocator()
+        }
+    }
+
     func runStats() async {
         await performResultRun(label: "stats", taskKey: .stats) {
             await flowCoordinator.runStats(features: features)
@@ -52,170 +77,6 @@ extension MainWorkspaceViewModel {
         }
     }
 
-    func refreshKeywordSavedLists() async {
-        await flowCoordinator.refreshKeywordSavedLists(features: features)
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func saveKeywordCurrentList() async {
-        await flowCoordinator.saveKeywordCurrentList(features: features)
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func deleteKeywordSavedList(_ listID: String) async {
-        await flowCoordinator.deleteKeywordSavedList(listID: listID, features: features)
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func importKeywordSavedListsJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.importKeywordSavedListsJSON(features: features, preferredRoute: preferredWindowRoute)
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func exportSelectedKeywordSavedListJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.exportKeywordSavedListsJSON(
-            scope: .selected,
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func exportAllKeywordSavedListsJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.exportKeywordSavedListsJSON(
-            scope: .all,
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func importKeywordReferenceWordList(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.importKeywordReferenceWordList(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func exportKeywordRowContext(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.exportKeywordRowContext(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .keyword)
-    }
-
-    func exportSentimentSummary(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.exportSentimentSummary(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .sentiment)
-    }
-
-    func importSentimentUserLexiconBundle(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.importSentimentUserLexiconBundle(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .sentiment)
-    }
-
-    func exportSentimentStructuredJSON(preferredWindowRoute: NativeWindowRoute? = nil) async {
-        await flowCoordinator.exportSentimentStructuredJSON(
-            features: features,
-            preferredRoute: preferredWindowRoute
-        )
-        syncResultContentSceneGraph(for: .sentiment)
-    }
-
-    func confirmSelectedSentimentRow() async {
-        await flowCoordinator.confirmSelectedSentimentRow(features: features)
-        syncResultContentSceneGraph(for: .sentiment)
-    }
-
-    func overrideSelectedSentimentRow(_ label: SentimentLabel) async {
-        await flowCoordinator.overrideSelectedSentimentRow(label, features: features)
-        syncResultContentSceneGraph(for: .sentiment)
-    }
-
-    func clearSelectedSentimentReview() async {
-        await flowCoordinator.clearSelectedSentimentReview(features: features)
-        syncResultContentSceneGraph(for: .sentiment)
-    }
-
-    func openKeywordKWIC(scope: KeywordKWICScope) async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareKeywordKWIC(scope: scope, features: features)
-        guard prepared else { return }
-        await runKWIC()
-    }
-
-    func openCompareKWIC() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareCompareDrilldown(target: .kwic, features: features)
-        guard prepared else { return }
-        await runKWIC()
-    }
-
-    func openCompareCollocate() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareCompareDrilldown(target: .collocate, features: features)
-        guard prepared else { return }
-        await runCollocate()
-    }
-
-    func openCompareSentiment(
-        preferredRowID: String? = nil,
-        openSourceReaderAfterSelection: Bool = false
-    ) async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareCompareDrilldown(target: .sentiment, features: features)
-        guard prepared else { return }
-        await runSentiment()
-        applySentimentSelection(preferredRowID)
-        if openSourceReaderAfterSelection {
-            _ = await openCurrentSourceReader()
-        }
-    }
-
-    func openCompareTopics() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareCompareDrilldown(target: .topics, features: features)
-        guard prepared else { return }
-        await runTopics()
-    }
-
-    func openTopicsSentiment(
-        scope: TopicsSentimentDrilldownScope,
-        preferredRowID: String? = nil,
-        openSourceReaderAfterSelection: Bool = false
-    ) async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareTopicsSentiment(scope: scope, features: features)
-        guard prepared else { return }
-        await runSentiment()
-        applySentimentSelection(preferredRowID)
-        if openSourceReaderAfterSelection {
-            _ = await openCurrentSourceReader()
-        }
-    }
-
-    func openTopicsKWIC() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareTopicsKWIC(features: features)
-        guard prepared else { return }
-        await runKWIC()
-    }
-
-    func openCollocateKWIC() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareCollocateKWIC(features: features)
-        guard prepared else { return }
-        await runKWIC()
-    }
-
     func runChiSquare() async {
         await performResultRun(label: "chi-square", taskKey: .chiSquare) {
             await flowCoordinator.runChiSquare(features: features)
@@ -226,13 +87,6 @@ extension MainWorkspaceViewModel {
         await performResultRun(label: "plot", taskKey: .plot) {
             await flowCoordinator.runPlot(features: features)
         }
-    }
-
-    func openPlotKWIC() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.preparePlotKWIC(features: features)
-        guard prepared else { return }
-        await runKWIC()
     }
 
     func runKWIC() async {
@@ -253,13 +107,6 @@ extension MainWorkspaceViewModel {
         }
     }
 
-    func openClusterKWIC() async {
-        cancelPendingInputStateSync()
-        let prepared = await flowCoordinator.prepareClusterKWIC(features: features)
-        guard prepared else { return }
-        await runKWIC()
-    }
-
     func runCollocate() async {
         await performResultRun(label: "collocate", taskKey: .collocate) {
             await flowCoordinator.runCollocate(features: features)
@@ -272,39 +119,6 @@ extension MainWorkspaceViewModel {
         }
     }
 
-    private func performResultRun(
-        label: String,
-        taskKey: WorkspaceRuntimeTaskKey? = nil,
-        operation: () async -> Void,
-        afterSyncPreparation: (() -> Void)? = nil
-    ) async {
-        guard !shell.isBusy else {
-            analysisLogger.debug("performResultRun.skippedBusy task=\(label, privacy: .public)")
-            return
-        }
-        let startedAt = Date()
-        let previousTab = selectedTab
-        if let taskKey {
-            applyRuntimeTaskState(key: taskKey, isRunning: true)
-        }
-        defer {
-            if let taskKey {
-                applyRuntimeTaskState(key: taskKey, isRunning: false)
-            }
-        }
-        analysisLogger.info(
-            "performResultRun.started task=\(label, privacy: .public) previousTab=\(previousTab.snapshotValue, privacy: .public)"
-        )
-        await performWithoutSceneSyncCallbacks(.navigation) {
-            await operation()
-        }
-        afterSyncPreparation?()
-        syncResultContentSceneGraph(rebuildRootScene: previousTab != selectedTab)
-        analysisLogger.info(
-            "performResultRun.completed task=\(label, privacy: .public) selectedTab=\(self.selectedTab.snapshotValue, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: startedAt), privacy: .public)"
-        )
-    }
-
     private func runKWIC(token: WorkspaceRequestToken) async {
         let keyword = kwic.normalizedKeyword
         guard !keyword.isEmpty else {
@@ -312,41 +126,25 @@ extension MainWorkspaceViewModel {
             return
         }
 
-        let previousTab = beginManagedResultRun(
+        await performLatestResultRun(
+            token: token,
             label: "kwic",
-            descriptor: .kwic
-        )
-
-        do {
-            let corpus = try await performWithoutSceneSyncCallbacks(.navigation) {
-                try await flowCoordinator.ensureOpenedCorpus(features: features)
+            descriptor: .kwic,
+            selecting: .kwic
+        ) {
+            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
             }
-            let result = try await flowCoordinator.analysisWorkflow.repository.runKWIC(
+            return try await self.flowCoordinator.analysisWorkflow.repository.runKWIC(
                 text: corpus.content,
                 keyword: keyword,
-                leftWindow: kwic.leftWindowValue,
-                rightWindow: kwic.rightWindowValue,
-                searchOptions: kwic.searchOptions
+                leftWindow: self.kwic.leftWindowValue,
+                rightWindow: self.kwic.rightWindowValue,
+                searchOptions: self.kwic.searchOptions
             )
-            guard await sessionActor.isCurrent(token) else {
-                finishManagedResultRunAsDiscarded(context: previousTab, label: "kwic")
-                return
-            }
-            kwic.apply(result)
-            syncLocatorSourceFromKWIC()
-            completeManagedResultRun(
-                context: previousTab,
-                label: "kwic",
-                descriptor: .kwic,
-                selecting: .kwic
-            )
-        } catch {
-            await failManagedResultRun(
-                token: token,
-                context: previousTab,
-                label: "kwic",
-                error: error
-            )
+        } apply: { result in
+            self.kwic.apply(result)
+            self.syncLocatorSourceFromKWIC()
         }
     }
 
@@ -372,34 +170,18 @@ extension MainWorkspaceViewModel {
             return
         }
 
-        let previousTab = beginManagedResultRun(
+        await performLatestResultRun(
+            token: token,
             label: "compare",
-            descriptor: .compare
-        )
-
-        do {
-            let comparisonEntries = try await flowCoordinator.buildComparisonEntries(from: targetCorpora + referenceSetCorpora)
-            let result = try await flowCoordinator.analysisWorkflow.repository.runCompare(
+            descriptor: .compare,
+            selecting: .compare
+        ) {
+            let comparisonEntries = try await self.flowCoordinator.buildComparisonEntries(from: targetCorpora + referenceSetCorpora)
+            return try await self.flowCoordinator.analysisWorkflow.repository.runCompare(
                 comparisonEntries: comparisonEntries
             )
-            guard await sessionActor.isCurrent(token) else {
-                finishManagedResultRunAsDiscarded(context: previousTab, label: "compare")
-                return
-            }
-            compare.apply(result)
-            completeManagedResultRun(
-                context: previousTab,
-                label: "compare",
-                descriptor: .compare,
-                selecting: .compare
-            )
-        } catch {
-            await failManagedResultRun(
-                token: token,
-                context: previousTab,
-                label: "compare",
-                error: error
-            )
+        } apply: { result in
+            self.compare.apply(result)
         }
     }
 
@@ -433,14 +215,14 @@ extension MainWorkspaceViewModel {
         let focusLabel = keyword.focusSelectionSummary
         let referenceLabel = keyword.referenceSelectionSummary
         let configuration = keyword.suiteConfiguration
-        let previousTab = beginManagedResultRun(
+        await performLatestResultRun(
+            token: token,
             label: "keyword",
-            descriptor: .keyword
-        )
-
-        do {
-            let focusEntries = try await flowCoordinator.analysisWorkflow.buildKeywordRequestEntries(from: focusCorpora)
-            let referenceEntries = try await flowCoordinator.analysisWorkflow.buildKeywordRequestEntries(from: referenceCorpora)
+            descriptor: .keyword,
+            selecting: .keyword
+        ) {
+            let focusEntries = try await self.flowCoordinator.analysisWorkflow.buildKeywordRequestEntries(from: focusCorpora)
+            let referenceEntries = try await self.flowCoordinator.analysisWorkflow.buildKeywordRequestEntries(from: referenceCorpora)
             let request = KeywordSuiteRunRequest(
                 focusEntries: focusEntries,
                 referenceEntries: referenceEntries,
@@ -449,99 +231,11 @@ extension MainWorkspaceViewModel {
                 referenceLabel: referenceLabel,
                 configuration: configuration
             )
-            keyword.recordPendingRunConfiguration()
-            let result = try await flowCoordinator.analysisWorkflow.repository.runKeywordSuite(request)
-            guard await sessionActor.isCurrent(token) else {
-                finishManagedResultRunAsDiscarded(context: previousTab, label: "keyword")
-                return
-            }
-            keyword.apply(result)
-            completeManagedResultRun(
-                context: previousTab,
-                label: "keyword",
-                descriptor: .keyword,
-                selecting: .keyword
-            )
-        } catch {
-            await failManagedResultRun(
-                token: token,
-                context: previousTab,
-                label: "keyword",
-                error: error
-            )
+            self.keyword.recordPendingRunConfiguration()
+            return try await self.flowCoordinator.analysisWorkflow.repository.runKeywordSuite(request)
+        } apply: { result in
+            self.keyword.apply(result)
         }
     }
 
-    private func beginManagedResultRun(
-        label: String,
-        descriptor: WorkspaceRunTaskDescriptor
-    ) -> ManagedResultRunContext {
-        let startedAt = Date()
-        let previousTab = selectedTab
-        analysisLogger.info(
-            "performManagedResultRun.started task=\(label, privacy: .public) previousTab=\(previousTab.snapshotValue, privacy: .public)"
-        )
-        let taskID = taskCenter.beginTask(
-            title: descriptor.title(in: .system),
-            detail: descriptor.detail(in: .system)
-        )
-        return ManagedResultRunContext(
-            taskID: taskID,
-            startedAt: startedAt,
-            previousTab: previousTab
-        )
-    }
-
-    private func completeManagedResultRun(
-        context: ManagedResultRunContext,
-        label: String,
-        descriptor: WorkspaceRunTaskDescriptor,
-        selecting tab: WorkspaceDetailTab
-    ) {
-        flowCoordinator.completeRun(selecting: tab, features: features)
-        syncResultContentSceneGraph(rebuildRootScene: context.previousTab != selectedTab)
-        taskCenter.completeTask(
-            id: context.taskID,
-            detail: descriptor.success(in: .system)
-        )
-        analysisLogger.info(
-            "performManagedResultRun.completed task=\(label, privacy: .public) selectedTab=\(self.selectedTab.snapshotValue, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: context.startedAt), privacy: .public)"
-        )
-    }
-
-    private func finishManagedResultRunAsDiscarded(
-        context: ManagedResultRunContext,
-        label: String
-    ) {
-        taskCenter.completeTask(
-            id: context.taskID,
-            detail: wordZText("已丢弃过期结果。", "Discarded stale result.", mode: .system)
-        )
-        analysisLogger.debug(
-            "performManagedResultRun.discarded task=\(label, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: context.startedAt), privacy: .public)"
-        )
-    }
-
-    private func failManagedResultRun(
-        token: WorkspaceRequestToken,
-        context: ManagedResultRunContext,
-        label: String,
-        error: Error
-    ) async {
-        guard await sessionActor.isCurrent(token) else {
-            finishManagedResultRunAsDiscarded(context: context, label: label)
-            return
-        }
-        sidebar.setError(error.localizedDescription)
-        taskCenter.failTask(id: context.taskID, detail: error.localizedDescription)
-        analysisLogger.error(
-            "performManagedResultRun.failed task=\(label, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: context.startedAt), privacy: .public) error=\(error.localizedDescription, privacy: .public)"
-        )
-    }
-
-    private func applySentimentSelection(_ rowID: String?) {
-        guard let rowID else { return }
-        sentiment.handle(.selectRow(rowID))
-        syncResultContentSceneGraph(for: .sentiment)
-    }
 }

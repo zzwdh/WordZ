@@ -106,7 +106,8 @@ final class NativeCorpusDatabaseSupportTests: XCTestCase {
             representedPath: "/tmp/demo.txt",
             importedAt: "2026-04-21T00:00:00Z",
             rawText: cleaned.rawText,
-            cleaningSummary: summary
+            cleaningSummary: summary,
+            sourceFileCount: 3
         )
 
         var db: OpaquePointer?
@@ -124,10 +125,12 @@ final class NativeCorpusDatabaseSupportTests: XCTestCase {
         XCTAssertEqual(try scalarInt("SELECT COUNT(*) FROM token;", in: db), 4)
         XCTAssertEqual(try scalarInt("SELECT COUNT(*) FROM cleaning_rule_hit;", in: db), cleaned.ruleHits.count)
         XCTAssertEqual(try scalarText("SELECT tokenized_sentences_json FROM corpus_document WHERE id = 1;", in: db), "")
+        XCTAssertEqual(try scalarInt("SELECT source_file_count FROM corpus_document WHERE id = 1;", in: db), 3)
         XCTAssertEqual(
             try scalarInt("SELECT schema_version FROM corpus_document WHERE id = 1;", in: db),
             NativeCorpusDatabaseSupport.currentSchemaVersion
         )
+        XCTAssertEqual(try NativeCorpusDatabaseSupport.readMetadata(at: databaseURL)?.sourceFileCount, 3)
     }
 
     func testWriteDocumentPopulatesSentenceFTSAndSupportsPrefixMatch() throws {

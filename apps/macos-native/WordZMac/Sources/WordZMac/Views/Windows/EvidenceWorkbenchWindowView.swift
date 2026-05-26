@@ -4,7 +4,6 @@ struct EvidenceWorkbenchWindowView: View {
     @Environment(\.wordZLanguageMode) private var languageMode
     @ObservedObject var workspace: MainWorkspaceViewModel
     @ObservedObject private var workbench: EvidenceWorkbenchViewModel
-    @State private var showsAdvancedFilters = false
     @State private var showsSourceSummary = false
 
     init(workspace: MainWorkspaceViewModel) {
@@ -20,77 +19,12 @@ struct EvidenceWorkbenchWindowView: View {
                 EvidenceWorkbenchSidebarList(
                     workbench: workbench,
                     languageMode: languageMode,
-                    onMoveGroup: { groupID, direction in
-                        Task { await workspace.moveEvidenceGroup(groupID, direction: direction) }
-                    },
-                    onReorderGroup: { sourceGroupID, targetGroupID, placement in
-                        Task {
-                            await workspace.moveEvidenceGroup(
-                                sourceGroupID,
-                                to: targetGroupID,
-                                placement: placement
-                            )
-                        }
-                    },
-                    onAssignItemToGroup: { itemID, targetGroupID in
-                        Task {
-                            await workspace.assignEvidenceItem(
-                                itemID,
-                                to: targetGroupID
-                            )
-                        }
-                    },
-                    onCreateGroupFromItem: { itemID in
-                        Task {
-                            await workspace.createGroupAndAssignEvidenceItem(
-                                itemID,
-                                preferredWindowRoute: .evidenceWorkbench
-                            )
-                        }
-                    },
-                    onSplitSelectedGroup: {
-                        Task { await workspace.splitSelectedEvidenceGroup(preferredWindowRoute: .evidenceWorkbench) }
-                    },
-                    onRenameSelectedGroup: {
-                        Task { await workspace.renameSelectedEvidenceGroup(preferredWindowRoute: .evidenceWorkbench) }
-                    },
-                    onMergeSelectedGroup: {
-                        Task { await workspace.mergeSelectedEvidenceGroup(preferredWindowRoute: .evidenceWorkbench) }
-                    }
+                    onAction: handle
                 )
             } detail: {
                 EvidenceWorkbenchDetailPanel(
                     workbench: workbench,
-                    onUpdateStatus: { itemID, status in
-                        Task { await workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: status) }
-                    },
-                    onMoveSelected: { direction in
-                        Task { await workspace.moveSelectedEvidenceItem(direction) }
-                    },
-                    onExportMarkdown: {
-                        Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
-                    },
-                    onMoveSelectedGroup: { direction in
-                        Task { await workspace.moveSelectedEvidenceGroup(direction) }
-                    },
-                    onSplitSelectedGroup: {
-                        Task { await workspace.splitSelectedEvidenceGroup(preferredWindowRoute: .evidenceWorkbench) }
-                    },
-                    onRenameSelectedGroup: {
-                        Task { await workspace.renameSelectedEvidenceGroup(preferredWindowRoute: .evidenceWorkbench) }
-                    },
-                    onMergeSelectedGroup: {
-                        Task { await workspace.mergeSelectedEvidenceGroup(preferredWindowRoute: .evidenceWorkbench) }
-                    },
-                    onSaveDetails: {
-                        Task { await workspace.saveSelectedEvidenceDetails() }
-                    },
-                    onDeleteItem: { itemID in
-                        Task { await workspace.deleteEvidenceItem(itemID) }
-                    },
-                    onCopyCitation: { itemID in
-                        Task { await workspace.copyEvidenceCitation(itemID: itemID) }
-                    }
+                    onAction: handle
                 )
                 .padding(20)
             }
@@ -98,11 +32,7 @@ struct EvidenceWorkbenchWindowView: View {
         }
         .adaptiveWindowScaffold(for: .evidenceWorkbench)
         .bindWindowRoute(.evidenceWorkbench, titleProvider: { mode in
-            workbench.groupingMode.currentGroupWindowTitle(
-                baseTitle: NativeWindowRoute.evidenceWorkbench.title(in: mode),
-                group: workbench.selectedGroup(in: mode),
-                in: mode
-            )
+            wordZText("摘录篮", "Excerpt Tray", mode: mode)
         })
         .focusedValue(\.workspaceCommandContext, workspace.commandContext(for: .evidenceWorkbench))
         .task {
@@ -116,17 +46,16 @@ struct EvidenceWorkbenchWindowView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(t("证据篮", "Evidence Basket"))
+                    Text(t("摘录篮", "Excerpt Tray"))
                         .font(.title3.weight(.semibold))
                     Text(
                         String(
                             format: t(
-                                "已收集 %d 条证据；当前筛选显示 %d 条，整理为 %d 组。",
-                                "%d evidence items collected; %d visible across %d groups."
+                                "已暂存 %d 条摘录；当前显示 %d 条。",
+                                "%d excerpts saved; %d currently visible."
                             ),
                             workbench.items.count,
-                            workbench.filteredItems.count,
-                            workbench.groupedItems(in: languageMode).count
+                            workbench.filteredItems.count
                         )
                     )
                     .font(.caption)
@@ -135,16 +64,16 @@ struct EvidenceWorkbenchWindowView: View {
 
                 Spacer()
 
-                groupingPicker
+                reviewFilterPicker
 
-                Button {
-                    withAnimation(.easeInOut(duration: 0.16)) {
-                        showsAdvancedFilters.toggle()
+                if workbench.hasActiveNarrowingFilters {
+                    Button {
+                        workbench.clearFilters()
+                    } label: {
+                        Label(t("清除筛选", "Clear Filters"), systemImage: "xmark.circle")
                     }
-                } label: {
-                    Label(t("筛选", "Filters"), systemImage: "line.3.horizontal.decrease.circle")
+                    .help(t("显示全部摘录", "Show all excerpts"))
                 }
-                .help(t("显示或隐藏高级筛选", "Show or hide advanced filters"))
 
                 handoffSummaryToggle
                 copySaveMenu
@@ -155,22 +84,18 @@ struct EvidenceWorkbenchWindowView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            if showsAdvancedFilters || workbench.hasActiveNarrowingFilters {
-                advancedFilterSection
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
         }
         .padding(20)
     }
 
-    private var groupingPicker: some View {
+    private var reviewFilterPicker: some View {
         Picker(
-            t("整理", "Group By"),
-            selection: $workbench.groupingMode
+            t("显示", "Show"),
+            selection: $workbench.reviewFilter
         ) {
-            ForEach(EvidenceWorkbenchGroupingMode.allCases) { grouping in
-                Text(grouping.title(in: languageMode))
-                    .tag(grouping)
+            ForEach(EvidenceReviewFilter.allCases) { filter in
+                Text(filter.title(in: languageMode))
+                    .tag(filter)
             }
         }
         .pickerStyle(.menu)
@@ -197,76 +122,16 @@ struct EvidenceWorkbenchWindowView: View {
         Menu {
             Button(t("复制所选引文", "Copy Selected Citation")) {
                 guard let itemID = workbench.selectedItem?.id else { return }
-                Task { await workspace.copyEvidenceCitation(itemID: itemID) }
+                handle(.copyCitation(itemID: itemID))
             }
             .disabled(workbench.selectedItem == nil)
 
-            Button(t("保存保留条目为文本…", "Save Kept Items as Text…")) {
-                Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
+            Button(t("保存保留摘录为文本…", "Save Kept Excerpts as Text…")) {
+                handle(.exportMarkdown)
             }
             .disabled(!workbench.hasVisibleKeptItems)
         } label: {
             Label(t("复制/保存", "Copy/Save"), systemImage: "square.and.arrow.up")
-        }
-    }
-
-    private var advancedFilterSection: some View {
-        HStack(spacing: 10) {
-            Picker(
-                t("审校状态", "Review Status"),
-                selection: $workbench.reviewFilter
-            ) {
-                ForEach(EvidenceReviewFilter.allCases) { filter in
-                    Text(filter.title(in: languageMode))
-                        .tag(filter)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 128)
-
-            Picker(
-                t("来源", "Source"),
-                selection: $workbench.sourceFilter
-            ) {
-                ForEach(EvidenceSourceFilter.allCases) { filter in
-                    Text(filter.title(in: languageMode))
-                        .tag(filter)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 136)
-
-            Picker(
-                t("情感", "Sentiment"),
-                selection: $workbench.sentimentFilter
-            ) {
-                ForEach(EvidenceSentimentFilter.allCases) { filter in
-                    Text(filter.title(in: languageMode))
-                        .tag(filter)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 136)
-
-            TextField(t("标签筛选", "Filter Tags"), text: $workbench.tagFilterQuery)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 150)
-
-            TextField(t("语料筛选", "Filter Corpus"), text: $workbench.corpusFilterQuery)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 170)
-
-            if workbench.hasActiveNarrowingFilters {
-                Button {
-                    workbench.clearFilters()
-                } label: {
-                    Image(systemName: "xmark.circle")
-                }
-                .buttonStyle(.borderless)
-                .help(t("清除筛选", "Clear Filters"))
-            }
-
-            Spacer()
         }
     }
 
@@ -329,5 +194,20 @@ struct EvidenceWorkbenchWindowView: View {
 
     private func t(_ zh: String, _ en: String) -> String {
         wordZText(zh, en, mode: languageMode)
+    }
+
+    private func handle(_ action: EvidenceWorkbenchWindowAction) {
+        switch action {
+        case .updateReviewStatus(let itemID, let status):
+            Task { await workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: status) }
+        case .exportMarkdown:
+            Task { await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .evidenceWorkbench) }
+        case .saveDetails:
+            Task { await workspace.saveSelectedEvidenceDetails() }
+        case .deleteItem(let itemID):
+            Task { await workspace.deleteEvidenceItem(itemID) }
+        case .copyCitation(let itemID):
+            Task { await workspace.copyEvidenceCitation(itemID: itemID) }
+        }
     }
 }

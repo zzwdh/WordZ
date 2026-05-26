@@ -79,7 +79,8 @@ actor NativeTopicEngine: TopicAnalysisEngine {
             reducedEmbeddings.vectors,
             slices: slices,
             model: model,
-            minTopicSize: max(1, options.minTopicSize)
+            minTopicSize: max(1, options.minTopicSize),
+            partitionScoringProfile: options.partitionScoringProfile
         )
         guard !clustered.validClusters.isEmpty || !clustered.outlierIndices.isEmpty else {
             throw TopicAnalysisError.noTopicsGenerated

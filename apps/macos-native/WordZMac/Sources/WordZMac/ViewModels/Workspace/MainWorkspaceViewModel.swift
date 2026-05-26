@@ -75,6 +75,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
     var lastRootSceneBuildRequest: RootSceneBuildRequest?
     var lastWelcomeSceneBuildRequest: WelcomeSceneBuildRequest?
     var lastAppliedSceneGraphRevision = -1
+    var lastAppliedSceneGraphContentRevisions = WorkspaceSceneGraphContentRevisions.empty
     var isApplyingSceneSyncRequest = false
     var pendingSceneSyncRequest: SceneSyncRequest?
     var isApplyingWorkspaceAnnotationState = false

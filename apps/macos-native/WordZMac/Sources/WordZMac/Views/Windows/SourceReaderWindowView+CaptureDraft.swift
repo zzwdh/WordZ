@@ -9,7 +9,7 @@ struct SourceReaderInlineEvidenceDraftView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Label(t("证据整理", "Evidence Prep"), systemImage: "text.badge.checkmark")
+                Label(t("摘录", "Excerpt"), systemImage: "text.badge.checkmark")
                     .font(.headline)
 
                 Spacer()
@@ -24,7 +24,7 @@ struct SourceReaderInlineEvidenceDraftView: View {
                 Button {
                     onAddClip()
                 } label: {
-                    Label(t("加入证据篮", "Add to Evidence Basket"), systemImage: "tray.and.arrow.down")
+                    Label(t("暂存摘录", "Save Excerpt"), systemImage: "tray.and.arrow.down")
                 }
                 .disabled(!sourceReader.canAddEvidence)
             }
@@ -32,24 +32,6 @@ struct SourceReaderInlineEvidenceDraftView: View {
             if let preview = sourceReader.currentPreparedCitationText {
                 citationPreview(preview)
             }
-
-            TextField(
-                t("证据组", "Evidence Group"),
-                text: $sourceReader.captureSectionTitle
-            )
-            .textFieldStyle(.roundedBorder)
-
-            TextField(
-                t("发现线索", "Finding"),
-                text: $sourceReader.captureClaim
-            )
-            .textFieldStyle(.roundedBorder)
-
-            TextField(
-                t("标签（逗号分隔）", "Tags (comma separated)"),
-                text: $sourceReader.captureTagsText
-            )
-            .textFieldStyle(.roundedBorder)
 
             citationControls
 
@@ -64,12 +46,6 @@ struct SourceReaderInlineEvidenceDraftView: View {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .strokeBorder(WordZTheme.divider.opacity(0.45))
                     )
-            }
-
-            if let summary = sourceReader.captureDraftSummary {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }

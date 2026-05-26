@@ -7,6 +7,7 @@
 - `.app`
 - `.zip`
 - `.dmg`
+- `.pkg`
 - `checksums.txt`
 - `manifest.json`
 
@@ -17,9 +18,13 @@
 - `Scripts/build-app.sh`
   负责生成 `.app`，并写入 `WordZMacBuildInfo.json`
 - `Scripts/package-app.sh`
-  负责从当前源码直接构建 `.app`，再串到统一打包链生成 `.zip / .dmg`
+  负责从当前源码直接构建 `.app`，再串到统一打包链生成 `.zip / .dmg / .pkg`
 - `Scripts/package-from-app.sh`
-  负责从一个现成 `.app` 重新生成 `.zip / .dmg / checksums.txt / manifest.json`，供公证后重打包复用
+  负责从一个现成 `.app` 重新生成 `.zip / .dmg / .pkg / checksums.txt / manifest.json`，供公证后重打包复用
+- `Scripts/package-pkg.sh`
+  负责从当前源码直接构建 `.app`，然后只生成 `.pkg` 安装器
+- `Scripts/package-pkg-from-app.sh`
+  负责从一个现成 `.app` 生成安装到 `/Applications` 的 `.pkg`
 - `Scripts/release-manifest.sh`
   独立生成带 release metadata 的发布资产校验清单
 - `Scripts/release-metadata-check.sh`
@@ -31,7 +36,7 @@
 - `Scripts/release-checklist.sh`
   把 metadata、单测、打包、校验、原生 smoke，以及可选的公证与上传串成一条可重复执行的发布检查流程
 - `Scripts/notarize-app.sh`
-  用 `notarytool` 提交公证并 `staple`，支持直接输入 `.app/.dmg/.zip`，也支持对 manifest/dist 走“公证 -> 重打包 -> 刷新 manifest/checksums”
+  用 `notarytool` 提交公证并 `staple`，支持直接输入 `.app/.dmg/.zip/.pkg`，也支持对 manifest/dist 走“公证 -> 重打包 -> 刷新 manifest/checksums”
 - `Scripts/release-upload.sh`
   按 manifest 解析 release 资产并调用 `gh release create/upload`，避免手工漏传文件
 
@@ -62,10 +67,13 @@
 
 - `WORDZ_MAC_NOTARY_PROFILE`
   供 `notarytool` 使用的 keychain profile
+- `WORDZ_MAC_INSTALLER_SIGN_IDENTITY`
+  供 `.pkg` 使用的 Developer ID Installer 签名身份
 - `gh auth login`
   已登录且对目标仓库有 release 写权限
 
-现在的公证链路会在 `.app` stapled 之后重新生成 `.zip / .dmg`，并在 `.dmg` stapled 之后再次刷新 `checksums.txt / manifest.json`，确保最终上传资产与 manifest 中的 SHA256 保持一致。
+现在的公证链路会在 `.app` stapled 之后重新生成 `.zip / .dmg / .pkg`，并在 `.dmg / .pkg` stapled 之后再次刷新 `checksums.txt / manifest.json`，确保最终上传资产与 manifest 中的 SHA256 保持一致。
+`.pkg` 默认安装到 `/Applications`，可通过 `WORDZ_MAC_INSTALLER_SIGN_IDENTITY` 使用 Developer ID Installer 证书签名；公证链路会同时提交并 staple `.dmg` 与 `.pkg`。
 
 ## 版本策略
 

@@ -11,36 +11,15 @@ extension SentimentPageViewModel {
     }
 
     var selectedEffectiveRow: SentimentEffectiveRow? {
-        guard let presentationResult else { return nil }
-        if let selectedRowID,
-           let row = presentationResult.effectiveRows.first(where: { $0.id == selectedRowID }) {
-            return row
-        }
-        return presentationResult.effectiveRows.first
+        reviewState.selectedEffectiveRow(selectedRowID: selectedRowID)
     }
 
     var selectedResultRow: SentimentRowResult? {
-        guard let rawResult else { return nil }
-        if let selectedRowID,
-           let row = rawResult.rows.first(where: { $0.id == selectedRowID }) {
-            return row
-        }
-        return rawResult.rows.first
+        reviewState.selectedResultRow(selectedRowID: selectedRowID)
     }
 
     var selectedReviewSample: SentimentReviewSample? {
-        guard let selectedResultRow,
-              let rawResult
-        else { return nil }
-        let matchKey = SentimentReviewMatchKey.make(request: rawResult.request, row: selectedResultRow)
-        return reviewSamples
-            .filter { $0.matchKey == matchKey }
-            .max { lhs, rhs in
-                if lhs.updatedAt == rhs.updatedAt {
-                    return lhs.id < rhs.id
-                }
-                return lhs.updatedAt < rhs.updatedAt
-            }
+        reviewState.selectedReviewSample(selectedRowID: selectedRowID)
     }
 
     var result: SentimentRunResult? {
@@ -51,111 +30,6 @@ extension SentimentPageViewModel {
         guard let selectedResultRow else { return false }
         return selectedResultRow.sourceID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
             selectedResultRow.sentenceID != nil
-    }
-
-    func exportMetadataLines(
-        annotationSummary: String,
-        languageMode: AppLanguageMode
-    ) -> [String] {
-        let effectivePackID = rawResult?.request.resolvedDomainPackID ?? currentPackRecommendation.effectivePackID
-        var lines: [String] = [
-            "\(wordZText("规则包", "Domain Pack", mode: languageMode)): \(rawResult?.request.domainPackSummary(in: languageMode) ?? currentPackRecommendation.summary(in: languageMode))",
-            "\(wordZText("规则配置", "Rule Profile", mode: languageMode)): \(selectedRuleProfile.title)",
-            "\(wordZText("校准配置", "Calibration Profile", mode: languageMode)): \(selectedCalibrationProfileTitle(in: languageMode))",
-            "\(wordZText("Review Filter", "Review Filter", mode: languageMode)): \(reviewFilter.title(in: languageMode))",
-            "\(wordZText("审校状态", "Review Status", mode: languageMode)): \(reviewStatusFilter.title(in: languageMode))"
-        ]
-
-        if !selectedRuleProfile.importedBundleIDs.isEmpty {
-            lines.append(
-                "\(wordZText("用户词典", "User Lexicon Bundles", mode: languageMode)): \(selectedRuleProfile.importedBundleIDs.joined(separator: ", "))"
-            )
-        }
-        lines.append(
-            "\(wordZText("当前 Pack Bias", "Current Pack Bias", mode: languageMode)): \(String(format: "%.2f", selectedCalibrationProfile.domainBiasAdjustments[effectivePackID.rawValue] ?? 0))"
-        )
-
-        if showOnlyHardCases {
-            lines.append(wordZText("仅显示难例", "Showing hard cases only", mode: languageMode))
-        }
-
-        if let reviewSummary = presentationResult?.reviewSummary {
-            lines.append(
-                "\(wordZText("已审校样本", "Reviewed Samples", mode: languageMode)): \(reviewSummary.reviewedCount)"
-            )
-            lines.append(
-                "\(wordZText("人工改标", "Overrides", mode: languageMode)): \(reviewSummary.overriddenCount)"
-            )
-            lines.append(
-                "\(wordZText("确认原判", "Confirmed Raw", mode: languageMode)): \(reviewSummary.confirmedRawCount)"
-            )
-        }
-
-        switch source {
-        case .corpusCompare:
-            lines.append(
-                "\(wordZText("跨分析", "Cross Analysis", mode: languageMode)): \(wordZText("Compare x Sentiment", "Compare x Sentiment", mode: languageMode))"
-            )
-            lines.append(
-                "\(wordZText("范围", "Scope", mode: languageMode)): \(corpusCompareScopeSummary(in: languageMode))"
-            )
-            let focusTerm = rowFilterQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !focusTerm.isEmpty {
-                lines.append(
-                    "\(wordZText("聚焦词项", "Focus Term", mode: languageMode)): \(focusTerm)"
-                )
-            }
-        case .topicSegments:
-            lines.append(
-                "\(wordZText("跨分析", "Cross Analysis", mode: languageMode)): \(wordZText("Topics x Sentiment", "Topics x Sentiment", mode: languageMode))"
-            )
-            lines.append(
-                "\(wordZText("范围", "Scope", mode: languageMode)): \(topicSegmentScopeSummary(in: languageMode))"
-            )
-            if let focusedTopicID = topicSegmentsFocusClusterID,
-               !focusedTopicID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                lines.append(
-                    "\(wordZText("聚焦主题", "Focused Topic", mode: languageMode)): \(focusedTopicID)"
-                )
-            }
-
-            let visibleGroups = orderedTopicGroupTitles()
-            if !visibleGroups.isEmpty {
-                lines.append(
-                    "\(wordZText("主题范围", "Topic Scope", mode: languageMode)): \(visibleGroups.joined(separator: " · "))"
-                )
-            }
-        default:
-            break
-        }
-
-        let trimmedAnnotationSummary = annotationSummary.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedAnnotationSummary.isEmpty {
-            lines.append(trimmedAnnotationSummary)
-        }
-
-        return lines
-    }
-
-    func currentRunRequest(texts: [SentimentInputText]) -> SentimentRunRequest {
-        let packRecommendation = packRecommendationService.resolve(
-            selectedPackID: selectedDomainPackID,
-            source: source,
-            texts: texts
-        )
-        return SentimentRunRequest(
-            source: source,
-            unit: unit,
-            contextBasis: contextBasis,
-            thresholds: thresholds,
-            texts: texts,
-            backend: backend,
-            domainPackID: selectedDomainPackID,
-            effectiveDomainPackID: packRecommendation.usesAutomaticSelection ? packRecommendation.effectivePackID : nil,
-            ruleProfile: selectedRuleProfile,
-            calibrationProfile: currentCalibrationProfile,
-            userLexiconBundleIDs: selectedRuleProfile.importedBundleIDs
-        )
     }
 
     func rebuildScene() {
@@ -263,14 +137,13 @@ extension SentimentPageViewModel {
         workspaceCalibrationProfile = .workspaceDefault
         importedLexiconBundles = []
         manualText = ""
-        sortMode = .original
-        pageSize = .fifty
-        currentPage = 1
-        visibleColumns = Self.defaultVisibleColumns
+        tablePresentation.reset(
+            sortMode: .original,
+            pageSize: .fifty,
+            visibleColumns: Self.defaultVisibleColumns
+        )
         selectedRowID = nil
-        rawResult = nil
-        presentationResult = nil
-        reviewSamples = []
+        reviewState.reset()
         scene = nil
         invalidatePendingSceneBuilds()
         backendNotice = nil
@@ -283,56 +156,26 @@ extension SentimentPageViewModel {
     }
 
     func applyReviewSamples(_ samples: [SentimentReviewSample]) {
-        reviewSamples = latestReviewSamples(samples)
+        reviewState.replaceReviewSamples(samples)
         rebuildPresentationResult(rebuildScene: true)
     }
 
     func makeSelectedReviewSample(decision: SentimentReviewDecision) -> SentimentReviewSample? {
-        guard let selectedResultRow,
-              let rawResult
-        else {
-            return nil
-        }
         let timestamp = ISO8601DateFormatter().string(from: Date())
-        return SentimentReviewOverlaySupport.makeReviewSample(
+        return reviewState.makeSelectedReviewSample(
             decision: decision,
-            row: selectedResultRow,
-            result: rawResult,
+            selectedRowID: selectedRowID,
             note: selectedReviewNoteDraft,
-            timestamp: timestamp,
-            existingSample: selectedReviewSample
+            timestamp: timestamp
         )
     }
 
     private func rebuildPresentationResult(rebuildScene shouldRebuildScene: Bool) {
-        presentationResult = rawResult.map { rawResult in
-            SentimentReviewOverlaySupport.makePresentationResult(
-                rawResult: rawResult,
-                reviewSamples: reviewSamples
-            )
-        }
+        reviewState.rebuildPresentationResult()
         if shouldRebuildScene {
             rebuildScene()
         } else {
             syncSelectedReviewNoteDraft()
-        }
-    }
-
-    private func latestReviewSamples(_ samples: [SentimentReviewSample]) -> [SentimentReviewSample] {
-        let grouped = Dictionary(grouping: samples, by: \.matchKey)
-        return grouped.values.compactMap { group in
-            group.max { lhs, rhs in
-                if lhs.updatedAt == rhs.updatedAt {
-                    return lhs.id < rhs.id
-                }
-                return lhs.updatedAt < rhs.updatedAt
-            }
-        }
-        .sorted { lhs, rhs in
-            if lhs.updatedAt == rhs.updatedAt {
-                return lhs.id > rhs.id
-            }
-            return lhs.updatedAt > rhs.updatedAt
         }
     }
 

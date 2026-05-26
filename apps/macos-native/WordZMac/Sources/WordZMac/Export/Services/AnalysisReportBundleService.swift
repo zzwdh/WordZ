@@ -74,6 +74,13 @@ final class AnalysisReportBundleService: AnalysisReportBundleServicing {
             let tableURL = bundleDirectoryURL.appendingPathComponent("current-result.csv")
             try tableExportService.writeCSV(snapshot: tableSnapshot, to: tableURL.path)
             manifestEntries.append(.init(path: "current-result.csv", description: "Current visible result table as CSV."))
+
+            let metadataPath = try tableExportService.writeMetadataSidecar(
+                snapshot: tableSnapshot,
+                forCSVPath: tableURL.path
+            )
+            let metadataRelativePath = URL(fileURLWithPath: metadataPath).lastPathComponent
+            manifestEntries.append(.init(path: metadataRelativePath, description: "Current result metadata and data dictionary."))
         }
 
         for textDocument in payload.textDocuments {

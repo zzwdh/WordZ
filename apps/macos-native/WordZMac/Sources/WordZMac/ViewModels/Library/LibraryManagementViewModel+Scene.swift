@@ -40,6 +40,11 @@ extension LibraryManagementViewModel {
                     subtitle: currentVisibleCount == totalCorpusCount
                         ? "\(totalCorpusCount) 条语料"
                         : "\(currentVisibleCount) / \(totalCorpusCount) 条语料",
+                    isSmart: !corpusSet.metadataFilterState.isEmpty,
+                    kindTitle: corpusSet.metadataFilterState.isEmpty ? "固定语料集" : "智能语料集",
+                    snapshotSummary: corpusSet.metadataFilterState.isEmpty
+                        ? "手动保存的语料快照"
+                        : "按元数据筛选动态整理",
                     corpusCountText: "\(totalCorpusCount)",
                     filterSummary: corpusSet.metadataFilterState.summaryText(in: WordZLocalization.shared.effectiveMode) ?? "无元数据筛选",
                     isSelected: corpusSet.id == selectedCorpusSetID
@@ -59,7 +64,10 @@ extension LibraryManagementViewModel {
                 title: corpus.name,
                 subtitle: corpus.folderName,
                 sourceType: corpus.sourceType,
+                databaseFileName: corpus.databaseFileDisplayName,
+                representedPath: corpus.representedPath,
                 metadataSummary: corpus.metadata.compactSummary(in: languageMode),
+                readiness: makeReadinessScene(for: corpus, languageMode: languageMode),
                 cleaningStatus: corpus.cleaningStatus,
                 cleaningStatusTitle: corpus.cleaningStatus.title(in: languageMode),
                 cleaningSummary: cleaningSummary?.ruleHitsSummary(in: languageMode, limit: 2)
@@ -83,8 +91,8 @@ extension LibraryManagementViewModel {
             }
 
         let librarySummary = hasSearchQuery
-            ? "文件夹 \(librarySnapshot.folders.count) · 语料 \(librarySnapshot.corpora.count) · 搜索 “\(normalizedSearchQuery)”"
-            : "文件夹 \(librarySnapshot.folders.count) · 语料 \(librarySnapshot.corpora.count)"
+            ? "DB \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count) · 搜索 “\(normalizedSearchQuery)”"
+            : "DB \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count)"
         let recycleSummary = "回收站 \(recycleSnapshot.totalCount) 项"
         let autoCleaningSummary = LibraryAutoCleaningSummarySceneModel(
             cleanedCount: visibleCorpora.filter { $0.cleaningStatus == .cleaned }.count,
@@ -96,6 +104,15 @@ extension LibraryManagementViewModel {
             missingYearCount: visibleCorpora.filter { $0.metadata.yearLabel.isEmpty }.count,
             missingGenreCount: visibleCorpora.filter { $0.metadata.genreLabel.isEmpty }.count,
             missingTagsCount: visibleCorpora.filter { $0.metadata.tags.isEmpty }.count
+        )
+        let readinessSummary = makeReadinessSummary(
+            visibleCorpora: visibleCorpora,
+            languageMode: languageMode
+        )
+        let metadataStudio = makeMetadataStudioScene(
+            visibleCorpora: visibleCorpora,
+            selectedCorpusCount: selectedCorpusIDs.count,
+            languageMode: languageMode
         )
         let metadataFilterSummary = metadataFilterState.summaryText(in: WordZLocalization.shared.effectiveMode)
         let importProgress = importProgressSnapshot?.progress
@@ -114,6 +131,8 @@ extension LibraryManagementViewModel {
             metadataFilterSummary: metadataFilterSummary,
             autoCleaningSummary: autoCleaningSummary,
             integritySummary: integritySummary,
+            readinessSummary: readinessSummary,
+            metadataStudio: metadataStudio,
             importProgress: importProgress,
             importDetail: importProgressSnapshot.map(importDetailText),
             navigationSelection: navigationSelection,

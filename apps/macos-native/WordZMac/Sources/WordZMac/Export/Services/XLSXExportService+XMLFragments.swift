@@ -1,14 +1,19 @@
 import Foundation
 
 extension XLSXExportService {
-    static func contentTypesXML() -> String {
-        """
+    static func contentTypesXML(worksheetCount: Int) -> String {
+        let worksheetOverrides = (1...max(worksheetCount, 1)).map { index in
+            """
+              <Override PartName="/xl/worksheets/sheet\(index).xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+            """
+        }.joined(separator: "\n")
+        return """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
           <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
           <Default Extension="xml" ContentType="application/xml"/>
           <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-          <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+        \(worksheetOverrides)
           <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
           <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
           <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
@@ -48,23 +53,42 @@ extension XLSXExportService {
         """
     }
 
-    static func workbookXML(sheetName: String) -> String {
-        """
+    static func workbookSheetNames() -> [String] {
+        ["Results", "Metadata", "Data Dictionary"]
+    }
+
+    static func workbookXML(sheetNames: [String]) -> String {
+        let sheets = sheetNames.enumerated().map { index, sheetName in
+            """
+                <sheet name="\(xmlEscaped(sanitizedSheetName(sheetName)))" sheetId="\(index + 1)" r:id="rId\(index + 1)"/>
+            """
+        }.joined(separator: "\n")
+        return """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
           <sheets>
-            <sheet name="\(xmlEscaped(sheetName))" sheetId="1" r:id="rId1"/>
+        \(sheets)
           </sheets>
         </workbook>
         """
     }
 
-    static func workbookRelationshipsXML() -> String {
-        """
+    static func workbookXML(worksheets: [XLSXWorksheet]) -> String {
+        workbookXML(sheetNames: worksheets.map(\.name))
+    }
+
+    static func workbookRelationshipsXML(worksheetCount: Int) -> String {
+        let worksheetRelationships = (1...max(worksheetCount, 1)).map { index in
+            """
+              <Relationship Id="rId\(index)" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet\(index).xml"/>
+            """
+        }.joined(separator: "\n")
+        let stylesRelationshipID = max(worksheetCount, 1) + 1
+        return """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-          <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-          <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+        \(worksheetRelationships)
+          <Relationship Id="rId\(stylesRelationshipID)" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
         </Relationships>
         """
     }
@@ -117,5 +141,14 @@ extension XLSXExportService {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.string(from: Date())
+    }
+
+    static func xmlEscaped(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
     }
 }

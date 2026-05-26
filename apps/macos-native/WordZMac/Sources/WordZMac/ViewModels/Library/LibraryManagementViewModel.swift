@@ -51,6 +51,7 @@ final class LibraryManagementViewModel: ObservableObject {
         didSet { syncScene() }
     }
     @Published var corpusInfoSheet: LibraryCorpusInfoSceneModel?
+    @Published var importPreflightSheet: LibraryImportPreflightSceneModel?
     @Published var importSummarySheet: LibraryImportSummarySceneModel?
     @Published var metadataEditorSheet: LibraryCorpusMetadataEditorSceneModel?
     @Published var librarySnapshot = LibrarySnapshot.empty
@@ -62,6 +63,9 @@ final class LibraryManagementViewModel: ObservableObject {
     var isBusy = false
     var isSyncingCorpusSelection = false
     var showsRecycleBin = false {
+        didSet { syncScene() }
+    }
+    var showsCorpusBuilder = false {
         didSet { syncScene() }
     }
     var recentCorpusSetIDs: [String] = [] {

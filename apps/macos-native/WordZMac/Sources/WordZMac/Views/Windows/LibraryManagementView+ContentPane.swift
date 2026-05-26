@@ -2,13 +2,12 @@ import SwiftUI
 
 extension LibraryManagementView {
     var libraryPrimaryContentPane: some View {
-        NativeWindowSection(
-            title: viewModel.scene.content.title,
-            subtitle: viewModel.scene.content.subtitle
-        ) {
+        VStack(alignment: .leading, spacing: 10) {
             switch viewModel.scene.content.mode {
             case .corpora:
                 corporaContent
+            case .corpusBuilder:
+                corpusBuilderContent
             case .recycleBin:
                 recycleContent
             }
@@ -19,152 +18,198 @@ extension LibraryManagementView {
     private var corporaContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             if viewModel.scene.corpora.isEmpty {
-                ContentUnavailableView(
-                    viewModel.scene.content.emptyTitle,
+                libraryEmptyState(
+                    title: viewModel.scene.content.emptyTitle,
+                    description: viewModel.scene.content.emptyDescription,
                     systemImage: "tray",
-                    description: Text(viewModel.scene.content.emptyDescription)
+                    showsImportAction: true
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(
-                    selection: Binding(
+                LibraryCorpusTableView(
+                    corpora: viewModel.scene.corpora,
+                    selectedCorpusIDs: Binding(
                         get: { viewModel.scene.selectedCorpusIDs },
                         set: { onAction(.selectCorpusIDs($0)) }
-                    )
-                ) {
-                    ForEach(viewModel.scene.corpora) { corpus in
-                        HStack(alignment: .top, spacing: 10) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(corpus.title)
-                                HStack(spacing: 8) {
-                                    Text("\(corpus.subtitle) · \(corpus.sourceType.uppercased())")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                    corpusCleaningPill(for: corpus)
-                                }
-                                Text(corpusRowSummary(for: corpus))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            Spacer(minLength: 8)
-                            integrityMarkers(for: corpus)
-                        }
-                        .tag(corpus.id)
-                        .contextMenu {
-                            Button(t("打开语料", "Open Corpus")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.openSelectedCorpus)
-                            }
-                            Button(t("快速预览", "Quick Look")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.quickLookSelectedCorpus)
-                            }
-                            Button(t("分享语料", "Share Corpus")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.shareSelectedCorpus)
-                            }
-                            Button(t("语料信息", "Corpus Info")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.showSelectedCorpusInfo)
-                            }
-                            if viewModel.scene.selectedCorpusIDs.count > 1,
-                               viewModel.scene.selectedCorpusIDs.contains(corpus.id) {
-                                Button(t("批量清洗所选语料", "Clean Selected Corpora")) {
-                                    onAction(.selectCorpusIDs(viewModel.scene.selectedCorpusIDs.union([corpus.id])))
-                                    onAction(.cleanSelectedCorpora)
-                                }
-                            } else {
-                                Button(t("重新清洗", "Re-clean")) {
-                                    onAction(.selectCorpus(corpus.id))
-                                    onAction(.cleanSelectedCorpus)
-                                }
-                            }
-                            Button(t("编辑元数据", "Edit Metadata")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.editSelectedCorpusMetadata)
-                            }
-                            Button(t("批量编辑元数据", "Batch Edit Metadata")) {
-                                onAction(.selectCorpusIDs(viewModel.scene.selectedCorpusIDs.union([corpus.id])))
-                                onAction(.editSelectedCorporaMetadata)
-                            }
-                            .disabled(!(viewModel.scene.selectedCorpusIDs.count > 1 && viewModel.scene.selectedCorpusIDs.contains(corpus.id)))
-                            Button(t("重命名", "Rename")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.renameSelectedCorpus)
-                            }
-                            Button(t("移到选中文件夹", "Move to Selected Folder")) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.moveSelectedCorpusToSelectedFolder)
-                            }
-                            Button(t("删除", "Delete"), role: .destructive) {
-                                onAction(.selectCorpus(corpus.id))
-                                onAction(.deleteSelectedCorpus)
-                            }
-                        }
+                    ),
+                    onAction: onAction
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom) {
+                    if hasCorpusSelection {
+                        corporaSelectionActions
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 8)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.easeInOut(duration: 0.16), value: viewModel.scene.selectedCorpusIDs)
             }
-
-            corporaSelectionActions
         }
     }
 
-    private var corporaSelectionActions: some View {
-        Group {
-            if viewModel.scene.selectedCorpusIDs.count > 1 {
-                HStack(spacing: 10) {
-                    Label(
-                        t("已选择 \(viewModel.scene.selectedCorpusIDs.count) 条语料", "Selected \(viewModel.scene.selectedCorpusIDs.count) corpora"),
-                        systemImage: "square.stack.3d.down.right"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private var corpusBuilderContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            AdaptiveToolbarSurface {
+                HStack(spacing: 12) {
+                    Image(systemName: "hammer")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18)
 
-                    Spacer(minLength: 0)
-
-                    Button(t("批量清洗所选语料", "Clean Selected Corpora")) {
-                        onAction(.cleanSelectedCorpora)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Corpus Builder (Files)")
+                            .font(.callout.weight(.semibold))
+                        Text(t("输出为一个命名 .db 语料库", "Outputs one named .db corpus"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.borderedProminent)
 
-                    Button(t("批量编辑元数据", "Batch Edit Metadata")) {
-                        onAction(.editSelectedCorporaMetadata)
+                    Spacer(minLength: 12)
+
+                    Button {
+                        onAction(.importPaths)
+                    } label: {
+                        Label(t("选择文件并制作 DB", "Choose Files and Build DB"), systemImage: "plus")
                     }
-                    .buttonStyle(.bordered)
+                    .adaptiveGlassButtonStyle(prominent: true)
                 }
-            } else {
-                HStack(spacing: 10) {
-                    Button(t("打开语料", "Open Corpus")) { onAction(.openSelectedCorpus) }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.scene.selectedCorpusID == nil || viewModel.scene.selectedCorpusIDs.count != 1)
-                    Button(t("分享语料", "Share Corpus")) { onAction(.shareSelectedCorpus) }
-                        .buttonStyle(.bordered)
-                        .disabled(viewModel.scene.selectedCorpusID == nil || viewModel.scene.selectedCorpusIDs.count != 1)
-                    Button(t("重新清洗", "Re-clean")) { onAction(.cleanSelectedCorpus) }
-                        .buttonStyle(.bordered)
-                        .disabled(viewModel.scene.selectedCorpusID == nil || viewModel.scene.selectedCorpusIDs.count != 1)
-                    Spacer()
-                    Text(t("空格：快速预览", "Space: Quick Look"))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+            }
+
+            LibraryCorpusBuilderReferenceView(
+                dbCount: viewModel.scene.corpora.count,
+                folderCount: viewModel.scene.folders.count,
+                onBuild: { onAction(.importPaths) }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    private var hasCorpusSelection: Bool {
+        !viewModel.scene.selectedCorpusIDs.isEmpty || viewModel.scene.selectedCorpusID != nil
+    }
+
+    private var corporaSelectionActions: some View {
+        AdaptiveSelectionAccessorySurface {
+            Group {
+                if viewModel.scene.selectedCorpusIDs.count > 1 {
+                    HStack(spacing: 10) {
+                        Label(
+                            t("已选择 \(viewModel.scene.selectedCorpusIDs.count) 个 DB", "Selected \(viewModel.scene.selectedCorpusIDs.count) DB corpora"),
+                            systemImage: "square.stack.3d.down.right"
+                        )
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                        Spacer(minLength: 0)
+
+                        selectionActionButton(
+                            title: t("合并为 DB 语料集", "Merge as DB Set"),
+                            systemImage: "tray.full",
+                            isProminent: true
+                        ) {
+                            onAction(.saveCurrentCorpusSet)
+                        }
+                    }
+                } else {
+                    let hasSingleSelection = viewModel.scene.selectedCorpusID != nil
+                        && viewModel.scene.selectedCorpusIDs.count == 1
+
+                    HStack(spacing: 10) {
+                        selectionActionButton(
+                            title: t("打开", "Open"),
+                            systemImage: "doc.text.magnifyingglass",
+                            isEnabled: hasSingleSelection,
+                            isProminent: true
+                        ) {
+                            onAction(.openSelectedCorpus)
+                        }
+
+                        selectionActionButton(
+                            title: t("详情", "Details"),
+                            systemImage: "info.circle",
+                            isEnabled: hasSingleSelection
+                        ) {
+                            onAction(.showSelectedCorpusInfo)
+                        }
+
+                        selectionActionButton(
+                            title: t("重命名", "Rename"),
+                            systemImage: "pencil",
+                            isEnabled: hasSingleSelection
+                        ) {
+                            onAction(.renameSelectedCorpus)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+    }
+
+    private func selectionActionButton(
+        title: String,
+        systemImage: String,
+        isEnabled: Bool = true,
+        isProminent: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+        }
+        .controlSize(.small)
+        .adaptiveGlassButtonStyle(prominent: isProminent)
+        .disabled(!isEnabled)
+    }
+
+    private var recycleSelectionActions: some View {
+        AdaptiveSelectionAccessorySurface {
+            HStack(spacing: 10) {
+                Label(
+                    viewModel.scene.selectedRecycleEntryID == nil
+                        ? t("未选择回收站项目", "No recycle item selected")
+                        : t("已选择回收站项目", "Recycle item selected"),
+                    systemImage: "trash"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                selectionActionButton(
+                    title: t("恢复", "Restore"),
+                    systemImage: "arrow.uturn.backward",
+                    isEnabled: viewModel.scene.selectedRecycleEntryID != nil,
+                    isProminent: true
+                ) {
+                    onAction(.restoreSelectedRecycleEntry)
+                }
+
+                selectionActionButton(
+                    title: t("彻底删除", "Delete Permanently"),
+                    systemImage: "trash.slash",
+                    isEnabled: viewModel.scene.selectedRecycleEntryID != nil
+                ) {
+                    onAction(.purgeSelectedRecycleEntry)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
     }
 
     private var recycleContent: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 12) {
             if viewModel.scene.recycleEntries.isEmpty {
-                ContentUnavailableView(
-                    viewModel.scene.content.emptyTitle,
+                libraryEmptyState(
+                    title: viewModel.scene.content.emptyTitle,
+                    description: viewModel.scene.content.emptyDescription,
                     systemImage: "trash",
-                    description: Text(viewModel.scene.content.emptyDescription)
+                    showsImportAction: false
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(
                     selection: Binding(
@@ -192,56 +237,107 @@ extension LibraryManagementView {
                         }
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .listStyle(.inset)
+                .scrollContentBackground(.hidden)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .bottom) {
+                    if viewModel.scene.selectedRecycleEntryID != nil {
+                        recycleSelectionActions
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 8)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(.easeInOut(duration: 0.16), value: viewModel.scene.selectedRecycleEntryID)
             }
         }
     }
 
-    @ViewBuilder
-    private func integrityMarkers(for corpus: LibraryManagementCorpusSceneItem) -> some View {
-        HStack(spacing: 6) {
-            if corpus.hasMissingYear {
-                Image(systemName: "calendar.badge.exclamationmark")
-                    .foregroundStyle(.orange)
-                    .help(t("缺年份", "Missing Year"))
-            }
-            if corpus.hasMissingGenre {
-                Image(systemName: "text.book.closed")
+    private func libraryEmptyState(
+        title: String,
+        description: String,
+        systemImage: String,
+        showsImportAction: Bool
+    ) -> some View {
+        AdaptiveEmptyStateSurface {
+            VStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 38, weight: .regular))
                     .foregroundStyle(.secondary)
-                    .help(t("缺体裁", "Missing Genre"))
+
+                VStack(spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                    Text(description)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if showsImportAction {
+                    Button {
+                        onAction(.importPaths)
+                    } label: {
+                        Label(t("制作 DB", "Build DB"), systemImage: "plus")
+                    }
+                    .adaptiveGlassButtonStyle(prominent: true)
+                }
             }
-            if corpus.hasMissingTags {
-                Image(systemName: "tag.slash")
-                    .foregroundStyle(.secondary)
-                    .help(t("缺标签", "Missing Tags"))
+            .padding(28)
+            .frame(maxWidth: 420)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+}
+
+private struct LibraryCorpusBuilderReferenceView: View {
+    let dbCount: Int
+    let folderCount: Int
+    let onBuild: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 12)], spacing: 12) {
+                NativeMetricTile(title: "Corpus Library", value: "\(dbCount)")
+                NativeMetricTile(title: "Folders", value: "\(folderCount)")
+                NativeMetricTile(title: "Output", value: ".db")
+                NativeMetricTile(title: "Default", value: "我的语料库")
             }
+
+            VStack(alignment: .leading, spacing: 0) {
+                builderDetailRow(title: "Input", value: "TXT · DOCX · PDF")
+                Divider()
+                builderDetailRow(title: "Build", value: "Selected files -> one DB")
+                Divider()
+                builderDetailRow(title: "Library", value: "Corpus Library (.db)")
+                Divider()
+                builderDetailRow(title: "Reuse", value: "a+b+c -> dbA, b+c+d -> dbB")
+            }
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            Button(action: onBuild) {
+                Label("Build DB", systemImage: "plus")
+            }
+            .adaptiveGlassButtonStyle(prominent: true)
+
+            Spacer(minLength: 0)
         }
-        .font(.caption)
     }
 
-    private func corpusRowSummary(for corpus: LibraryManagementCorpusSceneItem) -> String {
-        let parts = [corpus.metadataSummary, corpus.cleaningSummary].filter { !$0.isEmpty }
-        return parts.isEmpty ? corpus.cleaningStatusTitle : parts.joined(separator: " · ")
-    }
-
-    private func corpusCleaningPill(for corpus: LibraryManagementCorpusSceneItem) -> some View {
-        Text(corpus.cleaningStatusTitle)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(cleaningTint(for: corpus.cleaningStatus))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(cleaningTint(for: corpus.cleaningStatus).opacity(0.12), in: Capsule())
-    }
-
-    private func cleaningTint(for status: LibraryCorpusCleaningStatus) -> Color {
-        switch status {
-        case .pending:
-            return .orange
-        case .cleaned:
-            return .green
-        case .cleanedWithChanges:
-            return .blue
+    private func builderDetailRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .leading)
+            Text(value)
+                .font(.callout)
+                .textSelection(.enabled)
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }

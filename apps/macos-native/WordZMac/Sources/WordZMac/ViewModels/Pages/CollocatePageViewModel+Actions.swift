@@ -16,21 +16,21 @@ extension CollocatePageViewModel {
         case .changeFocusMetric(let nextMetric):
             changeFocusMetric(nextMetric)
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .selectRow(let rowID):
             selectedRowID = rowID
         case .copyCurrent, .copyVisible, .copyMethodSummary, .exportCurrent, .exportVisible:
             return
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
@@ -40,33 +40,33 @@ extension CollocatePageViewModel {
         }
     }
 
-    func sortByColumn(_ column: CollocateColumnKey) {
-        let nextSort: CollocateSortMode?
-        switch column {
-        case .rank:
-            nextSort = .frequencyDescending
-        case .word:
-            nextSort = .alphabeticalAscending
-        case .total:
-            nextSort = sortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
-        case .logDice:
-            nextSort = .logDiceDescending
-        case .mutualInformation:
-            nextSort = .mutualInformationDescending
-        case .tScore:
-            nextSort = .tScoreDescending
-        case .rate:
-            nextSort = .rateDescending
-        case .left, .right, .wordFreq, .keywordFreq:
-            nextSort = nil
-        }
-        guard let nextSort, sortMode != nextSort else { return }
-        sortMode = nextSort
-        resetToFirstPageAndRebuild()
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort else { return }
+        invalidateSortedRowsCache()
     }
 
-    func toggleColumn(_ column: CollocateColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
+    func nextSortMode(
+        for column: CollocateColumnKey,
+        currentSortMode: CollocateSortMode
+    ) -> CollocateSortMode? {
+        switch column {
+        case .rank:
+            return .frequencyDescending
+        case .word:
+            return .alphabeticalAscending
+        case .total:
+            return currentSortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
+        case .logDice:
+            return .logDiceDescending
+        case .mutualInformation:
+            return .mutualInformationDescending
+        case .tScore:
+            return .tScoreDescending
+        case .rate:
+            return .rateDescending
+        case .left, .right, .wordFreq, .keywordFreq:
+            return nil
+        }
     }
 
     func changeFocusMetric(_ nextMetric: CollocateAssociationMetric) {

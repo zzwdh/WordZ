@@ -12,7 +12,10 @@ struct LibraryManagementCorpusSceneItem: Identifiable, Equatable {
     let title: String
     let subtitle: String
     let sourceType: String
+    let databaseFileName: String
+    let representedPath: String
     let metadataSummary: String
+    let readiness: LibraryCorpusReadinessSceneModel
     let cleaningStatus: LibraryCorpusCleaningStatus
     let cleaningStatusTitle: String
     let cleaningSummary: String
@@ -26,9 +29,94 @@ struct LibraryManagementCorpusSetSceneItem: Identifiable, Equatable {
     let id: String
     let title: String
     let subtitle: String
+    let isSmart: Bool
+    let kindTitle: String
+    let snapshotSummary: String
     let corpusCountText: String
     let filterSummary: String
     let isSelected: Bool
+}
+
+enum LibraryCorpusReadinessLevel: Equatable {
+    case ready
+    case attention
+    case blocked
+}
+
+struct LibraryCorpusReadinessSceneModel: Equatable {
+    let level: LibraryCorpusReadinessLevel
+    let title: String
+    let scoreText: String
+    let detailText: String
+    let issueTitles: [String]
+}
+
+struct LibraryReadinessSummarySceneModel: Equatable {
+    let readyCount: Int
+    let attentionCount: Int
+    let blockedCount: Int
+    let averageScoreText: String
+    let actionSummaryText: String
+
+    static let empty = LibraryReadinessSummarySceneModel(
+        readyCount: 0,
+        attentionCount: 0,
+        blockedCount: 0,
+        averageScoreText: "0%",
+        actionSummaryText: "暂无可检查语料"
+    )
+}
+
+struct LibraryMetadataStudioSceneModel: Equatable {
+    let visibleCorpusCount: Int
+    let selectedCorpusCount: Int
+    let completeMetadataCount: Int
+    let missingYearCount: Int
+    let missingGenreCount: Int
+    let missingTagsCount: Int
+    let completionText: String
+    let actionHintText: String
+
+    static let empty = LibraryMetadataStudioSceneModel(
+        visibleCorpusCount: 0,
+        selectedCorpusCount: 0,
+        completeMetadataCount: 0,
+        missingYearCount: 0,
+        missingGenreCount: 0,
+        missingTagsCount: 0,
+        completionText: "0%",
+        actionHintText: "选择语料后可批量补齐元数据"
+    )
+}
+
+struct LibraryImportPreflightWarningSceneItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let detail: String
+    let systemImage: String
+}
+
+struct LibraryImportPreflightPreviewItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let detail: String
+    let isSupported: Bool
+}
+
+struct LibraryImportPreflightSceneModel: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let paths: [String]
+    let defaultCorpusName: String
+    let fileCountText: String
+    let folderCountText: String
+    let supportedCountText: String
+    let unsupportedCountText: String
+    let duplicateRiskCountText: String
+    let preserveHierarchyText: String
+    let warnings: [LibraryImportPreflightWarningSceneItem]
+    let previewItems: [LibraryImportPreflightPreviewItem]
 }
 
 struct LibraryManagementRecycleSceneItem: Identifiable, Equatable {
@@ -40,6 +128,7 @@ struct LibraryManagementRecycleSceneItem: Identifiable, Equatable {
 
 enum LibraryManagementNavigationSelection: Hashable, Equatable {
     case allCorpora
+    case corpusBuilder
     case folder(String)
     case savedCorpusSet(String)
     case recentCorpusSet(String)
@@ -48,6 +137,7 @@ enum LibraryManagementNavigationSelection: Hashable, Equatable {
 
 enum LibraryManagementContentMode: Equatable {
     case corpora
+    case corpusBuilder
     case recycleBin
 }
 
@@ -77,6 +167,21 @@ enum LibraryManagementInspectorActionRole: Equatable {
     case destructive
 }
 
+enum LibraryManagementInspectorStatusLevel: Equatable {
+    case info
+    case success
+    case warning
+    case blocked
+}
+
+struct LibraryManagementInspectorStatusItem: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let detail: String
+    let systemImage: String
+    let level: LibraryManagementInspectorStatusLevel
+}
+
 struct LibraryManagementInspectorDetailItem: Identifiable, Equatable {
     let id: String
     let title: String
@@ -93,12 +198,14 @@ struct LibraryManagementInspectorActionItem: Identifiable, Equatable {
 struct LibraryManagementInspectorSceneModel: Equatable {
     let title: String
     let subtitle: String
+    let statusItems: [LibraryManagementInspectorStatusItem]
     let details: [LibraryManagementInspectorDetailItem]
     let actions: [LibraryManagementInspectorActionItem]
 
     static let empty = LibraryManagementInspectorSceneModel(
         title: "选择一个项目",
         subtitle: "从文件夹、语料或回收站里选择一项，就能在这里查看详情并执行相关操作。",
+        statusItems: [],
         details: [],
         actions: []
     )
@@ -108,6 +215,14 @@ struct LibraryCorpusInfoSceneModel: Identifiable, Equatable {
     let id: String
     let title: String
     let subtitle: String
+    let projectIDText: String
+    let databaseFileNameText: String
+    let dbProjectSummaryText: String
+    let sourceChainText: String
+    let analysisReadinessTitle: String
+    let analysisReadinessDetail: String
+    let chineseAnalysisText: String
+    let missingActionText: String
     let folderName: String
     let sourceType: String
     let sourceLabelText: String
@@ -116,6 +231,7 @@ struct LibraryCorpusInfoSceneModel: Identifiable, Equatable {
     let tagsText: String
     let importedAtText: String
     let encodingText: String
+    let fileCountText: String
     let tokenCountText: String
     let typeCountText: String
     let sentenceCountText: String
@@ -195,6 +311,8 @@ struct LibraryManagementSceneModel: Equatable {
     let metadataFilterSummary: String?
     let autoCleaningSummary: LibraryAutoCleaningSummarySceneModel
     let integritySummary: LibraryIntegritySummarySceneModel
+    let readinessSummary: LibraryReadinessSummarySceneModel
+    let metadataStudio: LibraryMetadataStudioSceneModel
     let importProgress: Double?
     let importDetail: String?
     let navigationSelection: LibraryManagementNavigationSelection
@@ -224,15 +342,17 @@ struct LibraryManagementSceneModel: Equatable {
         metadataFilterSummary: nil,
         autoCleaningSummary: .empty,
         integritySummary: .empty,
+        readinessSummary: .empty,
+        metadataStudio: .empty,
         importProgress: nil,
         importDetail: nil,
         navigationSelection: .allCorpora,
         content: LibraryManagementContentSceneModel(
             mode: .corpora,
-            title: "全部语料",
-            subtitle: "共 0 条语料",
-            emptyTitle: "当前视图没有语料",
-            emptyDescription: "可以切换到“全部语料”，或者直接导入新语料。"
+            title: "Corpus Library (.db)",
+            subtitle: "0 个 DB 语料库",
+            emptyTitle: "还没有 DB 语料库",
+            emptyDescription: "使用语料构建器从文件制作 DB。"
         ),
         filterChips: [],
         overflowActions: [],

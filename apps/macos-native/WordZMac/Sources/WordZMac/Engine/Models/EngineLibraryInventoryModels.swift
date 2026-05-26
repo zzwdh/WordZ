@@ -17,6 +17,7 @@ struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
     let folderName: String
     let sourceType: String
     let representedPath: String
+    let storageFileName: String
     let metadata: CorpusMetadataProfile
     let cleaningStatus: LibraryCorpusCleaningStatus
     let cleaningSummary: LibraryCorpusCleaningReportSummary?
@@ -28,6 +29,7 @@ struct LibraryCorpusItem: Identifiable, Hashable, Sendable {
         self.folderName = JSONFieldReader.string(json, key: "folderName", fallback: "未分类")
         self.sourceType = JSONFieldReader.string(json, key: "sourceType", fallback: "txt")
         self.representedPath = JSONFieldReader.string(json, key: "representedPath")
+        self.storageFileName = JSONFieldReader.string(json, key: "storageFileName")
         self.metadata = CorpusMetadataProfile(
             json: JSONFieldReader.dictionary(json, key: "metadata").isEmpty ? json : JSONFieldReader.dictionary(json, key: "metadata")
         )

@@ -91,6 +91,7 @@ struct NativeCorpusRecord: Codable, Equatable, Identifiable {
             "folderName": folderName,
             "sourceType": sourceType,
             "representedPath": representedPath,
+            "storageFileName": storageFileName,
             "metadata": metadata.jsonObject,
             "cleaningStatus": (cleaningSummary?.status ?? .pending).rawValue,
             "cleaningSummary": cleaningSummary?.jsonObject ?? [:]

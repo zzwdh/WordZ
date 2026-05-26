@@ -1,6 +1,6 @@
 import Foundation
 
-final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, CorpusCleaningProgressReportingLibraryStore, CorpusSetManagingLibraryStore, FullTextSearchingLibraryStore {
+final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, MergedCorpusImportingLibraryStore, CorpusCleaningProgressReportingLibraryStore, CorpusSetManagingLibraryStore, FullTextSearchingLibraryStore {
     let rootURL: URL
     let fileManager: FileManager
     let encoder: JSONEncoder
@@ -19,6 +19,7 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     var cachedUISettings: NativePersistedUISettings?
 
     var corporaDirectoryURL: URL { rootURL.appendingPathComponent("corpora", isDirectory: true) }
+    var corpusSetsDirectoryURL: URL { rootURL.appendingPathComponent("corpus-sets", isDirectory: true) }
     var recycleDirectoryURL: URL { rootURL.appendingPathComponent("recycle", isDirectory: true) }
     var libraryDatabaseURL: URL { rootURL.appendingPathComponent("library.db") }
     var workspaceDatabaseURL: URL { rootURL.appendingPathComponent("workspace.db") }

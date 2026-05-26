@@ -30,6 +30,7 @@ extension NativeCorpusStore {
             corpusSets[existingIndex].corpusNames = resolvedCorpora.map(\.name)
             corpusSets[existingIndex].metadataFilterState = metadataFilterState
             corpusSets[existingIndex].updatedAt = now
+            try materializeCorpusSet(corpusSets[existingIndex])
             try saveCorpusSets(corpusSets)
             return corpusSets[existingIndex].libraryItem
         }
@@ -43,6 +44,7 @@ extension NativeCorpusStore {
             createdAt: now,
             updatedAt: now
         )
+        try materializeCorpusSet(created)
         corpusSets.append(created)
         try saveCorpusSets(corpusSets)
         return created.libraryItem
@@ -55,5 +57,6 @@ extension NativeCorpusStore {
         }
         corpusSets.removeAll { $0.id == corpusSetID }
         try saveCorpusSets(corpusSets)
+        removeMaterializedCorpusSet(corpusSetID: corpusSetID)
     }
 }

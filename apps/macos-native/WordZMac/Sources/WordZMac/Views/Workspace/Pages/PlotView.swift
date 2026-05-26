@@ -50,7 +50,7 @@ struct PlotView: View {
                         Button {
                             onAction(.openSourceReader)
                         } label: {
-                            Label(t("打开原文视图", "Open Source View"), systemImage: "doc.text.magnifyingglass")
+                            Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
                         }
                         .disabled(viewModel.selectedSceneRow?.markers.isEmpty != false || isBusy)
                     }
@@ -141,7 +141,7 @@ struct PlotView: View {
                         Button {
                             onAction(.openSourceReader)
                         } label: {
-                            Label(t("打开原文视图", "Open Source View"), systemImage: "doc.text.magnifyingglass")
+                            Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
                         }
                         .disabled(selectedRow.markers.isEmpty || isBusy)
                     }

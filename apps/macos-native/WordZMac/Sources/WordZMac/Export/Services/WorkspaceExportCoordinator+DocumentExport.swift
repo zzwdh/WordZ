@@ -18,6 +18,7 @@ extension WorkspaceExportCoordinator {
         switch format {
         case .csv:
             try tableExportService.writeCSV(snapshot: snapshot, to: savePath)
+            try tableExportService.writeMetadataSidecar(snapshot: snapshot, forCSVPath: savePath)
         case .xlsx:
             try await xlsxExportService.write(snapshot: snapshot, to: savePath)
         }

@@ -4,6 +4,11 @@ enum TopicAnalysisGranularity: String, Codable, Sendable {
     case paragraph
 }
 
+enum TopicPartitionScoringProfile: String, Codable, Equatable, Sendable {
+    case balanced
+    case precisionFirst
+}
+
 struct TopicModelProviderManifest: Codable, Equatable, Sendable {
     let id: String
     let type: String
@@ -85,9 +90,9 @@ enum TopicAnalysisError: LocalizedError {
         case .invalidModelManifest:
             return "Topics 模型清单损坏或格式无效。"
         case .embeddingUnavailable:
-            return "当前系统无法提供英文句向量模型。"
+            return "当前系统无法提供可用句向量模型。"
         case .noEnglishParagraphs:
-            return "当前语料没有可用于英文 Topics 建模的段落。"
+            return "当前语料没有可用于 Topics 建模的段落。"
         case .noTopicsGenerated:
             return "当前语料未能生成稳定主题，请尝试降低最小主题大小。"
         case .unsupportedRepository:
@@ -104,6 +109,7 @@ struct TopicAnalysisOptions: Equatable, Sendable {
     var searchQuery: String = ""
     var searchOptions: SearchOptionsState = .default
     var stopwordFilter: StopwordFilterState = .default
+    var partitionScoringProfile: TopicPartitionScoringProfile = .balanced
 }
 
 struct TopicKeywordCandidate: Equatable, Hashable, Sendable {

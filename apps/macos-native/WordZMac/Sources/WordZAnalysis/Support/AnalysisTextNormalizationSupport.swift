@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 package enum AnalysisTextNormalizationSupport {
     private static let searchableScalars = CharacterSet.alphanumerics
@@ -25,6 +26,9 @@ package enum AnalysisTextNormalizationSupport {
     package static func tokenizeWordLikeSegments(in text: String, caseSensitive: Bool = false) -> [String] {
         let normalized = normalizeSearchText(text, caseSensitive: caseSensitive)
         guard !normalized.isEmpty else { return [] }
+        if containsCJKContent(normalized) {
+            return tokenizeNaturalLanguageSegments(in: normalized, caseSensitive: caseSensitive)
+        }
 
         var tokens: [String] = []
         var buffer = ""
@@ -54,5 +58,37 @@ package enum AnalysisTextNormalizationSupport {
 
         flushBuffer()
         return tokens
+    }
+
+    private static func tokenizeNaturalLanguageSegments(in text: String, caseSensitive: Bool) -> [String] {
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = text
+        tokenizer.setLanguage(.simplifiedChinese)
+
+        var tokens: [String] = []
+        tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
+            let value = normalizeSearchText(String(text[range]), caseSensitive: caseSensitive)
+            if containsWordLikeContent(value) {
+                tokens.append(value)
+            }
+            return true
+        }
+        return tokens
+    }
+
+    private static func containsCJKContent(_ value: String) -> Bool {
+        value.unicodeScalars.contains(where: isCJK)
+    }
+
+    private static func isCJK(_ scalar: UnicodeScalar) -> Bool {
+        switch scalar.value {
+        case 0x3040...0x30FF,
+             0x3400...0x4DBF,
+             0x4E00...0x9FFF,
+             0xF900...0xFAFF:
+            return true
+        default:
+            return false
+        }
     }
 }

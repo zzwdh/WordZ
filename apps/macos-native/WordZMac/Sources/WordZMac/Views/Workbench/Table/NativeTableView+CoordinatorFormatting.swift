@@ -64,7 +64,11 @@ extension NativeTableView.Coordinator {
         }
     }
 
-    func textColor(for column: NativeTableColumnDescriptor) -> NSColor {
+    func textColor(for column: NativeTableColumnDescriptor, isSelected: Bool = false) -> NSColor {
+        if isSelected {
+            return .selectedControlTextColor
+        }
+
         switch column.presentation {
         case .keyword:
             return .controlAccentColor

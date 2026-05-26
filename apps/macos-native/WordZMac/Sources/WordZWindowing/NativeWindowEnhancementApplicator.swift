@@ -14,8 +14,11 @@ package struct NativeWindowEnhancementApplicator {
     package func apply(to window: NSWindow?, route: NativeWindowRoute) {
         guard let window else { return }
 
+        let scenePolicy = NativeWindowScenePolicy.policy(for: route)
+        window.minSize = scenePolicy.minimumSize
+
         let profile = NativeWindowPresentationProfile.profile(for: route)
-        let resolvedTier = profile.resolvedTier(capabilities: capabilities)
+        let resolvedTier = profile.resolvedChromeTier(capabilities: capabilities)
         guard resolvedTier != .baseline else { return }
 
         if profile.prefersTransparentTitleBar {
@@ -34,7 +37,9 @@ package struct NativeWindowEnhancementApplicator {
             window.toolbarStyle = profile.prefersHiddenTitle ? .unifiedCompact : .unified
         }
 
-        if capabilities.supportsAdvancedWindowPlacement, profile.prefersAdvancedPlacement {
+        if capabilities.supportsAdvancedWindowPlacement,
+           !capabilities.supportsWindowPlacementModifiers,
+           profile.prefersAdvancedPlacement {
             applyPreferredPlacement(to: window, minimumSize: profile.minimumPlacementSize)
         }
     }
@@ -42,17 +47,25 @@ package struct NativeWindowEnhancementApplicator {
     private func applyPreferredPlacement(to window: NSWindow, minimumSize: CGSize?) {
         let windowIdentifier = ObjectIdentifier(window)
         guard Self.placedWindows.insert(windowIdentifier).inserted else { return }
-        guard let visibleFrame = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame else { return }
 
+        let visibleFrame = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
         let currentSize = window.frame.size
+        let maximumSize = visibleFrame.map {
+            CGSize(width: $0.width - 32, height: $0.height - 32)
+        } ?? CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         let targetSize = CGSize(
-            width: min(max(currentSize.width, minimumSize?.width ?? currentSize.width), visibleFrame.width - 32),
-            height: min(max(currentSize.height, minimumSize?.height ?? currentSize.height), visibleFrame.height - 32)
+            width: min(max(currentSize.width, minimumSize?.width ?? currentSize.width), maximumSize.width),
+            height: min(max(currentSize.height, minimumSize?.height ?? currentSize.height), maximumSize.height)
         )
-        let targetOrigin = CGPoint(
-            x: visibleFrame.midX - (targetSize.width / 2),
-            y: visibleFrame.midY - (targetSize.height / 2)
-        )
+        let targetOrigin: CGPoint
+        if let visibleFrame {
+            targetOrigin = CGPoint(
+                x: visibleFrame.midX - (targetSize.width / 2),
+                y: visibleFrame.midY - (targetSize.height / 2)
+            )
+        } else {
+            targetOrigin = window.frame.origin
+        }
 
         window.setFrame(NSRect(origin: targetOrigin, size: targetSize), display: false)
     }

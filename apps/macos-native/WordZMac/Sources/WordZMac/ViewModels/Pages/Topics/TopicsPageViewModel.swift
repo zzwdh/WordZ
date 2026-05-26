@@ -54,11 +54,11 @@ package final class TopicsPageViewModel: ObservableObject, AnalysisInputStateCon
     let sceneBuilder: TopicsSceneBuilder
     var result: TopicAnalysisResult?
     var selectedClusterID: String?
-    var sortMode: TopicSegmentSortMode = .relevanceDescending
-    var pageSize: TopicsPageSize = .fifty
-    var currentPage = 1
-    var visibleColumns: Set<TopicsColumnKey> = TopicsPageViewModel.defaultVisibleColumns
-    var sceneBuildRevision = 0
+    var tablePresentation = AnalysisTablePresentationState<TopicsColumnKey, TopicSegmentSortMode, TopicsPageSize>(
+        sortMode: .relevanceDescending,
+        pageSize: .fifty,
+        visibleColumns: TopicsPageViewModel.defaultVisibleColumns
+    )
     var cachedClusterComputation: TopicsClusterComputation?
     var cachedClusterQuery = ""
     var cachedClusterOptions = SearchOptionsState.default

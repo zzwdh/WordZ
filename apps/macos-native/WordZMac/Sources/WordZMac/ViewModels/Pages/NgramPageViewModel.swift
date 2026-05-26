@@ -36,11 +36,11 @@ final class NgramPageViewModel: ObservableObject, AnalysisInputStateControlling,
     var onInputChange: (() -> Void)?
     let sceneBuilder: NgramSceneBuilder
     var result: NgramResult?
-    var sortMode: NgramSortMode = .frequencyDescending
-    var pageSize: NgramPageSize = .oneHundred
-    var currentPage = 1
-    var visibleColumns: Set<NgramColumnKey> = NgramPageViewModel.defaultVisibleColumns
-    var sceneBuildRevision = 0
+    var tablePresentation = AnalysisTablePresentationState<NgramColumnKey, NgramSortMode, NgramPageSize>(
+        sortMode: .frequencyDescending,
+        pageSize: .oneHundred,
+        visibleColumns: NgramPageViewModel.defaultVisibleColumns
+    )
     var cachedFilteredRows: [NgramRow]?
     var cachedFilteredError = ""
     var cachedFilterQuery = ""

@@ -5,11 +5,11 @@ extension WorkspaceActionDispatcher {
     func handleKWICAction(_ action: KWICPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runKWIC() }
+            handleWorkspaceIntent(.runAnalysis(.kwic))
         case .saveCorpusSet:
             launch { await self.workspace.saveKWICCorpusSet(preferredWindowRoute: self.preferredWindowRoute) }
         case .addCurrentRowToEvidenceWorkbench:
-            launch { await self.workspace.captureCurrentKWICEvidenceItem() }
+            handleWorkspaceIntent(.resultArtifact(.captureExcerpt))
         case .setEvidenceReviewStatus(let itemID, let reviewStatus):
             launch { await self.workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: reviewStatus) }
         case .saveSelectedEvidenceNote:
@@ -46,9 +46,9 @@ extension WorkspaceActionDispatcher {
                 workspace.kwic.handle(.activateRow(rowID))
                 workspace.syncLocatorSourceFromKWIC()
             }
-            launch { await self.workspace.runLocator() }
+            handleWorkspaceIntent(.runAnalysis(.locator))
         case .openSourceReader:
-            NativeAppCommandCenter.post(.openSourceReader)
+            handleWorkspaceIntent(.openSourceReader)
         case .copyCurrent(let format):
             launch { await self.workspace.flowCoordinator.copyKWICReading(format, currentOnly: true, features: self.workspace.features) }
         case .copyVisible(let format):

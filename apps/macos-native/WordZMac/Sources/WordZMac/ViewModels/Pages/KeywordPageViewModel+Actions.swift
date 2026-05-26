@@ -24,19 +24,19 @@ extension KeywordPageViewModel {
         case .changeTab(let tab):
             activeTab = tab
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .selectRow(let rowID):
             selectedRowID = rowID
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         case .run, .saveCurrentList, .refreshSavedLists, .deleteSavedList, .importSavedListsJSON, .exportSelectedSavedListJSON, .exportAllSavedListsJSON, .importReferenceWordList, .exportRowContext, .openFocusKWIC, .openReferenceKWIC, .openCompareDistribution:
             assertionFailure("Keyword workflow actions should be dispatched by WorkspaceActionDispatcher.")
         }
@@ -72,35 +72,31 @@ extension KeywordPageViewModel {
         }
     }
 
-    func sortByColumn(_ column: KeywordColumnKey) {
-        let nextSort: KeywordSortMode?
+    func nextSortMode(
+        for column: KeywordColumnKey,
+        currentSortMode _: KeywordSortMode
+    ) -> KeywordSortMode? {
         switch column {
         case .item:
-            nextSort = .alphabeticalAscending
+            return .alphabeticalAscending
         case .keyness, .direction, .pValue:
-            nextSort = .keynessDescending
+            return .keynessDescending
         case .logRatio, .logRatioDelta, .meanAbsLogRatio:
-            nextSort = .absLogRatioDescending
+            return .absLogRatioDescending
         case .focusFrequency, .referenceFrequency:
-            nextSort = .focusFrequencyDescending
+            return .focusFrequencyDescending
         case .focusNormFrequency, .referenceNormFrequency:
-            nextSort = .focusNormFrequencyDescending
+            return .focusNormFrequencyDescending
         case .focusRange, .referenceRange:
-            nextSort = .focusRangeDescending
+            return .focusRangeDescending
         case .coverageCount, .coverageRate:
-            nextSort = .coverageDescending
+            return .coverageDescending
         case .lastSeenAt:
-            nextSort = .updatedAtDescending
+            return .updatedAtDescending
         case .meanKeyness:
-            nextSort = .keynessDescending
+            return .keynessDescending
         case .rank, .example, .diffStatus, .leftRank, .rightRank:
-            nextSort = nil
+            return nil
         }
-        guard let nextSort else { return }
-        applySortModeChange(nextSort)
-    }
-
-    func toggleColumn(_ column: KeywordColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
     }
 }

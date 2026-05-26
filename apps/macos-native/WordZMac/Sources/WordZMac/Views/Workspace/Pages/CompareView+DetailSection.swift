@@ -344,7 +344,7 @@ extension CompareView {
                         .buttonStyle(.borderless)
                         .disabled(isBusy)
 
-                        Button(t("打开原文视图", "Open Source Reader")) {
+                        Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
                             onAction(.openSentimentSourceReader(exemplar.id))
                         }
                         .buttonStyle(.borderless)

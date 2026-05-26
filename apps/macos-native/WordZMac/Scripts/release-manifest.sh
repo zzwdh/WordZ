@@ -18,8 +18,10 @@ ARCH_NAME="${4:-$(uname -m)}"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 ZIP_NAME="${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.zip"
 DMG_NAME="${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.dmg"
+PKG_NAME="${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.pkg"
 ZIP_PATH="$DIST_DIR/$ZIP_NAME"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
+PKG_PATH="$DIST_DIR/$PKG_NAME"
 CHECKSUMS_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.checksums.txt"
 MANIFEST_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.manifest.json"
 PACKAGE_JSON_PATH="$(release_support_package_json_path)"
@@ -35,6 +37,7 @@ RELEASE_PAGE_URL="$(release_support_release_page_url "$VERSION")"
 REPOSITORY_SLUG="$(release_support_repository_slug)"
 NOTARIZED_APP="${WORDZ_MAC_NOTARIZED_APP:-0}"
 NOTARIZED_DMG="${WORDZ_MAC_NOTARIZED_DMG:-0}"
+NOTARIZED_PKG="${WORDZ_MAC_NOTARIZED_PKG:-0}"
 RELEASE_CHANNEL="$(
   "$NODE_BIN" -e '
 const fs = require("fs");
@@ -43,7 +46,7 @@ process.stdout.write((pkg.wordz && pkg.wordz.release && pkg.wordz.release.channe
 ' "$PACKAGE_JSON_PATH"
 )"
 
-for path in "$APP_BUNDLE" "$ZIP_PATH" "$DMG_PATH"; do
+for path in "$APP_BUNDLE" "$ZIP_PATH" "$DMG_PATH" "$PKG_PATH"; do
   if [[ ! -e "$path" ]]; then
     echo "missing release artifact: $path" >&2
     exit 1
@@ -52,12 +55,15 @@ done
 
 zip_sha="$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')"
 dmg_sha="$(/usr/bin/shasum -a 256 "$DMG_PATH" | /usr/bin/awk '{print $1}')"
+pkg_sha="$(/usr/bin/shasum -a 256 "$PKG_PATH" | /usr/bin/awk '{print $1}')"
 zip_size="$(/usr/bin/stat -f %z "$ZIP_PATH")"
 dmg_size="$(/usr/bin/stat -f %z "$DMG_PATH")"
+pkg_size="$(/usr/bin/stat -f %z "$PKG_PATH")"
 
 /bin/cat > "$CHECKSUMS_PATH" <<EOF
 $zip_sha  $ZIP_NAME
 $dmg_sha  $DMG_NAME
+$pkg_sha  $PKG_NAME
 EOF
 
 APP_NAME="$APP_NAME" \
@@ -69,6 +75,9 @@ ZIP_SHA="$zip_sha" \
 DMG_NAME="$DMG_NAME" \
 DMG_SIZE="$dmg_size" \
 DMG_SHA="$dmg_sha" \
+PKG_NAME="$PKG_NAME" \
+PKG_SIZE="$pkg_size" \
+PKG_SHA="$pkg_sha" \
 CHECKSUMS_FILE_NAME="${CHECKSUMS_PATH:t}" \
 MANIFEST_PATH="$MANIFEST_PATH" \
 PACKAGE_JSON_PATH="$PACKAGE_JSON_PATH" \
@@ -80,6 +89,7 @@ RELEASE_PAGE_URL="$RELEASE_PAGE_URL" \
 REPOSITORY_SLUG="$REPOSITORY_SLUG" \
 NOTARIZED_APP="$NOTARIZED_APP" \
 NOTARIZED_DMG="$NOTARIZED_DMG" \
+NOTARIZED_PKG="$NOTARIZED_PKG" \
 "$NODE_BIN" -e '
 const fs = require("fs");
 const path = require("path");
@@ -119,6 +129,14 @@ const manifest = {
       size: Number(process.env.DMG_SIZE),
       sha256: process.env.DMG_SHA,
       notarized: process.env.NOTARIZED_DMG === "1"
+    },
+    {
+      name: process.env.PKG_NAME,
+      kind: "pkg",
+      size: Number(process.env.PKG_SIZE),
+      sha256: process.env.PKG_SHA,
+      containsStapledApp: process.env.NOTARIZED_APP === "1",
+      notarized: process.env.NOTARIZED_PKG === "1"
     }
   ],
   checksumsFileName: process.env.CHECKSUMS_FILE_NAME

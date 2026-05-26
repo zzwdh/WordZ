@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleClusterAction(_ action: ClusterPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runCluster() }
+            handleWorkspaceIntent(.runAnalysis(.cluster))
         case .openKWIC:
             launch { await self.workspace.openClusterKWIC() }
         case .activateRow(let rowID):

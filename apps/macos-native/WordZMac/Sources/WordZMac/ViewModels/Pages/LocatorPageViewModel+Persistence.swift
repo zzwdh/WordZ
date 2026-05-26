@@ -49,8 +49,10 @@ extension LocatorPageViewModel {
         invalidatePendingSceneBuilds()
         result = nil
         source = nil
-        currentPage = 1
-        visibleColumns = Self.defaultVisibleColumns
+        tablePresentation.reset(
+            pageSize: .fifty,
+            visibleColumns: Self.defaultVisibleColumns
+        )
         selectedRowID = nil
         selectedSavedSetID = nil
         savedSetFilterQuery = ""

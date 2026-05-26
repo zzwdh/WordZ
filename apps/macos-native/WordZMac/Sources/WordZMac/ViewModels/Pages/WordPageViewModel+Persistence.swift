@@ -60,8 +60,11 @@ extension WordPageViewModel {
             result = nil
             resultGeneration = 0
             sceneResultGeneration = 0
-            currentPage = 1
-            visibleColumns = Self.defaultVisibleColumns
+            tablePresentation.reset(
+                sortMode: .frequencyDescending,
+                pageSize: .oneHundred,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             definition = .default
             invalidateCaches()
             scene = nil

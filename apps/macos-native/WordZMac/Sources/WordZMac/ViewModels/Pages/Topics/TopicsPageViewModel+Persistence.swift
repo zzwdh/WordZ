@@ -42,10 +42,11 @@ extension TopicsPageViewModel {
             result = nil
             selectedClusterID = nil
             selectedRowID = nil
-            sortMode = .relevanceDescending
-            pageSize = .fifty
-            currentPage = 1
-            visibleColumns = Self.defaultVisibleColumns
+            tablePresentation.reset(
+                sortMode: .relevanceDescending,
+                pageSize: .fifty,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             invalidateCaches()
             scene = nil
         }

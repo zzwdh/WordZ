@@ -1,6 +1,7 @@
 import Foundation
 
 struct WorkspaceResultSceneNode: Equatable {
+    let sourceTab: WorkspaceDetailTab?
     let title: String
     let status: String
     let totalRows: Int
@@ -15,6 +16,7 @@ struct WorkspaceResultSceneNode: Equatable {
     }
 
     init(
+        sourceTab: WorkspaceDetailTab? = nil,
         title: String,
         status: String,
         totalRows: Int,
@@ -24,6 +26,7 @@ struct WorkspaceResultSceneNode: Equatable {
         tableSnapshot: ResultTableSnapshot,
         exportMetadataLines: [String] = []
     ) {
+        self.sourceTab = sourceTab
         self.title = title
         self.status = status
         self.totalRows = totalRows
@@ -35,6 +38,7 @@ struct WorkspaceResultSceneNode: Equatable {
     }
 
     init(
+        sourceTab: WorkspaceDetailTab? = nil,
         title: String,
         status: String,
         totalRows: Int,
@@ -45,6 +49,7 @@ struct WorkspaceResultSceneNode: Equatable {
         exportMetadataLines: [String] = []
     ) {
         self.init(
+            sourceTab: sourceTab,
             title: title,
             status: status,
             totalRows: totalRows,
@@ -56,8 +61,13 @@ struct WorkspaceResultSceneNode: Equatable {
         )
     }
 
-    static func empty(title: String, status: String) -> WorkspaceResultSceneNode {
+    static func empty(
+        title: String,
+        status: String,
+        sourceTab: WorkspaceDetailTab? = nil
+    ) -> WorkspaceResultSceneNode {
         WorkspaceResultSceneNode(
+            sourceTab: sourceTab,
             title: title,
             status: status,
             totalRows: 0,
@@ -83,8 +93,34 @@ struct WorkspaceResultSceneNode: Equatable {
         hasResult && !table.visibleColumns.isEmpty && !tableSnapshot.rows.isEmpty
     }
 
+    var artifact: WorkspaceResultArtifact? {
+        makeArtifact(sourceTab: sourceTab)
+    }
+
+    func makeArtifact(sourceTab fallbackSourceTab: WorkspaceDetailTab?) -> WorkspaceResultArtifact? {
+        guard isExportable,
+              let resolvedSourceTab = sourceTab ?? fallbackSourceTab
+        else { return nil }
+        return WorkspaceResultArtifact(
+            sourceTab: resolvedSourceTab,
+            title: title,
+            status: status,
+            totalRows: totalRows,
+            visibleRows: visibleRows,
+            payload: .table(
+                NativeTableExportSnapshot(
+                    suggestedBaseName: title.lowercased().replacingOccurrences(of: " ", with: "-"),
+                    table: table,
+                    rows: tableRows,
+                    metadataLines: exportMetadataLines
+                )
+            )
+        )
+    }
+
     static func == (lhs: WorkspaceResultSceneNode, rhs: WorkspaceResultSceneNode) -> Bool {
-        lhs.title == rhs.title &&
+        lhs.sourceTab == rhs.sourceTab &&
+            lhs.title == rhs.title &&
             lhs.status == rhs.status &&
             lhs.totalRows == rhs.totalRows &&
             lhs.visibleRows == rhs.visibleRows &&
@@ -92,6 +128,47 @@ struct WorkspaceResultSceneNode: Equatable {
             lhs.table == rhs.table &&
             lhs.tableSnapshot.version == rhs.tableSnapshot.version &&
             lhs.exportMetadataLines == rhs.exportMetadataLines
+    }
+}
+
+extension WorkspaceSceneGraph {
+    func resultNode(for tab: WorkspaceDetailTab) -> WorkspaceResultSceneNode? {
+        switch tab {
+        case .stats:
+            return stats
+        case .word:
+            return word
+        case .tokenize:
+            return tokenize
+        case .topics:
+            return topics
+        case .compare:
+            return compare
+        case .sentiment:
+            return sentiment
+        case .keyword:
+            return keyword
+        case .chiSquare:
+            return chiSquare
+        case .plot:
+            return plot
+        case .ngram:
+            return ngram
+        case .cluster:
+            return cluster
+        case .kwic:
+            return kwic
+        case .collocate:
+            return collocate
+        case .locator:
+            return locator
+        case .library, .settings:
+            return nil
+        }
+    }
+
+    var activeResultArtifact: WorkspaceResultArtifact? {
+        resultNode(for: activeTab)?.makeArtifact(sourceTab: activeTab)
     }
 }
 

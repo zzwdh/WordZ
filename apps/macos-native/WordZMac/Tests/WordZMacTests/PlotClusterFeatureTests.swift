@@ -541,7 +541,7 @@ final class PlotClusterWorkspaceIntegrationTests: XCTestCase {
         XCTAssertEqual(workspace.currentExportSnapshot?.table.storageKey, "plot")
     }
 
-    func testRunPlotUsesCorpusRangeScopeWhenCorpusSetIsActive() async throws {
+    func testRunPlotUsesMergedCorpusSetDatabaseWhenCorpusSetIsActive() async throws {
         let corpusSet = LibraryCorpusSetItem(json: [
             "id": "set-1",
             "name": "Scope Set",
@@ -553,8 +553,33 @@ final class PlotClusterWorkspaceIntegrationTests: XCTestCase {
         ])
         let repository = FakeWorkspaceRepository(
             bootstrapState: makeBootstrapState(corpusSets: [corpusSet]),
-            plotResult: makePlotResult(query: "alpha", scope: .corpusRange)
+            plotResult: makePlotResult(
+                query: "alpha",
+                scope: .singleCorpus,
+                rows: [
+                    PlotRow(
+                        id: CorpusSetSourceID.sourceID(for: "set-1"),
+                        corpusId: CorpusSetSourceID.sourceID(for: "set-1"),
+                        fileID: 0,
+                        filePath: "/tmp/set-1.db",
+                        displayName: "Scope Set",
+                        fileTokens: 3,
+                        frequency: 1,
+                        normalizedFrequency: 3333.33,
+                        hitMarkers: [
+                            PlotHitMarker(id: "0-0", sentenceId: 0, tokenIndex: 0, normalizedPosition: 0)
+                        ]
+                    )
+                ]
+            )
         )
+        repository.openedCorpusSetsByID["set-1"] = OpenedCorpus(json: [
+            "mode": "corpus-set",
+            "filePath": "/tmp/set-1.db",
+            "displayName": "Scope Set",
+            "content": "alpha beta gamma",
+            "sourceType": "db"
+        ])
         let workspace = makeMainWorkspaceViewModel(repository: repository)
 
         await workspace.initializeIfNeeded()
@@ -565,11 +590,14 @@ final class PlotClusterWorkspaceIntegrationTests: XCTestCase {
 
         let request = try XCTUnwrap(repository.lastRunPlotRequest)
         XCTAssertEqual(repository.runPlotCallCount, 1)
-        XCTAssertEqual(request.scope, .corpusRange)
-        XCTAssertEqual(request.entries.map(\.corpusId), ["corpus-1", "corpus-2"])
-        XCTAssertEqual(repository.openSavedCorpusCallCount, 2)
-        XCTAssertEqual(workspace.plot.scene?.rows.count, 2)
-        XCTAssertEqual(workspace.plot.scene?.scope, .corpusRange)
+        XCTAssertEqual(request.scope, .singleCorpus)
+        XCTAssertEqual(request.entries.map(\.corpusId), [CorpusSetSourceID.sourceID(for: "set-1")])
+        XCTAssertEqual(request.entries.first?.displayName, "Scope Set")
+        XCTAssertEqual(request.entries.first?.filePath, "/tmp/set-1.db")
+        XCTAssertEqual(repository.openSavedCorpusSetCallCount, 1)
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 0)
+        XCTAssertEqual(workspace.plot.scene?.rows.count, 1)
+        XCTAssertEqual(workspace.plot.scene?.scope, .singleCorpus)
     }
 
     func testOpenPlotKWICReusesQueryOptionsAndSelectedMarker() async {

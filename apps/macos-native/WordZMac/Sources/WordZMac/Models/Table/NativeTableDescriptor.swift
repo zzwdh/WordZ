@@ -395,7 +395,9 @@ struct NativeTableExportSnapshot: Equatable, Sendable {
 struct NativeTableDescriptor: Equatable, Sendable {
     let storageKey: String
     let columns: [NativeTableColumnDescriptor]
+    let visibleColumns: [NativeTableColumnDescriptor]
     let defaultDensity: NativeTableDensityPreset
+    private let columnsByID: [String: NativeTableColumnDescriptor]
 
     init(
         storageKey: String? = nil,
@@ -403,8 +405,10 @@ struct NativeTableDescriptor: Equatable, Sendable {
         defaultDensity: NativeTableDensityPreset = .standard
     ) {
         self.columns = columns
+        self.visibleColumns = columns.filter(\.isVisible)
         self.storageKey = storageKey ?? columns.map(\.id).joined(separator: "|")
         self.defaultDensity = defaultDensity
+        self.columnsByID = Self.firstColumnByID(columns)
     }
 
     init<ColumnKey>(
@@ -423,7 +427,7 @@ struct NativeTableDescriptor: Equatable, Sendable {
     static let empty = NativeTableDescriptor(storageKey: "empty", columns: [])
 
     func column(id: String) -> NativeTableColumnDescriptor? {
-        columns.first(where: { $0.id == id })
+        columnsByID[id]
     }
 
     func column<ColumnKey>(for key: ColumnKey) -> NativeTableColumnDescriptor? where ColumnKey: RawRepresentable, ColumnKey.RawValue == String {
@@ -436,10 +440,6 @@ struct NativeTableDescriptor: Equatable, Sendable {
 
     func isVisible<ColumnKey>(_ key: ColumnKey) -> Bool where ColumnKey: RawRepresentable, ColumnKey.RawValue == String {
         isVisible(key.rawValue)
-    }
-
-    var visibleColumns: [NativeTableColumnDescriptor] {
-        columns.filter(\.isVisible)
     }
 
     func displayTitle(for id: String, fallback: String) -> String {
@@ -463,5 +463,13 @@ struct NativeTableDescriptor: Equatable, Sendable {
                 row.value(for: column.id)
             }
         }
+    }
+
+    private static func firstColumnByID(_ columns: [NativeTableColumnDescriptor]) -> [String: NativeTableColumnDescriptor] {
+        var columnsByID: [String: NativeTableColumnDescriptor] = [:]
+        for column in columns where columnsByID[column.id] == nil {
+            columnsByID[column.id] = column
+        }
+        return columnsByID
     }
 }

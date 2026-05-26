@@ -170,13 +170,12 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
     let sceneBuilder: SentimentSceneBuilder
     let availableBackendProvider: () -> [SentimentBackendKind]
     let packRecommendationService: SentimentPackRecommendationService
-    var rawResult: SentimentRunResult?
-    var presentationResult: SentimentPresentationResult?
-    var reviewSamples: [SentimentReviewSample] = []
-    var sortMode: SentimentSortMode = .original
-    var pageSize: SentimentPageSize = .fifty
-    var currentPage = 1
-    var visibleColumns: Set<SentimentColumnKey> = SentimentPageViewModel.defaultVisibleColumns
+    var reviewState = SentimentPageReviewState()
+    var tablePresentation = AnalysisTablePresentationState<SentimentColumnKey, SentimentSortMode, SentimentPageSize>(
+        sortMode: .original,
+        pageSize: .fifty,
+        visibleColumns: SentimentPageViewModel.defaultVisibleColumns
+    )
     var availableCorpora: [LibraryCorpusItem] = []
     var availableCorpusSets: [LibraryCorpusSetItem] = []
     var availableBackends: [SentimentBackendKind]
@@ -184,7 +183,6 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
     var selectedReferenceSelection: CompareReferenceSelection = .automatic
     var topicSegmentsFocusClusterID: String?
     var annotationState = WorkspaceAnnotationState.default
-    var sceneBuildRevision = 0
 
     package static func makeFeaturePage() -> SentimentPageViewModel {
         SentimentPageViewModel(sceneBuilder: SentimentSceneBuilder())
@@ -207,6 +205,21 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
         scene?.filteredRows ?? presentationResult?.effectiveRows.count ?? rawResult?.rows.count
     }
 
+    var rawResult: SentimentRunResult? {
+        get { reviewState.rawResult }
+        set { reviewState.rawResult = newValue }
+    }
+
+    var presentationResult: SentimentPresentationResult? {
+        get { reviewState.presentationResult }
+        set { reviewState.presentationResult = newValue }
+    }
+
+    var reviewSamples: [SentimentReviewSample] {
+        get { reviewState.reviewSamples }
+        set { reviewState.reviewSamples = newValue }
+    }
+
     var availableDomainPacks: [SentimentDomainPackID] {
         SentimentDomainPackID.allCases
     }
@@ -226,25 +239,6 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
         ]
     }
 
-    var supportedUnits: [SentimentAnalysisUnit] {
-        switch source {
-        case .kwicVisible:
-            return [.concordanceLine]
-        case .topicSegments:
-            return [.sourceSentence]
-        default:
-            return [.document, .sentence]
-        }
-    }
-
-    var thresholds: SentimentThresholds {
-        SentimentThresholds(
-            decisionThreshold: decisionThreshold,
-            minimumEvidence: minimumEvidence,
-            neutralBias: neutralBias
-        )
-    }
-
     var showsBackendPicker: Bool {
         availableBackends.count > 1
     }
@@ -258,18 +252,4 @@ package final class SentimentPageViewModel: ObservableObject, AnalysisInputState
         return max(count, manualText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0 : 1)
     }
 
-    func canRun(hasOpenedCorpus: Bool, hasKWICRows: Bool, hasTopicRows: Bool) -> Bool {
-        switch source {
-        case .openedCorpus:
-            return hasOpenedCorpus
-        case .pastedText:
-            return !manualText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .kwicVisible:
-            return hasKWICRows
-        case .corpusCompare:
-            return !selectedTargetCorpusItems().isEmpty
-        case .topicSegments:
-            return hasTopicRows
-        }
-    }
 }

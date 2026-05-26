@@ -5,6 +5,7 @@ extension NativeCorpusStore {
         guard !isInitialized else { return }
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: corporaDirectoryURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: corpusSetsDirectoryURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: recycleDirectoryURL, withIntermediateDirectories: true)
 
         try storageMigrationCoordinator.ensureInitialized()

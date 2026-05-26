@@ -35,6 +35,9 @@ extension NativeTableView.Coordinator {
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard let tableView else { return }
+        let previousSelectedRowID = selectedRowID
+        let previousSelectedRowIDs = selectedRowIDs
+        let previousSelectedCellKeys = selectedCellKeys
         let nextSelection: String?
         if tableView.selectedRow >= 0, tableView.selectedRow < rows.count {
             nextSelection = rows[tableView.selectedRow].id
@@ -45,9 +48,30 @@ extension NativeTableView.Coordinator {
             guard index >= 0, index < rows.count else { return nil }
             return rows[index].id
         })
-        guard selectedRowID != nextSelection else { return }
+        let selectionAppearanceChanged = previousSelectedRowID != nextSelection
+            || previousSelectedRowIDs != selectedRowIDs
         selectedRowID = nextSelection
-        onSelectionChange?(nextSelection)
-        rebuildRowMenu()
+        if !isApplyingCellSelection {
+            selectedCellKeys.removeAll()
+        }
+        if selectionAppearanceChanged {
+            _ = reloadSelectionAppearanceRows(
+                previousSelectedRowID: previousSelectedRowID,
+                previousSelectedRowIDs: previousSelectedRowIDs,
+                selectedRowID: nextSelection,
+                selectedRowIDs: selectedRowIDs
+            )
+        }
+        if previousSelectedCellKeys != selectedCellKeys {
+            reloadCellSelectionAppearance(
+                previousCellKeys: previousSelectedCellKeys,
+                selectedCellKeys: selectedCellKeys
+            )
+            rebuildRowMenu()
+        }
+        if previousSelectedRowID != nextSelection {
+            onSelectionChange?(nextSelection)
+            rebuildRowMenu()
+        }
     }
 }

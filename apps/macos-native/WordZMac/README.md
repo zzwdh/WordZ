@@ -26,6 +26,10 @@ SwiftPM target、工作区功能路由或核心边界守卫时，需要同步更
 zsh apps/macos-native/WordZMac/Scripts/engineering-guard.sh
 ```
 
+日常开发、重构、测试准入、文档同步和发布前检查遵循
+[`Docs/EngineeringStandards.md`](Docs/EngineeringStandards.md)。这份规范是当前工程工作的默认准入线；
+如果规范需要改变，必须同步更新架构契约、守卫脚本和相应测试。
+
 ## 打包
 
 在仓库根目录执行：
@@ -33,6 +37,12 @@ zsh apps/macos-native/WordZMac/Scripts/engineering-guard.sh
 ```bash
 npm run native:mac:build
 npm run native:mac:package
+```
+
+如果只需要生成 `.pkg` 安装器，也可以执行：
+
+```bash
+zsh apps/macos-native/WordZMac/Scripts/package-pkg.sh
 ```
 
 产物默认输出到：
@@ -43,10 +53,13 @@ npm run native:mac:package
 
 打包完成后会额外生成：
 
+- `WordZ-<version>-mac-<arch>.zip`
+- `WordZ-<version>-mac-<arch>.dmg`
+- `WordZ-<version>-mac-<arch>.pkg`
 - `WordZ-<version>-mac-<arch>.checksums.txt`
 - `WordZ-<version>-mac-<arch>.manifest.json`
 
-这样可以把 `zip / dmg` 的校验和和发布元信息一起留档，方便之后复核或上传 Release。
+这样可以把 `zip / dmg / pkg` 的校验和和发布元信息一起留档，方便之后复核或上传 Release。
 
 ### 签名
 
@@ -54,11 +67,13 @@ npm run native:mac:package
 
 - `WORDZ_MAC_SIGN_IDENTITY`
 - `WORDZ_MAC_ENTITLEMENTS_PATH`
+- `WORDZ_MAC_INSTALLER_SIGN_IDENTITY`
 
 例如：
 
 ```bash
 WORDZ_MAC_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" npm run native:mac:package
+WORDZ_MAC_INSTALLER_SIGN_IDENTITY="Developer ID Installer: Your Name (TEAMID)" npm run native:mac:package
 ```
 
 ### 公证
@@ -67,6 +82,7 @@ WORDZ_MAC_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" npm run n
 
 ```bash
 WORDZ_MAC_NOTARY_PROFILE="your-profile" npm run native:mac:notarize -- /absolute/path/to/WordZ-1.2.9-mac-arm64.dmg
+WORDZ_MAC_NOTARY_PROFILE="your-profile" npm run native:mac:notarize -- /absolute/path/to/WordZ-1.2.9-mac-arm64.pkg
 ```
 
 ### 校验发布资产

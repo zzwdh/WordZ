@@ -82,6 +82,17 @@ final class SearchFilterSupportTests: XCTestCase {
         XCTAssertFalse(matcher.matches("alphabet"))
     }
 
+    func testExactPhraseMatcherSegmentsChineseQueriesWithoutSpaces() {
+        let matcher = SearchTextMatcher(
+            query: "自然语言处理",
+            options: SearchOptionsState(matchMode: .phraseExact)
+        )
+
+        let ranges = matcher.matchingPhraseRanges(in: ["我", "喜欢", "自然语言", "处理"]) { $0 }
+
+        XCTAssertEqual(ranges.map { "\($0.lowerBound)..<\($0.upperBound)" }, ["2..<4"])
+    }
+
     func testStopwordListNormalizationDeduplicatesFullWidthVariants() {
         let state = StopwordFilterState(
             enabled: true,

@@ -104,7 +104,8 @@ extension NativeCorpusStore {
                     importedAt: storedDocument.metadata.importedAt.isEmpty ? timestamp() : storedDocument.metadata.importedAt,
                     metadataProfile: mergedMetadata,
                     rawText: cleaned.rawText,
-                    cleaningSummary: cleaningSummary
+                    cleaningSummary: cleaningSummary,
+                    sourceFileCount: storedDocument.metadata.sourceFileCount
                 )
 
                 corpora[recordIndex].metadata = mergedMetadata

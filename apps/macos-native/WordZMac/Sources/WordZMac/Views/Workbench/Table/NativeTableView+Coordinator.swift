@@ -2,6 +2,11 @@ import AppKit
 
 extension NativeTableView {
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+        struct CellSelectionKey: Hashable {
+            let rowID: String
+            let columnID: String
+        }
+
         struct ReloadOutcome {
             let mode: AnalysisPerformanceTelemetry.TableReloadMode
             let reloadedRowCount: Int
@@ -29,6 +34,8 @@ extension NativeTableView {
         weak var containerView: IntrinsicTableContainerView?
         var hasBuiltColumns = false
         var selectedRowIDs: Set<String>
+        var selectedCellKeys: Set<CellSelectionKey> = []
+        var isApplyingCellSelection = false
 
         init(
             descriptor: NativeTableDescriptor,

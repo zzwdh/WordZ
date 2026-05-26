@@ -62,11 +62,11 @@ final class TokenizePageViewModel: ObservableObject, AnalysisInputStateControlli
 
     let sceneBuilder: TokenizeSceneBuilder
     var result: TokenizeResult?
-    var sortMode: TokenizeSortMode = .sequenceAscending
-    var pageSize: TokenizePageSize = .oneHundred
-    var currentPage = 1
-    var visibleColumns: Set<TokenizeColumnKey> = TokenizePageViewModel.defaultVisibleColumns
-    var sceneBuildRevision = 0
+    var tablePresentation = AnalysisTablePresentationState<TokenizeColumnKey, TokenizeSortMode, TokenizePageSize>(
+        sortMode: .sequenceAscending,
+        pageSize: .oneHundred,
+        visibleColumns: TokenizePageViewModel.defaultVisibleColumns
+    )
     var cachedPresetFilteredTokens: [TokenizedToken]?
     var cachedLanguagePreset: TokenizeLanguagePreset?
     var cachedFilteredTokens: [TokenizedToken]?

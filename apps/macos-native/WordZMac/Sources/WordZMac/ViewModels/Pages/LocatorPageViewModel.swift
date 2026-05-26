@@ -21,10 +21,10 @@ final class LocatorPageViewModel: ObservableObject, AnalysisColumnVisibilityCont
 
     let sceneBuilder: LocatorSceneBuilder
     var result: LocatorResult?
-    var pageSize: LocatorPageSize = .fifty
-    var currentPage = 1
-    var visibleColumns: Set<LocatorColumnKey> = LocatorPageViewModel.defaultVisibleColumns
-    var sceneBuildRevision = 0
+    var tablePresentation = AnalysisPagedPresentationState<LocatorColumnKey, LocatorPageSize>(
+        pageSize: .fifty,
+        visibleColumns: LocatorPageViewModel.defaultVisibleColumns
+    )
 
     init(sceneBuilder: LocatorSceneBuilder = LocatorSceneBuilder()) {
         self.sceneBuilder = sceneBuilder

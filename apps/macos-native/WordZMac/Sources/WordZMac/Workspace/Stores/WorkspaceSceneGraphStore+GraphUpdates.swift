@@ -25,29 +25,29 @@ extension WorkspaceSceneGraphStore {
         locator: WorkspaceResultSceneNode? = nil
     ) {
         let current = graph
-        guard sceneFieldChanged(context, from: current.context) ||
-                sceneFieldChanged(sidebar, from: current.sidebar) ||
-                sceneFieldChanged(shell, from: current.shell) ||
-                sceneFieldChanged(library, from: current.library) ||
-                sceneFieldChanged(settings, from: current.settings) ||
-                sceneFieldChanged(activeTab, from: current.activeTab) ||
-                sceneFieldChanged(word, from: current.word) ||
-                sceneFieldChanged(tokenize, from: current.tokenize) ||
-                sceneFieldChanged(stats, from: current.stats) ||
-                sceneFieldChanged(topics, from: current.topics) ||
-                sceneFieldChanged(compare, from: current.compare) ||
-                sceneFieldChanged(sentiment, from: current.sentiment) ||
-                sceneFieldChanged(keyword, from: current.keyword) ||
-                sceneFieldChanged(chiSquare, from: current.chiSquare) ||
-                sceneFieldChanged(plot, from: current.plot) ||
-                sceneFieldChanged(ngram, from: current.ngram) ||
-                sceneFieldChanged(cluster, from: current.cluster) ||
-                sceneFieldChanged(kwic, from: current.kwic) ||
-                sceneFieldChanged(collocate, from: current.collocate) ||
-                sceneFieldChanged(locator, from: current.locator)
-        else {
-            return
-        }
+        let changedFields = WorkspaceSceneGraphChangedFields(
+            context: sceneFieldChanged(context, from: current.context),
+            sidebar: sceneFieldChanged(sidebar, from: current.sidebar),
+            shell: sceneFieldChanged(shell, from: current.shell),
+            library: sceneFieldChanged(library, from: current.library),
+            settings: sceneFieldChanged(settings, from: current.settings),
+            activeTab: sceneFieldChanged(activeTab, from: current.activeTab),
+            word: sceneFieldChanged(word, from: current.word),
+            tokenize: sceneFieldChanged(tokenize, from: current.tokenize),
+            stats: sceneFieldChanged(stats, from: current.stats),
+            topics: sceneFieldChanged(topics, from: current.topics),
+            compare: sceneFieldChanged(compare, from: current.compare),
+            sentiment: sceneFieldChanged(sentiment, from: current.sentiment),
+            keyword: sceneFieldChanged(keyword, from: current.keyword),
+            chiSquare: sceneFieldChanged(chiSquare, from: current.chiSquare),
+            plot: sceneFieldChanged(plot, from: current.plot),
+            ngram: sceneFieldChanged(ngram, from: current.ngram),
+            cluster: sceneFieldChanged(cluster, from: current.cluster),
+            kwic: sceneFieldChanged(kwic, from: current.kwic),
+            collocate: sceneFieldChanged(collocate, from: current.collocate),
+            locator: sceneFieldChanged(locator, from: current.locator)
+        )
+        guard changedFields.hasChanges else { return }
 
         applyGraph(WorkspaceSceneGraph(
             context: context ?? graph.context,
@@ -70,7 +70,7 @@ extension WorkspaceSceneGraphStore {
             kwic: kwic ?? graph.kwic,
             collocate: collocate ?? graph.collocate,
             locator: locator ?? graph.locator
-        ))
+        ), changedFields: changedFields)
     }
 }
 

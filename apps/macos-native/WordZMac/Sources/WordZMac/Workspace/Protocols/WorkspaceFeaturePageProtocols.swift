@@ -74,62 +74,19 @@ protocol WorkspaceSentimentPageState: AnyObject {
 @MainActor
 protocol WorkspaceEvidenceWorkbenchState: AnyObject {
     var items: [EvidenceItem] { get }
-    var groupingMode: EvidenceWorkbenchGroupingMode { get }
     var selectedItemID: String? { get set }
     var reviewFilter: EvidenceReviewFilter { get }
-    var sourceFilter: EvidenceSourceFilter { get }
-    var sentimentFilter: EvidenceSentimentFilter { get }
-    var tagFilterQuery: String { get }
-    var corpusFilterQuery: String { get }
-    var sectionDraft: String { get }
-    var claimDraft: String { get }
-    var tagsDraft: String { get }
     var citationFormatDraft: EvidenceCitationFormat { get }
     var citationStyleDraft: EvidenceCitationStyle { get }
     var noteDraft: String { get }
     var filteredItems: [EvidenceItem] { get }
     var selectedItem: EvidenceItem? { get }
-    var canSplitSelectedGroup: Bool { get }
-    func group(id: String, in mode: AppLanguageMode) -> EvidenceWorkbenchGroup?
-    func group(matchingAssignmentValue assignmentValue: String, in mode: AppLanguageMode) -> EvidenceWorkbenchGroup?
-    func selectedGroup(in mode: AppLanguageMode) -> EvidenceWorkbenchGroup?
     func applyItems(_ items: [EvidenceItem])
     func apply(_ snapshot: WorkspaceSnapshotSummary)
     func exportScopeSummary(in mode: AppLanguageMode) -> String
     func normalizeSelection()
     func normalizedText(_ value: String?) -> String?
-    func normalizedTags(from rawValue: String) -> [String]
-    func normalizedTags(_ values: [String]) -> [String]
     func reorderedItemsMovingSelected(_ direction: EvidenceWorkbenchMoveDirection) -> [EvidenceItem]?
-    func reorderedItemsMovingGroup(
-        id groupID: String,
-        _ direction: EvidenceWorkbenchMoveDirection,
-        in mode: AppLanguageMode
-    ) -> [EvidenceItem]?
-    func reorderedItemsMovingGroup(
-        id sourceGroupID: String,
-        to targetGroupID: String,
-        placement: EvidenceWorkbenchGroupInsertPlacement,
-        in mode: AppLanguageMode
-    ) -> [EvidenceItem]?
-    func reorderedItemsAssigningItem(
-        id itemID: String,
-        to targetGroupID: String,
-        in mode: AppLanguageMode
-    ) -> [EvidenceItem]?
-    func reorderedItemsAssigningItem(
-        id itemID: String,
-        toNewGroup assignmentValue: String
-    ) -> [EvidenceItem]?
-    func reorderedItemsRenamingGroup(
-        id sourceGroupID: String,
-        to assignmentValue: String
-    ) -> [EvidenceItem]?
-    func reorderedItemsMergingGroup(
-        id sourceGroupID: String,
-        into targetGroupID: String
-    ) -> [EvidenceItem]?
-    func reorderedItemsSplittingSelectedGroup(to assignmentValue: String) -> [EvidenceItem]?
 }
 extension TopicsPageViewModel: WorkspaceTopicsPageState {}
 extension SentimentPageViewModel: WorkspaceSentimentPageState {}

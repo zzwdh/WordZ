@@ -132,12 +132,12 @@ extension SentimentView {
 
             WorkbenchToolbarSection {
                 HStack(spacing: 12) {
-                    Button(t("打开原文视图", "Open Source View")) {
+                    Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
                         onAction(.openSourceReader)
                     }
                     .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)
 
-                    Button(t("加入证据篮", "Add to Evidence Basket")) {
+                    Button(t("暂存摘录", "Save Excerpt")) {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     }
                     .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)

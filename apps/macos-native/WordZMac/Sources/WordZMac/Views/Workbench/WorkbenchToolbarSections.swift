@@ -8,11 +8,11 @@ struct WorkbenchToolbarSection<Content: View>: View {
     }
 
     var body: some View {
-        WorkbenchSectionCard {
-            VStack(alignment: .leading, spacing: 12) {
-                content
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            content
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 }
 

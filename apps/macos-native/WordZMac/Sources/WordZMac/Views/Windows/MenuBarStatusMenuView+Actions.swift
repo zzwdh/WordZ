@@ -40,13 +40,7 @@ extension MenuBarStatusMenuView {
 
     func openWindowRoute(_ route: NativeWindowRoute) {
         logMenuBarAction("openWindow", detail: route.id)
-        let application = NSApplication.shared
-        application.setActivationPolicy(.regular)
-        application.activate(ignoringOtherApps: true)
-        if let window = NativeWindowRouting.window(for: route) {
-            window.makeKeyAndOrderFront(nil)
-            return
-        }
+        guard NativeWindowRouting.shouldRequestPresentation(for: route) else { return }
         openWindow(id: route.id)
     }
 

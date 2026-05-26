@@ -5,6 +5,7 @@ extension NativeTableView.Coordinator {
     func syncSelection() {
         guard let tableView else { return }
         guard !rows.isEmpty else {
+            clearCellSelection()
             if tableView.selectedRow != -1 {
                 tableView.deselectAll(nil)
             }
@@ -123,6 +124,54 @@ extension NativeTableView.Coordinator {
     }
 
     @MainActor
+    func reloadSelectionAppearanceRows(
+        previousSelectedRowID: String?,
+        previousSelectedRowIDs: Set<String>,
+        selectedRowID: String?,
+        selectedRowIDs: Set<String>
+    ) -> ReloadOutcome {
+        guard let tableView else { return .none }
+        let columnCount = tableView.numberOfColumns
+        guard columnCount > 0 else { return .none }
+
+        var affectedRowIDs = previousSelectedRowIDs.union(selectedRowIDs)
+        if let previousSelectedRowID {
+            affectedRowIDs.insert(previousSelectedRowID)
+        }
+        if let selectedRowID {
+            affectedRowIDs.insert(selectedRowID)
+        }
+
+        let visibleRange = tableView.rows(in: tableView.visibleRect)
+        guard visibleRange.length > 0 else { return .none }
+        let visibleUpperBound = visibleRange.location + visibleRange.length
+        var rowIndexes = IndexSet()
+        affectedRowIDs.compactMap { rowIndexByID[$0] }
+            .filter { index in
+                index >= 0 &&
+                    index < rows.count &&
+                    index >= visibleRange.location &&
+                    index < visibleUpperBound
+            }
+            .forEach { rowIndexes.insert($0) }
+        guard !rowIndexes.isEmpty else { return .none }
+
+        tableView.reloadData(
+            forRowIndexes: rowIndexes,
+            columnIndexes: IndexSet(integersIn: 0..<columnCount)
+        )
+        return ReloadOutcome(
+            mode: .partialVisibleRows,
+            reloadedRowCount: rowIndexes.count
+        )
+    }
+
+    @MainActor
+    func isRowSelected(_ rowID: String) -> Bool {
+        rowID == selectedRowID || selectedRowIDs.contains(rowID)
+    }
+
+    @MainActor
     func selectedRowIndexes() -> [Int] {
         guard let tableView else { return [] }
         return tableView.selectedRowIndexes.compactMap { index in
@@ -134,10 +183,103 @@ extension NativeTableView.Coordinator {
     @MainActor
     @discardableResult
     func copySelectedRowsToPasteboard(_ pasteboard: NSPasteboard = .general) -> Bool {
-        guard let payload = selectedRowsCopyPayload() else { return false }
+        guard let payload = selectedCellsCopyPayload() ?? selectedRowsCopyPayload() else { return false }
         pasteboard.clearContents()
         pasteboard.declareTypes([.string], owner: nil)
         return pasteboard.setString(payload, forType: .string)
+    }
+
+    @MainActor
+    @discardableResult
+    func handleCellSelectionMouseDown(
+        rowIndex: Int,
+        columnIndex: Int,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> Bool {
+        let commandOnly = modifierFlags.intersection([.command, .shift, .option, .control]) == .command
+        guard commandOnly else {
+            clearCellSelection()
+            return false
+        }
+
+        guard rowIndex >= 0, rowIndex < rows.count else { return false }
+        let rowID = rows[rowIndex].id
+        let canToggleCell = selectedCellKeys.isEmpty
+            ? isRowSelected(rowID)
+            : true
+        guard canToggleCell else { return false }
+
+        return toggleCellSelection(rowIndex: rowIndex, columnIndex: columnIndex)
+    }
+
+    @MainActor
+    @discardableResult
+    func selectCellForCopy(rowID: String, columnID: String, extending: Bool = true) -> Bool {
+        guard
+            let rowIndex = rowIndexByID[rowID],
+            rowIndex >= 0,
+            rowIndex < rows.count,
+            orderedVisibleColumns().contains(where: { $0.id == columnID })
+        else {
+            return false
+        }
+
+        let previousCellKeys = selectedCellKeys
+        if !extending {
+            selectedCellKeys.removeAll()
+        }
+        selectedCellKeys = selectedCellKeys.filter { $0.rowID == rowID }
+        selectedCellKeys.insert(CellSelectionKey(rowID: rowID, columnID: columnID))
+        ensureSingleRowSelection(rowIndex: rowIndex)
+        reloadCellSelectionAppearance(previousCellKeys: previousCellKeys, selectedCellKeys: selectedCellKeys)
+        rebuildRowMenu()
+        return true
+    }
+
+    @MainActor
+    @discardableResult
+    func toggleCellSelection(rowIndex: Int, columnIndex: Int) -> Bool {
+        guard
+            let tableView,
+            rowIndex >= 0,
+            rowIndex < rows.count,
+            columnIndex >= 0,
+            columnIndex < tableView.tableColumns.count
+        else {
+            return false
+        }
+
+        let rowID = rows[rowIndex].id
+        let columnID = tableView.tableColumns[columnIndex].identifier.rawValue
+        guard orderedVisibleColumns().contains(where: { $0.id == columnID }) else { return false }
+
+        let previousCellKeys = selectedCellKeys
+        selectedCellKeys = selectedCellKeys.filter { $0.rowID == rowID }
+        let key = CellSelectionKey(rowID: rowID, columnID: columnID)
+        if selectedCellKeys.contains(key) {
+            selectedCellKeys.remove(key)
+        } else {
+            selectedCellKeys.insert(key)
+        }
+
+        ensureSingleRowSelection(rowIndex: rowIndex)
+        reloadCellSelectionAppearance(previousCellKeys: previousCellKeys, selectedCellKeys: selectedCellKeys)
+        rebuildRowMenu()
+        return true
+    }
+
+    @MainActor
+    func clearCellSelection() {
+        guard !selectedCellKeys.isEmpty else { return }
+        let previousCellKeys = selectedCellKeys
+        selectedCellKeys.removeAll()
+        reloadCellSelectionAppearance(previousCellKeys: previousCellKeys, selectedCellKeys: selectedCellKeys)
+        rebuildRowMenu()
+    }
+
+    @MainActor
+    func isCellSelected(rowID: String, columnID: String) -> Bool {
+        selectedCellKeys.contains(CellSelectionKey(rowID: rowID, columnID: columnID))
     }
 
     @MainActor
@@ -158,6 +300,7 @@ extension NativeTableView.Coordinator {
     @MainActor
     func selectMarker(rowID: String, markerID: String?, activate: Bool) {
         guard let rowIndex = rowIndexByID[rowID], rowIndex >= 0, rowIndex < rows.count else { return }
+        clearCellSelection()
         let previousSelectedRowID = selectedRowID
         selectedRowID = rowID
         selectedRowIDs = [rowID]
@@ -219,6 +362,7 @@ extension NativeTableView.Coordinator {
         guard let rowIndex = rowIndexByID[rowID], rowIndex >= 0, rowIndex < rows.count else {
             return false
         }
+        clearCellSelection()
         if selectedRowID != rowID {
             selectedRowID = rowID
             selectedRowIDs = [rowID]
@@ -241,15 +385,65 @@ extension NativeTableView.Coordinator {
     @MainActor
     func selectedRowsCopyPayload() -> String? {
         let indexes = resolvedSelectedRowIndexes()
+        return rowsCopyPayload(indexes: indexes)
+    }
+
+    @MainActor
+    func selectedCellsCopyPayload() -> String? {
+        guard !selectedCellKeys.isEmpty else { return nil }
+        let selectedColumnIDs = Set(selectedCellKeys.map(\.columnID))
+        let visibleColumns = orderedVisibleColumns().filter { selectedColumnIDs.contains($0.id) }
+        guard !visibleColumns.isEmpty else { return nil }
+
+        var selectedRows: [NativeTableRowDescriptor] = []
+        for row in rows where selectedCellKeys.contains(where: { $0.rowID == row.id }) {
+            var cells: [String: NativeTableCellValue] = [:]
+            for column in visibleColumns {
+                let key = CellSelectionKey(rowID: row.id, columnID: column.id)
+                cells[column.id] = selectedCellKeys.contains(key)
+                    ? (row.cell(for: column.id) ?? .text(""))
+                    : .text("")
+            }
+            selectedRows.append(NativeTableRowDescriptor(id: row.id, cells: cells))
+        }
+
+        return copyPayload(columns: visibleColumns, rows: selectedRows)
+    }
+
+    @MainActor
+    func visibleRowsCopyPayload() -> String? {
+        rowsCopyPayload(indexes: Array(rows.indices))
+    }
+
+    private func rowsCopyPayload(indexes: [Int]) -> String? {
         guard !indexes.isEmpty else { return nil }
         let visibleColumns = orderedVisibleColumns()
         guard !visibleColumns.isEmpty else { return nil }
-        let lines = [
-            visibleColumns.map(\.title).joined(separator: "\t")
-        ] + indexes.map { index in
-            visibleColumns.map { rows[index].value(for: $0.id) }.joined(separator: "\t")
+        let selectedRows = indexes.compactMap { index -> NativeTableRowDescriptor? in
+            guard index >= 0, index < rows.count else { return nil }
+            return rows[index]
         }
-        return lines.joined(separator: "\n")
+        return copyPayload(columns: visibleColumns, rows: selectedRows)
+    }
+
+    private func copyPayload(
+        columns: [NativeTableColumnDescriptor],
+        rows selectedRows: [NativeTableRowDescriptor]
+    ) -> String? {
+        guard !columns.isEmpty else { return nil }
+        let orderedTable = NativeTableDescriptor(
+            storageKey: descriptor.storageKey,
+            columns: columns,
+            defaultDensity: descriptor.defaultDensity
+        )
+        guard !selectedRows.isEmpty else { return nil }
+        return TableExportService().makeTSV(
+            snapshot: NativeTableExportSnapshot(
+                suggestedBaseName: "table-copy",
+                table: orderedTable,
+                rows: selectedRows
+            )
+        )
     }
 
     @MainActor
@@ -271,5 +465,55 @@ extension NativeTableView.Coordinator {
         }
 
         return []
+    }
+
+    @MainActor
+    private func ensureSingleRowSelection(rowIndex: Int) {
+        guard rowIndex >= 0, rowIndex < rows.count else { return }
+        let rowID = rows[rowIndex].id
+        let previousSelectedRowID = selectedRowID
+        selectedRowID = rowID
+        selectedRowIDs = [rowID]
+
+        guard let tableView else {
+            if previousSelectedRowID != rowID {
+                onSelectionChange?(rowID)
+            }
+            return
+        }
+
+        isApplyingCellSelection = true
+        tableView.selectRowIndexes(IndexSet(integer: rowIndex), byExtendingSelection: false)
+        isApplyingCellSelection = false
+
+        if previousSelectedRowID != rowID {
+            onSelectionChange?(rowID)
+        }
+    }
+
+    @MainActor
+    func reloadCellSelectionAppearance(
+        previousCellKeys: Set<CellSelectionKey>,
+        selectedCellKeys: Set<CellSelectionKey>
+    ) {
+        guard let tableView else { return }
+        let affectedCellKeys = previousCellKeys.union(selectedCellKeys)
+        guard !affectedCellKeys.isEmpty else { return }
+
+        var rowIndexes = IndexSet()
+        for rowID in Set(affectedCellKeys.map(\.rowID)) {
+            guard let index = rowIndexByID[rowID], index >= 0, index < rows.count else { continue }
+            rowIndexes.insert(index)
+        }
+
+        let affectedColumnIDs = Set(affectedCellKeys.map(\.columnID))
+        let columnIndexes = IndexSet(
+            tableView.tableColumns.enumerated().compactMap { index, column in
+                affectedColumnIDs.contains(column.identifier.rawValue) ? index : nil
+            }
+        )
+        guard !rowIndexes.isEmpty, !columnIndexes.isEmpty else { return }
+
+        tableView.reloadData(forRowIndexes: rowIndexes, columnIndexes: columnIndexes)
     }
 }

@@ -146,6 +146,7 @@ extension RootContentView {
                 layoutState.inspectorVisibilityBinding.wrappedValue = nextValue
             },
             presentWindow: { route in
+                guard NativeWindowRouting.shouldRequestPresentation(for: route) else { return }
                 openWindow(id: route.id)
             }
         )

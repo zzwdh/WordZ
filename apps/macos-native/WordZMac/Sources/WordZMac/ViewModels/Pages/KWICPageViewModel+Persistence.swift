@@ -48,10 +48,11 @@ extension KWICPageViewModel {
             stopwordFilter = .default
             isEditingStopwords = false
             result = nil
-            sortMode = .original
-            pageSize = .fifty
-            currentPage = 1
-            visibleColumns = Self.defaultVisibleColumns
+            tablePresentation.reset(
+                sortMode: .original,
+                pageSize: .fifty,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             selectedRowID = nil
             selectedSavedSetID = nil
             savedSetFilterQuery = ""

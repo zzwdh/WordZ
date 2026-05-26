@@ -5,7 +5,7 @@ extension WorkspaceActionDispatcher {
     func handleChiSquareAction(_ action: ChiSquarePageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runChiSquare() }
+            handleWorkspaceIntent(.runAnalysis(.chiSquare))
         case .reset:
             syncResult(.chiSquare) { workspace.chiSquare.handle(action) }
         }

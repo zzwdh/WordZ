@@ -6,9 +6,6 @@ final class SourceReaderViewModel: ObservableObject {
     @Published private(set) var launchContext: SourceReaderLaunchContext?
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
-    @Published var captureSectionTitle = ""
-    @Published var captureClaim = ""
-    @Published var captureTagsText = ""
     @Published var captureCitationFormat: EvidenceCitationFormat = .citationLine
     @Published var captureCitationStyle: EvidenceCitationStyle = .plain
     @Published var captureNote = ""
@@ -58,13 +55,13 @@ final class SourceReaderViewModel: ObservableObject {
         else { return nil }
 
         var metadataLines = [
-            "Source Reader",
+            "DB Source Preview",
             "Origin: \(context.origin.title(in: .system))",
-            "Corpus: \(context.corpusName)"
+            "DB Corpus: \(context.corpusName)"
         ]
 
         if let filePath = normalizedValue(context.filePath) {
-            metadataLines.append("Source File: \(filePath)")
+            metadataLines.append("Original Source File: \(filePath)")
         }
         if let query = normalizedValue(context.query) {
             metadataLines.append("Query: \(query)")
@@ -77,7 +74,7 @@ final class SourceReaderViewModel: ObservableObject {
         let text = [
             metadataLines.joined(separator: "\n"),
             selection.hit.citationText,
-            "Full Sentence\n\(selection.hit.fullSentenceText)"
+            "Full Source Sentence\n\(selection.hit.fullSentenceText)"
         ]
         .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         .joined(separator: "\n\n")
@@ -90,18 +87,10 @@ final class SourceReaderViewModel: ObservableObject {
 
     var currentEvidenceCaptureDraft: EvidenceCaptureDraft {
         EvidenceCaptureDraft(
-            sectionTitle: captureSectionTitle,
-            claim: captureClaim,
-            tagsText: captureTagsText,
             citationFormat: captureCitationFormat,
             citationStyle: captureCitationStyle,
             note: captureNote
         )
-    }
-
-    var captureDraftSummary: String? {
-        let summary = currentEvidenceCaptureDraft.summary(in: WordZLocalization.shared.effectiveMode)
-        return summary.isEmpty ? nil : summary
     }
 
     func load(
@@ -129,8 +118,8 @@ final class SourceReaderViewModel: ObservableObject {
                 code: 2,
                 userInfo: [
                     NSLocalizedDescriptionKey: wordZText(
-                        "当前没有可阅读的原文上下文。",
-                        "There is no readable source context available right now.",
+                        "当前没有可阅读的 DB 来源上下文。",
+                        "There is no readable DB source context available right now.",
                         mode: .system
                     )
                 ]
@@ -181,7 +170,7 @@ final class SourceReaderViewModel: ObservableObject {
                     return storedArtifact.sentences
                 }
             } catch {
-                // Fall back to live tokenization so Source Reader stays available
+                // Fall back to live tokenization so DB source preview stays available
                 // even when the saved shard artifact cannot be reused.
             }
         }
@@ -456,8 +445,8 @@ final class SourceReaderViewModel: ObservableObject {
             code: 1,
             userInfo: [
                 NSLocalizedDescriptionKey: wordZText(
-                    "无法读取原始文件内容。",
-                    "Unable to read the source file content.",
+                    "无法读取 DB 中保存的来源文本。",
+                    "Unable to read the source text saved in the DB.",
                     mode: .system
                 )
             ]

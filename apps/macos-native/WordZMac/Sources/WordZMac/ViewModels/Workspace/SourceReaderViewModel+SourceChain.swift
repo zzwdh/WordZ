@@ -39,7 +39,7 @@ enum SourceReaderSourceChainBuilder {
             items.append(
                 SourceReaderSourceChainItem(
                     id: "corpus",
-                    title: wordZText("语料", "Corpus", mode: mode),
+                    title: wordZText("DB 语料库", "DB Corpus", mode: mode),
                     value: corpusName,
                     detail: normalizedText(context.corpusID),
                     systemImage: "books.vertical",
@@ -52,7 +52,7 @@ enum SourceReaderSourceChainBuilder {
             items.append(
                 SourceReaderSourceChainItem(
                     id: "source-file",
-                    title: wordZText("原始文件", "Source File", mode: mode),
+                    title: wordZText("来源文件", "Original Source", mode: mode),
                     value: (filePath as NSString).lastPathComponent,
                     detail: filePath,
                     systemImage: "doc.text",

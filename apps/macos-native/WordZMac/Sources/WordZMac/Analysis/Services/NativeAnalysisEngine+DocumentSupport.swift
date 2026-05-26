@@ -170,6 +170,7 @@ struct ParsedDocument: Sendable {
             let paragraphId = parsedParagraphs.count
             let sentenceTokenizer = NLTokenizer(unit: .sentence)
             sentenceTokenizer.string = paragraphText
+            sentenceTokenizer.setLanguage(LinguisticAnnotationSupport.preferredTokenizationLanguage(for: paragraphText))
             let sentenceStartIndex = parsedSentences.count
             sentenceTokenizer.enumerateTokens(in: paragraphText.startIndex..<paragraphText.endIndex) { range, _ in
                 let sentenceText = String(paragraphText[range]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -257,16 +258,18 @@ struct ParsedDocument: Sendable {
     private static func tokenizeWords(in text: String, sentenceId: Int) -> [ParsedToken] {
         let tokenizer = NLTokenizer(unit: .word)
         tokenizer.string = text
-        tokenizer.setLanguage(.english)
-        let tagger = NLTagger(tagSchemes: [.lemma, .lexicalClass])
-        tagger.string = text
-        tagger.setLanguage(.english, range: text.startIndex..<text.endIndex)
+        tokenizer.setLanguage(LinguisticAnnotationSupport.preferredTokenizationLanguage(for: text))
+        let englishTagger = tagger(for: text, language: .english)
+        let chineseTagger = tagger(for: text, language: .simplifiedChinese)
         var tokens: [ParsedToken] = []
         tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
             let value = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
             guard AnalysisTextNormalizationSupport.containsWordLikeContent(value) else {
                 return true
             }
+            let script = LinguisticAnnotationSupport.classifyScript(in: value)
+            let annotationLanguage = LinguisticAnnotationSupport.preferredAnnotationLanguage(for: script)
+            let tagger = annotationLanguage == .simplifiedChinese ? chineseTagger : englishTagger
             let annotations = LinguisticAnnotationSupport.makeAnnotations(
                 for: value,
                 in: text,
@@ -284,6 +287,13 @@ struct ParsedDocument: Sendable {
             return true
         }
         return tokens
+    }
+
+    private static func tagger(for text: String, language: NLLanguage) -> NLTagger {
+        let tagger = NLTagger(tagSchemes: [.lemma, .lexicalClass])
+        tagger.string = text
+        tagger.setLanguage(language, range: text.startIndex..<text.endIndex)
+        return tagger
     }
 }
 

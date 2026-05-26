@@ -121,6 +121,36 @@ extension NativeWorkspaceRepositoryCore {
         return result
     }
 
+    func importMergedCorpusPaths(
+        _ paths: [String],
+        name: String,
+        folderId: String,
+        progress: (@Sendable (LibraryImportProgressSnapshot) -> Void)?
+    ) throws -> LibraryImportResult {
+        try ensureReady()
+        guard let store = storage as? any MergedCorpusImportingLibraryStore else {
+            throw NSError(
+                domain: "WordZMac.NativeWorkspaceRepository",
+                code: 501,
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持制作 DB 语料库。"]
+            )
+        }
+        let result = try store.importMergedCorpusPaths(
+            paths,
+            name: name,
+            folderId: folderId,
+            progress: progress,
+            isCancelled: { Task.isCancelled }
+        )
+        invalidateOpenedCorpusCache()
+        invalidateCorpusInfoCache()
+        invalidateStoredFrequencyArtifactCache()
+        invalidateStoredTokenizedArtifactCache()
+        invalidateStoredTokenPositionIndexCache()
+        invalidateCompareCache()
+        return result
+    }
+
     func openSavedCorpus(corpusId: String) throws -> OpenedCorpus {
         try ensureReady()
         if let cached = openedCorpusCache[corpusId] {
@@ -134,6 +164,30 @@ extension NativeWorkspaceRepositoryCore {
         cacheStoredCorpusID(for: corpusId, text: openedCorpus.content)
         try cacheStoredFrequencyArtifact(for: corpusId, text: openedCorpus.content)
         try cacheStoredTokenizedArtifact(for: corpusId, text: openedCorpus.content)
+        return openedCorpus
+    }
+
+    func openSavedCorpusSet(corpusSetID: String) throws -> OpenedCorpus {
+        try ensureReady()
+        let sourceID = CorpusSetSourceID.sourceID(for: corpusSetID)
+        if let cached = openedCorpusCache[sourceID] {
+            cacheStoredCorpusID(for: sourceID, text: cached.content)
+            try cacheStoredFrequencyArtifact(for: sourceID, text: cached.content)
+            try cacheStoredTokenizedArtifact(for: sourceID, text: cached.content)
+            return cached
+        }
+        guard let store = storage as? any CorpusSetOpeningLibraryStore else {
+            throw NSError(
+                domain: "WordZMac.NativeWorkspaceRepository",
+                code: 20,
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持打开语料集数据库。"]
+            )
+        }
+        let openedCorpus = try store.openSavedCorpusSet(corpusSetID: corpusSetID)
+        openedCorpusCache[sourceID] = openedCorpus
+        cacheStoredCorpusID(for: sourceID, text: openedCorpus.content)
+        try cacheStoredFrequencyArtifact(for: sourceID, text: openedCorpus.content)
+        try cacheStoredTokenizedArtifact(for: sourceID, text: openedCorpus.content)
         return openedCorpus
     }
 
@@ -331,11 +385,18 @@ extension NativeWorkspaceRepositoryCore {
                 userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持命名语料集。"]
             )
         }
-        return try store.saveCorpusSet(
+        let savedSet = try store.saveCorpusSet(
             name: name,
             corpusIDs: corpusIDs,
             metadataFilterState: metadataFilterState
         )
+        let sourceID = CorpusSetSourceID.sourceID(for: savedSet.id)
+        invalidateOpenedCorpusCache(corpusId: sourceID)
+        invalidateStoredFrequencyArtifactCache(corpusId: sourceID)
+        invalidateStoredTokenizedArtifactCache(corpusId: sourceID)
+        invalidateStoredTokenPositionIndexCache(corpusId: sourceID)
+        invalidateCompareCache()
+        return savedSet
     }
 
     func deleteCorpusSet(corpusSetID: String) throws {
@@ -348,6 +409,12 @@ extension NativeWorkspaceRepositoryCore {
             )
         }
         try store.deleteCorpusSet(corpusSetID: corpusSetID)
+        let sourceID = CorpusSetSourceID.sourceID(for: corpusSetID)
+        invalidateOpenedCorpusCache(corpusId: sourceID)
+        invalidateStoredFrequencyArtifactCache(corpusId: sourceID)
+        invalidateStoredTokenizedArtifactCache(corpusId: sourceID)
+        invalidateStoredTokenPositionIndexCache(corpusId: sourceID)
+        invalidateCompareCache()
     }
 
     func listAnalysisPresets() throws -> [AnalysisPresetItem] {
@@ -464,7 +531,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 32,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持证据条目工作台。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
             )
         }
         return try store.listEvidenceItems()
@@ -476,7 +543,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 33,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持证据条目工作台。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
             )
         }
         return try store.saveEvidenceItem(item)
@@ -488,7 +555,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 34,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持证据条目工作台。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
             )
         }
         try store.deleteEvidenceItem(itemID: itemID)
@@ -500,7 +567,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 35,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持证据条目工作台。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
             )
         }
         try store.replaceEvidenceItems(items)

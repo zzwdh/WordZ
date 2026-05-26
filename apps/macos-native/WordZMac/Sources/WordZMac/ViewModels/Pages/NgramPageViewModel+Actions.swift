@@ -10,38 +10,40 @@ extension NgramPageViewModel {
         case .run:
             return
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .changeSize(let nextSize):
             let normalizedSize = max(2, nextSize)
             guard ngramSizeValue != normalizedSize else { return }
             ngramSize = "\(normalizedSize)"
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
-    func toggleColumn(_ column: NgramColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort else { return }
+        invalidateSortedRowsCache()
     }
 
-    func sortByColumn(_ column: NgramColumnKey) {
-        let nextSort: NgramSortMode
+    func nextSortMode(
+        for column: NgramColumnKey,
+        currentSortMode: NgramSortMode
+    ) -> NgramSortMode? {
         switch column {
         case .rank:
-            nextSort = .frequencyDescending
+            return .frequencyDescending
         case .phrase:
-            nextSort = sortMode == .alphabeticalAscending ? .alphabeticalDescending : .alphabeticalAscending
+            return currentSortMode == .alphabeticalAscending ? .alphabeticalDescending : .alphabeticalAscending
         case .count:
-            nextSort = sortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
+            return currentSortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
         }
-        applySortModeChange(nextSort)
     }
 }

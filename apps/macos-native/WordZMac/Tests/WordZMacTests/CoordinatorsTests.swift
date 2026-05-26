@@ -621,6 +621,8 @@ final class CoordinatorsTests: XCTestCase {
         try await coordinator.saveCurrentCorpusSet(into: library, sidebar: sidebar)
 
         XCTAssertEqual(repository.saveCorpusSetCallCount, 1)
+        XCTAssertEqual(dialog.promptTextTitle, "制作 DB 语料集")
+        XCTAssertEqual(dialog.promptTextConfirmTitle, "制作 DB")
         XCTAssertEqual(library.selectedCorpusSet?.name, "课堂语料集")
         XCTAssertEqual(sidebar.selectedCorpusSetID, library.selectedCorpusSetID)
         XCTAssertTrue(library.scene.statusMessage.contains("已保存语料集"))
@@ -633,6 +635,29 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertNil(library.selectedCorpusSetID)
         XCTAssertNil(sidebar.selectedCorpusSetID)
         XCTAssertTrue(library.scene.statusMessage.contains("已删除语料集"))
+    }
+
+    func testLibraryManagementCoordinatorDefaultsBlankCorpusSetNameToMyCorpusLibrary() async throws {
+        let repository = FakeWorkspaceRepository()
+        let sessionStore = WorkspaceSessionStore()
+        let dialog = FakeDialogService()
+        dialog.promptTextResult = "   "
+        let coordinator = LibraryManagementCoordinator(
+            repository: repository,
+            dialogService: dialog,
+            sessionStore: sessionStore
+        )
+        let library = LibraryManagementViewModel()
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        library.applyBootstrap(repository.bootstrapState.librarySnapshot)
+        library.selectCorpusIDs(["corpus-1", "corpus-2"])
+
+        try await coordinator.saveCurrentCorpusSet(into: library, sidebar: sidebar)
+
+        XCTAssertEqual(dialog.promptTextDefaultValue, "我的语料库")
+        XCTAssertEqual(repository.librarySnapshot.corpusSets.first?.name, "我的语料库")
+        XCTAssertEqual(library.selectedCorpusSet?.name, "我的语料库")
     }
 
     func testLibraryManagementCoordinatorAppliesBatchMetadataPatchAcrossSelection() async throws {

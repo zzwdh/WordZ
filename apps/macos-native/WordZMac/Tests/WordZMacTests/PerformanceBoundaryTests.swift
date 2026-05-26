@@ -100,6 +100,50 @@ final class PerformanceBoundaryTests: XCTestCase {
         XCTAssertEqual(tableView.noteNumberOfRowsChangedCount, 0)
     }
 
+    func testTableCoordinatorSelectionOnlyApplyKeepsLargeSnapshotOffReloadPath() {
+        let descriptor = NativeTableDescriptor(columns: [
+            NativeTableColumnDescriptor(id: "word", title: "Word", isVisible: true, sortIndicator: nil),
+            NativeTableColumnDescriptor(id: "count", title: "Count", isVisible: true, sortIndicator: nil)
+        ])
+        let rows = makeTableRows(count: 50_000)
+        let snapshot = ResultTableSnapshot(version: 7, rows: rows)
+        let coordinator = NativeTableView.Coordinator(
+            descriptor: descriptor,
+            rows: rows,
+            snapshot: snapshot,
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        let tableView = RecordingTableView(frame: NSRect(x: 0, y: 0, width: 480, height: 280))
+        tableView.forcedVisibleRange = NSRange(location: 100, length: 16)
+
+        coordinator.attach(tableView: tableView)
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: rows,
+            snapshot: snapshot,
+            selectedRowID: nil,
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+        tableView.resetRecording()
+
+        coordinator.apply(
+            descriptor: descriptor,
+            rows: rows,
+            snapshot: snapshot,
+            selectedRowID: "row-49999",
+            onSelectionChange: nil,
+            onDoubleClick: nil
+        )
+
+        XCTAssertEqual(tableView.fullReloadCount, 0)
+        XCTAssertEqual(tableView.partialReloads.count, 0)
+        XCTAssertEqual(tableView.noteNumberOfRowsChangedCount, 0)
+        XCTAssertEqual(coordinator.resolvedSelectedRowIndexes(), [49_999])
+    }
+
     func testTableCoordinatorClearsUnavailableSelectionWhenLargeRowsShrink() {
         let descriptor = NativeTableDescriptor(columns: [
             NativeTableColumnDescriptor(id: "word", title: "Word", isVisible: true, sortIndicator: nil)

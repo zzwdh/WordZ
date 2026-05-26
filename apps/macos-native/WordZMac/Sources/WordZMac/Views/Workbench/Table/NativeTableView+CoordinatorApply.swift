@@ -26,20 +26,27 @@ extension NativeTableView.Coordinator {
         let previousSelectedRowID = self.selectedRowID
         let previousSelectedMarkerID = self.selectedMarkerID
         let previousSelectedRowIDs = self.selectedRowIDs
+        let previousSelectedCellKeys = self.selectedCellKeys
         let previousDensity = resolvedDensity(for: previousDescriptor)
         let previousHeaderPinning = self.isHeaderPinned
         let columnsChanged = previousDescriptor != descriptor
         let resolvedRows = snapshot?.rows ?? rows
-        let resolvedRowIndexByID = snapshot?.rowIndexByID ?? NativeTableRowIndexing.firstIndexByID(resolvedRows)
-        let availableIDs = Set(resolvedRows.map(\.id))
-        let resolvedSelectedRowID = selectedRowID.flatMap { availableIDs.contains($0) ? $0 : nil }
-        let shouldNotifyUnavailableSelection = selectedRowID != nil && resolvedSelectedRowID == nil
         let rowsChanged: Bool
         if let snapshot {
             rowsChanged = previousSnapshotVersion != snapshot.version
         } else {
             rowsChanged = !previousRows.isContentEqual(to: resolvedRows)
         }
+        let resolvedRowIndexByID: [String: Int]
+        if let snapshot {
+            resolvedRowIndexByID = snapshot.rowIndexByID
+        } else if rowsChanged {
+            resolvedRowIndexByID = NativeTableRowIndexing.firstIndexByID(resolvedRows)
+        } else {
+            resolvedRowIndexByID = rowIndexByID
+        }
+        let resolvedSelectedRowID = selectedRowID.flatMap { resolvedRowIndexByID[$0] == nil ? nil : $0 }
+        let shouldNotifyUnavailableSelection = selectedRowID != nil && resolvedSelectedRowID == nil
 
         self.descriptor = descriptor
         self.rows = resolvedRows
@@ -64,14 +71,26 @@ extension NativeTableView.Coordinator {
         let headerPinningChanged = previousHeaderPinning != isHeaderPinned
         updateTableMetrics(nextDensity)
 
-        selectedRowIDs = previousSelectedRowIDs.intersection(availableIDs)
+        selectedRowIDs = previousSelectedRowIDs.isEmpty
+            ? []
+            : Set(previousSelectedRowIDs.lazy.filter { resolvedRowIndexByID[$0] != nil })
         if let resolvedSelectedRowID {
             selectedRowIDs.insert(resolvedSelectedRowID)
+        }
+        let visibleColumnIDs = Set(descriptor.visibleColumns.map(\.id))
+        selectedCellKeys = selectedCellKeys.filter { key in
+            resolvedRowIndexByID[key.rowID] != nil && visibleColumnIDs.contains(key.columnID)
+        }
+        if let resolvedSelectedRowID {
+            selectedCellKeys = selectedCellKeys.filter { $0.rowID == resolvedSelectedRowID }
+        } else {
+            selectedCellKeys.removeAll()
         }
 
         let selectionChanged = previousSelectedRowID != resolvedSelectedRowID
             || previousSelectedMarkerID != selectedMarkerID
             || previousSelectedRowIDs != selectedRowIDs
+        let cellSelectionChanged = previousSelectedCellKeys != selectedCellKeys
         let emptinessChanged = previousRows.isEmpty != resolvedRows.isEmpty
         let densityChanged = previousDensity != nextDensity
 
@@ -84,7 +103,7 @@ extension NativeTableView.Coordinator {
         if columnsChanged || densityChanged || tableView?.headerView?.menu == nil {
             rebuildHeaderMenu()
         }
-        if selectionChanged || emptinessChanged || tableView?.menu == nil {
+        if selectionChanged || cellSelectionChanged || emptinessChanged || tableView?.menu == nil {
             rebuildRowMenu()
         }
 
@@ -98,9 +117,16 @@ extension NativeTableView.Coordinator {
         } else if rowsChanged {
             reloadOutcome = reloadVisibleRows(previousRowCount: previousRows.count)
         } else if selectionChanged {
-            reloadOutcome = reloadCustomPresentationRows(
+            reloadOutcome = reloadSelectionAppearanceRows(
                 previousSelectedRowID: previousSelectedRowID,
-                selectedRowID: resolvedSelectedRowID
+                previousSelectedRowIDs: previousSelectedRowIDs,
+                selectedRowID: resolvedSelectedRowID,
+                selectedRowIDs: selectedRowIDs
+            )
+        } else if cellSelectionChanged {
+            reloadCellSelectionAppearance(
+                previousCellKeys: previousSelectedCellKeys,
+                selectedCellKeys: selectedCellKeys
             )
         }
 

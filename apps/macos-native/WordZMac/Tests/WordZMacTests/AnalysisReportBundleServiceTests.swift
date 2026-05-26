@@ -57,13 +57,18 @@ final class AnalysisReportBundleServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("report.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("workspace-draft.json").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("current-result.csv").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("current-result-metadata.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("method-summary.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("reading/summary.txt").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("notes/context.json").path))
 
         let csvText = try String(contentsOf: bundleDirectoryURL.appendingPathComponent("current-result.csv"), encoding: .utf8)
         XCTAssertTrue(csvText.contains("rose"))
-        XCTAssertTrue(csvText.contains("Visible Rows: 1"))
+        XCTAssertFalse(csvText.contains("Visible Rows: 1"))
+
+        let csvMetadataText = try String(contentsOf: bundleDirectoryURL.appendingPathComponent("current-result-metadata.txt"), encoding: .utf8)
+        XCTAssertTrue(csvMetadataText.contains("Visible Rows: 1"))
+        XCTAssertTrue(csvMetadataText.contains("Data Dictionary"))
 
         let methodSummaryText = try String(contentsOf: bundleDirectoryURL.appendingPathComponent("method-summary.txt"), encoding: .utf8)
         XCTAssertTrue(methodSummaryText.contains("Visible Rows: 1"))
@@ -73,6 +78,7 @@ final class AnalysisReportBundleServiceTests: XCTestCase {
         let includedFiles = try XCTUnwrap(manifestObject["includedFiles"] as? [[String: Any]])
         let paths = includedFiles.compactMap { $0["path"] as? String }
         XCTAssertTrue(paths.contains("current-result.csv"))
+        XCTAssertTrue(paths.contains("current-result-metadata.txt"))
         XCTAssertTrue(paths.contains("method-summary.txt"))
         XCTAssertTrue(paths.contains("reading/summary.txt"))
     }

@@ -1,0 +1,246 @@
+{
+  "datasetID": "topic-surrogate-precision-v1",
+  "corpora": [
+    {
+      "id": "near-neighbor-governance-privacy-labor",
+      "minTopicSize": 2,
+      "expectedThemes": ["ai_governance", "data_privacy", "platform_labor"],
+      "minClusterPurityProxy": 0.72,
+      "minThemeRecallProxy": 0.67,
+      "maxOutlierRatio": 0.55,
+      "minKeywordCoherenceProxy": 0.18,
+      "minBridgeAssignmentProxy": 0.75,
+      "minStabilityScore": 0.60,
+      "ignoredLabels": ["noise"],
+      "bridgeLabelTargets": {
+        "bridge_governance_privacy": ["ai_governance", "data_privacy"]
+      },
+      "keywordHints": {
+        "ai_governance": ["model audit", "risk", "regulator", "compliance", "accountability", "governance"],
+        "data_privacy": ["consent", "personal data", "retention", "anonymization", "encryption", "privacy"],
+        "platform_labor": ["driver", "wage", "shift", "contractor", "labor", "scheduling"]
+      },
+      "documents": [
+        {
+          "id": "governance-1",
+          "label": "ai_governance",
+          "text": "Regulators reviewed model audit trails, risk classifications, and accountability controls before approving the automated decision system."
+        },
+        {
+          "id": "governance-2",
+          "label": "ai_governance",
+          "text": "Compliance officers compared governance checklists, model impact assessments, and escalation duties for high risk AI tools."
+        },
+        {
+          "id": "governance-3",
+          "label": "ai_governance",
+          "text": "Policy teams documented algorithmic accountability, audit evidence, and regulator reporting obligations across the platform."
+        },
+        {
+          "id": "governance-4",
+          "label": "ai_governance",
+          "text": "The governance committee tracked model approval gates, risk registers, and compliance remediation deadlines."
+        },
+        {
+          "id": "privacy-1",
+          "label": "data_privacy",
+          "text": "Privacy analysts reviewed user consent flows, personal data retention periods, and anonymization safeguards for the dataset."
+        },
+        {
+          "id": "privacy-2",
+          "label": "data_privacy",
+          "text": "Data protection teams compared encryption controls, deletion requests, and privacy notices across customer records."
+        },
+        {
+          "id": "privacy-3",
+          "label": "data_privacy",
+          "text": "Auditors traced personal data sharing, consent withdrawal, and retention exceptions in the privacy register."
+        },
+        {
+          "id": "privacy-4",
+          "label": "data_privacy",
+          "text": "The privacy office documented anonymization tests, data minimization steps, and consent evidence for review."
+        },
+        {
+          "id": "labor-1",
+          "label": "platform_labor",
+          "text": "Platform labor researchers interviewed delivery drivers about wage volatility, scheduling penalties, and contractor status."
+        },
+        {
+          "id": "labor-2",
+          "label": "platform_labor",
+          "text": "Worker advocates compared shift allocation, driver ratings, and labor protections during the platform bargaining session."
+        },
+        {
+          "id": "labor-3",
+          "label": "platform_labor",
+          "text": "Economists measured contractor earnings, unpaid waiting time, and algorithmic scheduling pressure for ride hail drivers."
+        },
+        {
+          "id": "labor-4",
+          "label": "platform_labor",
+          "text": "The labor report described wage floors, driver deactivation appeals, and scheduling transparency rules."
+        },
+        {
+          "id": "bridge-1",
+          "label": "bridge_governance_privacy",
+          "text": "The model audit appendix also checked whether consent evidence and personal data retention controls were documented for regulators."
+        },
+        {
+          "id": "noise-1",
+          "label": "noise",
+          "text": "This introductory paragraph lists interview dates, spreadsheet filenames, and appendix numbering without substantive evidence."
+        }
+      ]
+    },
+    {
+      "id": "bridge-noise-precision",
+      "minTopicSize": 2,
+      "expectedThemes": ["clinical_policy", "patient_data", "hospital_staffing"],
+      "minClusterPurityProxy": 0.70,
+      "minThemeRecallProxy": 0.67,
+      "maxOutlierRatio": 0.60,
+      "minKeywordCoherenceProxy": 0.18,
+      "minBridgeAssignmentProxy": 0.75,
+      "ignoredLabels": ["noise"],
+      "bridgeLabelTargets": {
+        "bridge_policy_data": ["clinical_policy", "patient_data"]
+      },
+      "keywordHints": {
+        "clinical_policy": ["triage", "protocol", "guideline", "clinic", "policy", "referral"],
+        "patient_data": ["patient record", "consent", "privacy", "diagnosis", "registry", "data"],
+        "hospital_staffing": ["nurse", "roster", "shift", "staffing", "ward", "overtime"]
+      },
+      "documents": [
+        {
+          "id": "policy-1",
+          "label": "clinical_policy",
+          "text": "Clinical managers revised triage protocols, referral guidelines, and clinic escalation policies after the audit."
+        },
+        {
+          "id": "policy-2",
+          "label": "clinical_policy",
+          "text": "Doctors compared treatment guidelines, triage thresholds, and emergency referral rules across outpatient clinics."
+        },
+        {
+          "id": "policy-3",
+          "label": "clinical_policy",
+          "text": "The policy memo summarized discharge protocols, review boards, and clinical guideline updates for ward teams."
+        },
+        {
+          "id": "data-1",
+          "label": "patient_data",
+          "text": "Data stewards checked patient record consent, diagnosis registry access, and privacy safeguards in the hospital database."
+        },
+        {
+          "id": "data-2",
+          "label": "patient_data",
+          "text": "Analysts reviewed patient data retention, consent forms, and diagnosis coding errors before registry export."
+        },
+        {
+          "id": "data-3",
+          "label": "patient_data",
+          "text": "Privacy officers traced patient identifiers, encrypted records, and data sharing approvals for the research registry."
+        },
+        {
+          "id": "staff-1",
+          "label": "hospital_staffing",
+          "text": "Hospital staffing teams tracked nurse rosters, overtime pressure, and ward coverage during the winter surge."
+        },
+        {
+          "id": "staff-2",
+          "label": "hospital_staffing",
+          "text": "Nurse managers compared shift swaps, staffing shortages, and ward handover delays across clinical units."
+        },
+        {
+          "id": "staff-3",
+          "label": "hospital_staffing",
+          "text": "Administrators measured overtime costs, nurse vacancies, and weekend roster gaps in the staffing review."
+        },
+        {
+          "id": "bridge-1",
+          "label": "bridge_policy_data",
+          "text": "The triage protocol required patient consent checks before registry data could be used in clinical review meetings."
+        },
+        {
+          "id": "noise-1",
+          "label": "noise",
+          "text": "The exported table contains blank rows, contact initials, page headers, and notes about document formatting."
+        },
+        {
+          "id": "noise-2",
+          "label": "noise",
+          "text": "A meeting reminder lists room numbers, parking instructions, and catering requests for the afternoon workshop."
+        }
+      ]
+    },
+    {
+      "id": "long-paraphrase-mixed",
+      "minTopicSize": 2,
+      "expectedThemes": ["education_access", "assessment_policy", "teacher_workload"],
+      "minClusterPurityProxy": 0.70,
+      "minThemeRecallProxy": 0.67,
+      "maxOutlierRatio": 0.55,
+      "minKeywordCoherenceProxy": 0.18,
+      "ignoredLabels": ["noise"],
+      "bridgeLabelTargets": {},
+      "keywordHints": {
+        "education_access": ["access", "enrollment", "rural", "transport", "scholarship", "attendance"],
+        "assessment_policy": ["exam", "rubric", "assessment", "grading", "test", "standard"],
+        "teacher_workload": ["teacher", "workload", "lesson", "paperwork", "planning", "burnout"]
+      },
+      "documents": [
+        {
+          "id": "access-long-1",
+          "label": "education_access",
+          "text": "Education access officers reviewed rural enrollment barriers, scholarship eligibility, school transport routes, attendance records, family outreach visits, language support, device lending, meal subsidies, disability accommodation, and regional access targets; the team then compared which barriers kept students from reaching lessons on time."
+        },
+        {
+          "id": "access-2",
+          "label": "education_access",
+          "text": "Community coordinators linked attendance gaps to transport costs, rural distance, scholarship paperwork, and limited after school access support."
+        },
+        {
+          "id": "access-3",
+          "label": "education_access",
+          "text": "The enrollment review described bus routes, access grants, family outreach, and attendance recovery for remote students."
+        },
+        {
+          "id": "assessment-long-1",
+          "label": "assessment_policy",
+          "text": "Assessment policy writers revised exam rubrics, grading moderation rules, test accommodations, standard setting panels, appeal procedures, benchmark tasks, formative feedback cycles, and school reporting requirements; the draft focused on how teachers should interpret scores across different classrooms."
+        },
+        {
+          "id": "assessment-2",
+          "label": "assessment_policy",
+          "text": "Curriculum teams compared exam standards, grading rubrics, assessment appeals, and moderated test samples across districts."
+        },
+        {
+          "id": "assessment-3",
+          "label": "assessment_policy",
+          "text": "The policy note explained rubric calibration, assessment evidence, and grading fairness for standardized exam reports."
+        },
+        {
+          "id": "workload-long-1",
+          "label": "teacher_workload",
+          "text": "Teacher workload interviews covered lesson planning, marking queues, paperwork systems, parent messaging, classroom preparation, curriculum meetings, substitute coverage, student feedback logs, burnout symptoms, and planning time; respondents emphasized that administrative tasks displaced instructional work."
+        },
+        {
+          "id": "workload-2",
+          "label": "teacher_workload",
+          "text": "School leaders measured teacher paperwork, lesson preparation hours, marking backlogs, and burnout risk before staffing talks."
+        },
+        {
+          "id": "workload-3",
+          "label": "teacher_workload",
+          "text": "The workload survey asked teachers about planning time, administrative forms, lesson revisions, and after hours grading."
+        },
+        {
+          "id": "noise-1",
+          "label": "noise",
+          "text": "The appendix lists survey batch numbers, exported filenames, and row counts for the spreadsheet archive."
+        }
+      ]
+    }
+  ]
+}

@@ -15,7 +15,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.sceneGraph.context.appName, "WordZ")
         XCTAssertEqual(workspace.sceneGraph.activeTab, .kwic)
         XCTAssertEqual(workspace.sceneGraph.sidebar.currentCorpus?.title, "Demo Corpus")
-        XCTAssertEqual(workspace.sceneGraph.settings.workspaceSummary, "工作区：Demo Corpus ｜ 当前语料：Demo Corpus")
+        XCTAssertEqual(workspace.sceneGraph.settings.workspaceSummary, "工作区：Demo Corpus ｜ 当前 DB 语料库：Demo Corpus")
         XCTAssertFalse(workspace.isWelcomePresented)
     }
 
@@ -112,6 +112,43 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.keyword.selectedFocusCorpusID, "corpus-1")
         XCTAssertEqual(workspace.keyword.referenceSourceKind, .namedCorpusSet)
         XCTAssertEqual(workspace.keyword.selectedReferenceCorpusSetID, "set-1")
+    }
+
+    func testStatsRunUsesSelectedCorpusSetDatabase() async {
+        let corpusSet = LibraryCorpusSetItem(json: [
+            "id": "set-1",
+            "name": "Merged Set",
+            "corpusIds": ["corpus-1", "corpus-2"],
+            "corpusNames": ["Demo Corpus", "Compare Corpus"],
+            "metadataFilter": [:],
+            "createdAt": "today",
+            "updatedAt": "today"
+        ])
+        let repository = FakeWorkspaceRepository(
+            bootstrapState: makeBootstrapState(corpusSets: [corpusSet])
+        )
+        repository.openedCorpusSetsByID["set-1"] = OpenedCorpus(json: [
+            "mode": "corpus-set",
+            "filePath": "/tmp/set-1.db",
+            "displayName": "Merged Set",
+            "content": "alpha beta gamma",
+            "sourceType": "db"
+        ])
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        workspace.sidebar.applyCorpusSet(corpusSet)
+        workspace.library.selectCorpusSet("set-1")
+        workspace.sidebar.selectedCorpusID = workspace.library.selectedCorpusID
+        let openedCorpusCountBefore = repository.openSavedCorpusCallCount
+
+        await workspace.runStats()
+
+        XCTAssertEqual(repository.openSavedCorpusSetCallCount, 1)
+        XCTAssertEqual(repository.openSavedCorpusCallCount, openedCorpusCountBefore)
+        XCTAssertEqual(repository.lastRunStatsText, "alpha beta gamma")
+        XCTAssertEqual(workspace.sidebar.scene.targetCorpus.summary, "Merged Set")
+        XCTAssertEqual(workspace.sidebar.scene.targetCorpus.detail, "2 个 DB 语料库 · DB 语料集")
     }
 
     func testOpenKeywordKWICUsesSelectedKeywordRowFocusScope() async {
@@ -404,12 +441,69 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(opened)
         XCTAssertEqual(annotationItems.map(\.id), ["lemma", "lexical-class", "script"])
         XCTAssertEqual(annotationItems.first?.value, "alpha")
+        XCTAssertTrue(export.text.contains("DB Source Preview"))
+        XCTAssertTrue(export.text.contains("DB Corpus: Demo Corpus"))
         XCTAssertTrue(export.text.contains("Annotation: \(workspace.annotationState.summary(in: .system))"))
-        XCTAssertTrue(export.text.contains("Full Sentence"))
+        XCTAssertTrue(export.text.contains("Full Source Sentence"))
         XCTAssertTrue(export.text.contains("Delta alpha."))
     }
 
-    func testCaptureCurrentSourceReaderEvidenceItemPersistsDossierDraft() async {
+    func testQuickLookSourceReaderContentBuildsDBTextPreviewBeforeOriginalFile() async throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-source-reader-quicklook-\(UUID().uuidString)", isDirectory: true)
+        let sourceURL = rootURL.appendingPathComponent("original.txt")
+        let previewURL = rootURL.appendingPathComponent("preview", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try "This is the external original file.".write(to: sourceURL, atomically: true, encoding: .utf8)
+        let repository = FakeWorkspaceRepository(
+            corpusInfoResult: CorpusInfoSummary(json: [
+                "corpusId": "corpus-1",
+                "title": "Demo Corpus",
+                "folderName": "Default",
+                "sourceType": "txt",
+                "representedPath": sourceURL.path,
+                "detectedEncoding": "UTF-8",
+                "importedAt": "2026-04-03T00:00:00Z",
+                "fileCount": 1,
+                "tokenCount": 30,
+                "typeCount": 12,
+                "sentenceCount": 6,
+                "paragraphCount": 3,
+                "characterCount": 180
+            ]),
+            tokenizeResult: makeTokenizeResult(),
+            kwicResult: KWICResult(rows: [
+                KWICRow(id: "1-1", left: "Delta", node: "alpha", right: "", sentenceId: 1, sentenceTokenIndex: 1)
+            ])
+        )
+        let hostActions = FakeHostActionService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewURL)
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.kwic.keyword = "alpha"
+        await workspace.runKWIC()
+        workspace.kwic.selectedRowID = "1-1"
+        let opened = await workspace.openCurrentSourceReader()
+        XCTAssertTrue(opened)
+
+        await workspace.quickLookSourceReaderContent()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        let previewPath = try XCTUnwrap(hostActions.lastQuickLookPath)
+        XCTAssertNotEqual(previewPath, sourceURL.path)
+        XCTAssertTrue(previewPath.hasSuffix(".txt"))
+        let previewText = try String(contentsOfFile: previewPath, encoding: .utf8)
+        XCTAssertTrue(previewText.contains("DB Source Preview"))
+        XCTAssertTrue(previewText.contains("DB Corpus: Demo Corpus"))
+        XCTAssertTrue(previewText.contains("Full Source Sentence"))
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已打开 DB 来源文本的 Quick Look 预览。")
+    }
+
+    func testCaptureCurrentSourceReaderEvidenceItemPersistsExcerptDraft() async {
         let repository = FakeWorkspaceRepository(
             tokenizeResult: makeTokenizeResult(),
             kwicResult: KWICResult(rows: [
@@ -424,18 +518,15 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         workspace.kwic.selectedRowID = "1-1"
         _ = await workspace.openCurrentSourceReader()
 
-        workspace.sourceReader.captureSectionTitle = "Section A"
-        workspace.sourceReader.captureClaim = "Alpha illustrates the target pattern."
-        workspace.sourceReader.captureTagsText = "teaching, alpha, teaching"
         workspace.sourceReader.captureCitationFormat = .fullSentence
         workspace.sourceReader.captureCitationStyle = .mla
         workspace.sourceReader.captureNote = "Use for the introduction."
 
         await workspace.captureCurrentSourceReaderEvidenceItem()
 
-        XCTAssertEqual(repository.evidenceItems.first?.sectionTitle, "Section A")
-        XCTAssertEqual(repository.evidenceItems.first?.claim, "Alpha illustrates the target pattern.")
-        XCTAssertEqual(repository.evidenceItems.first?.tags, ["teaching", "alpha"])
+        XCTAssertNil(repository.evidenceItems.first?.sectionTitle)
+        XCTAssertNil(repository.evidenceItems.first?.claim)
+        XCTAssertEqual(repository.evidenceItems.first?.tags, [])
         XCTAssertEqual(repository.evidenceItems.first?.citationFormat, .fullSentence)
         XCTAssertEqual(repository.evidenceItems.first?.citationStyle, .mla)
         XCTAssertEqual(repository.evidenceItems.first?.note, "Use for the introduction.")
@@ -501,12 +592,11 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         workspace.plot.handle(PlotPageAction.selectMarker(rowID: "corpus-1", markerID: "1-1"))
         _ = await workspace.openCurrentSourceReader()
 
-        workspace.sourceReader.captureSectionTitle = "Plot Section"
         await workspace.captureCurrentSourceReaderEvidenceItem()
 
         XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .plot)
         XCTAssertEqual(repository.evidenceItems.first?.sentenceId, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.sectionTitle, "Plot Section")
+        XCTAssertNil(repository.evidenceItems.first?.sectionTitle)
         XCTAssertEqual(repository.evidenceItems.first?.keyword, "alpha")
     }
 
@@ -616,421 +706,12 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.id, first.id)
     }
 
-    func testMoveSelectedEvidenceGroupPersistsManualSectionOrder() async {
-        let repository = FakeWorkspaceRepository()
-        let first = makeEvidenceItem(
-            id: "evidence-section-a-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let hidden = makeEvidenceItem(
-            id: "evidence-section-hidden-1",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section Hidden"
-        )
-        let second = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        let third = makeEvidenceItem(
-            id: "evidence-section-b-2",
-            sourceKind: .plot,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        repository.evidenceItems = [first, hidden, second, third]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = second.id
-
-        await workspace.moveSelectedEvidenceGroup(.up)
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [second.id, hidden.id, third.id, first.id])
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, second.id)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedGroup(in: .system)?.title, "Section B")
-    }
-
-    func testMoveEvidenceGroupUsesStableSidebarGroupIDAndPreservesExistingSelection() async throws {
-        let repository = FakeWorkspaceRepository()
-        let unsectioned = makeEvidenceItem(
-            id: "evidence-unsectioned-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: nil
-        )
-        let selected = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        repository.evidenceItems = [unsectioned, selected]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = selected.id
-        let englishGroupID = try XCTUnwrap(
-            workspace.evidenceWorkbench.groupedItems(in: .english).first?.id
-        )
-
-        await workspace.moveEvidenceGroup(englishGroupID, direction: .down)
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [selected.id, unsectioned.id])
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, selected.id)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.id, selected.id)
-    }
-
-    func testMoveEvidenceGroupToDropTargetPersistsDraggedOrderingAndSelection() async {
-        let repository = FakeWorkspaceRepository()
-        let first = makeEvidenceItem(
-            id: "evidence-section-a-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let hidden = makeEvidenceItem(
-            id: "evidence-section-hidden-1",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section Hidden"
-        )
-        let selected = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        let target = makeEvidenceItem(
-            id: "evidence-section-c-1",
-            sourceKind: .plot,
-            reviewStatus: .keep,
-            sectionTitle: "Section C"
-        )
-        repository.evidenceItems = [first, hidden, selected, target]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = selected.id
-
-        await workspace.moveEvidenceGroup(
-            "section:Section A",
-            to: "section:Section C",
-            placement: .after
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [selected.id, hidden.id, target.id, first.id])
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, selected.id)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.id, selected.id)
-    }
-
-    func testAssignEvidenceItemToSectionGroupPersistsMetadataAndSelection() async throws {
-        let repository = FakeWorkspaceRepository()
-        let dragged = makeEvidenceItem(
-            id: "evidence-unsectioned-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: nil
-        )
-        let hidden = makeEvidenceItem(
-            id: "evidence-section-hidden-1",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section Hidden"
-        )
-        let selected = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        let target = makeEvidenceItem(
-            id: "evidence-section-c-1",
-            sourceKind: .plot,
-            reviewStatus: .keep,
-            sectionTitle: "Section C"
-        )
-        repository.evidenceItems = [dragged, hidden, selected, target]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = selected.id
-
-        await workspace.assignEvidenceItem(
-            dragged.id,
-            to: "section:Section C"
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [selected.id, hidden.id, target.id, dragged.id])
-        XCTAssertEqual(
-            repository.evidenceItems.first(where: { $0.id == dragged.id })?.sectionTitle,
-            "Section C"
-        )
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, selected.id)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.id, selected.id)
-    }
-
-    func testAssignEvidenceItemToUnclaimedGroupClearsClaim() async throws {
-        let repository = FakeWorkspaceRepository()
-        let dragged = makeEvidenceItem(
-            id: "evidence-claim-a-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            claim: "Claim A"
-        )
-        let target = makeEvidenceItem(
-            id: "evidence-unclaimed-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            claim: nil
-        )
-        repository.evidenceItems = [dragged, target]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .claim
-        workspace.evidenceWorkbench.selectedItemID = dragged.id
-
-        await workspace.assignEvidenceItem(
-            dragged.id,
-            to: "claim:__unclaimed__"
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertNil(repository.evidenceItems.last?.claim)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [target.id, dragged.id])
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, dragged.id)
-    }
-
-    func testCreateGroupAndAssignEvidenceItemPersistsNewSectionAndPromptRoute() async throws {
-        let dialogService = FakeDialogService()
-        dialogService.promptTextResult = "Section Z"
-
-        let repository = FakeWorkspaceRepository()
-        let dragged = makeEvidenceItem(
-            id: "evidence-unsectioned-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: nil
-        )
-        let hidden = makeEvidenceItem(
-            id: "evidence-section-hidden-1",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section Hidden"
-        )
-        let selected = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        repository.evidenceItems = [dragged, hidden, selected]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = selected.id
-
-        await workspace.createGroupAndAssignEvidenceItem(
-            dragged.id,
-            preferredWindowRoute: .evidenceWorkbench
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [selected.id, hidden.id, dragged.id])
-        XCTAssertEqual(
-            repository.evidenceItems.last?.sectionTitle,
-            "Section Z"
-        )
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, selected.id)
-        XCTAssertEqual(dialogService.promptTextPreferredRoute, .evidenceWorkbench)
-    }
-
-    func testRenameSelectedEvidenceGroupPersistsAcrossHiddenItemsAndPromptRoute() async throws {
-        let dialogService = FakeDialogService()
-        dialogService.promptTextResult = "Methods"
-
-        let repository = FakeWorkspaceRepository()
-        let visible = makeEvidenceItem(
-            id: "evidence-section-a-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let hidden = makeEvidenceItem(
-            id: "evidence-section-a-2",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section A"
-        )
-        let target = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        repository.evidenceItems = [visible, hidden, target]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = visible.id
-
-        await workspace.renameSelectedEvidenceGroup(
-            preferredWindowRoute: .evidenceWorkbench
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [visible.id, hidden.id, target.id])
-        XCTAssertEqual(repository.evidenceItems[0].sectionTitle, "Methods")
-        XCTAssertEqual(repository.evidenceItems[1].sectionTitle, "Methods")
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, visible.id)
-        XCTAssertEqual(dialogService.promptTextPreferredRoute, .evidenceWorkbench)
-    }
-
-    func testMergeSelectedEvidenceGroupPersistsTargetPositionAndPromptRoute() async throws {
-        let dialogService = FakeDialogService()
-        dialogService.promptTextResult = "Section C"
-
-        let repository = FakeWorkspaceRepository()
-        let source = makeEvidenceItem(
-            id: "evidence-section-a-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let hiddenSource = makeEvidenceItem(
-            id: "evidence-section-a-2",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section A"
-        )
-        let target = makeEvidenceItem(
-            id: "evidence-section-c-1",
-            sourceKind: .plot,
-            reviewStatus: .keep,
-            sectionTitle: "Section C"
-        )
-        let trailing = makeEvidenceItem(
-            id: "evidence-section-d-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section D"
-        )
-        repository.evidenceItems = [source, hiddenSource, target, trailing]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = source.id
-
-        await workspace.mergeSelectedEvidenceGroup(
-            preferredWindowRoute: .evidenceWorkbench
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [target.id, source.id, hiddenSource.id, trailing.id])
-        XCTAssertEqual(repository.evidenceItems[1].sectionTitle, "Section C")
-        XCTAssertEqual(repository.evidenceItems[2].sectionTitle, "Section C")
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, source.id)
-        XCTAssertEqual(dialogService.promptTextPreferredRoute, .evidenceWorkbench)
-    }
-
-    func testSplitSelectedEvidenceGroupPersistsSuffixAndPromptRoute() async throws {
-        let dialogService = FakeDialogService()
-        dialogService.promptTextResult = "Findings"
-
-        let repository = FakeWorkspaceRepository()
-        let lead = makeEvidenceItem(
-            id: "evidence-section-a-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let interleaved = makeEvidenceItem(
-            id: "evidence-section-b-1",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section B"
-        )
-        let selected = makeEvidenceItem(
-            id: "evidence-section-a-2",
-            sourceKind: .plot,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let hiddenSuffix = makeEvidenceItem(
-            id: "evidence-section-a-3",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section A"
-        )
-        let trailing = makeEvidenceItem(
-            id: "evidence-section-c-1",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section C"
-        )
-        repository.evidenceItems = [lead, interleaved, selected, hiddenSuffix, trailing]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.groupingMode = .section
-        workspace.evidenceWorkbench.selectedItemID = selected.id
-
-        await workspace.splitSelectedEvidenceGroup(
-            preferredWindowRoute: .evidenceWorkbench
-        )
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [lead.id, selected.id, hiddenSuffix.id, interleaved.id, trailing.id])
-        XCTAssertEqual(repository.evidenceItems[0].sectionTitle, "Section A")
-        XCTAssertEqual(repository.evidenceItems[1].sectionTitle, "Findings")
-        XCTAssertEqual(repository.evidenceItems[2].sectionTitle, "Findings")
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, selected.id)
-        XCTAssertEqual(dialogService.promptTextPreferredRoute, .evidenceWorkbench)
-    }
-
     func testExportEvidenceArtifactsWriteMarkdownAndJSON() async throws {
         let dialogService = FakeDialogService()
         let textURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("writing-material-\(UUID().uuidString).txt")
+            .appendingPathComponent("excerpts-\(UUID().uuidString).txt")
         let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("evidence-bundle-\(UUID().uuidString).json")
+            .appendingPathComponent("excerpt-bundle-\(UUID().uuidString).json")
         defer {
             try? FileManager.default.removeItem(at: textURL)
             try? FileManager.default.removeItem(at: jsonURL)
@@ -1114,9 +795,9 @@ final class MainWorkspaceViewModelTests: XCTestCase {
     func testExportEvidenceArtifactsRespectCurrentWorkbenchFilters() async throws {
         let dialogService = FakeDialogService()
         let textURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("filtered-writing-material-\(UUID().uuidString).txt")
+            .appendingPathComponent("filtered-excerpts-\(UUID().uuidString).txt")
         let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("filtered-evidence-bundle-\(UUID().uuidString).json")
+            .appendingPathComponent("filtered-excerpt-bundle-\(UUID().uuidString).json")
         defer {
             try? FileManager.default.removeItem(at: textURL)
             try? FileManager.default.removeItem(at: jsonURL)
@@ -1152,23 +833,21 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
         await workspace.initializeIfNeeded()
         workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.tagFilterQuery = "export"
-        workspace.evidenceWorkbench.corpusFilterQuery = "archive"
 
         dialogService.savePathResult = textURL.path
         await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .mainWorkspace)
 
         let text = try String(contentsOf: textURL, encoding: .utf8)
         XCTAssertTrue(text.contains("node"))
+        XCTAssertTrue(text.contains(wordZText("保留摘录", "Kept Excerpts", mode: .system) + ": 2"))
         XCTAssertFalse(text.contains("locator-node"))
-        XCTAssertFalse(text.contains("beta"))
 
         dialogService.savePathResult = jsonURL.path
         await workspace.exportEvidenceJSON(preferredWindowRoute: .mainWorkspace)
 
         let jsonData = try Data(contentsOf: jsonURL)
         let bundle = try JSONDecoder().decode(EvidenceTransferBundle.self, from: jsonData)
-        XCTAssertEqual(bundle.items.map(\.id), ["matching-keep"])
+        XCTAssertEqual(bundle.items.map(\.id), ["matching-keep", "hidden-by-tag"])
     }
 
     func testExportSelectedKeywordSavedListJSONWritesTransferBundle() async throws {
@@ -1393,6 +1072,10 @@ final class MainWorkspaceViewModelTests: XCTestCase {
             workspace.shell.scene.toolbar.items.first(where: { $0.action == .exportCurrent })?.isEnabled,
             false
         )
+        XCTAssertEqual(
+            workspace.shell.scene.toolbar.items.first(where: { $0.action == .copyCurrentResult })?.isEnabled,
+            false
+        )
 
         await workspace.runStats()
 
@@ -1402,6 +1085,113 @@ final class MainWorkspaceViewModelTests: XCTestCase {
             workspace.shell.scene.toolbar.items.first(where: { $0.action == .exportCurrent })?.isEnabled,
             true
         )
+        XCTAssertEqual(
+            workspace.shell.scene.toolbar.items.first(where: { $0.action == .copyCurrentResult })?.isEnabled,
+            true
+        )
+        XCTAssertTrue(workspace.commandContext(for: .mainWorkspace).canCopyCurrentResult)
+    }
+
+    func testCurrentResultArtifactIsNilForEmptyResultAndExportsStatsTables() async throws {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        XCTAssertNil(workspace.currentResultArtifact)
+
+        await workspace.runStats()
+
+        let artifact = try XCTUnwrap(workspace.currentResultArtifact)
+        XCTAssertEqual(artifact.sourceTab, .stats)
+        XCTAssertEqual(artifact.title, workspace.sceneGraph.stats.title)
+        XCTAssertNotNil(artifact.exportSnapshot)
+        XCTAssertNil(artifact.textDocument)
+        XCTAssertTrue(artifact.supports(.copy))
+        XCTAssertTrue(artifact.supports(.preview))
+        XCTAssertTrue(artifact.supports(.export))
+        XCTAssertTrue(artifact.supports(.share))
+        XCTAssertFalse(artifact.supports(.openSourceReader))
+        XCTAssertFalse(artifact.supports(.captureExcerpt))
+        XCTAssertEqual(
+            artifact.actionDescriptors(in: .english).map(\.action),
+            [.copy, .preview, .export, .share]
+        )
+        XCTAssertEqual(artifact.actionDescriptors(in: .english).first?.title, "Copy Table")
+    }
+
+    func testCurrentResultArtifactPrefersTokenizeTextDocument() async throws {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        workspace.tokenize.apply(makeWorkspaceSnapshot(currentTab: "tokenize", searchQuery: ""))
+        workspace.tokenize.apply(makeTokenizeResult())
+        workspace.selectedTab = .tokenize
+        workspace.syncSceneGraph()
+
+        let artifact = try XCTUnwrap(workspace.currentResultArtifact)
+        XCTAssertEqual(artifact.sourceTab, .tokenize)
+        XCTAssertNil(artifact.exportSnapshot)
+        XCTAssertTrue(try XCTUnwrap(artifact.textDocument).text.contains("alpha beta gamma"))
+        XCTAssertTrue(artifact.supports(.copy))
+        XCTAssertTrue(workspace.hasExportableCurrentContent(in: workspace.sceneGraph, selectedTab: .tokenize))
+    }
+
+    func testCopyCurrentResultArtifactCopiesTSVForExcelPaste() async throws {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostActionService: hostActions
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.runStats()
+
+        let handled = await workspace.performResultArtifactAction(.copy)
+
+        XCTAssertTrue(handled)
+        let payload = try XCTUnwrap(hostActions.copiedClipboardTexts.last)
+        XCTAssertTrue(payload.contains("\t"))
+        XCTAssertTrue(payload.contains("word-0"))
+        XCTAssertTrue(workspace.settings.scene.supportStatus.contains("Excel"))
+    }
+
+    func testExportCurrentUsesCurrentResultArtifactForTokenizeText() async throws {
+        let repository = FakeWorkspaceRepository()
+        let dialogService = FakeDialogService()
+        let exportURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-tokenize-artifact-\(UUID().uuidString).txt")
+        dialogService.savePathResult = exportURL.path
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            dialogService: dialogService
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.tokenize.apply(makeWorkspaceSnapshot(currentTab: "tokenize", searchQuery: ""))
+        workspace.tokenize.apply(makeTokenizeResult())
+        workspace.selectedTab = .tokenize
+        workspace.syncSceneGraph()
+        await workspace.exportCurrent(preferredWindowRoute: .mainWorkspace)
+
+        let contents = try String(contentsOf: exportURL, encoding: .utf8)
+        XCTAssertEqual(contents, "alpha beta gamma\ndelta alpha\n")
+        XCTAssertEqual(dialogService.savePathPreferredRoute, .mainWorkspace)
+    }
+
+    func testCurrentResultArtifactExposesReaderAndExcerptCapabilitiesForKWIC() async throws {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+        workspace.kwic.keyword = "alpha"
+        await workspace.runKWIC()
+
+        let artifact = try XCTUnwrap(workspace.currentResultArtifact)
+        XCTAssertEqual(artifact.sourceTab, .kwic)
+        XCTAssertTrue(artifact.supports(.openSourceReader))
+        XCTAssertTrue(artifact.supports(.captureExcerpt))
     }
 
     func testSettingsSceneSyncDoesNotHijackMainWorkspaceTab() async {
@@ -1434,6 +1224,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertFalse(repository.savedWorkspaceDrafts.isEmpty)
         XCTAssertEqual(hostPreferences.recordRecentCallCount, 1)
         XCTAssertEqual(workspace.settings.scene.recentDocuments.first?.corpusID, "corpus-1")
+        XCTAssertEqual(workspace.settings.scene.recentDocuments.first?.subtitle, "Demo Corpus.db · Default")
     }
 
     func testOpenRecentDocumentPreparesSelectionWithoutExtraWorkspaceSave() async {
@@ -1491,6 +1282,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(repository.openSavedCorpusCallCount, 0)
         XCTAssertEqual(repository.runStatsCallCount, 0)
         XCTAssertEqual(workspace.library.corpusInfoSheet?.title, "Demo Corpus")
+        XCTAssertEqual(workspace.library.corpusInfoSheet?.fileCountText, "\(repository.corpusInfoResult.fileCount)")
         XCTAssertEqual(workspace.library.corpusInfoSheet?.tokenCountText, "\(repository.corpusInfoResult.tokenCount)")
         XCTAssertEqual(workspace.library.corpusInfoSheet?.typeCountText, "\(repository.corpusInfoResult.typeCount)")
         XCTAssertEqual(workspace.library.corpusInfoSheet?.encodingText, "UTF-8")
@@ -1879,7 +1671,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(reportBundleService.lastPayload?.reportText.contains("WordZ Analysis Materials Bundle") == true)
         XCTAssertNotNil(reportBundleService.lastPayload?.tableSnapshot)
         XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/source-reader-current.txt" }) == true)
-        XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/writing-material.txt" }) == true)
+        XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/excerpts.txt" }) == true)
         XCTAssertEqual(hostActions.exportedArchivePath, "/tmp/WordZMac-report.zip")
         XCTAssertEqual(hostActions.exportedArchiveTitle, "导出分析材料包")
         XCTAssertEqual(hostActions.exportedArchivePreferredRoute, .mainWorkspace)
@@ -1900,6 +1692,29 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
         XCTAssertEqual(hostActions.quickLookCallCount, 1)
         XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/demo.txt")
+    }
+
+    func testQuickLookCurrentContentPrefersOpenedDatabasePathWhenCorpusIsOpen() async {
+        let repository = FakeWorkspaceRepository(openedCorpus: OpenedCorpus(json: [
+            "mode": "saved",
+            "filePath": "/tmp/demo.db",
+            "displayName": "Demo Corpus",
+            "content": "alpha beta gamma alpha beta",
+            "sourceType": "txt"
+        ]))
+        let hostActions = FakeHostActionService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.openSelectedCorpus()
+        await workspace.quickLookCurrentCorpus()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/demo.db")
     }
 
     func testQuickLookCurrentContentBuildsTemporaryCSVForResultScene() async throws {
@@ -2035,6 +1850,37 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
         XCTAssertEqual(workspace.sidebar.selectedCorpusID, "imported-1")
         XCTAssertFalse(workspace.isWelcomePresented)
+    }
+
+    func testConfirmImportPreflightCreatesNamedMergedDBCorpus() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            updateService: FakeUpdateService()
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.library.presentImportPreflight(
+            paths: ["/tmp/a.txt", "/tmp/b.txt", "/tmp/c.txt"],
+            preserveHierarchy: true
+        )
+
+        await workspace.handleLibraryAction(
+            .confirmImportPreflight(
+                paths: ["/tmp/a.txt", "/tmp/b.txt", "/tmp/c.txt"],
+                corpusName: "dbA"
+            )
+        )
+        try? await Task.sleep(nanoseconds: 80_000_000)
+
+        XCTAssertEqual(repository.importMergedCorpusPathsCallCount, 1)
+        XCTAssertEqual(repository.importCorpusPathsCallCount, 0)
+        XCTAssertEqual(repository.lastMergedImportPaths, ["/tmp/a.txt", "/tmp/b.txt", "/tmp/c.txt"])
+        XCTAssertEqual(repository.lastMergedImportName, "dbA")
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 1)
+        XCTAssertEqual(workspace.sidebar.selectedCorpusID, "merged-1")
+        XCTAssertNil(workspace.library.importPreflightSheet)
     }
 
     func testClearRecentDocumentsClearsStoreAndHostRecentItems() async {

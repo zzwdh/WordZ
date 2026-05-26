@@ -37,10 +37,11 @@ final class WordPageViewModel: ObservableObject, AnalysisInputStateControlling, 
 
     let sceneBuilder: WordSceneBuilder
     var result: StatsResult?
-    var sortMode: WordSortMode = .frequencyDescending
-    var pageSize: WordPageSize = .oneHundred
-    var currentPage = 1
-    var visibleColumns: Set<WordColumnKey> = WordPageViewModel.defaultVisibleColumns
+    var tablePresentation = AnalysisTablePresentationState<WordColumnKey, WordSortMode, WordPageSize>(
+        sortMode: .frequencyDescending,
+        pageSize: .oneHundred,
+        visibleColumns: WordPageViewModel.defaultVisibleColumns
+    )
     var definition = FrequencyMetricDefinition.default
     var annotationState = WorkspaceAnnotationState.default
     var cachedDisplayableRows: [FrequencyRow]?
@@ -52,7 +53,6 @@ final class WordPageViewModel: ObservableObject, AnalysisInputStateControlling, 
     var cachedSortedRows: [FrequencyRow]?
     var cachedSortMode: WordSortMode?
     var cachedDefinition: FrequencyMetricDefinition?
-    var sceneBuildRevision = 0
     var resultGeneration = 0
     var sceneResultGeneration = 0
 

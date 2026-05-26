@@ -113,7 +113,13 @@ final class WorkspaceSessionWorkflowService {
         defer { setBusy(false, features: features) }
 
         do {
-            _ = try await libraryCoordinator.openSelection(selectedCorpusID: features.sidebar.selectedCorpusID)
+            if let corpusSetID = features.sidebar.selectedCorpusSetID,
+               let repository = repository as? any CorpusSetOpeningRepository {
+                let corpus = try await repository.openSavedCorpusSet(corpusSetID: corpusSetID)
+                sessionStore.setOpenedCorpus(corpus, sourceID: CorpusSetSourceID.sourceID(for: corpusSetID))
+            } else {
+                _ = try await libraryCoordinator.openSelection(selectedCorpusID: features.sidebar.selectedCorpusID)
+            }
             persistenceWorkflow.applyWorkspacePresentation(
                 features: features,
                 syncFeatureContexts: syncFeatureContexts
@@ -131,7 +137,11 @@ final class WorkspaceSessionWorkflowService {
     }
 
     func prepareCorpusSelectionChange(features: WorkspaceFeatureSet) {
-        if libraryCoordinator.handleSelectionChange(to: features.sidebar.selectedCorpusID) {
+        let selectedSourceID = features.sidebar.selectedCorpusSetID
+            .map { CorpusSetSourceID.sourceID(for: $0) }
+            ?? features.sidebar.selectedCorpusID
+        if !sessionStore.matchesOpenedCorpusSource(selectedSourceID) {
+            sessionStore.resetOpenedCorpus()
             resetFeatureResults(features: features)
         }
     }
@@ -249,10 +259,12 @@ final class WorkspaceSessionWorkflowService {
     }
 
     private func updateSelectionAvailability(features: WorkspaceFeatureSet) {
+        let openedPath = sessionStore.openedCorpus?.filePath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let selectedPath = features.library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         features.shell.updateSelectionAvailability(
             hasSelection: features.sidebar.selectedCorpusID != nil,
             hasSourceReaderContext: false,
-            hasPreviewableCorpus: !(features.library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? "").isEmpty,
+            hasPreviewableCorpus: !openedPath.isEmpty || !selectedPath.isEmpty,
             corpusCount: features.sidebar.librarySnapshot.corpora.count,
             hasLocatorSource: features.kwic.primaryLocatorSource != nil,
             hasExportableContent: false,

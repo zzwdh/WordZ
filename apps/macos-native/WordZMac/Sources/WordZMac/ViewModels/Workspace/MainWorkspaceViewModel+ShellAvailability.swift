@@ -8,17 +8,21 @@ extension MainWorkspaceViewModel {
     ) {
         let hasPreviewableCurrent = hasPreviewableCurrentContent(in: graph, selectedTab: selectedTab)
         let exportableCurrent = hasExportableCurrentContent(in: graph, selectedTab: selectedTab)
+        let currentArtifact = currentResultArtifact(in: graph, selectedTab: selectedTab)
+        let copyableCurrent = currentArtifact?.supports(.copy) == true
+        let hasSelectedAnalysisSource = sidebar.selectedCorpusID != nil || sidebar.selectedCorpusSetID != nil
         let runSentimentEnabled = sentiment.canRun(
-            hasOpenedCorpus: sidebar.selectedCorpusID != nil,
+            hasOpenedCorpus: hasSelectedAnalysisSource,
             hasKWICRows: kwic.scene?.rows.isEmpty == false,
             hasTopicRows: topics.canAnalyzeVisibleTopicsInSentiment
         )
         shell.updateSelectionAvailability(
-            hasSelection: sidebar.selectedCorpusID != nil,
-            hasSourceReaderContext: canOpenSourceReaderCurrentContent,
+            hasSelection: hasSelectedAnalysisSource,
+            hasSourceReaderContext: currentArtifact?.supports(.openSourceReader) == true,
             hasPreviewableCorpus: hasPreviewableCurrent,
             corpusCount: sidebar.librarySnapshot.corpora.count,
             hasLocatorSource: kwic.primaryLocatorSource != nil,
+            hasCopyableContent: copyableCurrent,
             hasExportableContent: exportableCurrent,
             runSentimentEnabled: runSentimentEnabled
         )
@@ -45,38 +49,7 @@ extension MainWorkspaceViewModel {
         in graph: WorkspaceSceneGraph,
         selectedTab: WorkspaceDetailTab
     ) -> WorkspaceResultSceneNode? {
-        switch selectedTab {
-        case .stats:
-            return graph.stats
-        case .word:
-            return graph.word
-        case .tokenize:
-            return graph.tokenize
-        case .topics:
-            return graph.topics
-        case .compare:
-            return graph.compare
-        case .sentiment:
-            return graph.sentiment
-        case .keyword:
-            return graph.keyword
-        case .chiSquare:
-            return graph.chiSquare
-        case .plot:
-            return graph.plot
-        case .ngram:
-            return graph.ngram
-        case .cluster:
-            return graph.cluster
-        case .kwic:
-            return graph.kwic
-        case .collocate:
-            return graph.collocate
-        case .locator:
-            return graph.locator
-        case .library, .settings:
-            return nil
-        }
+        graph.resultNode(for: selectedTab)
     }
 
     func currentSidebarResultsSummary(

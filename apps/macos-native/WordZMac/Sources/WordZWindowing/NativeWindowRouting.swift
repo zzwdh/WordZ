@@ -12,6 +12,8 @@ package enum NativeWindowRouting {
     }
 
     private static var registeredWindows: [NativeWindowRoute: WeakWindowBox] = [:]
+    private static var pendingPresentationRequests: [NativeWindowRoute: Date] = [:]
+    private static let pendingPresentationTimeout: TimeInterval = 1.5
 
     package static func identifier(for route: NativeWindowRoute) -> NSUserInterfaceItemIdentifier {
         NSUserInterfaceItemIdentifier(route.id)
@@ -19,11 +21,21 @@ package enum NativeWindowRouting {
 
     package static func register(_ window: NSWindow?, for route: NativeWindowRoute) {
         guard let window else {
+            if let registeredWindow = registeredWindows[route]?.window,
+               registeredWindow.identifier == identifier(for: route) {
+                registeredWindow.identifier = nil
+                pendingPresentationRequests[route] = nil
+            }
             registeredWindows[route] = nil
             return
         }
         registeredWindows[route] = WeakWindowBox(window: window)
+        pendingPresentationRequests[route] = nil
         window.identifier = identifier(for: route)
+    }
+
+    package static func cancelPendingPresentationRequest(for route: NativeWindowRoute) {
+        pendingPresentationRequests[route] = nil
     }
 
     package static func window(for route: NativeWindowRoute) -> NSWindow? {
@@ -43,6 +55,31 @@ package enum NativeWindowRouting {
         let application = NSApplication.shared
         let identifier = identifier(for: route)
         return application.keyWindow?.identifier == identifier || application.mainWindow?.identifier == identifier
+    }
+
+    @discardableResult
+    package static func activate(_ route: NativeWindowRoute) -> Bool {
+        guard let window = window(for: route) else { return false }
+        let application = NSApplication.shared
+        application.setActivationPolicy(.regular)
+        application.activate(ignoringOtherApps: true)
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+        window.makeKeyAndOrderFront(nil)
+        return true
+    }
+
+    package static func shouldRequestPresentation(for route: NativeWindowRoute) -> Bool {
+        if activate(route) {
+            return false
+        }
+        pruneExpiredPresentationRequests()
+        guard pendingPresentationRequests[route] == nil else {
+            return false
+        }
+        pendingPresentationRequests[route] = Date()
+        return true
     }
 
     package static func presentationWindow(preferredRoute: NativeWindowRoute?) -> NSWindow? {
@@ -102,5 +139,11 @@ package enum NativeWindowRouting {
             return visibleRegistered
         }
         return NSApplication.shared.windows.filter { $0.identifier != nil && $0.isVisible }
+    }
+
+    private static func pruneExpiredPresentationRequests(now: Date = Date()) {
+        pendingPresentationRequests = pendingPresentationRequests.filter { _, requestedAt in
+            now.timeIntervalSince(requestedAt) < pendingPresentationTimeout
+        }
     }
 }

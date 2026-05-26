@@ -4,6 +4,11 @@ import Foundation
 extension WorkspaceActionDispatcher {
     func handleLibraryAction(_ action: LibraryManagementAction) {
         switch action {
+        case .showCorpusBuilder:
+            sync(.librarySelection) {
+                workspace.library.selectCorpusBuilder()
+                workspace.sidebar.selectedCorpusID = nil
+            }
         case .selectFolder(let folderID):
             sync(.librarySelection) {
                 workspace.library.selectFolder(folderID)

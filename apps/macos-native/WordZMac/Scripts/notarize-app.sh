@@ -29,14 +29,14 @@ submit_and_staple() {
 
   if [[ -d "$artifact_path" && "${artifact_path##*.}" == "app" ]]; then
     xcrun stapler staple "$artifact_path"
-  elif [[ -f "$artifact_path" && "$artifact_path" == *.dmg ]]; then
+  elif [[ -f "$artifact_path" && ( "$artifact_path" == *.dmg || "$artifact_path" == *.pkg ) ]]; then
     xcrun stapler staple "$artifact_path"
   elif [[ -f "$artifact_path" ]]; then
     xcrun stapler staple "$artifact_path" || true
   fi
 }
 
-if [[ -e "$INPUT_PATH" && ( "$INPUT_PATH" == *.app || "$INPUT_PATH" == *.dmg || "$INPUT_PATH" == *.zip ) ]]; then
+if [[ -e "$INPUT_PATH" && ( "$INPUT_PATH" == *.app || "$INPUT_PATH" == *.dmg || "$INPUT_PATH" == *.zip || "$INPUT_PATH" == *.pkg ) ]]; then
   submit_and_staple "$INPUT_PATH"
   echo "$INPUT_PATH"
   exit 0
@@ -65,17 +65,20 @@ PACKAGE_OUTPUTS=("${(@f)$(zsh "$SCRIPT_DIR/package-from-app.sh" "$APP_BUNDLE" "$
 APP_BUNDLE="${PACKAGE_OUTPUTS[1]}"
 ZIP_PATH="${PACKAGE_OUTPUTS[2]}"
 DMG_PATH="${PACKAGE_OUTPUTS[3]}"
-CHECKSUMS_PATH="${PACKAGE_OUTPUTS[4]}"
-MANIFEST_PATH="${PACKAGE_OUTPUTS[5]}"
+PKG_PATH="${PACKAGE_OUTPUTS[4]}"
+CHECKSUMS_PATH="${PACKAGE_OUTPUTS[5]}"
+MANIFEST_PATH="${PACKAGE_OUTPUTS[6]}"
 
 submit_and_staple "$DMG_PATH"
+submit_and_staple "$PKG_PATH"
 
-REFRESHED_OUTPUTS=("${(@f)$(WORDZ_MAC_NOTARIZED_APP=1 WORDZ_MAC_NOTARIZED_DMG=1 zsh "$SCRIPT_DIR/release-manifest.sh" "$APP_NAME" "$VERSION" "$DIST_DIR" "$ARCH_NAME")}")
+REFRESHED_OUTPUTS=("${(@f)$(WORDZ_MAC_NOTARIZED_APP=1 WORDZ_MAC_NOTARIZED_DMG=1 WORDZ_MAC_NOTARIZED_PKG=1 zsh "$SCRIPT_DIR/release-manifest.sh" "$APP_NAME" "$VERSION" "$DIST_DIR" "$ARCH_NAME")}")
 CHECKSUMS_PATH="${REFRESHED_OUTPUTS[1]}"
 MANIFEST_PATH="${REFRESHED_OUTPUTS[2]}"
 
 echo "$APP_BUNDLE"
 echo "$ZIP_PATH"
 echo "$DMG_PATH"
+echo "$PKG_PATH"
 echo "$CHECKSUMS_PATH"
 echo "$MANIFEST_PATH"

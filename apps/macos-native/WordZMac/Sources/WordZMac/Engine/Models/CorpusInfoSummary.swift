@@ -6,8 +6,10 @@ struct CorpusInfoSummary: Equatable, Sendable {
     let folderName: String
     let sourceType: String
     let representedPath: String
+    let storageFileName: String
     let detectedEncoding: String
     let importedAt: String
+    let fileCount: Int
     let tokenCount: Int
     let typeCount: Int
     let sentenceCount: Int
@@ -25,8 +27,10 @@ struct CorpusInfoSummary: Equatable, Sendable {
         self.folderName = JSONFieldReader.string(json, key: "folderName", fallback: "未分类")
         self.sourceType = JSONFieldReader.string(json, key: "sourceType", fallback: "txt")
         self.representedPath = JSONFieldReader.string(json, key: "representedPath")
+        self.storageFileName = JSONFieldReader.string(json, key: "storageFileName")
         self.detectedEncoding = JSONFieldReader.string(json, key: "detectedEncoding")
         self.importedAt = JSONFieldReader.string(json, key: "importedAt")
+        self.fileCount = max(1, JSONFieldReader.int(json, key: "fileCount", fallback: 1))
         self.tokenCount = JSONFieldReader.int(json, key: "tokenCount")
         self.typeCount = JSONFieldReader.int(json, key: "typeCount")
         self.sentenceCount = JSONFieldReader.int(json, key: "sentenceCount")

@@ -36,9 +36,9 @@ extension SourceReaderViewModel {
             searchOptionsSnapshot: nil,
             stopwordFilterSnapshot: nil,
             reviewStatus: .pending,
-            sectionTitle: currentEvidenceCaptureDraft.normalizedSectionTitle,
-            claim: currentEvidenceCaptureDraft.normalizedClaim,
-            tags: currentEvidenceCaptureDraft.normalizedTags,
+            sectionTitle: nil,
+            claim: nil,
+            tags: [],
             note: currentEvidenceCaptureDraft.normalizedNote,
             createdAt: "",
             updatedAt: ""

@@ -8,12 +8,7 @@ extension NativeCorpusStore: StoredLocatorProvidingLibraryStore {
         leftWindow: Int,
         rightWindow: Int
     ) throws -> LocatorResult? {
-        let records = try loadCorpora()
-        guard let existingRecord = records.first(where: { $0.id == corpusId }) else {
-            return nil
-        }
-
-        let (_, storageURL) = try resolvedStorage(for: existingRecord)
+        guard let storageURL = try storedDatabaseURL(for: corpusId) else { return nil }
         return try NativeCorpusDatabaseSupport.readStoredLocatorResult(
             at: storageURL,
             sentenceId: sentenceId,

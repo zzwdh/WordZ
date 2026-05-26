@@ -5,11 +5,11 @@ extension WorkspaceActionDispatcher {
     func handleLocatorAction(_ action: LocatorPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runLocator() }
+            handleWorkspaceIntent(.runAnalysis(.locator))
         case .saveCorpusSet:
             launch { await self.workspace.saveLocatorCorpusSet(preferredWindowRoute: self.preferredWindowRoute) }
         case .addCurrentRowToEvidenceWorkbench:
-            launch { await self.workspace.captureCurrentLocatorEvidenceItem() }
+            handleWorkspaceIntent(.resultArtifact(.captureExcerpt))
         case .setEvidenceReviewStatus(let itemID, let reviewStatus):
             launch { await self.workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: reviewStatus) }
         case .saveSelectedEvidenceNote:
@@ -40,9 +40,9 @@ extension WorkspaceActionDispatcher {
             syncResult(.locator) { workspace.locator.handle(action) }
         case .activateRow(let rowID):
             syncResult(.locator) { workspace.locator.handle(.activateRow(rowID)) }
-            launch { await self.workspace.runLocator() }
+            handleWorkspaceIntent(.runAnalysis(.locator))
         case .openSourceReader:
-            NativeAppCommandCenter.post(.openSourceReader)
+            handleWorkspaceIntent(.openSourceReader)
         case .copyCurrent(let format):
             launch { await self.workspace.flowCoordinator.copyLocatorReading(format, currentOnly: true, features: self.workspace.features) }
         case .copyVisible(let format):

@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT_DIR="${1:-${REPO_ROOT}/Sources/WordZMac}"
+WINDOWING_ROOT_DIR="${REPO_ROOT}/Sources/WordZWindowing"
 PACKAGE_FILE="${REPO_ROOT}/Package.swift"
 ARCHITECTURE_CONTRACT_FILE="${REPO_ROOT}/ARCHITECTURE.md"
 FAILED=0
@@ -375,16 +376,26 @@ check_platform_api_boundaries() {
     "$ROOT_DIR/App/Windowing/NativePlatformCapabilities+Decorations.swift"
     "$ROOT_DIR/Views/Windows/AdaptiveWindowToolbarSupport.swift"
     "$ROOT_DIR/Views/Workspace/MainWorkspaceSplitContainer.swift"
+    "$WINDOWING_ROOT_DIR/NativePlatformCapabilities.swift"
+    "$WINDOWING_ROOT_DIR/NativeWindowScenePresentation.swift"
   )
-  local pattern='glassEffect|GlassEffectContainer|glassEffectID|toolbarBackgroundVisibility|toolbarVisibility|defaultWindowPlacement|windowIdealPlacement|WindowDragGesture|allowsWindowActivationEvents|searchToolbarBehavior|ToolbarSpacer|sharedBackgroundVisibility|backgroundExtensionEffect|scrollEdgeEffectStyle|topAlignedAccessoryViewControllers|automaticallyAdjustsSafeAreaInsets|NSSplitViewItemAccessoryViewController|#available\(macOS (15\.0|26\.0)'
-  local find_args=("$ROOT_DIR" -type f -name '*.swift')
-  local allowed_file
-  for allowed_file in "${allowed_files[@]}"; do
-    find_args+=( ! -path "$allowed_file" )
-  done
+  local pattern='glassEffect|GlassEffectContainer|glassEffectID|toolbarBackgroundVisibility|toolbarVisibility|toolbar\(removing|containerBackground|windowMinimizeBehavior|restorationBehavior|defaultLaunchBehavior|defaultWindowPlacement|windowIdealPlacement|WindowDragGesture|allowsWindowActivationEvents|searchToolbarBehavior|ToolbarSpacer|sharedBackgroundVisibility|backgroundExtensionEffect|scrollEdgeEffectStyle|topAlignedAccessoryViewControllers|automaticallyAdjustsSafeAreaInsets|NSSplitViewItemAccessoryViewController|#available\(macOS (15\.0|26\.0)'
 
-  local result
-  result=$(find "${find_args[@]}" -print0 | xargs -0 rg -n "$pattern" || true)
+  local result=""
+  local scan_root
+  local scan_result
+  local allowed_file=""
+  for scan_root in "$ROOT_DIR" "$WINDOWING_ROOT_DIR"; do
+    local find_args=("$scan_root" -type f -name '*.swift')
+    for allowed_file in "${allowed_files[@]}"; do
+      find_args+=( ! -path "$allowed_file" )
+    done
+
+    scan_result=$(find "${find_args[@]}" -print0 | xargs -0 rg -n "$pattern" || true)
+    if [[ -n "$scan_result" ]]; then
+      result+="$scan_result"$'\n'
+    fi
+  done
 
   if [[ -n "$result" ]]; then
     mark_failure "macOS 15+/26 window APIs should stay inside the approved capability/toolbar/accessory layers."
@@ -396,7 +407,42 @@ check_hotspot_file_sizes() {
   print_check "Checking hotspot file boundaries..."
   check_file_line_limit "$ROOT_DIR/Analysis/Support/KeywordSuiteAnalysisSupport.swift" 180
   check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/TopicModelManager.swift" 160
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+Clustering.swift" 160
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+ApproximateClustering.swift" 460
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+AverageLinkageClustering.swift" 80
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+ExactClustering.swift" 90
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+ExactMedoidClustering.swift" 230
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+ExactRefinement.swift" 260
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+LexicalRefinement.swift" 380
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+PartitionEvaluation.swift" 240
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+PartitionScoringProfile.swift" 140
   check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+PartitionSelection.swift" 220
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/Topics/NativeTopicEngine+VectorMath.swift" 260
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer.swift" 100
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+Types.swift" 70
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+DocumentScoring.swift" 240
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+UnitScoring.swift" 170
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+Matching.swift" 80
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+CueAdjustment.swift" 370
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+CueContext.swift" 200
+  check_file_line_limit "$ROOT_DIR/Analysis/Services/LexiconSentimentAnalyzer+ResultSupport.swift" 70
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels.swift" 220
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels+Review.swift" 80
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels+Thresholds.swift" 100
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels+RuleProfiles.swift" 300
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels+Inputs.swift" 120
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels+Evidence.swift" 180
+  check_file_line_limit "$ROOT_DIR/Models/Analysis/SentimentAnalysisModels+Results.swift" 120
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore.swift" 80
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+Schema.swift" 230
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+Folders.swift" 70
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+Corpora.swift" 300
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+CorpusIntegrity.swift" 190
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+CorpusSets.swift" 130
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+Recycle.swift" 130
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+Search.swift" 230
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+Maintenance.swift" 60
+  check_file_line_limit "$ROOT_DIR/Storage/Library/LibraryCatalogStore+JSONSupport.swift" 40
   check_file_line_limit "$ROOT_DIR/ViewModels/Library/LibraryManagementViewModel+Scene.swift" 180
   check_file_line_limit "$ROOT_DIR/ViewModels/Pages/KeywordPageViewModel.swift" 320
   check_file_line_limit "$ROOT_DIR/ViewModels/Pages/SentimentPageViewModel.swift" 280
@@ -406,18 +452,36 @@ check_hotspot_file_sizes() {
   check_file_line_limit "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Controls.swift" 440
   check_file_line_limit "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Results.swift" 340
   check_file_line_limit "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Inspector.swift" 260
+  check_file_line_limit "$ROOT_DIR/Views/Workbench/WorkbenchColumnMenu.swift" 70
+  check_file_line_limit "$ROOT_DIR/Views/Workbench/WorkbenchPageSizeControls.swift" 80
+  check_file_line_limit "$ROOT_DIR/Views/Workbench/WorkbenchPaginationControls.swift" 50
+  check_file_line_limit "$ROOT_DIR/Views/Workbench/WorkbenchTablePrimaryControls.swift" 190
+  check_file_line_limit "$ROOT_DIR/Views/Workbench/WorkbenchTableSecondaryControls.swift" 210
+  check_file_line_limit "$ROOT_DIR/Views/Workbench/WorkbenchResultTrailingControls.swift" 260
   check_file_line_limit "$ROOT_DIR/Views/Workspace/WorkspaceFeatureFactory.swift" 180
   check_file_line_limit "$ROOT_DIR/App/WordZMacApp.swift" 90
-  check_file_line_limit "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchDossierModels.swift" 40
-  check_file_line_limit "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchGroupingMode+Messages.swift" 700
   check_file_line_limit "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry.swift" 400
   check_file_line_limit "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift" 80
-  check_file_line_limit "$ROOT_DIR/ViewModels/Workspace/EvidenceWorkbenchViewModel+Mutation.swift" 430
+  check_file_line_limit "$ROOT_DIR/ViewModels/Workspace/EvidenceWorkbenchViewModel+Mutation.swift" 80
   check_file_line_limit "$ROOT_DIR/Workspace/Services/Topics/WorkspaceTopicsWorkflowService.swift" 220
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceFlowCoordinator.swift" 100
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService.swift" 40
-  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+GroupMutations.swift" 520
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+Support.swift" 280
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService.swift" 60
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+RunTasks.swift" 150
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+LexicalRuns.swift" 170
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ComparisonRuns.swift" 140
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+PlotClusterRuns.swift" 100
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+Drilldowns.swift" 230
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+CorpusResolution.swift" 170
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ConcordanceSavedSets.swift" 130
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ConcordanceSavedSetCreation.swift" 220
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ConcordanceSavedSetTransfer.swift" 110
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ConcordanceSavedSetLoading.swift" 180
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ConcordanceSavedSetRows.swift" 190
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+KeywordSuite.swift" 320
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ReadingExports.swift" 210
+  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+ExportSupport.swift" 50
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceSentimentWorkflowService.swift" 180
   check_file_line_limit "$ROOT_DIR/Workspace/Models/WorkspaceFeaturePageBundle.swift" 30
   check_file_line_limit "$ROOT_DIR/Workspace/Models/WorkspaceFeaturePageHandles.swift" 60
@@ -448,7 +512,6 @@ check_hotspot_file_sizes() {
     "$ROOT_DIR/Views/Workspace/Pages/Topics/TopicsView+CrossAnalysisPane.swift"
     "$ROOT_DIR/Views/Workspace/Pages/Topics/TopicsView+PaneSupport.swift"
     "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Support.swift"
-    "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchGroupingSupport.swift"
     "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchDossierDraftSupport.swift"
     "$ROOT_DIR/Models/Analysis/EvidenceMarkdownDossierSupport.swift"
     "$ROOT_DIR/ViewModels/Workspace/EvidenceWorkbenchViewModel+Selection.swift"
@@ -476,6 +539,10 @@ check_hotspot_file_sizes() {
       mark_failure "Expected hotspot companion file to exist: $file_path"
     fi
   done
+
+  if [[ -f "$ROOT_DIR/Views/Workbench/WorkbenchTableUtilityControls.swift" ]]; then
+    mark_failure "Workbench table utility controls should stay split by responsibility."
+  fi
 }
 
 check_feature_workflow_protocolization() {

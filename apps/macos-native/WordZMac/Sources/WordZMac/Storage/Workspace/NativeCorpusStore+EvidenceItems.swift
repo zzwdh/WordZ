@@ -10,7 +10,7 @@ extension NativeCorpusStore: EvidenceItemManagingStorage {
         try ensureInitialized()
 
         guard !item.corpusID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw missingItemError("证据条目缺少语料来源。")
+            throw missingItemError("摘录缺少语料来源。")
         }
 
         var items = try loadEvidenceItems()
@@ -35,7 +35,7 @@ extension NativeCorpusStore: EvidenceItemManagingStorage {
         try ensureInitialized()
         var items = try loadEvidenceItems()
         guard items.contains(where: { $0.id == itemID }) else {
-            throw missingItemError("未找到要删除的证据条目。")
+            throw missingItemError("未找到要删除的摘录。")
         }
         items.removeAll { $0.id == itemID }
         try saveEvidenceItems(items)

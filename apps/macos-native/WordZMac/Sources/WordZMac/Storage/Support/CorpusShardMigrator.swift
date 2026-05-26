@@ -14,6 +14,7 @@ struct CorpusShardMigrator {
         let metadataProfile: CorpusMetadataProfile
         let rawText: String
         let cleaningSummary: LibraryCorpusCleaningReportSummary?
+        let sourceFileCount: Int
     }
 
     let fileManager: FileManager
@@ -51,7 +52,8 @@ struct CorpusShardMigrator {
             importedAt: payload.importedAt,
             metadataProfile: payload.metadataProfile,
             rawText: payload.rawText,
-            cleaningSummary: payload.cleaningSummary
+            cleaningSummary: payload.cleaningSummary,
+            sourceFileCount: payload.sourceFileCount
         )
 
         if requiresRelocation && fileManager.fileExists(atPath: url.path) {
@@ -118,7 +120,8 @@ struct CorpusShardMigrator {
                     : storedDocument.metadata.importedAt,
                 metadataProfile: mergedMetadata,
                 rawText: storedDocument.rawText.isEmpty ? storedDocument.text : storedDocument.rawText,
-                cleaningSummary: storedDocument.metadata.cleaningSummary ?? record.cleaningSummary
+                cleaningSummary: storedDocument.metadata.cleaningSummary ?? record.cleaningSummary,
+                sourceFileCount: storedDocument.metadata.sourceFileCount
             )
         }
 
@@ -137,7 +140,8 @@ struct CorpusShardMigrator {
                     : legacyDocument.importedAt,
                 metadataProfile: record.metadata,
                 rawText: legacyDocument.text,
-                cleaningSummary: record.cleaningSummary
+                cleaningSummary: record.cleaningSummary,
+                sourceFileCount: 1
             )
         }
 
@@ -151,7 +155,8 @@ struct CorpusShardMigrator {
             importedAt: NativeDateFormatting.iso8601String(from: Date()),
             metadataProfile: record.metadata,
             rawText: decoded.text,
-            cleaningSummary: record.cleaningSummary
+            cleaningSummary: record.cleaningSummary,
+            sourceFileCount: 1
         )
     }
 

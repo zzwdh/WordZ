@@ -114,7 +114,7 @@ extension LocatorView {
                     Button {
                         onAction(.openSourceReader)
                     } label: {
-                        Label(t("打开原文视图", "Open Source View"), systemImage: "doc.text.magnifyingglass")
+                        Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
                     }
                     WorkbenchCopyTextButton(
                         title: t("复制引文", "Copy Citation"),
@@ -123,7 +123,7 @@ extension LocatorView {
                     Button {
                         onAction(.addCurrentRowToEvidenceWorkbench)
                     } label: {
-                        Label(t("加入证据篮", "Add to Evidence Basket"), systemImage: "text.badge.plus")
+                        Label(t("暂存摘录", "Save Excerpt"), systemImage: "text.badge.plus")
                     }
                     ConcordanceReadingExportMenu(
                         languageMode: languageMode,
@@ -149,8 +149,8 @@ extension LocatorView {
             languageMode: languageMode,
             addCurrentTitle: t("加入当前句", "Add Current Sentence"),
             emptyMessage: t(
-                "把当前定位句加入证据篮后，这里会显示可复查、可标记、可备注的分析片段。",
-                "Add the current locator sentence to collect reviewable, annotatable evidence here."
+                "把少量关键定位句暂存到摘录篮；表格和截图仍建议直接复制到 Word。",
+                "Save a few key locator sentences to the excerpt tray; copy tables and screenshots directly to Word."
             ),
             currentSelectionAvailable: viewModel.selectedSceneRow != nil,
             itemPreviewText: { $0.fullSentenceText },

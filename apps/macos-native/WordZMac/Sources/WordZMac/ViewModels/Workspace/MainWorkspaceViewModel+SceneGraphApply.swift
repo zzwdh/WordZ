@@ -24,6 +24,7 @@ extension MainWorkspaceViewModel {
         if lastAppliedSceneGraphRevision != nextSceneGraphRevision {
             sceneGraph = nextSceneGraph
             lastAppliedSceneGraphRevision = nextSceneGraphRevision
+            lastAppliedSceneGraphContentRevisions = sceneGraphStore.contentRevisions
         }
         if rebuildRootScene {
             syncRootScene()

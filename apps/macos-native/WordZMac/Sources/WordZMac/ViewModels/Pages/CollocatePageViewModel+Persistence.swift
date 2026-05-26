@@ -34,10 +34,11 @@ extension CollocatePageViewModel {
             stopwordFilter = .default
             isEditingStopwords = false
             result = nil
-            sortMode = .logDiceDescending
-            pageSize = .fifty
-            currentPage = 1
-            visibleColumns = Self.defaultVisibleColumns
+            tablePresentation.reset(
+                sortMode: .logDiceDescending,
+                pageSize: .fifty,
+                visibleColumns: Self.defaultVisibleColumns
+            )
             focusMetric = .logDice
             selectedRowID = nil
             lastRunConfiguration = nil

@@ -3,6 +3,9 @@ import Foundation
 @MainActor
 extension LibraryManagementViewModel {
     func buildNavigationSelection(recentCorpusSetIDSet: Set<String>) -> LibraryManagementNavigationSelection {
+        if showsCorpusBuilder {
+            return .corpusBuilder
+        }
         if showsRecycleBin {
             return .recycleBin
         }
@@ -23,6 +26,8 @@ extension LibraryManagementViewModel {
     ) -> String {
         let searchSuffix = hasSearchQuery ? " · 搜索 “\(normalizedSearchQuery)”" : ""
         switch navigationSelection {
+        case .corpusBuilder:
+            return "语料构建器" + searchSuffix
         case .recycleBin:
             return "查看回收站 \(recycleSnapshot.totalCount) 项" + searchSuffix
         case .savedCorpusSet, .recentCorpusSet:
@@ -51,6 +56,14 @@ extension LibraryManagementViewModel {
         hasSearchQuery: Bool
     ) -> LibraryManagementContentSceneModel {
         switch navigationSelection {
+        case .corpusBuilder:
+            return LibraryManagementContentSceneModel(
+                mode: .corpusBuilder,
+                title: "Corpus Builder (Files)",
+                subtitle: "从 TXT、DOCX、PDF 制作独立 DB 语料库",
+                emptyTitle: "选择文件制作 DB",
+                emptyDescription: "构建完成后会出现在 Corpus Library (.db)。"
+            )
         case .recycleBin:
             return LibraryManagementContentSceneModel(
                 mode: .recycleBin,
@@ -84,12 +97,12 @@ extension LibraryManagementViewModel {
         case .allCorpora:
             return LibraryManagementContentSceneModel(
                 mode: .corpora,
-                title: "全部语料",
-                subtitle: "共 \(visibleCorpora.count) 条语料",
-                emptyTitle: hasSearchQuery ? "当前搜索没有匹配语料" : "当前视图没有语料",
+                title: "Corpus Library (.db)",
+                subtitle: "\(visibleCorpora.count) 个 DB 语料库",
+                emptyTitle: hasSearchQuery ? "当前搜索没有匹配 DB" : "还没有 DB 语料库",
                 emptyDescription: hasSearchQuery
-                    ? "可以调整搜索词，或直接导入新语料。"
-                    : "可以切换到“全部语料”，或者直接导入新语料。"
+                    ? "可以调整搜索词，或打开语料构建器继续制作 DB。"
+                    : "使用语料构建器从文件制作 DB。"
             )
         }
     }
@@ -103,6 +116,9 @@ extension LibraryManagementViewModel {
         }
         if showsRecycleBin {
             return "回收站"
+        }
+        if showsCorpusBuilder {
+            return "语料构建器"
         }
         return "全部语料"
     }

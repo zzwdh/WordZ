@@ -185,6 +185,10 @@ extension NativeCorpusStore {
             to: destinationRoot.appendingPathComponent("corpora", isDirectory: true)
         )
         try copyItemIfPresent(
+            from: sourceRoot.appendingPathComponent("corpus-sets", isDirectory: true),
+            to: destinationRoot.appendingPathComponent("corpus-sets", isDirectory: true)
+        )
+        try copyItemIfPresent(
             from: sourceRoot.appendingPathComponent("recycle", isDirectory: true),
             to: destinationRoot.appendingPathComponent("recycle", isDirectory: true)
         )
@@ -214,6 +218,10 @@ extension NativeCorpusStore {
             to: destinationRoot.appendingPathComponent("corpora", isDirectory: true)
         )
         try copyItemIfPresent(
+            from: sourceRoot.appendingPathComponent("corpus-sets", isDirectory: true),
+            to: destinationRoot.appendingPathComponent("corpus-sets", isDirectory: true)
+        )
+        try copyItemIfPresent(
             from: sourceRoot.appendingPathComponent("recycle", isDirectory: true),
             to: destinationRoot.appendingPathComponent("recycle", isDirectory: true)
         )
@@ -235,6 +243,10 @@ extension NativeCorpusStore {
         let corporaURL = rootURL.appendingPathComponent("corpora", isDirectory: true)
         if fileManager.fileExists(atPath: corporaURL.path) {
             try fileManager.removeItem(at: corporaURL)
+        }
+        let corpusSetsURL = rootURL.appendingPathComponent("corpus-sets", isDirectory: true)
+        if fileManager.fileExists(atPath: corpusSetsURL.path) {
+            try fileManager.removeItem(at: corpusSetsURL)
         }
         let recycleURL = rootURL.appendingPathComponent("recycle", isDirectory: true)
         if fileManager.fileExists(atPath: recycleURL.path) {
@@ -323,8 +335,10 @@ extension NativeCorpusStore {
             "folderName": record.folderName,
             "sourceType": metadata.sourceType.isEmpty ? record.sourceType : metadata.sourceType,
             "representedPath": metadata.representedPath.isEmpty ? (record.representedPath.isEmpty ? fallbackPath : record.representedPath) : metadata.representedPath,
+            "storageFileName": record.storageFileName,
             "detectedEncoding": metadata.detectedEncoding,
             "importedAt": metadata.importedAt,
+            "fileCount": metadata.sourceFileCount,
             "tokenCount": metadata.tokenCount,
             "typeCount": metadata.typeCount,
             "sentenceCount": metadata.sentenceCount,

@@ -10,13 +10,38 @@ extension NativePlatformCapabilities {
     ) -> AnyView {
         let capabilities = current
         let profile = NativeWindowPresentationProfile.profile(for: route)
-        let resolvedTier = profile.resolvedTier(capabilities: capabilities)
+        let resolvedTier = profile.resolvedChromeTier(capabilities: capabilities)
         var decorated = AnyView(content)
+
+        if capabilities.supportsWindowContainerBackground, resolvedTier >= .glassSurface {
+            if #available(macOS 26.0, *) {
+                decorated = AnyView(
+                    decorated.containerBackground(.regularMaterial, for: .window)
+                )
+            }
+        }
+
+        if capabilities.supportsWindowChromeEnhancements, profile.prefersHiddenTitle {
+            if #available(macOS 26.0, *) {
+                decorated = AnyView(
+                    decorated.toolbar(removing: .title)
+                )
+            }
+        }
 
         if capabilities.supportsWindowChromeEnhancements, profile.prefersToolbarBackgroundHidden {
             if #available(macOS 15.0, *) {
                 decorated = AnyView(
                     decorated.toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                )
+            }
+        }
+
+        if capabilities.supportsWindowChromeEnhancements {
+            if #available(macOS 15.0, *) {
+                let rolePolicy = NativeWindowRolePolicy.policy(for: route)
+                decorated = AnyView(
+                    decorated.windowMinimizeBehavior(rolePolicy.allowsMinimize ? .enabled : .disabled)
                 )
             }
         }
@@ -59,7 +84,7 @@ extension NativePlatformCapabilities {
                 .padding(.vertical, style.headerVerticalPadding)
         )
 
-        switch style.tier {
+        switch style.chromeTier {
         case .baseline:
             return AnyView(content)
         case .chromeOnly:
@@ -91,7 +116,7 @@ extension NativePlatformCapabilities {
         _ content: Content,
         style: WordZVisualStyle
     ) -> AnyView {
-        switch style.tier {
+        switch style.contentTier {
         case .baseline:
             return AnyView(content)
         case .chromeOnly:
@@ -137,7 +162,7 @@ extension NativePlatformCapabilities {
         _ content: Content,
         style: WordZVisualStyle
     ) -> AnyView {
-        switch style.tier {
+        switch style.chromeTier {
         case .baseline, .chromeOnly:
             return AnyView(content)
         case .glassSurface, .fullVisualRefresh:
@@ -170,7 +195,7 @@ extension NativePlatformCapabilities {
     ) -> AnyView {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
-        switch style.tier {
+        switch style.accessoryTier {
         case .baseline, .chromeOnly:
             return AnyView(
                 content
@@ -194,11 +219,69 @@ extension NativePlatformCapabilities {
     }
 
     @MainActor
+    static func decorateFloatingAccessorySurface<Content: View>(
+        _ content: Content,
+        style: WordZVisualStyle
+    ) -> AnyView {
+        decorateAccessorySurface(
+            content,
+            style: style,
+            cornerRadius: 18,
+            isInteractive: true
+        )
+    }
+
+    @MainActor
+    static func decorateEmptyStateSurface<Content: View>(
+        _ content: Content,
+        style: WordZVisualStyle
+    ) -> AnyView {
+        decorateAccessorySurface(
+            content,
+            style: style,
+            cornerRadius: 16,
+            isInteractive: false
+        )
+    }
+
+    @MainActor
+    static func decorateSelectionAccessorySurface<Content: View>(
+        _ content: Content,
+        style: WordZVisualStyle
+    ) -> AnyView {
+        decorateAccessorySurface(
+            content,
+            style: style,
+            cornerRadius: 14,
+            isInteractive: true
+        )
+    }
+
+    @MainActor
+    static func decorateSheetSurface<Content: View>(
+        _ content: Content,
+        style: WordZVisualStyle
+    ) -> AnyView {
+        let styledContent = content.wordZVisualStyle(style)
+        if current.supportsLiquidGlass {
+            if #available(macOS 26.0, *) {
+                return AnyView(
+                    styledContent.presentationBackground(.regularMaterial)
+                )
+            }
+        }
+        return AnyView(
+            styledContent.background(WordZTheme.workspaceBackground(for: style))
+        )
+    }
+
+    @MainActor
     static func wrapGlassContainerIfNeeded<Content: View>(
         _ content: Content,
         style: WordZVisualStyle
     ) -> AnyView {
-        guard style.tier >= .glassSurface, current.supportsLiquidGlass else {
+        guard (style.chromeTier >= .glassSurface || style.accessoryTier >= .glassSurface),
+              current.supportsLiquidGlass else {
             return AnyView(content)
         }
 
@@ -211,6 +294,41 @@ extension NativePlatformCapabilities {
         }
 
         return AnyView(content)
+    }
+
+    @MainActor
+    private static func decorateAccessorySurface<Content: View>(
+        _ content: Content,
+        style: WordZVisualStyle,
+        cornerRadius: CGFloat,
+        isInteractive: Bool
+    ) -> AnyView {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
+        switch style.accessoryTier {
+        case .baseline:
+            return AnyView(content)
+        case .chromeOnly:
+            return AnyView(
+                content
+                    .background(.regularMaterial, in: shape)
+                    .overlay(shape.stroke(WordZTheme.surfaceStroke(for: style), lineWidth: 1))
+            )
+        case .glassSurface, .fullVisualRefresh:
+            if current.supportsAccessoryGlassSurfaces {
+                if #available(macOS 26.0, *) {
+                    if isInteractive {
+                        return AnyView(content.glassEffect(.regular.interactive(), in: shape))
+                    }
+                    return AnyView(content.glassEffect(in: shape))
+                }
+            }
+            return AnyView(
+                content
+                    .background(.regularMaterial, in: shape)
+                    .overlay(shape.stroke(WordZTheme.surfaceStroke(for: style), lineWidth: 1))
+            )
+        }
     }
 
     @ViewBuilder

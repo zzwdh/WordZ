@@ -72,6 +72,37 @@ final class SentimentEngineFeatureTests: XCTestCase {
         XCTAssertGreaterThan(intense.netScore, negated.netScore)
     }
 
+    func testRunSentimentHandlesChineseLexiconCues() throws {
+        let engine = NativeAnalysisEngine()
+        let result = engine.runSentiment(
+            makeRequest(
+                texts: [
+                    SentimentInputText(
+                        id: "positive-cn",
+                        sourceTitle: "Manual",
+                        text: "这个方案非常有效，也明显改善了服务质量。"
+                    ),
+                    SentimentInputText(
+                        id: "negative-cn",
+                        sourceTitle: "Manual",
+                        text: "流程很混乱，问题严重，体验糟糕。"
+                    )
+                ],
+                backend: .coreML
+            )
+        )
+
+        let positive = try XCTUnwrap(result.rows.first(where: { $0.id == "positive-cn" }))
+        XCTAssertEqual(positive.finalLabel, .positive)
+        XCTAssertEqual(positive.diagnostics.inferencePath, .lexicon)
+        XCTAssertTrue(positive.evidence.contains(where: { $0.surface.contains("有效") || $0.surface.contains("改善") }))
+
+        let negative = try XCTUnwrap(result.rows.first(where: { $0.id == "negative-cn" }))
+        XCTAssertEqual(negative.finalLabel, .negative)
+        XCTAssertEqual(negative.diagnostics.inferencePath, .lexicon)
+        XCTAssertTrue(negative.evidence.contains(where: { $0.surface.contains("糟糕") || $0.surface.contains("严重") }))
+    }
+
     func testRunSentimentAppliesContrastiveAndQuotedEvidenceAdjustments() throws {
         let engine = NativeAnalysisEngine()
         let result = engine.runSentiment(

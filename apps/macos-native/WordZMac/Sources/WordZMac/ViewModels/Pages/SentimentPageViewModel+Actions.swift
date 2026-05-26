@@ -53,20 +53,21 @@ extension SentimentPageViewModel {
         case .removeUserLexiconBundle(let bundleID):
             removeUserLexiconBundle(bundleID)
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         case .toggleColumn(let column):
-            toggleVisibleColumnAndRebuild(column)
+            toggleTableColumnAndRebuild(column)
         case .selectRow(let rowID):
-            selectedRowID = rowID
-            rebuildScene()
+            let updateScope = applySelectionOnlyUpdate(rowID, within: scene?.rows ?? [])
+            guard updateScope == .selectionOnly else { return }
+            syncSelectedReviewNoteDraft()
         case .changeManualText(let text):
             manualText = text
         case .toggleCorpusSelection(let corpusID):
@@ -124,29 +125,30 @@ extension SentimentPageViewModel {
         }
     }
 
-    func sortByColumn(_ column: SentimentColumnKey) {
-        let nextSort: SentimentSortMode
+    func nextSortMode(
+        for column: SentimentColumnKey,
+        currentSortMode _: SentimentSortMode
+    ) -> SentimentSortMode? {
         switch column {
         case .positivity:
-            nextSort = .positivityDescending
+            return .positivityDescending
         case .neutrality:
-            nextSort = .neutralityDescending
+            return .neutralityDescending
         case .negativity:
-            nextSort = .negativityDescending
+            return .negativityDescending
         case .netScore:
-            nextSort = .netScoreDescending
+            return .netScoreDescending
         case .finalLabel:
-            nextSort = .labelAscending
+            return .labelAscending
         case .rawLabel:
-            nextSort = .labelAscending
+            return .labelAscending
         case .reviewStatus:
-            nextSort = .reviewStatusAscending
+            return .reviewStatusAscending
         case .source:
-            nextSort = .sourceAscending
+            return .sourceAscending
         case .text, .evidence:
-            nextSort = .original
+            return .original
         }
-        applySortModeChange(nextSort)
     }
 
     func markThresholdsCustom() {

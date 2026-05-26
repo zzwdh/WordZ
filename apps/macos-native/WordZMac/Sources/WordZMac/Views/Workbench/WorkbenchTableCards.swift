@@ -43,48 +43,42 @@ struct WorkbenchTableCard<Content: View, Trailing: View>: View {
     }
 
     var body: some View {
-        WorkbenchSectionCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    if hasHeaderText {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let title, !title.isEmpty {
-                                Text(title)
-                                    .font(.subheadline.weight(.semibold))
-                            }
-                            if let subtitle, !subtitle.isEmpty {
-                                Text(subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if hasHeaderText {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let title, !title.isEmpty {
+                            Text(title)
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        if let subtitle, !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    Spacer()
-                    trailing
-                    WorkbenchPinnedHeaderToggle()
                 }
-                .padding(.horizontal, 2)
 
-                content
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: WorkbenchTablePreferences.minimumEmbeddedTableHeight,
-                        idealHeight: WorkbenchTablePreferences.defaultTableHeight,
-                        maxHeight: WorkbenchTablePreferences.maximumEmbeddedTableHeight,
-                        alignment: .topLeading
-                    )
-                    .padding(6)
-                    .background(
-                        WordZTheme.cardSecondaryBackground.opacity(0.68),
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(WordZTheme.divider.opacity(0.45), lineWidth: 1)
-                    )
-                    .clipped()
+                Spacer()
+                trailing
+                WorkbenchPinnedHeaderToggle()
             }
+            .padding(.horizontal, 2)
+
+            Divider()
+
+            content
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: WorkbenchTablePreferences.minimumEmbeddedTableHeight,
+                    idealHeight: WorkbenchTablePreferences.defaultTableHeight,
+                    maxHeight: WorkbenchTablePreferences.maximumEmbeddedTableHeight,
+                    alignment: .topLeading
+                )
+                .clipped()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     private var hasHeaderText: Bool {

@@ -54,8 +54,26 @@ extension NativeWorkspaceRepository {
         )
     }
 
+    func importMergedCorpusPaths(
+        _ paths: [String],
+        name: String,
+        folderId: String,
+        progress: (@Sendable (LibraryImportProgressSnapshot) -> Void)?
+    ) async throws -> LibraryImportResult {
+        try await core.importMergedCorpusPaths(
+            paths,
+            name: name,
+            folderId: folderId,
+            progress: progress
+        )
+    }
+
     func openSavedCorpus(corpusId: String) async throws -> OpenedCorpus {
         try await core.openSavedCorpus(corpusId: corpusId)
+    }
+
+    func openSavedCorpusSet(corpusSetID: String) async throws -> OpenedCorpus {
+        try await core.openSavedCorpusSet(corpusSetID: corpusSetID)
     }
 
     func loadStoredFrequencyArtifact(corpusId: String) async throws -> StoredFrequencyArtifact? {

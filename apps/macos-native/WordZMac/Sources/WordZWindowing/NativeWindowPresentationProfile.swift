@@ -29,9 +29,31 @@ package enum NativeWindowSplitAccessoryMode: Equatable {
     case mainWorkspaceTopAccessory
 }
 
+package struct NativeWindowVisualTiers: Equatable, Sendable {
+    package let chrome: WindowEnhancementTier
+    package let content: WindowEnhancementTier
+    package let accessory: WindowEnhancementTier
+
+    package init(
+        chrome: WindowEnhancementTier,
+        content: WindowEnhancementTier,
+        accessory: WindowEnhancementTier
+    ) {
+        self.chrome = chrome
+        self.content = content
+        self.accessory = accessory
+    }
+
+    package static let baseline = NativeWindowVisualTiers(
+        chrome: .baseline,
+        content: .baseline,
+        accessory: .baseline
+    )
+}
+
 package struct NativeWindowPresentationProfile: Equatable {
     package let route: NativeWindowRoute
-    package let preferredTier: WindowEnhancementTier
+    package let visualTiers: NativeWindowVisualTiers
     package let toolbarMode: NativeWindowToolbarMode
     package let searchMode: NativeWindowSearchMode
     package let splitAccessoryMode: NativeWindowSplitAccessoryMode
@@ -42,12 +64,20 @@ package struct NativeWindowPresentationProfile: Equatable {
     package let prefersAdvancedPlacement: Bool
     package let minimumPlacementSize: CGSize?
 
+    package var preferredTier: WindowEnhancementTier {
+        max(visualTiers.chrome, visualTiers.content, visualTiers.accessory)
+    }
+
     package static func profile(for route: NativeWindowRoute) -> NativeWindowPresentationProfile {
         switch route {
         case .mainWorkspace:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .fullVisualRefresh,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .fullVisualRefresh,
+                    content: .chromeOnly,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .swiftUIPrimary,
                 searchMode: .none,
                 splitAccessoryMode: .mainWorkspaceTopAccessory,
@@ -61,21 +91,29 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .library:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .fullVisualRefresh,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .fullVisualRefresh,
+                    content: .chromeOnly,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .swiftUIPrimary,
                 searchMode: .libraryToolbar,
                 splitAccessoryMode: .none,
-                prefersTransparentTitleBar: false,
-                prefersHiddenTitle: false,
-                prefersBackgroundDrag: false,
-                prefersToolbarBackgroundHidden: false,
+                prefersTransparentTitleBar: true,
+                prefersHiddenTitle: true,
+                prefersBackgroundDrag: true,
+                prefersToolbarBackgroundHidden: true,
                 prefersAdvancedPlacement: false,
                 minimumPlacementSize: nil
             )
         case .evidenceWorkbench:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .fullVisualRefresh,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .fullVisualRefresh,
+                    content: .chromeOnly,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .swiftUIPrimary,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -89,7 +127,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .sourceReader:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .fullVisualRefresh,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .fullVisualRefresh,
+                    content: .chromeOnly,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .swiftUIPrimary,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -103,7 +145,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .settings:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .fullVisualRefresh,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .fullVisualRefresh,
+                    content: .fullVisualRefresh,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .swiftUIPrimary,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -117,7 +163,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .taskCenter:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .glassSurface,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .glassSurface,
+                    content: .glassSurface,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .utilitySceneChrome,
                 searchMode: .taskCenterToolbar,
                 splitAccessoryMode: .none,
@@ -131,7 +181,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .updatePrompt:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .glassSurface,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .glassSurface,
+                    content: .glassSurface,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .utilitySceneChrome,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -145,7 +199,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .about:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .glassSurface,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .glassSurface,
+                    content: .glassSurface,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .utilitySceneChrome,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -159,7 +217,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .help:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .glassSurface,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .glassSurface,
+                    content: .glassSurface,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .utilitySceneChrome,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -173,7 +235,11 @@ package struct NativeWindowPresentationProfile: Equatable {
         case .releaseNotes:
             return NativeWindowPresentationProfile(
                 route: route,
-                preferredTier: .glassSurface,
+                visualTiers: NativeWindowVisualTiers(
+                    chrome: .glassSurface,
+                    content: .glassSurface,
+                    accessory: .glassSurface
+                ),
                 toolbarMode: .utilitySceneChrome,
                 searchMode: .none,
                 splitAccessoryMode: .none,
@@ -188,11 +254,34 @@ package struct NativeWindowPresentationProfile: Equatable {
     }
 
     package func resolvedTier(capabilities: NativePlatformCapabilities) -> WindowEnhancementTier {
+        max(
+            resolvedChromeTier(capabilities: capabilities),
+            resolvedContentTier(capabilities: capabilities),
+            resolvedAccessoryTier(capabilities: capabilities)
+        )
+    }
+
+    package func resolvedChromeTier(capabilities: NativePlatformCapabilities) -> WindowEnhancementTier {
+        resolvedTier(visualTiers.chrome, capabilities: capabilities)
+    }
+
+    package func resolvedContentTier(capabilities: NativePlatformCapabilities) -> WindowEnhancementTier {
+        resolvedTier(visualTiers.content, capabilities: capabilities)
+    }
+
+    package func resolvedAccessoryTier(capabilities: NativePlatformCapabilities) -> WindowEnhancementTier {
+        resolvedTier(visualTiers.accessory, capabilities: capabilities)
+    }
+
+    private func resolvedTier(
+        _ tier: WindowEnhancementTier,
+        capabilities: NativePlatformCapabilities
+    ) -> WindowEnhancementTier {
         guard capabilities.supportsWindowChromeEnhancements else {
             return .baseline
         }
 
-        switch preferredTier {
+        switch tier {
         case .baseline:
             return .baseline
         case .chromeOnly:
@@ -216,7 +305,7 @@ package struct NativeWindowPresentationProfile: Equatable {
     }
 
     package func resolvedSearchMode(capabilities: NativePlatformCapabilities) -> NativeWindowSearchMode {
-        guard capabilities.supportsToolbarSearchEnhancements else {
+        guard capabilities.supportsSearchToolbarBehavior else {
             return .none
         }
         return searchMode

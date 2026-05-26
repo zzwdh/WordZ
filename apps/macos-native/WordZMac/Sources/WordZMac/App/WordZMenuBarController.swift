@@ -465,12 +465,12 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
         case .quickLookCurrentContent:
             performMenuBarAction("quickLookContent", detail: NativeWindowRoute.mainWorkspace.id) {
                 await self.openWindowRouteAndAwaitActivation(.mainWorkspace)
-                await self.workspace.quickLookCurrentCorpus()
+                await self.workspace.performResultArtifactAction(.preview, preferredWindowRoute: .mainWorkspace)
             }
         case .shareCurrentContent:
             performMenuBarAction("shareContent", detail: NativeWindowRoute.mainWorkspace.id) {
                 await self.openWindowRouteAndAwaitActivation(.mainWorkspace)
-                await self.workspace.shareCurrentContent()
+                await self.workspace.performResultArtifactAction(.share, preferredWindowRoute: .mainWorkspace)
             }
         case .openRecentDocument(let corpusID):
             performMenuBarAction("openRecentDocument", detail: corpusID) {

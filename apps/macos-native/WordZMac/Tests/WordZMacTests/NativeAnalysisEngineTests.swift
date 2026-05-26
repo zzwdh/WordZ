@@ -161,6 +161,107 @@ final class NativeAnalysisEngineTests: XCTestCase {
         XCTAssertEqual(engine.cachedDocumentCountForTesting, 1)
     }
 
+    func testRunTokenizeAnnotatesChineseTokensWithoutDroppingEnglishLemmas() {
+        let engine = NativeAnalysisEngine()
+        let result = engine.runTokenize(text: "WordZ 分析 Chinese corpora 和自然语言。")
+        let tokens = result.tokens
+
+        XCTAssertEqual(tokens.first(where: { $0.original == "分析" })?.annotations.script, .cjk)
+        XCTAssertEqual(tokens.first(where: { $0.original == "分析" })?.annotations.lexicalClass, .verb)
+        XCTAssertEqual(tokens.first(where: { $0.original == "和" })?.annotations.lexicalClass, .conjunction)
+        XCTAssertEqual(tokens.first(where: { $0.original == "corpora" })?.annotations.script, .latin)
+        XCTAssertEqual(tokens.first(where: { $0.original == "corpora" })?.annotations.lemma, "corpus")
+    }
+
+    func testChineseCorpusRunsStatsNgramAndPhraseKWIC() throws {
+        let engine = NativeAnalysisEngine()
+        let text = "我喜欢自然语言处理。自然语言处理很有用。"
+
+        let stats = engine.runStats(text: text)
+        XCTAssertEqual(stats.tokenCount, 8)
+        XCTAssertEqual(stats.frequencyRows.first(where: { $0.word == "自然语言" })?.count, 2)
+        XCTAssertEqual(stats.frequencyRows.first(where: { $0.word == "处理" })?.count, 2)
+
+        let ngrams = engine.runNgram(text: text, n: 2)
+        XCTAssertEqual(ngrams.rows.first(where: { $0.phrase == "自然语言 处理" })?.count, 2)
+
+        let kwic = try engine.runKWIC(
+            text: text,
+            keyword: "自然语言处理",
+            leftWindow: 1,
+            rightWindow: 1,
+            searchOptions: SearchOptionsState(matchMode: .phraseExact)
+        )
+        XCTAssertEqual(kwic.rows.count, 2)
+        XCTAssertEqual(kwic.rows.first?.node, "自然语言 处理")
+    }
+
+    func testChineseCorpusRunsCompareKeywordAndCollocate() throws {
+        let engine = NativeAnalysisEngine()
+        let targetText = "自然语言处理帮助研究。自然语言处理支持分析。自然语言处理很有用。"
+        let referenceText = "课堂教学帮助学生。课堂教学支持学习。课堂教学很有用。"
+
+        let compare = engine.runCompare(comparisonEntries: [
+            CompareRequestEntry(
+                corpusId: "target",
+                corpusName: "中文目标语料",
+                folderId: "folder-1",
+                folderName: "Default",
+                sourceType: "txt",
+                content: targetText
+            ),
+            CompareRequestEntry(
+                corpusId: "reference",
+                corpusName: "中文参照语料",
+                folderId: "folder-1",
+                folderName: "Default",
+                sourceType: "txt",
+                content: referenceText
+            )
+        ])
+        let compareRow = compare.rows.first(where: { $0.word == "自然语言" })
+        XCTAssertEqual(compareRow?.dominantCorpusName, "中文目标语料")
+        XCTAssertGreaterThan(compareRow?.keyness ?? 0, 0)
+
+        let keyword = engine.runKeyword(
+            targetEntry: KeywordRequestEntry(
+                corpusId: "target",
+                corpusName: "中文目标语料",
+                folderName: "Default",
+                content: targetText
+            ),
+            referenceEntry: KeywordRequestEntry(
+                corpusId: "reference",
+                corpusName: "中文参照语料",
+                folderName: "Default",
+                content: referenceText
+            ),
+            options: KeywordPreprocessingOptions(
+                lowercased: true,
+                removePunctuation: true,
+                stopwordFilter: .default,
+                minimumFrequency: 1,
+                statistic: .logLikelihood
+            )
+        )
+        let keywordRow = keyword.rows.first(where: { $0.word == "自然语言" })
+        XCTAssertEqual(keywordRow?.targetFrequency, 3)
+        XCTAssertEqual(keywordRow?.referenceFrequency, 0)
+        XCTAssertGreaterThan(keywordRow?.keynessScore ?? 0, 0)
+
+        let collocate = try engine.runCollocate(
+            text: targetText,
+            keyword: "自然语言处理",
+            leftWindow: 1,
+            rightWindow: 1,
+            minFreq: 1,
+            searchOptions: SearchOptionsState(matchMode: .phraseExact)
+        )
+        XCTAssertEqual(collocate.rows.first(where: { $0.word == "帮助" })?.total, 1)
+        XCTAssertEqual(collocate.rows.first(where: { $0.word == "支持" })?.total, 1)
+        XCTAssertEqual(collocate.rows.first(where: { $0.word == "很" })?.total, 1)
+    }
+
     func testRunStatsTreatsWhitespaceOnlyLineAsParagraphSeparator() {
         let engine = NativeAnalysisEngine()
         let result = engine.runStats(text: "Alpha beta\n   \nGamma delta")

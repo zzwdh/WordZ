@@ -5,11 +5,11 @@ extension WorkspaceActionDispatcher {
     func handleSentimentAction(_ action: SentimentPageAction) {
         switch action {
         case .run:
-            launch { await self.workspace.runSentiment() }
+            handleWorkspaceIntent(.runAnalysis(.sentiment))
         case .openSourceReader:
-            NativeAppCommandCenter.post(.openSourceReader)
+            handleWorkspaceIntent(.openSourceReader)
         case .addCurrentRowToEvidenceWorkbench:
-            launch { await self.workspace.captureCurrentSentimentEvidenceItem() }
+            handleWorkspaceIntent(.resultArtifact(.captureExcerpt))
         case .exportSummary:
             launch { await self.workspace.exportSentimentSummary(preferredWindowRoute: self.preferredWindowRoute) }
         case .exportStructuredJSON:

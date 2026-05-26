@@ -354,6 +354,7 @@ final class NativeCorpusStoreMaintenanceTests: XCTestCase {
         let migratedStorageURL = store.corporaDirectoryURL.appendingPathComponent(migratedRecord.storageFileName)
 
         XCTAssertEqual(opened.content, "legacy alpha beta")
+        XCTAssertEqual(opened.filePath, migratedStorageURL.path)
         XCTAssertEqual(migratedRecord.storageFileName, "legacy-corpus.db")
         XCTAssertFalse(fileManager.fileExists(atPath: legacyStorageURL.path))
         XCTAssertTrue(fileManager.fileExists(atPath: migratedStorageURL.path))

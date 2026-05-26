@@ -18,9 +18,9 @@ extension StatsPageViewModel {
         case .run:
             return
         case .changeSort(let nextSort):
-            applySortModeChange(nextSort)
+            applyTableSortModeChange(nextSort)
         case .sortByColumn(let column):
-            sortByColumn(column)
+            sortTableByColumn(column)
         case .changeNormalizationUnit(let unit):
             applyFrequencyMetricDefinition(
                 FrequencyMetricDefinition(
@@ -36,36 +36,34 @@ extension StatsPageViewModel {
                 )
             )
         case .changePageSize(let nextPageSize):
-            applyPageSizeChange(nextPageSize)
+            applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
-            toggleColumn(column)
+            toggleTableColumnAndRebuild(column)
         case .previousPage:
-            goToPreviousPage(canGoBackward: scene?.pagination.canGoBackward == true)
+            goToPreviousTablePage(canGoBackward: scene?.pagination.canGoBackward == true)
         case .nextPage:
-            goToNextPage(canGoForward: scene?.pagination.canGoForward == true)
+            goToNextTablePage(canGoForward: scene?.pagination.canGoForward == true)
         }
     }
 
-    func toggleColumn(_ column: StatsColumnKey) {
-        toggleVisibleColumnAndRebuild(column)
+    func tablePresentationDidChange(_ mutation: AnalysisTablePresentationMutation) {
+        guard mutation == .sort else { return }
+        invalidateSortedRowsCache()
     }
 
-    func sortByColumn(_ column: StatsColumnKey) {
-        let nextSort: StatsSortMode
+    func nextSortMode(
+        for column: StatsColumnKey,
+        currentSortMode: StatsSortMode
+    ) -> StatsSortMode? {
         switch column {
         case .rank:
-            nextSort = sortMode == .rankAscending ? .rankDescending : .rankAscending
+            return currentSortMode == .rankAscending ? .rankDescending : .rankAscending
         case .word:
-            nextSort = sortMode == .alphabeticalAscending ? .alphabeticalDescending : .alphabeticalAscending
+            return currentSortMode == .alphabeticalAscending ? .alphabeticalDescending : .alphabeticalAscending
         case .count, .normFrequency:
-            nextSort = sortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
+            return currentSortMode == .frequencyDescending ? .frequencyAscending : .frequencyDescending
         case .range, .normRange:
-            nextSort = sortMode == .rangeDescending ? .rangeAscending : .rangeDescending
+            return currentSortMode == .rangeDescending ? .rangeAscending : .rangeDescending
         }
-        guard sortMode != nextSort else { return }
-        sortMode = nextSort
-        currentPage = 1
-        invalidateSortedRowsCache()
-        rebuildScene()
     }
 }

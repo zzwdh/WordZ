@@ -59,6 +59,7 @@ final class EngineWorkspaceRepository: WorkspaceRepository, MetadataFilteringLib
             "folderName": "",
             "sourceType": corpus.sourceType,
             "representedPath": corpus.filePath,
+            "storageFileName": URL(fileURLWithPath: corpus.filePath).lastPathComponent,
             "detectedEncoding": "",
             "importedAt": "",
             "tokenCount": stats.tokenCount,

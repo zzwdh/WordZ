@@ -172,7 +172,7 @@ extension NativeTopicEngine {
         let normalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedText.isEmpty else { return nil }
 
-        let terms = englishTerms(for: normalizedText)
+        let terms = multilingualTerms(for: normalizedText)
         guard !terms.tokens.isEmpty || !terms.keywordTerms.isEmpty else {
             return nil
         }
@@ -279,6 +279,25 @@ extension NativeTopicEngine {
         return numerator / (lhsMagnitude * rhsMagnitude)
     }
 
+    func multilingualTerms(for text: String) -> (tokens: [String], keywordTerms: [String], keywordBigrams: [String]) {
+        let preferredLanguage = LinguisticAnnotationSupport.preferredTokenizationLanguage(for: text)
+        guard preferredLanguage == .simplifiedChinese else {
+            return englishTerms(for: text)
+        }
+
+        let tokens = AnalysisTextNormalizationSupport.tokenizeWordLikeSegments(in: text)
+        let contentTerms = filteredContentTerms(from: tokens)
+        let keywordTerms = cjkKeywordTerms(from: contentTerms)
+        let resolvedKeywordTerms = keywordTerms.isEmpty ? Array(contentTerms.prefix(8)) : keywordTerms
+        let keywordBigrams = buildKeywordBigrams(from: resolvedKeywordTerms)
+
+        return (
+            tokens: contentTerms,
+            keywordTerms: resolvedKeywordTerms,
+            keywordBigrams: keywordBigrams
+        )
+    }
+
     func englishTerms(for text: String) -> (tokens: [String], keywordTerms: [String], keywordBigrams: [String]) {
         let tagger = NLTagger(tagSchemes: [.lexicalClass, .lemma])
         tagger.string = text
@@ -319,6 +338,20 @@ extension NativeTopicEngine {
             keywordTerms: resolvedKeywordTerms,
             keywordBigrams: keywordBigrams
         )
+    }
+
+    func cjkKeywordTerms(from terms: [String]) -> [String] {
+        let keywordTerms = terms.filter { term in
+            term.count > 1 || term.unicodeScalars.contains { scalar in
+                switch scalar.value {
+                case 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF:
+                    return true
+                default:
+                    return false
+                }
+            }
+        }
+        return Array(keywordTerms.prefix(16))
     }
 
     func filteredContentTerms(from terms: [String]) -> [String] {
