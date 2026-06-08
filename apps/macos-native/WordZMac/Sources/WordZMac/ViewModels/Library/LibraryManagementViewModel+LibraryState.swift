@@ -12,139 +12,178 @@ extension LibraryManagementViewModel {
 
     func applyContext(_ context: WorkspaceSceneContext) {
         self.context = context
-        syncScene()
+        requestSceneSync()
     }
 
     func applyLibrarySnapshot(_ snapshot: LibrarySnapshot) {
-        librarySnapshot = snapshot
-        if let selectedFolderID, !snapshot.folders.contains(where: { $0.id == selectedFolderID }) {
-            self.selectedFolderID = nil
+        deferSceneSync {
+            librarySnapshot = snapshot
+            if let selectedFolderID, !snapshot.folders.contains(where: { $0.id == selectedFolderID }) {
+                self.selectedFolderID = nil
+            }
+            if let selectedCorpusSetID, !snapshot.corpusSets.contains(where: { $0.id == selectedCorpusSetID }) {
+                self.selectedCorpusSetID = nil
+            }
+            normalizeCorpusSelectionForCurrentState()
+            requestSceneSync()
         }
-        if let selectedCorpusSetID, !snapshot.corpusSets.contains(where: { $0.id == selectedCorpusSetID }) {
-            self.selectedCorpusSetID = nil
-        }
-        normalizeCorpusSelectionForCurrentState()
-        syncScene()
     }
 
     func applyRecycleSnapshot(_ snapshot: RecycleBinSnapshot) {
-        recycleSnapshot = snapshot
-        if let selectedRecycleEntryID, !snapshot.entries.contains(where: { $0.id == selectedRecycleEntryID }) {
-            self.selectedRecycleEntryID = nil
+        deferSceneSync {
+            recycleSnapshot = snapshot
+            if let selectedRecycleEntryID, !snapshot.entries.contains(where: { $0.id == selectedRecycleEntryID }) {
+                self.selectedRecycleEntryID = nil
+            }
+            requestSceneSync()
         }
-        syncScene()
     }
 
     func syncSidebarSelection(_ selectedCorpusID: String?) {
-        applyCorpusSelection(selectedCorpusID.map { [$0] } ?? [], preferredPrimaryID: selectedCorpusID)
-        syncScene()
+        deferSceneSync {
+            applyCorpusSelection(selectedCorpusID.map { [$0] } ?? [], preferredPrimaryID: selectedCorpusID)
+        }
     }
 
     func applyMetadataFilterState(_ state: CorpusMetadataFilterState) {
         guard metadataFilterState != state else { return }
-        metadataFilterState = state
-        normalizeCorpusSelectionForCurrentState()
-        syncScene()
-    }
-
-    func selectFolder(_ folderID: String?) {
-        showsCorpusBuilder = false
-        showsRecycleBin = false
-        selectedFolderID = folderID
-        selectedCorpusSetID = nil
-        normalizeCorpusSelectionForCurrentState()
-        selectedRecycleEntryID = nil
-    }
-
-    func selectCorpusSet(_ corpusSetID: String?) {
-        showsCorpusBuilder = false
-        showsRecycleBin = false
-        selectedCorpusSetID = corpusSetID
-        selectedRecycleEntryID = nil
-        if let corpusSet = selectedCorpusSet {
-            selectedFolderID = nil
-            metadataFilterState = corpusSet.metadataFilterState
-            applyCorpusSelection(Set(corpusSet.corpusIDs), preferredPrimaryID: corpusSet.corpusIDs.first)
-        } else {
+        deferSceneSync {
+            metadataFilterState = state
             normalizeCorpusSelectionForCurrentState()
         }
     }
 
-    func selectCorpus(_ corpusID: String?) {
-        showsCorpusBuilder = false
-        showsRecycleBin = false
-        applyCorpusSelection(corpusID.map { [$0] } ?? [], preferredPrimaryID: corpusID)
-        if corpusID != nil {
+    func selectFolder(_ folderID: String?) {
+        deferSceneSync {
+            showsCorpusBuilder = false
+            showsRecycleBin = false
+            selectedFolderID = folderID
+            selectedCorpusSetID = nil
+            normalizeCorpusSelectionForCurrentState()
             selectedRecycleEntryID = nil
+        }
+    }
+
+    func selectCorpusSet(_ corpusSetID: String?) {
+        deferSceneSync {
+            showsCorpusBuilder = false
+            showsRecycleBin = false
+            selectedCorpusSetID = corpusSetID
+            selectedRecycleEntryID = nil
+            if let corpusSet = selectedCorpusSet {
+                selectedFolderID = nil
+                metadataFilterState = corpusSet.metadataFilterState
+                applyCorpusSelection(Set(corpusSet.corpusIDs), preferredPrimaryID: corpusSet.corpusIDs.first)
+            } else {
+                normalizeCorpusSelectionForCurrentState()
+            }
+        }
+    }
+
+    func selectCorpus(_ corpusID: String?) {
+        deferSceneSync {
+            showsCorpusBuilder = false
+            showsRecycleBin = false
+            applyCorpusSelection(corpusID.map { [$0] } ?? [], preferredPrimaryID: corpusID)
+            if corpusID != nil {
+                selectedRecycleEntryID = nil
+            }
         }
     }
 
     func selectCorpusIDs(_ corpusIDs: Set<String>) {
-        showsCorpusBuilder = false
-        showsRecycleBin = false
-        applyCorpusSelection(corpusIDs, preferredPrimaryID: selectedCorpusID)
-        if !corpusIDs.isEmpty {
-            selectedRecycleEntryID = nil
+        deferSceneSync {
+            showsCorpusBuilder = false
+            showsRecycleBin = false
+            applyCorpusSelection(corpusIDs, preferredPrimaryID: selectedCorpusID)
+            if !corpusIDs.isEmpty {
+                selectedRecycleEntryID = nil
+            }
         }
     }
 
     func selectRecycleEntry(_ recycleEntryID: String?) {
-        showsCorpusBuilder = false
-        showsRecycleBin = true
-        selectedFolderID = nil
-        selectedCorpusSetID = nil
-        selectedRecycleEntryID = recycleEntryID
-        applyCorpusSelection([], preferredPrimaryID: nil)
+        deferSceneSync {
+            showsCorpusBuilder = false
+            showsRecycleBin = true
+            selectedFolderID = nil
+            selectedCorpusSetID = nil
+            selectedRecycleEntryID = recycleEntryID
+            applyCorpusSelection([], preferredPrimaryID: nil)
+        }
     }
 
     func selectCorpusBuilder() {
-        showsCorpusBuilder = true
-        showsRecycleBin = false
-        selectedFolderID = nil
-        selectedCorpusSetID = nil
-        selectedRecycleEntryID = nil
-        applyCorpusSelection([], preferredPrimaryID: nil)
+        deferSceneSync {
+            showsCorpusBuilder = true
+            showsRecycleBin = false
+            selectedFolderID = nil
+            selectedCorpusSetID = nil
+            selectedRecycleEntryID = nil
+            applyCorpusSelection([], preferredPrimaryID: nil)
+        }
     }
 
     func setBusy(_ isBusy: Bool) {
+        guard self.isBusy != isBusy else { return }
         self.isBusy = isBusy
-        syncScene()
+        requestSceneSync()
     }
 
     func setStatus(_ message: String) {
+        guard statusMessage != message else { return }
         statusMessage = message
-        syncScene()
+        requestSceneSync()
     }
 
     func setError(_ message: String) {
+        guard statusMessage != message else { return }
         statusMessage = message
-        syncScene()
+        requestSceneSync()
     }
 
     func setImportProgress(_ snapshot: LibraryImportProgressSnapshot?) {
         importProgressSnapshot = snapshot
-        syncScene()
     }
 
     private func applyCorpusSelection(_ corpusIDs: Set<String>, preferredPrimaryID: String?) {
-        let validIDs = Set(filteredCorpora.map(\.id))
+        let visibleCorpora = filteredCorpora
+        let validIDs = Set(visibleCorpora.map(\.id))
         let filteredSelection = corpusIDs.intersection(validIDs)
-        let nextPrimaryID = resolvePrimaryCorpusID(preferred: preferredPrimaryID, from: filteredSelection)
+        let nextPrimaryID = resolvePrimaryCorpusID(
+            preferred: preferredPrimaryID,
+            from: filteredSelection,
+            visibleCorpora: visibleCorpora
+        )
 
         isSyncingCorpusSelection = true
-        selectedCorpusIDs = filteredSelection
-        selectedCorpusID = nextPrimaryID
+        var didChangeSelection = false
+        if selectedCorpusIDs != filteredSelection {
+            selectedCorpusIDs = filteredSelection
+            didChangeSelection = true
+        }
+        if selectedCorpusID != nextPrimaryID {
+            selectedCorpusID = nextPrimaryID
+            didChangeSelection = true
+        }
         isSyncingCorpusSelection = false
+        if didChangeSelection {
+            requestSceneSync()
+        }
     }
 
     func normalizeCorpusSelectionForCurrentState() {
         applyCorpusSelection(selectedCorpusIDs, preferredPrimaryID: selectedCorpusID)
     }
 
-    private func resolvePrimaryCorpusID(preferred: String?, from corpusIDs: Set<String>) -> String? {
+    private func resolvePrimaryCorpusID(
+        preferred: String?,
+        from corpusIDs: Set<String>,
+        visibleCorpora: [LibraryCorpusItem]
+    ) -> String? {
         if let preferred, corpusIDs.contains(preferred) {
             return preferred
         }
-        return filteredCorpora.first(where: { corpusIDs.contains($0.id) })?.id
+        return visibleCorpora.first(where: { corpusIDs.contains($0.id) })?.id
     }
 }

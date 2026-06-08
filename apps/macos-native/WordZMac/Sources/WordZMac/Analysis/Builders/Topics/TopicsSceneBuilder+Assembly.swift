@@ -31,6 +31,7 @@ extension TopicsSceneBuilder {
         var additionalLines = [
             "\(wordZText("模型来源", "Model Provider", mode: languageMode)): \(providerLabel(for: result.modelProvider, languageMode: languageMode))",
             "\(wordZText("模型版本", "Model Version", mode: languageMode)): \(result.modelVersion)",
+            "\(wordZText("分析语言", "Analysis Language", mode: languageMode)): \(topicLanguageLabel(for: result.language, languageMode: languageMode))",
             "\(wordZText("关键词样式", "Keyword Style", mode: languageMode)): \(wordZText("单词", "Single-word only", mode: languageMode))",
             "\(wordZText("每主题关键词数", "Keywords per Topic", mode: languageMode)): \(keywordDisplayCount)",
             annotationState.summary(in: languageMode)
@@ -54,6 +55,19 @@ extension TopicsSceneBuilder {
             stopwordFilter: stopwordFilter,
             additionalLines: additionalLines
         )
+    }
+
+    func topicLanguageLabel(for language: String, languageMode: AppLanguageMode) -> String {
+        switch language {
+        case TokenizeLanguagePreset.cjkFocused.rawValue:
+            return wordZText("中文优先", "Chinese-focused", mode: languageMode)
+        case TokenizeLanguagePreset.mixedChineseEnglish.rawValue:
+            return wordZText("中英混合", "Mixed Chinese/English", mode: languageMode)
+        case TokenizeLanguagePreset.latinFocused.rawValue, TopicAnalysisOptions.englishLanguage:
+            return wordZText("英文优先", "English-focused", mode: languageMode)
+        default:
+            return language
+        }
     }
 
     func providerLabel(for provider: String, languageMode: AppLanguageMode) -> String {

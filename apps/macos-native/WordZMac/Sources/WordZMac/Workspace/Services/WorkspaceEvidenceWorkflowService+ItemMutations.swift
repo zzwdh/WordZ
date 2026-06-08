@@ -101,7 +101,7 @@ extension WorkspaceEvidenceWorkflowService {
                 mode: .system
             ),
             confirmTitle: wordZText("删除", "Delete", mode: .system),
-            preferredRoute: .evidenceWorkbench
+            preferredRoute: .mainWorkspace
         )
         guard confirmed else { return }
 

@@ -2,10 +2,8 @@ import SwiftUI
 
 struct KWICView: View {
     @Environment(\.wordZLanguageMode) var languageMode
-    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: KWICPageViewModel
-    @ObservedObject var evidenceWorkbench: EvidenceWorkbenchViewModel
     let isBusy: Bool
     let onAction: (KWICPageAction) -> Void
 
@@ -29,7 +27,4 @@ struct KWICView: View {
         wordZText(zh, en, mode: languageMode)
     }
 
-    func openEvidenceWorkbenchWindow() {
-        openWindow(id: NativeWindowRoute.evidenceWorkbench.id)
-    }
 }

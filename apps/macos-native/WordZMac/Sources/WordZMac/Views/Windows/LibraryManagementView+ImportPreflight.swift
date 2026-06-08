@@ -26,7 +26,7 @@ struct LibraryImportPreflightSheetView: View {
                     onDismiss()
                     dismiss()
                 }
-                Button(t("制作 DB", "Create DB")) {
+                Button(t("导入", "Import")) {
                     onConfirm(scene.paths, normalizedCorpusName)
                     dismiss()
                 }
@@ -48,7 +48,7 @@ struct LibraryImportPreflightSheetView: View {
             ) {
                 VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(t("DB 语料库名称", "DB Corpus Name"))
+                        Text(t("语料名称", "Corpus Name"))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         TextField(scene.defaultCorpusName, text: $corpusName)

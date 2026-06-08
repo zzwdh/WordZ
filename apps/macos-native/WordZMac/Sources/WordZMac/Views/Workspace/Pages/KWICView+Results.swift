@@ -97,7 +97,6 @@ extension KWICView {
             )
         }
 
-        kwicEvidenceWorkbenchSection
         kwicSavedSetsSection
     }
 
@@ -135,11 +134,6 @@ extension KWICView {
                         title: t("复制引文", "Copy Citation"),
                         text: selectedRow.citationText
                     )
-                    Button {
-                        onAction(.addCurrentRowToEvidenceWorkbench)
-                    } label: {
-                        Label(t("暂存摘录", "Save Excerpt"), systemImage: "text.badge.plus")
-                    }
                     ConcordanceReadingExportMenu(
                         languageMode: languageMode,
                         copyCurrent: { onAction(.copyCurrent($0)) },
@@ -156,25 +150,6 @@ extension KWICView {
                 }
             }
         }
-    }
-
-    var kwicEvidenceWorkbenchSection: some View {
-        ConcordanceEvidenceWorkbenchSection(
-            evidenceWorkbench: evidenceWorkbench,
-            languageMode: languageMode,
-            addCurrentTitle: t("加入当前行", "Add Current Row"),
-            emptyMessage: t(
-                "把少量关键 KWIC 行暂存到摘录篮；表格和截图仍建议直接复制到 Word。",
-                "Save a few key KWIC rows to the excerpt tray; copy tables and screenshots directly to Word."
-            ),
-            currentSelectionAvailable: viewModel.selectedSceneRow != nil,
-            itemPreviewText: { $0.concordanceText },
-            addCurrent: { onAction(.addCurrentRowToEvidenceWorkbench) },
-            openWorkbench: { openEvidenceWorkbenchWindow() },
-            setReviewStatus: { onAction(.setEvidenceReviewStatus($0, $1)) },
-            saveSelectedNote: { onAction(.saveSelectedEvidenceNote) },
-            deleteItem: { onAction(.deleteEvidenceItem($0)) }
-        )
     }
 
     var kwicSavedSetsSection: some View {

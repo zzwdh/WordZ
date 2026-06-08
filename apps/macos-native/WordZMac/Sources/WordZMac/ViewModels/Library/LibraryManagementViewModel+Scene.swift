@@ -9,6 +9,11 @@ extension LibraryManagementViewModel {
         let visibleCorpora = filteredCorpora
         let recentCorpusSetIDSet = Set(recentCorpusSetIDs)
         let navigationSelection = buildNavigationSelection(recentCorpusSetIDSet: recentCorpusSetIDSet)
+        let corpusSceneMetrics = buildCorpusSceneMetrics(
+            visibleCorpora: visibleCorpora,
+            selectedCorpusIDs: selectedCorpusIDs,
+            languageMode: languageMode
+        )
 
         let folders = librarySnapshot.folders
             .filter { folder in
@@ -57,28 +62,6 @@ extension LibraryManagementViewModel {
         let corpusSets = allCorpusSets.filter { !recentCorpusSetIDSet.contains($0.id) }
         let selectedCorpusSetSceneItem = allCorpusSets.first(where: { $0.id == selectedCorpusSetID })
 
-        let corpora: [LibraryManagementCorpusSceneItem] = visibleCorpora.map { corpus in
-            let cleaningSummary = corpus.cleaningSummary
-            return LibraryManagementCorpusSceneItem(
-                id: corpus.id,
-                title: corpus.name,
-                subtitle: corpus.folderName,
-                sourceType: corpus.sourceType,
-                databaseFileName: corpus.databaseFileDisplayName,
-                representedPath: corpus.representedPath,
-                metadataSummary: corpus.metadata.compactSummary(in: languageMode),
-                readiness: makeReadinessScene(for: corpus, languageMode: languageMode),
-                cleaningStatus: corpus.cleaningStatus,
-                cleaningStatusTitle: corpus.cleaningStatus.title(in: languageMode),
-                cleaningSummary: cleaningSummary?.ruleHitsSummary(in: languageMode, limit: 2)
-                    ?? wordZText("尚未执行自动清洗", "Auto-cleaning not run yet", mode: languageMode),
-                isSelected: selectedCorpusIDs.contains(corpus.id),
-                hasMissingYear: corpus.metadata.yearLabel.isEmpty,
-                hasMissingGenre: corpus.metadata.genreLabel.isEmpty,
-                hasMissingTags: corpus.metadata.tags.isEmpty
-            )
-        }
-
         let recycleEntries = recycleSnapshot.entries
             .filter { matchesSearchQuery($0) }
             .map {
@@ -94,30 +77,10 @@ extension LibraryManagementViewModel {
             ? "DB \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count) · 搜索 “\(normalizedSearchQuery)”"
             : "DB \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count)"
         let recycleSummary = "回收站 \(recycleSnapshot.totalCount) 项"
-        let autoCleaningSummary = LibraryAutoCleaningSummarySceneModel(
-            cleanedCount: visibleCorpora.filter { $0.cleaningStatus == .cleaned }.count,
-            pendingCount: visibleCorpora.filter { $0.cleaningStatus == .pending }.count,
-            changedCount: visibleCorpora.filter { $0.cleaningStatus == .cleanedWithChanges }.count
-        )
-        let integritySummary = LibraryIntegritySummarySceneModel(
-            visibleCorpusCount: visibleCorpora.count,
-            missingYearCount: visibleCorpora.filter { $0.metadata.yearLabel.isEmpty }.count,
-            missingGenreCount: visibleCorpora.filter { $0.metadata.genreLabel.isEmpty }.count,
-            missingTagsCount: visibleCorpora.filter { $0.metadata.tags.isEmpty }.count
-        )
-        let readinessSummary = makeReadinessSummary(
-            visibleCorpora: visibleCorpora,
-            languageMode: languageMode
-        )
-        let metadataStudio = makeMetadataStudioScene(
-            visibleCorpora: visibleCorpora,
-            selectedCorpusCount: selectedCorpusIDs.count,
-            languageMode: languageMode
-        )
         let metadataFilterSummary = metadataFilterState.summaryText(in: WordZLocalization.shared.effectiveMode)
         let importProgress = importProgressSnapshot?.progress
 
-        scene = LibraryManagementSceneModel(
+        let nextScene = LibraryManagementSceneModel(
             librarySummary: librarySummary,
             currentScopeSummary: buildCurrentScopeSummary(
                 visibleCorpora: visibleCorpora,
@@ -129,10 +92,10 @@ extension LibraryManagementViewModel {
                 : statusMessage,
             preserveHierarchy: preserveHierarchy,
             metadataFilterSummary: metadataFilterSummary,
-            autoCleaningSummary: autoCleaningSummary,
-            integritySummary: integritySummary,
-            readinessSummary: readinessSummary,
-            metadataStudio: metadataStudio,
+            autoCleaningSummary: corpusSceneMetrics.autoCleaningSummary,
+            integritySummary: corpusSceneMetrics.integritySummary,
+            readinessSummary: corpusSceneMetrics.readinessSummary,
+            metadataStudio: corpusSceneMetrics.metadataStudio,
             importProgress: importProgress,
             importDetail: importProgressSnapshot.map(importDetailText),
             navigationSelection: navigationSelection,
@@ -146,7 +109,7 @@ extension LibraryManagementViewModel {
             filterChips: buildFilterChips(
                 searchQuery: normalizedSearchQuery,
                 metadataFilterSummary: metadataFilterSummary,
-                integritySummary: integritySummary
+                integritySummary: corpusSceneMetrics.integritySummary
             ),
             overflowActions: buildOverflowActions(),
             recentCorpusSetsSummary: "最近使用 \(recentCorpusSetItems.count) 项",
@@ -154,7 +117,7 @@ extension LibraryManagementViewModel {
             folders: folders,
             recentCorpusSets: recentCorpusSetItems,
             corpusSets: corpusSets,
-            corpora: corpora,
+            corpora: corpusSceneMetrics.corpora,
             recycleEntries: recycleEntries,
             selectedCorpusSetID: selectedCorpusSetID,
             selectedFolderID: selectedFolderID,
@@ -164,8 +127,12 @@ extension LibraryManagementViewModel {
             inspector: buildInspector(
                 visibleCorpora: visibleCorpora,
                 corporaByFolderID: corporaByFolderID,
-                corporaByID: corporaByID
+                corporaByID: corporaByID,
+                readinessByCorpusID: corpusSceneMetrics.readinessByCorpusID
             )
         )
+        if scene != nextScene {
+            scene = nextScene
+        }
     }
 }

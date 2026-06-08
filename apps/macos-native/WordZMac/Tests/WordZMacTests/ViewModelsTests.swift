@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 @testable import WordZWorkspaceCore
 
@@ -685,7 +686,7 @@ final class ViewModelsTests: XCTestCase {
         )
 
         XCTAssertEqual(viewModel.scene.targetCorpus.summary, "Demo Corpus")
-        XCTAssertEqual(viewModel.scene.targetCorpus.title, wordZText("目标 DB", "Target DB Corpus", mode: viewModel.languageMode))
+        XCTAssertEqual(viewModel.scene.targetCorpus.title, wordZText("目标语料", "Target Corpus", mode: viewModel.languageMode))
         XCTAssertEqual(viewModel.scene.targetCorpus.detail, "Demo Corpus.db · Default")
         XCTAssertEqual(viewModel.scene.corpusOptions.first?.subtitle, "Demo Corpus.db · Default")
         XCTAssertEqual(
@@ -694,7 +695,7 @@ final class ViewModelsTests: XCTestCase {
         )
         XCTAssertEqual(
             viewModel.scene.referenceCorpus.title,
-            wordZText("参照 DB", "Reference DB Corpus", mode: viewModel.languageMode)
+            wordZText("参照语料", "Reference Corpus", mode: viewModel.languageMode)
         )
         XCTAssertFalse(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? true)
         XCTAssertNil(viewModel.scene.results)
@@ -782,8 +783,8 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.metadataFilterState.yearTo, "2024")
         XCTAssertEqual(viewModel.filteredCorpusCount, 1)
         XCTAssertEqual(viewModel.selectedCorpusID, "corpus-1")
-        XCTAssertEqual(viewModel.scene.targetCorpus.detail, "1 个 DB 语料库 · DB 语料集")
-        XCTAssertEqual(viewModel.scene.selectedCorpusSetSummary, "当前 DB 语料集：教材集")
+        XCTAssertEqual(viewModel.scene.targetCorpus.detail, "1 条语料 · 语料集")
+        XCTAssertEqual(viewModel.scene.selectedCorpusSetSummary, "当前语料集：教材集")
         XCTAssertEqual(callbackCount, 1)
     }
 
@@ -1075,11 +1076,11 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.inspector?.actions.first?.action, .openSelectedCorpus)
         XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .showSelectedCorpusInfo }) ?? false)
         XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .renameSelectedCorpus }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "db-project" && $0.detail.contains(".db") }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "zh-analysis" && $0.detail.contains("KWIC") }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Format" && $0.value == "db" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "readiness" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "zh-analysis" && $0.detail.contains("Topics") && $0.detail.contains("Sentiment") }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "DB File" && $0.value.contains(".db") }) ?? false)
         XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Source Format" && $0.value == "TXT" }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Project ID" && $0.value == "corpus-2" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "项目 ID" && $0.value == "corpus-2" }) ?? false)
     }
 
     func testLibraryManagementViewModelSupportsBatchSelectionAndIntegritySummary() {
@@ -1122,7 +1123,7 @@ final class ViewModelsTests: XCTestCase {
         viewModel.selectCorpusIDs(["corpus-1", "corpus-2"])
 
         XCTAssertEqual(viewModel.scene.selectedCorpusIDs, Set(["corpus-1", "corpus-2"]))
-        XCTAssertEqual(viewModel.scene.inspector?.title, "已选择 2 个 DB")
+        XCTAssertEqual(viewModel.scene.inspector?.title, "已选择 2 条语料")
         XCTAssertEqual(viewModel.scene.integritySummary.missingYearCount, 1)
         XCTAssertEqual(viewModel.scene.integritySummary.missingGenreCount, 1)
         XCTAssertEqual(viewModel.scene.integritySummary.missingTagsCount, 1)
@@ -1131,6 +1132,68 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.metadataStudio.missingTagsCount, 1)
         XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-build" && $0.detail.contains("dbA") }) ?? false)
         XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-readiness" && $0.detail.contains("清洗") }) ?? false)
+    }
+
+    func testLibraryManagementViewModelCoalescesSelectionSceneSyncs() {
+        let viewModel = LibraryManagementViewModel()
+        let snapshot = LibrarySnapshot(
+            folders: [LibraryFolderItem(json: ["id": "folder-1", "name": "Default"])],
+            corpora: [
+                LibraryCorpusItem(json: [
+                    "id": "corpus-1",
+                    "name": "Corpus A",
+                    "folderId": "folder-1",
+                    "folderName": "Default",
+                    "sourceType": "txt",
+                    "representedPath": "/tmp/a.txt"
+                ])
+            ]
+        )
+        viewModel.applyBootstrap(snapshot)
+
+        var scenePublishCount = 0
+        let sceneCancellable = viewModel.$scene.dropFirst().sink { _ in
+            scenePublishCount += 1
+        }
+        defer {
+            sceneCancellable.cancel()
+        }
+
+        viewModel.selectCorpusIDs(["corpus-1"])
+
+        XCTAssertEqual(scenePublishCount, 1)
+        XCTAssertEqual(viewModel.scene.selectedCorpusIDs, Set(["corpus-1"]))
+        XCTAssertEqual(viewModel.scene.selectedCorpusID, "corpus-1")
+
+        viewModel.selectCorpusIDs(["corpus-1"])
+
+        XCTAssertEqual(scenePublishCount, 1)
+    }
+
+    func testLibraryManagementViewModelSkipsPublishingUnchangedSceneSyncs() {
+        let viewModel = LibraryManagementViewModel()
+        let snapshot = makeBootstrapState().librarySnapshot
+        viewModel.applyBootstrap(snapshot)
+
+        var scenePublishCount = 0
+        let sceneCancellable = viewModel.$scene.dropFirst().sink { _ in
+            scenePublishCount += 1
+        }
+        defer {
+            sceneCancellable.cancel()
+        }
+
+        viewModel.requestSceneSync()
+
+        XCTAssertEqual(scenePublishCount, 0)
+
+        viewModel.setStatus("正在处理语料库操作…")
+
+        XCTAssertEqual(scenePublishCount, 1)
+
+        viewModel.requestSceneSync()
+
+        XCTAssertEqual(scenePublishCount, 1)
     }
 
     func testLibraryManagementViewModelBuildsCorpusReadinessAndMetadataStudio() {
@@ -1303,14 +1366,14 @@ final class ViewModelsTests: XCTestCase {
         viewModel.applyBootstrap(makeBootstrapState().librarySnapshot)
 
         XCTAssertEqual(viewModel.scene.navigationSelection, .allCorpora)
-        XCTAssertEqual(viewModel.scene.content.title, "Corpus Library (.db)")
+        XCTAssertEqual(viewModel.scene.content.title, "Corpus Library")
         XCTAssertEqual(viewModel.scene.corpora.first?.databaseFileName, "Demo Corpus.db")
 
         viewModel.selectCorpusBuilder()
 
         XCTAssertEqual(viewModel.scene.navigationSelection, .corpusBuilder)
         XCTAssertEqual(viewModel.scene.content.mode, .corpusBuilder)
-        XCTAssertEqual(viewModel.scene.content.title, "Corpus Builder (Files)")
+        XCTAssertEqual(viewModel.scene.content.title, "Import Corpus")
         XCTAssertTrue(viewModel.scene.selectedCorpusIDs.isEmpty)
     }
 

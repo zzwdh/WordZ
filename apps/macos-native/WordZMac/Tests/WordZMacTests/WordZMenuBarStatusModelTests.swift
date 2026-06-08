@@ -3,36 +3,10 @@ import XCTest
 
 @MainActor
 final class WordZMenuBarStatusModelTests: XCTestCase {
-    func testIconStateTracksOnlyMeaningfulTaskAndUpdateTransitions() {
+    func testIconStateTracksUpdateTransitions() {
         let model = WordZMenuBarStatusModel()
 
         XCTAssertEqual(model.iconState, .idle)
-
-        model.applyTaskCenterScene(
-            NativeTaskCenterSceneModel(
-                items: [],
-                runningCount: 1,
-                completedCount: 0,
-                failedCount: 0,
-                summary: "1 running",
-                aggregateProgress: 0.1,
-                highlightedItems: []
-            )
-        )
-        XCTAssertEqual(model.iconState, .tasksRunning)
-
-        model.applyTaskCenterScene(
-            NativeTaskCenterSceneModel(
-                items: [],
-                runningCount: 1,
-                completedCount: 0,
-                failedCount: 0,
-                summary: "1 running, 80%",
-                aggregateProgress: 0.8,
-                highlightedItems: []
-            )
-        )
-        XCTAssertEqual(model.iconState, .tasksRunning)
 
         model.applyUpdateState(
             NativeUpdateStateSnapshot(
@@ -53,9 +27,6 @@ final class WordZMenuBarStatusModelTests: XCTestCase {
                 assetName: "WordZ.pkg"
             )
         )
-        XCTAssertEqual(model.iconState, .updateReady)
-
-        model.applyTaskCenterScene(.empty)
         XCTAssertEqual(model.iconState, .updateReady)
 
         model.applyUpdateState(.empty)

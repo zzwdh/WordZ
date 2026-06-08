@@ -75,8 +75,8 @@ extension LibraryManagementViewModel {
     ) -> LibraryImportSummarySceneModel {
         LibraryImportSummarySceneModel(
             id: UUID().uuidString,
-            title: wordZText("DB 语料库已创建", "DB Corpus Created", mode: languageMode),
-            subtitle: wordZText("Corpus Library (.db)", "Corpus Library (.db)", mode: languageMode),
+            title: wordZText("语料已导入", "Corpus Imported", mode: languageMode),
+            subtitle: wordZText("Corpus Library · .db 格式", "Corpus Library · .db format", mode: languageMode),
             importedCountText: "\(result.importedCount)",
             skippedCountText: "\(result.skippedCount)",
             cleanedCountText: "\(result.cleaningSummary.cleanedCount)",

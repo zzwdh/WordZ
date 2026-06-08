@@ -21,6 +21,7 @@ extension NativeCorpusStore {
         _ = try loadSentimentReviewSamples()
         _ = try loadWorkspacePersistedSnapshot()
         _ = try loadPersistedUISettings()
+        try seedBundledDefaultReferenceCorporaIfNeeded()
         isInitialized = true
     }
 

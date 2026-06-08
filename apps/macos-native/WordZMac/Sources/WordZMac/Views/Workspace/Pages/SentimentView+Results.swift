@@ -137,11 +137,6 @@ extension SentimentView {
                     }
                     .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)
 
-                    Button(t("暂存摘录", "Save Excerpt")) {
-                        onAction(.addCurrentRowToEvidenceWorkbench)
-                    }
-                    .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)
-
                     Button(t("导出摘要 TXT", "Export Summary TXT")) {
                         onAction(.exportSummary)
                     }

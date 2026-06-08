@@ -47,6 +47,10 @@ enum TopicFilterSupport {
     }
 
     static func tokenize(_ value: String) -> [String] {
+        if containsCJKContent(value) {
+            return AnalysisTextNormalizationSupport.tokenizeWordLikeSegments(in: value)
+        }
+
         let lowercase = value.lowercased()
         let pattern = "[^\\p{L}\\p{N}'-]+"
         let normalized = lowercase.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
@@ -54,6 +58,20 @@ enum TopicFilterSupport {
             .split(separator: " ")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    private static func containsCJKContent(_ value: String) -> Bool {
+        value.unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3040...0x30FF,
+                 0x3400...0x4DBF,
+                 0x4E00...0x9FFF,
+                 0xF900...0xFAFF:
+                return true
+            default:
+                return false
+            }
+        }
     }
 }
 

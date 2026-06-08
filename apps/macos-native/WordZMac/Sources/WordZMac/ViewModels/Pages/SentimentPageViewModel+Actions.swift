@@ -5,7 +5,6 @@ extension SentimentPageViewModel {
         switch action {
         case .run,
              .openSourceReader,
-             .addCurrentRowToEvidenceWorkbench,
              .exportSummary,
              .exportStructuredJSON,
              .confirmSelectedRow,

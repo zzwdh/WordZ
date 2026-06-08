@@ -15,6 +15,26 @@ struct StopwordEditorSheet: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
+            HStack(spacing: 12) {
+                Menu {
+                    ForEach(StopwordListPreset.allCases) { preset in
+                        Button {
+                            draftText = preset.normalizedListText
+                        } label: {
+                            Text("\(preset.title(in: languageMode)) · \(preset.parsedWordCount)")
+                        }
+                    }
+                } label: {
+                    Label(wordZText("套用预设", "Apply preset", mode: languageMode), systemImage: "list.bullet.rectangle")
+                }
+
+                Text(wordZText("当前 \(draftWordCount) 词", "\(draftWordCount) terms", mode: languageMode))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+            }
+
             TextEditor(text: $draftText)
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 260)
@@ -27,7 +47,7 @@ struct StopwordEditorSheet: View {
 
             HStack {
                 Button(wordZText("恢复默认", "Restore defaults", mode: languageMode)) {
-                    draftText = StopwordFilterState.defaultListText
+                    draftText = StopwordListPreset.englishDefault.normalizedListText
                 }
                 Button(wordZText("清空", "Clear", mode: languageMode)) {
                     draftText = ""
@@ -48,5 +68,9 @@ struct StopwordEditorSheet: View {
         .onAppear {
             draftText = filter.listText
         }
+    }
+
+    private var draftWordCount: Int {
+        StopwordFilterState.parseList(draftText).count
     }
 }

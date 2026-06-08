@@ -29,9 +29,6 @@ extension MainWorkspaceViewModel {
         case .openSourceReader:
             guard currentResultArtifact?.supports(.openSourceReader) == true else { return false }
             return await openCurrentSourceReader()
-        case .captureExcerpt:
-            await captureCurrentResultExcerpt()
-            return true
         }
     }
 
@@ -59,16 +56,4 @@ extension MainWorkspaceViewModel {
         }
     }
 
-    func captureCurrentResultExcerpt() async {
-        switch selectedTab {
-        case .kwic:
-            await captureCurrentKWICEvidenceItem()
-        case .locator:
-            await captureCurrentLocatorEvidenceItem()
-        case .sentiment:
-            await captureCurrentSentimentEvidenceItem()
-        case .stats, .word, .tokenize, .topics, .compare, .keyword, .chiSquare, .plot, .ngram, .cluster, .collocate, .library, .settings:
-            break
-        }
-    }
 }

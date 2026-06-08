@@ -499,7 +499,6 @@ check_hotspot_file_sizes() {
     "$ROOT_DIR/Analysis/Support/KeywordSuiteAnalysisSupport+Scoring.swift"
     "$ROOT_DIR/Analysis/Services/Topics/TopicModelManager+ManifestSupport.swift"
     "$ROOT_DIR/Analysis/Services/Topics/TopicModelManager+EmbeddingSupport.swift"
-    "$ROOT_DIR/App/WordZMacApp+FeatureWindows.swift"
     "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift"
     "$ROOT_DIR/ViewModels/Library/LibraryManagementViewModel+SceneNavigation.swift"
     "$ROOT_DIR/ViewModels/Library/LibraryManagementViewModel+SceneDetail.swift"
@@ -717,20 +716,15 @@ check_workspace_feature_module_activation() {
 }
 
 check_migrated_feature_registry_companions() {
-  print_check "Checking migrated feature registry and window companions..."
+  print_check "Checking migrated feature registry and app window ownership..."
 
   local registry_file="$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry.swift"
   local registry_companion_file="$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift"
   local feature_factory_file="$ROOT_DIR/Views/Workspace/WorkspaceFeatureFactory.swift"
   local app_file="$ROOT_DIR/App/WordZMacApp.swift"
-  local app_feature_windows_file="$ROOT_DIR/App/WordZMacApp+FeatureWindows.swift"
 
   if [[ ! -f "$registry_companion_file" ]]; then
     mark_failure "Expected migrated workspace feature registry companion file to exist: $registry_companion_file"
-  fi
-
-  if [[ ! -f "$app_feature_windows_file" ]]; then
-    mark_failure "Expected feature window companion file to exist: $app_feature_windows_file"
   fi
 
   if ! rg -q 'topicsDescriptor\(\)|sentimentDescriptor\(\)' "$registry_file"; then
@@ -749,12 +743,8 @@ check_migrated_feature_registry_companions() {
     mark_failure "WorkspaceFeatureFactory should own Topics/Sentiment SwiftUI view assembly."
   fi
 
-  if ! rg -q 'evidenceWorkbenchWindow\(' "$app_file"; then
-    mark_failure "WordZCoreAppScenes should route evidence workbench scene assembly through the feature window companion."
-  fi
-
-  if ! rg -q 'EvidenceWorkbenchWindowView' "$app_feature_windows_file"; then
-    mark_failure "Feature window companion should own evidence workbench window assembly."
+  if rg -q 'evidenceWorkbenchWindow\(|EvidenceWorkbenchWindowView' "$app_file"; then
+    mark_failure "WordZCoreAppScenes should not reference the removed evidence workbench standalone window."
   fi
 }
 

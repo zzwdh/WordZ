@@ -7,12 +7,10 @@ struct MenuBarStatusMenuView: View {
     @ObservedObject var workspace: MainWorkspaceViewModel
     @ObservedObject var sidebar: LibrarySidebarViewModel
     @ObservedObject var settings: WorkspaceSettingsViewModel
-    @ObservedObject var taskCenter: NativeTaskCenter
 
     var body: some View {
         Group {
             workspaceSummarySection
-            taskStatusSection
             Divider()
             workspaceMenuSection
             windowMenuSection

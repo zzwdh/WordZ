@@ -93,6 +93,14 @@ final class SearchFilterSupportTests: XCTestCase {
         XCTAssertEqual(ranges.map { "\($0.lowerBound)..<\($0.upperBound)" }, ["2..<4"])
     }
 
+    func testTopicFilterTokenizeSegmentsChineseText() {
+        let tokens = TopicFilterSupport.tokenize("城市交通系统正在改善公共服务")
+
+        XCTAssertGreaterThan(tokens.count, 1)
+        XCTAssertTrue(tokens.contains(where: { $0.contains("交通") }))
+        XCTAssertTrue(tokens.contains(where: { $0.contains("服务") }))
+    }
+
     func testStopwordListNormalizationDeduplicatesFullWidthVariants() {
         let state = StopwordFilterState(
             enabled: true,
@@ -101,5 +109,21 @@ final class SearchFilterSupportTests: XCTestCase {
         )
 
         XCTAssertEqual(state.parsedWords, ["alpha", "beta"])
+    }
+
+    func testChineseStopwordPresetsLoadBundledResources() {
+        XCTAssertEqual(StopwordListPreset.englishDefault.parsedWordCount, 850)
+        XCTAssertEqual(StopwordFilterState.default.parsedWords.count, 850)
+        XCTAssertEqual(StopwordListPreset.chineseGeneral.parsedWordCount, 743)
+        XCTAssertEqual(StopwordListPreset.hit.parsedWordCount, 717)
+        XCTAssertEqual(StopwordListPreset.baidu.parsedWordCount, 1_392)
+        XCTAssertEqual(StopwordListPreset.scu.parsedWordCount, 860)
+        XCTAssertEqual(StopwordListPreset.chineseMerged.parsedWordCount, 2_268)
+
+        let mergedWords = Set(StopwordListPreset.chineseMerged.normalizedListText.components(separatedBy: "\n"))
+        XCTAssertTrue(mergedWords.contains("的"))
+        XCTAssertTrue(mergedWords.contains("一一"))
+        XCTAssertTrue(mergedWords.contains("able"))
+        XCTAssertTrue(mergedWords.contains("打开天窗说亮话"))
     }
 }

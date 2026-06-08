@@ -23,13 +23,6 @@ package struct NativeWindowRolePolicy {
                 allowsMinimize: true,
                 tabbingMode: .disallowed
             )
-        case .evidenceWorkbench:
-            return NativeWindowRolePolicy(
-                route: route,
-                allowsRestoration: false,
-                allowsMinimize: true,
-                tabbingMode: .disallowed
-            )
         case .sourceReader:
             return NativeWindowRolePolicy(
                 route: route,
@@ -38,13 +31,6 @@ package struct NativeWindowRolePolicy {
                 tabbingMode: .disallowed
             )
         case .settings:
-            return NativeWindowRolePolicy(
-                route: route,
-                allowsRestoration: false,
-                allowsMinimize: true,
-                tabbingMode: .disallowed
-            )
-        case .taskCenter:
             return NativeWindowRolePolicy(
                 route: route,
                 allowsRestoration: false,

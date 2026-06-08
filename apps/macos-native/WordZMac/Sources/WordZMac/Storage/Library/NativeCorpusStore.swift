@@ -17,6 +17,7 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     var cachedRecycleEntries: [NativeRecycleRecord]?
     var cachedWorkspaceSnapshot: NativePersistedWorkspaceSnapshot?
     var cachedUISettings: NativePersistedUISettings?
+    let seedBundledDefaultReferenceCorpora: Bool
 
     var corporaDirectoryURL: URL { rootURL.appendingPathComponent("corpora", isDirectory: true) }
     var corpusSetsDirectoryURL: URL { rootURL.appendingPathComponent("corpus-sets", isDirectory: true) }
@@ -56,11 +57,16 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
         CorpusShardMigrator(fileManager: fileManager)
     }
 
-    init(rootURL: URL, fileManager: FileManager = .default) {
+    init(
+        rootURL: URL,
+        fileManager: FileManager = .default,
+        seedBundledDefaultReferenceCorpora: Bool = !NativeCorpusStore.isRunningTests
+    ) {
         self.rootURL = rootURL
         self.fileManager = fileManager
         self.encoder = JSONEncoder()
         self.decoder = JSONDecoder()
+        self.seedBundledDefaultReferenceCorpora = seedBundledDefaultReferenceCorpora
     }
 
     func writeImportedCorpus(
@@ -114,6 +120,12 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
             metadata: metadataProfile,
             cleaningSummary: cleaningSummary
         )
+    }
+}
+
+private extension NativeCorpusStore {
+    static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }
 

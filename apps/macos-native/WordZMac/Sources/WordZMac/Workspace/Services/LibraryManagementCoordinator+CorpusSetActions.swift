@@ -30,10 +30,10 @@ extension LibraryManagementCoordinator {
         }
 
         guard let promptedName = await dialogService.promptText(
-            title: wordZText("制作 DB 语料集", "Create DB Corpus Set", mode: .system),
-            message: wordZText("为当前选择输入名称；所选 DB 会合并为一个可分析的 .db 语料集。", "Enter a name; the selected DB corpora will be merged into one analyzable .db corpus set.", mode: .system),
+            title: wordZText("保存为语料集", "Save as Corpus Set", mode: .system),
+            message: wordZText("为当前选择输入名称；所选语料会合并为一个可分析的 .db 语料集。", "Enter a name; the selected corpora will be merged into one analyzable .db corpus set.", mode: .system),
             defaultValue: defaultName,
-            confirmTitle: wordZText("制作 DB", "Create DB", mode: .system),
+            confirmTitle: wordZText("保存", "Save", mode: .system),
             preferredRoute: preferredRoute
         ) else { return }
         let name = promptedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

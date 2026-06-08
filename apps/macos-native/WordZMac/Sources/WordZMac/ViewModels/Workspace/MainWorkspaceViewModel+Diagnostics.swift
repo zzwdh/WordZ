@@ -177,7 +177,7 @@ extension MainWorkspaceViewModel {
             "Selected Folder: \(context.selectedFolderName)",
             "Selected Corpus: \(context.selectedCorpusName)",
             "Engine Entry: \(context.engineEntryPath)",
-            "Task Center Summary: \(context.taskCenterSummary)",
+            "Background Task Summary: \(context.taskCenterSummary)",
             "Recent Documents: \(hostPreferences.recentDocuments.count)",
             "Downloaded Update Path: \(hostPreferences.downloadedUpdatePath)"
         ]

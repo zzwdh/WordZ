@@ -19,7 +19,7 @@ package struct NativeWindowChromeConfigurator {
         switch route {
         case .mainWorkspace:
             window.toolbarStyle = .automatic
-        case .library, .settings, .taskCenter, .updatePrompt, .about, .help, .releaseNotes, .evidenceWorkbench, .sourceReader:
+        case .library, .settings, .updatePrompt, .about, .help, .releaseNotes, .sourceReader:
             window.toolbarStyle = .automatic
         }
     }

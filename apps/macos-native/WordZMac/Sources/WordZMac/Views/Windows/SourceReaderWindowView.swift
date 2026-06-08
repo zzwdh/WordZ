@@ -77,11 +77,6 @@ struct SourceReaderWindowView: View {
                         }
                         .disabled(sourceReader.currentPreparedCitationText == nil)
 
-                        Button(t("暂存摘录", "Save Excerpt")) {
-                            Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
-                        }
-                        .disabled(!sourceReader.canAddEvidence)
-
                         Button(t("打开来源文件", "Open Source File")) {
                             Task { await workspace.openSourceReaderOriginalFile() }
                         }
@@ -196,18 +191,6 @@ struct SourceReaderWindowView: View {
                                         }
                                     }
 
-                                    if sourceReader.canAddEvidence {
-                                        Divider()
-                                        SourceReaderInlineEvidenceDraftView(
-                                            sourceReader: sourceReader,
-                                            onCopyCitation: {
-                                                workspace.copySourceReaderCitation()
-                                            },
-                                            onAddClip: {
-                                                Task { await workspace.captureCurrentSourceReaderEvidenceItem() }
-                                            }
-                                        )
-                                    }
                                 }
                             }
                         }

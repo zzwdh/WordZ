@@ -1,4 +1,5 @@
 import Foundation
+import WordZAnalysis
 
 enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case exclude
@@ -121,7 +122,7 @@ struct SearchOptionsState: Equatable, Codable, Sendable {
 }
 
 struct StopwordFilterState: Equatable, Codable, Sendable {
-    static let defaultListText = """
+    private static let fallbackDefaultListText = """
     a
     an
     and
@@ -175,6 +176,11 @@ struct StopwordFilterState: Equatable, Codable, Sendable {
     your
     yours
     """
+    static let defaultListText = StopwordListResource.loadStopwords(
+        named: "default",
+        subdirectory: "Stopwords/en",
+        fallback: fallbackDefaultListText
+    )
 
     var enabled: Bool = false
     var mode: StopwordFilterMode = .exclude
@@ -253,5 +259,58 @@ struct StopwordFilterState: Equatable, Codable, Sendable {
             words.append(word)
         }
         return words
+    }
+}
+
+enum StopwordListPreset: String, CaseIterable, Identifiable, Sendable {
+    case chineseMerged
+    case chineseGeneral
+    case hit
+    case baidu
+    case scu
+    case englishDefault
+
+    var id: String { rawValue }
+
+    func title(in mode: AppLanguageMode) -> String {
+        switch self {
+        case .chineseMerged:
+            return wordZText("中文综合停用词表", "Chinese merged stopwords", mode: mode)
+        case .chineseGeneral:
+            return wordZText("中文停用词表", "Chinese stopwords", mode: mode)
+        case .hit:
+            return wordZText("哈工大停用词表", "HIT stopwords", mode: mode)
+        case .baidu:
+            return wordZText("百度停用词表", "Baidu stopwords", mode: mode)
+        case .scu:
+            return wordZText("四川大学机器智能实验室停用词库", "SCU stopwords", mode: mode)
+        case .englishDefault:
+            return wordZText("英文默认停用词表", "Default English stopwords", mode: mode)
+        }
+    }
+
+    var listText: String {
+        switch self {
+        case .englishDefault:
+            return StopwordFilterState.defaultListText
+        case .chineseMerged:
+            return StopwordListResource.loadStopwords(named: "zh_merged", subdirectory: "Stopwords/zh-Hans")
+        case .chineseGeneral:
+            return StopwordListResource.loadStopwords(named: "zh_cn_general", subdirectory: "Stopwords/zh-Hans")
+        case .hit:
+            return StopwordListResource.loadStopwords(named: "zh_hit", subdirectory: "Stopwords/zh-Hans")
+        case .baidu:
+            return StopwordListResource.loadStopwords(named: "zh_baidu", subdirectory: "Stopwords/zh-Hans")
+        case .scu:
+            return StopwordListResource.loadStopwords(named: "zh_scu", subdirectory: "Stopwords/zh-Hans")
+        }
+    }
+
+    var normalizedListText: String {
+        StopwordFilterState.normalizeListText(listText)
+    }
+
+    var parsedWordCount: Int {
+        StopwordFilterState.parseList(listText).count
     }
 }

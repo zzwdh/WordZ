@@ -2,19 +2,75 @@ import AppKit
 import SwiftUI
 
 struct WindowAccessor: NSViewRepresentable {
-    let onResolve: (NSWindow?) -> Void
+    struct ResolutionKey: Equatable {
+        let routeID: String?
+        let title: String?
+    }
+
+    let resolutionKey: ResolutionKey
+    let onResolve: (NSWindow?, NSWindow?) -> Void
+
+    init(
+        resolutionKey: ResolutionKey = ResolutionKey(routeID: nil, title: nil),
+        onResolve: @escaping (NSWindow?, NSWindow?) -> Void
+    ) {
+        self.resolutionKey = resolutionKey
+        self.onResolve = onResolve
+    }
+
+    final class Coordinator {
+        weak var lastResolvedWindow: NSWindow?
+        weak var pendingResolvedWindow: NSWindow?
+        var lastResolutionKey: ResolutionKey?
+        var pendingResolutionKey: ResolutionKey?
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
-        DispatchQueue.main.async {
-            onResolve(view.window)
-        }
+        scheduleResolve(for: view, coordinator: context.coordinator)
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        scheduleResolve(for: nsView, coordinator: context.coordinator)
+    }
+
+    private func scheduleResolve(for view: NSView, coordinator: Coordinator) {
+        let window = view.window
+        if coordinator.lastResolvedWindow === window,
+           coordinator.lastResolutionKey == resolutionKey {
+            return
+        }
+        if coordinator.pendingResolvedWindow === window,
+           coordinator.pendingResolutionKey == resolutionKey {
+            return
+        }
+
+        coordinator.pendingResolvedWindow = window
+        coordinator.pendingResolutionKey = resolutionKey
         DispatchQueue.main.async {
-            onResolve(nsView.window)
+            let resolvedWindow = view.window
+            let previousWindow = coordinator.lastResolvedWindow
+            if coordinator.lastResolvedWindow === resolvedWindow,
+               coordinator.lastResolutionKey == resolutionKey {
+                coordinator.pendingResolvedWindow = nil
+                coordinator.pendingResolutionKey = nil
+                return
+            }
+            guard resolvedWindow != nil || previousWindow != nil else {
+                coordinator.pendingResolvedWindow = nil
+                coordinator.pendingResolutionKey = nil
+                return
+            }
+            coordinator.lastResolvedWindow = resolvedWindow
+            coordinator.lastResolutionKey = resolutionKey
+            coordinator.pendingResolvedWindow = nil
+            coordinator.pendingResolutionKey = nil
+            onResolve(resolvedWindow, previousWindow)
         }
     }
 }
@@ -77,13 +133,26 @@ struct WindowRouteBinder: ViewModifier {
     private let enhancementApplicator = NativeWindowEnhancementApplicator()
 
     func body(content: Content) -> some View {
+        let resolvedTitle = titleProvider?(languageMode)
         content.background(
-            WindowAccessor { window in
+            WindowAccessor(
+                resolutionKey: WindowAccessor.ResolutionKey(
+                    routeID: route.id,
+                    title: resolvedTitle
+                )
+            ) { window, previousWindow in
+                if previousWindow !== window {
+                    NativeWindowRouting.unregister(previousWindow, for: route)
+                }
+                guard let window else {
+                    onResolve(nil)
+                    return
+                }
                 NativeWindowRouting.register(window, for: route)
                 NativeWindowRolePolicy.policy(for: route).apply(to: window)
                 chromeConfigurator.apply(to: window, route: route)
-                if let titleProvider {
-                    window?.title = titleProvider(languageMode)
+                if let resolvedTitle {
+                    window.title = resolvedTitle
                 }
                 enhancementApplicator.apply(to: window, route: route)
                 onResolve(window)

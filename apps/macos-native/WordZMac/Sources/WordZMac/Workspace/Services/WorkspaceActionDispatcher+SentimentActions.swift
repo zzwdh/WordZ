@@ -8,8 +8,6 @@ extension WorkspaceActionDispatcher {
             handleWorkspaceIntent(.runAnalysis(.sentiment))
         case .openSourceReader:
             handleWorkspaceIntent(.openSourceReader)
-        case .addCurrentRowToEvidenceWorkbench:
-            handleWorkspaceIntent(.resultArtifact(.captureExcerpt))
         case .exportSummary:
             launch { await self.workspace.exportSentimentSummary(preferredWindowRoute: self.preferredWindowRoute) }
         case .exportStructuredJSON:

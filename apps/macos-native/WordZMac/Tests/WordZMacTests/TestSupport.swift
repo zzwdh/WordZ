@@ -1930,12 +1930,15 @@ private func sentimentCalibrationProfileJSONObject(
     return object
 }
 
-func makeOpenedCorpus(displayName: String = "Demo Corpus") -> OpenedCorpus {
+func makeOpenedCorpus(
+    displayName: String = "Demo Corpus",
+    content: String = "alpha beta gamma alpha beta"
+) -> OpenedCorpus {
     OpenedCorpus(json: [
         "mode": "saved",
         "filePath": "/tmp/demo.txt",
         "displayName": displayName,
-        "content": "alpha beta gamma alpha beta",
+        "content": content,
         "sourceType": "txt"
     ])
 }

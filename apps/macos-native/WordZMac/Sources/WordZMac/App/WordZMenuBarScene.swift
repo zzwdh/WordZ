@@ -19,8 +19,7 @@ struct WordZMenuBarScene: Scene {
             MenuBarStatusMenuView(
                 workspace: workspace,
                 sidebar: workspace.sidebar,
-                settings: settings,
-                taskCenter: workspace.taskCenter
+                settings: settings
             )
             .wordZLocalizedEnvironment(localization)
         } label: {

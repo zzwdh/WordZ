@@ -46,8 +46,6 @@ enum WorkspaceIntent: Equatable, Sendable {
             self = .openWindow(.library)
         case .showSettings:
             self = .showSettings
-        case .showTaskCenterWindow:
-            self = .openWindow(.taskCenter)
         case .showUpdateWindow:
             self = .openWindow(.updatePrompt)
         case .showAboutWindow:
@@ -107,8 +105,6 @@ enum WorkspaceIntent: Equatable, Sendable {
             return .showWelcome
         case .openWindow(.library):
             return .showLibrary
-        case .openWindow(.taskCenter):
-            return .showTaskCenterWindow
         case .openWindow(.updatePrompt):
             return .showUpdateWindow
         case .openWindow(.about):
@@ -117,7 +113,7 @@ enum WorkspaceIntent: Equatable, Sendable {
             return .showHelpWindow
         case .openWindow(.releaseNotes):
             return .showReleaseNotesWindow
-        case .openWindow(.mainWorkspace), .openWindow(.evidenceWorkbench), .openWindow(.sourceReader),
+        case .openWindow(.mainWorkspace), .openWindow(.sourceReader),
              .openWindow(.settings):
             return nil
         case .showSettings:
@@ -140,7 +136,7 @@ enum WorkspaceIntent: Equatable, Sendable {
             return .exportCurrent
         case .resultArtifact(.openSourceReader):
             return .openSourceReader
-        case .resultArtifact(.captureExcerpt):
+        case .resultArtifact:
             return nil
         case .runAnalysis(let analysisIntent):
             return analysisIntent.nativeCommand

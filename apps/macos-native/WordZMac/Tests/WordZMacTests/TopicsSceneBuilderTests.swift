@@ -77,6 +77,7 @@ final class TopicsSceneBuilderTests: XCTestCase {
             modelVersion: base.modelVersion,
             modelProvider: base.modelProvider,
             usesFallbackProvider: base.usesFallbackProvider,
+            language: TokenizeLanguagePreset.cjkFocused.rawValue,
             clusters: base.clusters,
             segments: base.segments,
             totalSegments: base.totalSegments,
@@ -108,6 +109,9 @@ final class TopicsSceneBuilderTests: XCTestCase {
         }) ?? false)
         XCTAssertTrue(scene.summaryExportSnapshot?.metadataLines.contains(where: {
             $0.contains("单词") || $0.contains("Single-word")
+        }) ?? false)
+        XCTAssertTrue(scene.summaryExportSnapshot?.metadataLines.contains(where: {
+            $0.contains("中文优先") || $0.contains("Chinese-focused")
         }) ?? false)
         XCTAssertTrue(scene.summaryExportSnapshot?.metadataLines.contains(where: {
             $0.contains("3")

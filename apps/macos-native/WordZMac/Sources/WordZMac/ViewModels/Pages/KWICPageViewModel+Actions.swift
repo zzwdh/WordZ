@@ -9,7 +9,7 @@ extension KWICPageViewModel {
         switch action {
         case .run:
             return
-        case .saveCorpusSet, .addCurrentRowToEvidenceWorkbench, .setEvidenceReviewStatus, .saveSelectedEvidenceNote, .deleteEvidenceItem, .saveCurrentHitSet, .saveVisibleHitSet, .saveFilteredSavedSet, .saveSelectedSavedSetNotes, .importSavedSetsJSON, .refreshSavedSets, .loadSelectedSavedSet, .deleteSavedSet, .exportSelectedSavedSetJSON:
+        case .saveCorpusSet, .saveCurrentHitSet, .saveVisibleHitSet, .saveFilteredSavedSet, .saveSelectedSavedSetNotes, .importSavedSetsJSON, .refreshSavedSets, .loadSelectedSavedSet, .deleteSavedSet, .exportSelectedSavedSetJSON:
             return
         case .selectSavedSet(let setID):
             selectedSavedSetID = setID

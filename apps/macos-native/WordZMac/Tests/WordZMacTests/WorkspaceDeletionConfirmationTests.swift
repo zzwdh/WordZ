@@ -18,7 +18,7 @@ final class WorkspaceDeletionConfirmationTests: XCTestCase {
         await workspace.deleteEvidenceItem(item.id)
 
         XCTAssertEqual(dialogService.confirmCallCount, 1)
-        XCTAssertEqual(dialogService.confirmPreferredRoute, .evidenceWorkbench)
+        XCTAssertEqual(dialogService.confirmPreferredRoute, .mainWorkspace)
         XCTAssertEqual(repository.deleteEvidenceItemCallCount, 0)
         XCTAssertEqual(repository.evidenceItems.map(\.id), [item.id])
     }

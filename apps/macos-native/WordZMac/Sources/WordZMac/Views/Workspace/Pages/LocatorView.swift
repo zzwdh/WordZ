@@ -2,9 +2,7 @@ import SwiftUI
 
 struct LocatorView: View {
     @Environment(\.wordZLanguageMode) var languageMode
-    @Environment(\.openWindow) private var openWindow
     @ObservedObject var viewModel: LocatorPageViewModel
-    @ObservedObject var evidenceWorkbench: EvidenceWorkbenchViewModel
     let isBusy: Bool
     let onAction: (LocatorPageAction) -> Void
 
@@ -25,7 +23,4 @@ struct LocatorView: View {
         wordZText(zh, en, mode: languageMode)
     }
 
-    func openEvidenceWorkbenchWindow() {
-        openWindow(id: NativeWindowRoute.evidenceWorkbench.id)
-    }
 }

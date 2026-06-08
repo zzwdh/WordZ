@@ -6,7 +6,6 @@ enum WorkspaceResultArtifactCapability: String, Hashable, Sendable {
     case export
     case share
     case openSourceReader
-    case captureExcerpt
 }
 
 enum WorkspaceResultArtifactAction: Hashable, Sendable {
@@ -15,7 +14,6 @@ enum WorkspaceResultArtifactAction: Hashable, Sendable {
     case export
     case share
     case openSourceReader
-    case captureExcerpt
 }
 
 struct WorkspaceResultArtifactActionDescriptor: Identifiable, Equatable, Sendable {
@@ -100,8 +98,7 @@ extension WorkspaceResultArtifactAction {
         .preview,
         .export,
         .share,
-        .openSourceReader,
-        .captureExcerpt
+        .openSourceReader
     ]
 
     var requiredCapability: WorkspaceResultArtifactCapability {
@@ -116,8 +113,6 @@ extension WorkspaceResultArtifactAction {
             return .share
         case .openSourceReader:
             return .openSourceReader
-        case .captureExcerpt:
-            return .captureExcerpt
         }
     }
 
@@ -164,14 +159,6 @@ extension WorkspaceResultArtifactAction {
                 title: wordZText("来源", "Source", mode: languageMode),
                 help: wordZText("打开当前证据的 DB 来源预览", "Open the DB source preview for current evidence", mode: languageMode),
                 systemImage: "doc.text.magnifyingglass",
-                isProminent: false
-            )
-        case .captureExcerpt:
-            return WorkspaceResultArtifactActionDescriptor(
-                action: self,
-                title: wordZText("摘录", "Excerpt", mode: languageMode),
-                help: wordZText("加入摘录篮", "Add to excerpt tray", mode: languageMode),
-                systemImage: "quote.opening",
                 isProminent: false
             )
         }

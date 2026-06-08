@@ -91,7 +91,7 @@ extension LibraryManagementView {
         return nil
     }
 
-    private var filterButton: some View {
+    var filterButton: some View {
         Button {
             isShowingMetadataFilters = true
         } label: {

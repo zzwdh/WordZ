@@ -378,15 +378,7 @@ struct LibraryInspectorView: View {
                     subtitle: wordZText("当前选择的可复制属性", "Copyable properties for the current selection", mode: languageMode)
                 ) {
                     ForEach(scene.details) { detail in
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(detail.title)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 84, alignment: .leading)
-                            Text(detail.value)
-                                .font(.callout)
-                                .textSelection(.enabled)
-                        }
+                        inspectorDetailRow(detail)
                     }
                 }
             }
@@ -401,6 +393,33 @@ struct LibraryInspectorView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func inspectorDetailRow(_ detail: LibraryManagementInspectorDetailItem) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(detail.title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 92, alignment: .leading)
+
+            Text(detail.value)
+                .font(detailValueFont(for: detail.id))
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help(detail.value)
+        }
+    }
+
+    private func detailValueFont(for id: String) -> Font {
+        switch id {
+        case "project-id", "database-file", "source-path":
+            return .callout.monospaced()
+        default:
+            return .callout
+        }
     }
 
     private func inspectorStatusRow(_ item: LibraryManagementInspectorStatusItem) -> some View {

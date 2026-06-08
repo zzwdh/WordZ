@@ -111,48 +111,6 @@ final class RootContentSceneTests: XCTestCase {
         XCTAssertFalse(libraryContext.canConfigureAnnotation)
     }
 
-    func testEvidenceWorkbenchCommandContextKeepsExcerptExportOnly() async {
-        let repository = FakeWorkspaceRepository()
-        repository.evidenceItems = [
-            makeEvidenceItem(
-                id: "evidence-intro-1",
-                sourceKind: .kwic,
-                reviewStatus: .keep,
-                sectionTitle: "Intro"
-            ),
-            makeEvidenceItem(
-                id: "evidence-body-1",
-                sourceKind: .locator,
-                reviewStatus: .keep,
-                sectionTitle: "Body"
-            ),
-            makeEvidenceItem(
-                id: "evidence-body-2",
-                sourceKind: .plot,
-                reviewStatus: .keep,
-                sectionTitle: "Body"
-            ),
-            makeEvidenceItem(
-                id: "evidence-conclusion-1",
-                sourceKind: .topics,
-                reviewStatus: .keep,
-                sectionTitle: "Conclusion"
-            )
-        ]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        await workspace.refreshEvidenceItems()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.selectedItemID = "evidence-body-2"
-
-        let context = workspace.commandContext(for: .evidenceWorkbench)
-        XCTAssertTrue(context.canExportEvidenceDossier)
-        XCTAssertTrue(context.canExportEvidenceJSON)
-        XCTAssertFalse(context.canExportCurrent)
-        XCTAssertFalse(context.canShareContent)
-    }
-
     func testMainWorkspaceCommandContextAppliesSceneViewMenuState() async {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)
@@ -361,17 +319,46 @@ final class RootContentSceneTests: XCTestCase {
         NativeWindowRouting.register(nil, for: .library)
     }
 
+    func testNativeWindowRoutingReplacingRegisteredWindowDoesNotLetOldWindowClearNewRoute() {
+        let oldWindow = NSWindow()
+        let newWindow = NSWindow()
+
+        NativeWindowRouting.register(oldWindow, for: .library)
+        NativeWindowRouting.register(newWindow, for: .library)
+        NativeWindowRouting.unregister(oldWindow, for: .library)
+
+        XCTAssertNil(oldWindow.identifier)
+        XCTAssertEqual(newWindow.identifier, NativeWindowRouting.identifier(for: .library))
+        XCTAssertTrue(NativeWindowRouting.window(for: .library) === newWindow)
+
+        NativeWindowRouting.unregister(newWindow, for: .library)
+    }
+
+    func testNativeWindowRoutingUnregisterClearsOnlyMatchingWindow() {
+        let libraryWindow = NSWindow()
+        let unrelatedWindow = NSWindow()
+
+        NativeWindowRouting.register(libraryWindow, for: .library)
+        NativeWindowRouting.unregister(unrelatedWindow, for: .library)
+
+        XCTAssertTrue(NativeWindowRouting.window(for: .library) === libraryWindow)
+        XCTAssertEqual(libraryWindow.identifier, NativeWindowRouting.identifier(for: .library))
+
+        NativeWindowRouting.unregister(libraryWindow, for: .library)
+        XCTAssertNil(NativeWindowRouting.window(for: .library))
+    }
+
     func testNativeWindowRoutingDebouncesPendingPresentationRequests() {
-        NativeWindowRouting.register(nil, for: .taskCenter)
-        NativeWindowRouting.cancelPendingPresentationRequest(for: .taskCenter)
+        NativeWindowRouting.register(nil, for: .library)
+        NativeWindowRouting.cancelPendingPresentationRequest(for: .library)
 
-        XCTAssertTrue(NativeWindowRouting.shouldRequestPresentation(for: .taskCenter))
-        XCTAssertFalse(NativeWindowRouting.shouldRequestPresentation(for: .taskCenter))
+        XCTAssertTrue(NativeWindowRouting.shouldRequestPresentation(for: .library))
+        XCTAssertFalse(NativeWindowRouting.shouldRequestPresentation(for: .library))
 
-        NativeWindowRouting.cancelPendingPresentationRequest(for: .taskCenter)
-        XCTAssertTrue(NativeWindowRouting.shouldRequestPresentation(for: .taskCenter))
+        NativeWindowRouting.cancelPendingPresentationRequest(for: .library)
+        XCTAssertTrue(NativeWindowRouting.shouldRequestPresentation(for: .library))
 
-        NativeWindowRouting.cancelPendingPresentationRequest(for: .taskCenter)
+        NativeWindowRouting.cancelPendingPresentationRequest(for: .library)
     }
 
     func testWorkspaceMainRouteMapsKeywordTab() {

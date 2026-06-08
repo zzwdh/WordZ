@@ -7,7 +7,6 @@ enum NativeAppCommand: String {
     case showWelcome
     case showLibrary
     case showSettings
-    case showTaskCenterWindow
     case showUpdateWindow
     case showAboutWindow
     case showHelpWindow

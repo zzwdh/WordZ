@@ -693,37 +693,6 @@ final class WorkspaceActionDispatcherTests: XCTestCase {
         XCTAssertEqual(repository.concordanceSavedSets.first?.rows.map(\.id), ["row-1"])
     }
 
-    func testDispatcherKWICAddCurrentRowToEvidenceWorkbenchPersistsItem() async {
-        let repository = FakeWorkspaceRepository()
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-        await workspace.initializeIfNeeded()
-        workspace.kwic.keyword = "node"
-        workspace.kwic.apply(makeKWICResult(rowCount: 3))
-        workspace.kwic.selectedRowID = "1-2"
-        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
-
-        dispatcher.handleKWICAction(.addCurrentRowToEvidenceWorkbench)
-        try? await Task.sleep(nanoseconds: 50_000_000)
-
-        XCTAssertEqual(repository.evidenceItems.count, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .kwic)
-    }
-
-    func testDispatcherLocatorSaveSelectedEvidenceNoteUpdatesRepository() async {
-        let repository = FakeWorkspaceRepository()
-        repository.evidenceItems = [makeEvidenceItem(sourceKind: .locator, reviewStatus: .pending)]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.selectedItemID = repository.evidenceItems.first?.id
-        workspace.evidenceWorkbench.noteDraft = "dispatcher note"
-        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
-
-        dispatcher.handleLocatorAction(.saveSelectedEvidenceNote)
-        try? await Task.sleep(nanoseconds: 50_000_000)
-
-        XCTAssertEqual(repository.evidenceItems.first?.note, "dispatcher note")
-    }
-
     func testDispatcherLocatorLocalActionResyncsSceneGraph() {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)

@@ -7,14 +7,10 @@ extension NativeWindowRoute {
             return l10n("主窗口", table: "Windows", mode: mode, fallback: "Main Window")
         case .library:
             return l10n("语料库", table: "Windows", mode: mode, fallback: "Library")
-        case .evidenceWorkbench:
-            return l10n("摘录篮", table: "Windows", mode: mode, fallback: "Excerpt Tray")
         case .sourceReader:
             return l10n("DB 来源预览", table: "Windows", mode: mode, fallback: "DB Source Preview")
         case .settings:
             return l10n("设置", table: "Windows", mode: mode, fallback: "Settings")
-        case .taskCenter:
-            return l10n("任务中心", table: "Windows", mode: mode, fallback: "Task Center")
         case .updatePrompt:
             return l10n("更新", table: "Windows", mode: mode, fallback: "Update")
         case .about:

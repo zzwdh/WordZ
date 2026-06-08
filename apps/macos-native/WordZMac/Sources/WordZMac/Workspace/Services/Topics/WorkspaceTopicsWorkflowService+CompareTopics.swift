@@ -85,8 +85,8 @@ extension WorkspaceTopicsWorkflowService {
             analysisWorkflow.setBusy(true, features: featureSet)
             defer { analysisWorkflow.setBusy(false, features: featureSet) }
 
-            let options = topicAnalysisOptions(for: features.topics)
             let payload = try await buildCompareTopicsPayload(context: context)
+            let options = topicAnalysisOptions(for: features.topics, text: payload.text)
             let createdTaskID = taskCenter.beginTask(
                 title: wordZText("Compare x Topics", "Compare x Topics", mode: .system),
                 detail: wordZText("正在准备 target / reference 主题建模…", "Preparing target / reference topic modeling…", mode: .system),
@@ -241,6 +241,7 @@ extension WorkspaceTopicsWorkflowService {
             modelVersion: result.modelVersion,
             modelProvider: result.modelProvider,
             usesFallbackProvider: result.usesFallbackProvider,
+            language: result.language,
             diagnostics: result.diagnostics,
             clusters: result.clusters,
             segments: enrichedSegments,

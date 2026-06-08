@@ -16,10 +16,10 @@ extension LibrarySidebarViewModel {
                 id: $0.id,
                 title: $0.name,
                 subtitle: l10nFormat(
-                    "%d 个 DB 语料库",
+                    "%d 条语料",
                     table: "Errors",
                     mode: languageMode,
-                    fallback: "%d DB corpora",
+                    fallback: "%d corpora",
                     $0.corpusIDs.count
                 ),
                 isSelected: $0.id == selectedCorpusSetID
@@ -28,21 +28,21 @@ extension LibrarySidebarViewModel {
         let targetSummary: WorkspaceSidebarCorpusSlotSceneModel
         if let selectedCorpusSet {
             targetSummary = WorkspaceSidebarCorpusSlotSceneModel(
-                title: wordZText("目标 DB 语料集", "Target DB Corpus Set", mode: languageMode),
+                title: wordZText("目标语料集", "Target Corpus Set", mode: languageMode),
                 corpusID: nil,
                 summary: selectedCorpusSet.name,
                 detail: l10nFormat(
-                    "%d 个 DB 语料库 · DB 语料集",
+                    "%d 条语料 · 语料集",
                     table: "Errors",
                     mode: languageMode,
-                    fallback: "%d DB corpora · DB corpus set",
+                    fallback: "%d corpora · corpus set",
                     selectedCorpusSet.corpusIDs.count
                 ),
                 isOptional: false
             )
         } else if let target = targetCorpus {
             targetSummary = WorkspaceSidebarCorpusSlotSceneModel(
-                title: wordZText("目标 DB", "Target DB Corpus", mode: languageMode),
+                title: wordZText("目标语料", "Target Corpus", mode: languageMode),
                 corpusID: target.id,
                 summary: target.name,
                 detail: target.databaseLocationSummary(mode: languageMode),
@@ -50,16 +50,16 @@ extension LibrarySidebarViewModel {
             )
         } else {
             targetSummary = WorkspaceSidebarCorpusSlotSceneModel(
-                title: wordZText("目标 DB", "Target DB Corpus", mode: languageMode),
+                title: wordZText("目标语料", "Target Corpus", mode: languageMode),
                 corpusID: nil,
-                summary: wordZText("未选择 DB 语料库", "No target DB corpus selected", mode: languageMode),
-                detail: wordZText("请选择要分析的 DB 语料库或 DB 语料集", "Choose the DB corpus or DB corpus set you want to analyze", mode: languageMode),
+                summary: wordZText("未选择语料", "No target corpus selected", mode: languageMode),
+                detail: wordZText("请选择要分析的语料或语料集", "Choose the corpus or corpus set you want to analyze", mode: languageMode),
                 isOptional: false
             )
         }
         let referenceSummary = referenceCorpus.map {
             WorkspaceSidebarCorpusSlotSceneModel(
-                title: wordZText("参照 DB", "Reference DB Corpus", mode: languageMode),
+                title: wordZText("参照语料", "Reference Corpus", mode: languageMode),
                 corpusID: $0.id,
                 summary: $0.name,
                 detail: $0.databaseLocationSummary(mode: languageMode),
@@ -86,7 +86,7 @@ extension LibrarySidebarViewModel {
             targetCorpus: targetSummary,
             referenceCorpus: referenceSummary,
             selectedCorpusSetSummary: selectedCorpusSet.map {
-                wordZText("当前 DB 语料集：", "DB Corpus Set: ", mode: languageMode) + $0.name
+                wordZText("当前语料集：", "Corpus Set: ", mode: languageMode) + $0.name
             },
             corpusOptions: corpusOptions,
             corpusSets: corpusSets,
@@ -114,7 +114,7 @@ extension LibrarySidebarViewModel {
         if let workflowReferenceSummaryOverride,
            !workflowReferenceSummaryOverride.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return WorkspaceSidebarCorpusSlotSceneModel(
-                title: wordZText("参照 DB", "Reference DB Corpus", mode: languageMode),
+                title: wordZText("参照语料", "Reference Corpus", mode: languageMode),
                 corpusID: workflowReferenceCorpusID,
                 summary: workflowReferenceSummaryOverride,
                 detail: workflowReferenceDetailOverride?.isEmpty == false
@@ -124,10 +124,10 @@ extension LibrarySidebarViewModel {
             )
         }
         return WorkspaceSidebarCorpusSlotSceneModel(
-            title: wordZText("参照 DB", "Reference DB Corpus", mode: languageMode),
+            title: wordZText("参照语料", "Reference Corpus", mode: languageMode),
             corpusID: nil,
             summary: wordZText("可选", "Optional", mode: languageMode),
-            detail: wordZText("可选；用于关键词等 DB 对比分析", "Optional; used for keyword-style DB comparisons", mode: languageMode),
+            detail: wordZText("可选；用于关键词等对比分析", "Optional; used for keyword-style comparisons", mode: languageMode),
             isOptional: true
         )
     }

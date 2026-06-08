@@ -3,10 +3,6 @@ import Foundation
 enum LocatorPageAction: Equatable {
     case run
     case saveCorpusSet
-    case addCurrentRowToEvidenceWorkbench
-    case setEvidenceReviewStatus(String, EvidenceReviewStatus)
-    case saveSelectedEvidenceNote
-    case deleteEvidenceItem(String)
     case saveCurrentHitSet
     case saveVisibleHitSet
     case saveFilteredSavedSet

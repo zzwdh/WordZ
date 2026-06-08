@@ -5,7 +5,8 @@ extension LibraryManagementViewModel {
     func buildInspector(
         visibleCorpora: [LibraryCorpusItem],
         corporaByFolderID: [String: [LibraryCorpusItem]],
-        corporaByID: [String: LibraryCorpusItem]
+        corporaByID: [String: LibraryCorpusItem],
+        readinessByCorpusID: [String: LibraryCorpusReadinessSceneModel] = [:]
     ) -> LibraryManagementInspectorSceneModel? {
         if let selectedCorpusSet {
             let resolvedCorpora = selectedCorpusSet.corpusIDs.compactMap { corporaByID[$0] }
@@ -16,10 +17,10 @@ extension LibraryManagementViewModel {
                 statusItems: [
                     .init(
                         id: "set-db",
-                        title: hasResolvedCorpora ? "可分析 DB 语料集" : "语料集暂无可用 DB",
+                        title: hasResolvedCorpora ? "可分析语料集" : "语料集暂无可用语料",
                         detail: hasResolvedCorpora
-                            ? "分析时会打开合并后的 .db 语料集，范围来自下方 \(resolvedCorpora.count) 个 DB。"
-                            : "保存的成员在当前库中不可用，需要重新选择语料后再制作 DB 语料集。",
+                            ? "分析时会打开合并后的语料集，范围来自下方 \(resolvedCorpora.count) 条语料。"
+                            : "保存的成员在当前库中不可用，需要重新选择语料后再保存为语料集。",
                         systemImage: hasResolvedCorpora ? "checkmark.seal" : "exclamationmark.triangle",
                         level: hasResolvedCorpora ? .success : .blocked
                     ),
@@ -49,13 +50,13 @@ extension LibraryManagementViewModel {
         if selectedCorpusIDs.count > 1 {
             let currentSelection = selectedCorpora
             return LibraryManagementInspectorSceneModel(
-                title: "已选择 \(selectedCorpusIDs.count) 个 DB",
-                subtitle: "Corpus Library (.db)",
+                title: "已选择 \(selectedCorpusIDs.count) 条语料",
+                subtitle: "Corpus Library",
                 statusItems: [
                     .init(
                         id: "batch-build",
-                        title: "可制作命名 DB 语料集",
-                        detail: "所选 DB 会合并为一个可复用的 .db 语料集，例如 a+b+c -> dbA，b+c+d -> dbB。",
+                        title: "可保存为命名语料集",
+                        detail: "所选语料会合并为一个可复用的 .db 语料集，例如 a+b+c -> dbA，b+c+d -> dbB。",
                         systemImage: "tray.full",
                         level: .success
                     ),
@@ -64,7 +65,11 @@ extension LibraryManagementViewModel {
                         title: "批量整理建议",
                         detail: batchReadinessSummary(for: currentSelection),
                         systemImage: "checklist",
-                        level: currentSelection.contains(where: { makeReadinessScene(for: $0, languageMode: WordZLocalization.shared.effectiveMode).level == .blocked }) ? .warning : .info
+                        level: currentSelection.contains(where: { corpus in
+                            let level = readinessByCorpusID[corpus.id]?.level
+                                ?? makeReadinessScene(for: corpus, languageMode: WordZLocalization.shared.effectiveMode).level
+                            return level == .blocked
+                        }) ? .warning : .info
                     )
                 ],
                 details: [
@@ -74,39 +79,34 @@ extension LibraryManagementViewModel {
                     .init(id: "batch-sources", title: "源格式", value: sourceTypeSummary(for: currentSelection))
                 ],
                 actions: [
-                    .init(id: "save-set", title: "合并为 DB 语料集", role: .primary, action: .saveCurrentCorpusSet)
+                    .init(id: "save-set", title: "保存为语料集", role: .primary, action: .saveCurrentCorpusSet)
                 ]
             )
         }
 
         if let selectedCorpus {
             let languageMode = WordZLocalization.shared.effectiveMode
-            let readiness = makeReadinessScene(for: selectedCorpus, languageMode: languageMode)
+            let readiness = readinessByCorpusID[selectedCorpus.id]
+                ?? makeReadinessScene(for: selectedCorpus, languageMode: languageMode)
             return LibraryManagementInspectorSceneModel(
                 title: selectedCorpus.name,
-                subtitle: "DB 语料库",
+                subtitle: "语料",
                 statusItems: corpusInspectorStatusItems(
-                    for: selectedCorpus,
                     readiness: readiness,
                     languageMode: languageMode
                 ),
                 details: [
-                    .init(id: "project-id", title: "Project ID", value: selectedCorpus.id),
-                    .init(id: "full-name", title: "Full Name", value: selectedCorpus.name),
-                    .init(id: "short-name", title: "Short Name", value: selectedCorpus.name),
+                    .init(id: "name", title: "名称", value: selectedCorpus.name),
                     .init(id: "database-file", title: "DB File", value: selectedCorpus.databaseFileDisplayName),
-                    .init(id: "format", title: "Format", value: "db"),
                     .init(id: "folder", title: "文件夹", value: selectedCorpus.folderName),
                     .init(id: "source", title: "Source Format", value: selectedCorpus.sourceType.uppercased()),
-                    .init(id: "source-path", title: "Source", value: selectedCorpus.representedPath.isEmpty ? "WordZ DB" : selectedCorpus.representedPath),
-                    .init(id: "readiness", title: "Readiness", value: "\(readiness.title) · \(readiness.scoreText)"),
-                    .init(id: "issues", title: "Action", value: readinessActionText(for: readiness)),
-                    .init(id: "zh-analysis", title: "中文分析", value: chineseAnalysisSupportText(mode: languageMode)),
-                    .init(id: "indexed", title: "Indexed", value: "TRUE")
+                    .init(id: "source-path", title: "来源位置", value: selectedCorpus.representedPath.isEmpty ? "WordZ DB 内部来源" : selectedCorpus.representedPath),
+                    .init(id: "metadata", title: "元数据", value: selectedCorpus.metadata.compactSummary(in: languageMode)),
+                    .init(id: "project-id", title: "项目 ID", value: selectedCorpus.id)
                 ],
                 actions: [
                     .init(id: "open", title: "打开语料", role: .primary, action: .openSelectedCorpus),
-                    .init(id: "info", title: "DB 详情", role: .primary, action: .showSelectedCorpusInfo),
+                    .init(id: "info", title: "详情", role: .normal, action: .showSelectedCorpusInfo),
                     .init(id: "preview", title: "快速预览", role: .normal, action: .quickLookSelectedCorpus),
                     .init(id: "share", title: "分享语料", role: .normal, action: .shareSelectedCorpus),
                     .init(id: "rename-corpus", title: "重命名", role: .normal, action: .renameSelectedCorpus),
@@ -150,13 +150,13 @@ extension LibraryManagementViewModel {
                     .init(
                         id: "folder-scope",
                         title: "管理范围，不是分析文件",
-                        detail: "文件夹用于组织 DB；真正进入分析的是单个 DB 或命名 DB 语料集。",
+                        detail: "文件夹用于组织语料；真正进入分析的是单条语料或命名语料集。",
                         systemImage: "folder",
                         level: .info
                     ),
                     .init(
                         id: "folder-build",
-                        title: "可在此制作 DB",
+                        title: "可在此导入语料",
                         detail: preserveHierarchy ? "导入会保留文件夹层级，便于后续追溯来源。" : "导入会放入当前文件夹，不保留外部层级。",
                         systemImage: "hammer",
                         level: .success
@@ -168,7 +168,7 @@ extension LibraryManagementViewModel {
                     .init(id: "preserve-hierarchy", title: "导入保留层级", value: preserveHierarchy ? "开启" : "关闭")
                 ],
                 actions: [
-                    .init(id: "import-folder", title: "在此制作 DB", role: .primary, action: .importPaths),
+                    .init(id: "import-folder", title: "在此导入", role: .primary, action: .importPaths),
                     .init(id: "rename-folder", title: "重命名文件夹", role: .normal, action: .renameSelectedFolder),
                     .init(id: "delete-folder", title: "删除文件夹", role: .destructive, action: .deleteSelectedFolder)
                 ]
@@ -179,7 +179,6 @@ extension LibraryManagementViewModel {
     }
 
     private func corpusInspectorStatusItems(
-        for corpus: LibraryCorpusItem,
         readiness: LibraryCorpusReadinessSceneModel,
         languageMode: AppLanguageMode
     ) -> [LibraryManagementInspectorStatusItem] {
@@ -190,24 +189,6 @@ extension LibraryManagementViewModel {
                 detail: readiness.detailText,
                 systemImage: statusImage(for: readiness.level),
                 level: statusLevel(for: readiness.level)
-            ),
-            .init(
-                id: "db-project",
-                title: "DB 项目",
-                detail: "\(corpus.databaseFileDisplayName) · \(corpus.folderName) · \(corpus.id)",
-                systemImage: "externaldrive",
-                level: .info
-            ),
-            .init(
-                id: "source-chain",
-                title: "来源链",
-                detail: sourceChainSummary(
-                    sourceType: corpus.sourceType,
-                    representedPath: corpus.representedPath,
-                    databaseFileName: corpus.databaseFileDisplayName
-                ),
-                systemImage: "point.3.connected.trianglepath.dotted",
-                level: corpus.representedPath.isEmpty ? .warning : .info
             ),
             .init(
                 id: "zh-analysis",
@@ -230,17 +211,17 @@ extension LibraryManagementViewModel {
         }.count
         if pendingCleaningCount > 0 {
             return String(
-                format: wordZText("建议先清洗 %d 个 DB，再制作最终语料集。", "Clean %d DB corpora before saving the final set.", mode: languageMode),
+                format: wordZText("建议先清洗 %d 条语料，再保存最终语料集。", "Clean %d corpora before saving the final set.", mode: languageMode),
                 pendingCleaningCount
             )
         }
         if missingMetadataCount > 0 {
             return String(
-                format: wordZText("有 %d 个 DB 缺元数据；可先批量编辑，后续筛选和报告会更可靠。", "%d DB corpora have missing metadata; batch-editing improves filtering and reports.", mode: languageMode),
+                format: wordZText("有 %d 条语料缺元数据；可先批量编辑，后续筛选和报告会更可靠。", "%d corpora have missing metadata; batch-editing improves filtering and reports.", mode: languageMode),
                 missingMetadataCount
             )
         }
-        return wordZText("当前选择可直接合并为 DB 语料集。", "The current selection can be merged into a DB corpus set.", mode: languageMode)
+        return wordZText("当前选择可直接保存为语料集。", "The current selection can be saved as a corpus set.", mode: languageMode)
     }
 
     private func statusImage(for level: LibraryCorpusReadinessLevel) -> String {
@@ -281,8 +262,8 @@ extension LibraryManagementViewModel {
 
     private func chineseAnalysisSupportText(mode: AppLanguageMode) -> String {
         wordZText(
-            "中英混合 tokenizer 已用于 Stats / KWIC / N-gram / Compare / Keyword / Collocate。",
-            "Mixed Chinese/English tokenization is used by Stats / KWIC / N-gram / Compare / Keyword / Collocate.",
+            "中英混合 tokenizer 已用于 Stats / KWIC / N-gram / Compare / Keyword / Collocate / Topics / Sentiment。",
+            "Mixed Chinese/English tokenization is used by Stats / KWIC / N-gram / Compare / Keyword / Collocate / Topics / Sentiment.",
             mode: mode
         )
     }

@@ -102,8 +102,10 @@ enum TopicAnalysisError: LocalizedError {
 }
 
 struct TopicAnalysisOptions: Equatable, Sendable {
+    static let englishLanguage = "english"
+
     var granularity: TopicAnalysisGranularity = .paragraph
-    var language: String = "english"
+    var language: String = TopicAnalysisOptions.englishLanguage
     var minTopicSize: Int = 2
     var includeOutliers: Bool = true
     var searchQuery: String = ""
@@ -213,6 +215,7 @@ struct TopicAnalysisResult: Equatable, Sendable {
     let modelVersion: String
     let modelProvider: String
     let usesFallbackProvider: Bool
+    let language: String
     let diagnostics: TopicAnalysisDiagnostics
     let clusters: [TopicClusterSummary]
     let segments: [TopicSegmentRow]
@@ -225,6 +228,7 @@ struct TopicAnalysisResult: Equatable, Sendable {
         modelVersion: String,
         modelProvider: String,
         usesFallbackProvider: Bool,
+        language: String = TopicAnalysisOptions.englishLanguage,
         diagnostics: TopicAnalysisDiagnostics = .default,
         clusters: [TopicClusterSummary],
         segments: [TopicSegmentRow],
@@ -236,6 +240,7 @@ struct TopicAnalysisResult: Equatable, Sendable {
         self.modelVersion = modelVersion
         self.modelProvider = modelProvider
         self.usesFallbackProvider = usesFallbackProvider
+        self.language = language
         self.diagnostics = diagnostics
         self.clusters = clusters
         self.segments = segments

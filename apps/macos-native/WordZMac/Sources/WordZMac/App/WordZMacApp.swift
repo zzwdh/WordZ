@@ -32,11 +32,6 @@ package enum WordZCoreAppScenes {
         }
         .nativeWindowScenePresentation(.library)
 
-        evidenceWorkbenchWindow(
-            workspace: workspace,
-            localization: localization
-        )
-
         Window("DB Source Preview", id: NativeWindowRoute.sourceReader.id) {
             SourceReaderWindowView(workspace: workspace)
                 .wordZLocalizedEnvironment(localization)
@@ -48,12 +43,6 @@ package enum WordZCoreAppScenes {
                 .wordZLocalizedEnvironment(localization)
         }
         .nativeWindowScenePresentation(.settings)
-
-        Window("Task Center", id: NativeWindowRoute.taskCenter.id) {
-            TaskCenterWindowView(workspace: workspace)
-                .wordZLocalizedEnvironment(localization)
-        }
-        .nativeWindowScenePresentation(.taskCenter)
 
         Window("Update", id: NativeWindowRoute.updatePrompt.id) {
             UpdateWindowView(workspace: workspace)

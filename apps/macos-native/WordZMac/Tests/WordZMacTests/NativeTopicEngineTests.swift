@@ -112,11 +112,15 @@ final class NativeTopicEngineTests: XCTestCase {
 
         let result = try await engine.analyze(
             text: text,
-            options: TopicAnalysisOptions(minTopicSize: 1),
+            options: TopicAnalysisOptions(
+                language: TokenizeLanguagePreset.cjkFocused.rawValue,
+                minTopicSize: 1
+            ),
             progress: nil
         )
 
         XCTAssertEqual(result.modelProvider, "hashed-fallback")
+        XCTAssertEqual(result.language, TokenizeLanguagePreset.cjkFocused.rawValue)
         XCTAssertTrue(result.usesFallbackProvider)
         XCTAssertEqual(result.diagnostics.providerTier, .hashedFallback)
         XCTAssertTrue(result.warnings.contains(where: { $0.contains("当前 provider 非 bundled") }))

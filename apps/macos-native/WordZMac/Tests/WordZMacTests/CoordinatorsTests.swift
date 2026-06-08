@@ -201,6 +201,50 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertFalse(repository.savedWorkspaceDrafts.isEmpty)
     }
 
+    func testWorkspaceFlowCoordinatorRunTopicsDetectsChineseLanguageOption() async {
+        let repository = FakeWorkspaceRepository(
+            openedCorpus: makeOpenedCorpus(
+                content: "城市交通系统正在优化公交调度。医疗团队正在改善远程问诊服务。"
+            )
+        )
+        let sceneStore = WorkspaceSceneStore()
+        sceneStore.applyAppInfo(repository.bootstrapState.appInfo)
+        let sessionStore = WorkspaceSessionStore()
+        sessionStore.applyBootstrap(snapshot: repository.bootstrapState.workspaceSnapshot)
+        let libraryCoordinator = LibraryCoordinator(repository: repository, sessionStore: sessionStore)
+        let flowCoordinator = makeWorkspaceFlowCoordinator(
+            repository: repository,
+            workspacePersistence: WorkspacePersistenceService(),
+            workspacePresentation: WorkspacePresentationService(),
+            sceneStore: sceneStore,
+            windowDocumentController: NativeWindowDocumentController(),
+            dialogService: FakeDialogService(),
+            sessionStore: sessionStore,
+            libraryCoordinator: libraryCoordinator
+        )
+        let sidebar = LibrarySidebarViewModel()
+        sidebar.applyBootstrap(repository.bootstrapState)
+        sidebar.selectedCorpusID = "corpus-1"
+        let features = WorkspaceFeatureSet(
+            sidebar: sidebar,
+            shell: WorkspaceShellViewModel(),
+            library: LibraryManagementViewModel(),
+            stats: StatsPageViewModel(),
+            topics: TopicsPageViewModel(),
+            compare: ComparePageViewModel(),
+            chiSquare: ChiSquarePageViewModel(),
+            ngram: NgramPageViewModel(),
+            kwic: KWICPageViewModel(),
+            collocate: CollocatePageViewModel(),
+            locator: LocatorPageViewModel(),
+            settings: WorkspaceSettingsViewModel()
+        )
+
+        await flowCoordinator.runTopics(features: features)
+
+        XCTAssertEqual(repository.lastRunTopicsOptions?.language, TokenizeLanguagePreset.cjkFocused.rawValue)
+    }
+
     func testWorkspaceFlowCoordinatorRunTopicsIgnoresConcurrentDuplicateRequests() async {
         let repository = FakeWorkspaceRepository()
         repository.topicsDelayNanoseconds = 80_000_000
@@ -621,8 +665,8 @@ final class CoordinatorsTests: XCTestCase {
         try await coordinator.saveCurrentCorpusSet(into: library, sidebar: sidebar)
 
         XCTAssertEqual(repository.saveCorpusSetCallCount, 1)
-        XCTAssertEqual(dialog.promptTextTitle, "制作 DB 语料集")
-        XCTAssertEqual(dialog.promptTextConfirmTitle, "制作 DB")
+        XCTAssertEqual(dialog.promptTextTitle, "保存为语料集")
+        XCTAssertEqual(dialog.promptTextConfirmTitle, "保存")
         XCTAssertEqual(library.selectedCorpusSet?.name, "课堂语料集")
         XCTAssertEqual(sidebar.selectedCorpusSetID, library.selectedCorpusSetID)
         XCTAssertTrue(library.scene.statusMessage.contains("已保存语料集"))

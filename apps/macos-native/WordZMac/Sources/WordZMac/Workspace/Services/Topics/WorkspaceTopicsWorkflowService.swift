@@ -47,7 +47,7 @@ final class WorkspaceTopicsWorkflowService {
             analysisWorkflow.setBusy(true, features: featureSet)
             defer { analysisWorkflow.setBusy(false, features: featureSet) }
 
-            let options = topicAnalysisOptions(for: features.topics)
+            let options = topicAnalysisOptions(for: features.topics, text: corpus.content)
             let createdTaskID = taskCenter.beginTask(
                 title: wordZText("Topics 建模", "Run Topics", mode: .system),
                 detail: wordZText("正在准备主题建模…", "Preparing topic modeling…", mode: .system),
@@ -163,16 +163,46 @@ final class WorkspaceTopicsWorkflowService {
         return true
     }
 
-    func topicAnalysisOptions(for viewModel: any WorkspaceTopicsPageState) -> TopicAnalysisOptions {
+    func topicAnalysisOptions(
+        for viewModel: any WorkspaceTopicsPageState,
+        text: String? = nil
+    ) -> TopicAnalysisOptions {
         TopicAnalysisOptions(
             granularity: .paragraph,
-            language: "english",
+            language: topicAnalysisLanguage(for: text),
             minTopicSize: viewModel.minTopicSizeValue,
             includeOutliers: viewModel.includeOutliers,
             searchQuery: viewModel.normalizedQuery,
             searchOptions: viewModel.searchOptions,
             stopwordFilter: viewModel.stopwordFilter
         )
+    }
+
+    func topicAnalysisLanguage(for text: String?) -> String {
+        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return TopicAnalysisOptions.englishLanguage
+        }
+
+        var hasCJK = false
+        var hasLatin = false
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x0041...0x005A, 0x0061...0x007A, 0x00C0...0x024F:
+                hasLatin = true
+            case 0x3040...0x30FF, 0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF:
+                hasCJK = true
+            default:
+                continue
+            }
+            if hasCJK && hasLatin {
+                return TokenizeLanguagePreset.mixedChineseEnglish.rawValue
+            }
+        }
+
+        if hasCJK {
+            return TokenizeLanguagePreset.cjkFocused.rawValue
+        }
+        return TopicAnalysisOptions.englishLanguage
     }
 }
 

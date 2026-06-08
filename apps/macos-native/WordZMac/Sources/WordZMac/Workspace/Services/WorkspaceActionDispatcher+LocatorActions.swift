@@ -8,14 +8,6 @@ extension WorkspaceActionDispatcher {
             handleWorkspaceIntent(.runAnalysis(.locator))
         case .saveCorpusSet:
             launch { await self.workspace.saveLocatorCorpusSet(preferredWindowRoute: self.preferredWindowRoute) }
-        case .addCurrentRowToEvidenceWorkbench:
-            handleWorkspaceIntent(.resultArtifact(.captureExcerpt))
-        case .setEvidenceReviewStatus(let itemID, let reviewStatus):
-            launch { await self.workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: reviewStatus) }
-        case .saveSelectedEvidenceNote:
-            launch { await self.workspace.saveSelectedEvidenceNote() }
-        case .deleteEvidenceItem(let itemID):
-            launch { await self.workspace.deleteEvidenceItem(itemID) }
         case .saveCurrentHitSet:
             launch { await self.workspace.saveLocatorCurrentHitSet(preferredWindowRoute: self.preferredWindowRoute) }
         case .saveVisibleHitSet:

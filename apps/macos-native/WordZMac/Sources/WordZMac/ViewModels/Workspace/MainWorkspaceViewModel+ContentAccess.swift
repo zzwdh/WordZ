@@ -154,23 +154,7 @@ extension MainWorkspaceViewModel {
         if canOpenSourceReaderContent(for: tab) {
             capabilities.insert(.openSourceReader)
         }
-        if canCaptureExcerptFromCurrentResult(for: tab) {
-            capabilities.insert(.captureExcerpt)
-        }
         return capabilities
-    }
-
-    private func canCaptureExcerptFromCurrentResult(for tab: WorkspaceDetailTab) -> Bool {
-        switch tab {
-        case .kwic:
-            return kwic.selectedSceneRow != nil
-        case .locator:
-            return locator.selectedSceneRow != nil
-        case .sentiment:
-            return sentiment.canOpenSelectedRowSourceReader
-        case .stats, .word, .tokenize, .topics, .compare, .keyword, .chiSquare, .plot, .ngram, .cluster, .collocate, .library, .settings:
-            return false
-        }
     }
 
     var currentReportTextDocuments: [AnalysisReportBundleTextDocument] {
@@ -200,29 +184,11 @@ extension MainWorkspaceViewModel {
             )
         }
 
-        if let evidenceDossierDocument = currentEvidenceDossierDocument {
-            documents.append(evidenceDossierDocument)
-        }
-
         if let sentimentExplainerDocument = currentSentimentExplainerDocument {
             documents.append(sentimentExplainerDocument)
         }
 
         return documents
-    }
-
-    var currentEvidenceDossierDocument: AnalysisReportBundleTextDocument? {
-        guard let document = try? EvidenceMarkdownPacketSupport.document(
-            items: evidenceWorkbench.filteredItems,
-            filterSummary: evidenceWorkbench.exportScopeSummary(in: .system)
-        ) else {
-            return nil
-        }
-        return AnalysisReportBundleTextDocument(
-            relativePath: "reading/excerpts.txt",
-            description: "Current kept excerpts for handoff.",
-            document: document
-        )
     }
 
     var currentSentimentExplainerDocument: AnalysisReportBundleTextDocument? {

@@ -74,17 +74,17 @@ struct WorkspaceSidebarSceneModel: Equatable {
         engineStatus: l10n("正在连接本地引擎...", table: "Errors", mode: .system, fallback: "Connecting to the native engine…"),
         engineState: .connecting,
         targetCorpus: WorkspaceSidebarCorpusSlotSceneModel(
-            title: "Target DB Corpus",
+            title: "Target Corpus",
             corpusID: nil,
-            summary: l10n("未选择 DB 语料库", table: "Errors", mode: .system, fallback: "No DB corpus selected"),
-            detail: "Select a DB corpus",
+            summary: l10n("未选择语料", table: "Errors", mode: .system, fallback: "No corpus selected"),
+            detail: "Select a corpus",
             isOptional: false
         ),
         referenceCorpus: WorkspaceSidebarCorpusSlotSceneModel(
-            title: "Reference DB Corpus",
+            title: "Reference Corpus",
             corpusID: nil,
             summary: "Optional",
-            detail: "Select a reference DB corpus",
+            detail: "Select a reference corpus",
             isOptional: true
         ),
         selectedCorpusSetSummary: nil,

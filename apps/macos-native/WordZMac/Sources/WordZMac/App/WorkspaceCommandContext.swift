@@ -169,22 +169,6 @@ extension MainWorkspaceViewModel {
                 canManageAnalysisPresets: false,
                 canExportReportBundle: false
             )
-        case .evidenceWorkbench:
-            return WorkspaceCommandContext(
-                route: route,
-                canImportCorpora: false,
-                canOpenSelectedCorpus: false,
-                canOpenSourceView: false,
-                canConfigureAnnotation: false,
-                canQuickLookContent: false,
-                canShareContent: false,
-                canExportCurrent: false,
-                canExportEvidenceDossier: evidenceWorkbench.items.contains(where: { $0.reviewStatus == .keep }),
-                canExportEvidenceJSON: !evidenceWorkbench.items.isEmpty,
-                canSaveAnalysisPreset: false,
-                canManageAnalysisPresets: false,
-                canExportReportBundle: false
-            )
         case .sourceReader:
             return WorkspaceCommandContext(
                 route: route,
@@ -213,7 +197,7 @@ extension MainWorkspaceViewModel {
                 canManageAnalysisPresets: false,
                 canExportReportBundle: false
             )
-        case .taskCenter, .updatePrompt, .about, .help, .releaseNotes:
+        case .updatePrompt, .about, .help, .releaseNotes:
             return WorkspaceCommandContext(
                 route: route,
                 canImportCorpora: false,

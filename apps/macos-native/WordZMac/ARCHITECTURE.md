@@ -56,6 +56,10 @@ notifications, quick look, and macOS window-facing services.
 `Views` owns SwiftUI and AppKit bridge code. It may render state and send
 actions, but business orchestration and persistence stay outside this layer.
 
+`App/WordZMacApp.swift` owns the remaining top-level SwiftUI window scene
+declarations. Removed standalone feature windows should not keep stale App
+companion files or scene routes.
+
 ## Boundary Rules
 
 Run `Scripts/architecture-guard.sh` before landing structure changes. Run

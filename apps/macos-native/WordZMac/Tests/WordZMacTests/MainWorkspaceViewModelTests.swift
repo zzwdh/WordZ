@@ -19,6 +19,20 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertFalse(workspace.isWelcomePresented)
     }
 
+    func testInitializeIfNeededReportsWhetherInitializationRan() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        let firstInitialize = await workspace.initializeIfNeeded()
+        let listLibraryCallCountAfterFirstInitialize = repository.listLibraryCallCount
+        let secondInitialize = await workspace.initializeIfNeeded()
+
+        XCTAssertTrue(firstInitialize)
+        XCTAssertFalse(secondInitialize)
+        XCTAssertEqual(repository.loadBootstrapStateCallCount, 1)
+        XCTAssertEqual(repository.listLibraryCallCount, listLibraryCallCountAfterFirstInitialize)
+    }
+
     func testRunAnalysisFlowsUpdateSceneGraphResultNodes() async {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)
@@ -148,7 +162,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(repository.openSavedCorpusCallCount, openedCorpusCountBefore)
         XCTAssertEqual(repository.lastRunStatsText, "alpha beta gamma")
         XCTAssertEqual(workspace.sidebar.scene.targetCorpus.summary, "Merged Set")
-        XCTAssertEqual(workspace.sidebar.scene.targetCorpus.detail, "2 个 DB 语料库 · DB 语料集")
+        XCTAssertEqual(workspace.sidebar.scene.targetCorpus.detail, "2 条语料 · 语料集")
     }
 
     func testOpenKeywordKWICUsesSelectedKeywordRowFocusScope() async {
@@ -1111,7 +1125,6 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(artifact.supports(.export))
         XCTAssertTrue(artifact.supports(.share))
         XCTAssertFalse(artifact.supports(.openSourceReader))
-        XCTAssertFalse(artifact.supports(.captureExcerpt))
         XCTAssertEqual(
             artifact.actionDescriptors(in: .english).map(\.action),
             [.copy, .preview, .export, .share]
@@ -1180,7 +1193,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(dialogService.savePathPreferredRoute, .mainWorkspace)
     }
 
-    func testCurrentResultArtifactExposesReaderAndExcerptCapabilitiesForKWIC() async throws {
+    func testCurrentResultArtifactExposesReaderCapabilityForKWIC() async throws {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)
 
@@ -1191,7 +1204,10 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         let artifact = try XCTUnwrap(workspace.currentResultArtifact)
         XCTAssertEqual(artifact.sourceTab, .kwic)
         XCTAssertTrue(artifact.supports(.openSourceReader))
-        XCTAssertTrue(artifact.supports(.captureExcerpt))
+        XCTAssertEqual(
+            artifact.actionDescriptors(in: .english).map(\.action),
+            [.copy, .preview, .export, .share, .openSourceReader]
+        )
     }
 
     func testSettingsSceneSyncDoesNotHijackMainWorkspaceTab() async {
@@ -1579,7 +1595,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("WordZMac Diagnostics") == true)
         XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("Bundle ID") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Bundle Identifier") == true)
         XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("引擎入口") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Engine Entry") == true)
-        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("后台任务摘要") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Task Center Summary") == true)
+        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("后台任务摘要") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Background Task Summary") == true)
         XCTAssertFalse(diagnosticsBundleService.lastPayload?.reportText.contains("/tmp/WordZ-1.2.0-mac-arm64.dmg") == true)
         XCTAssertEqual(diagnosticsBundleService.lastPayload?.hostPreferences.recentDocuments.first?.representedPath, "<redacted>/demo.txt")
         XCTAssertEqual(diagnosticsBundleService.lastPayload?.hostPreferences.downloadedUpdatePath, "<redacted>/WordZ-1.2.0-mac-arm64.dmg")

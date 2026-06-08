@@ -349,10 +349,10 @@ struct LibraryManagementSceneModel: Equatable {
         navigationSelection: .allCorpora,
         content: LibraryManagementContentSceneModel(
             mode: .corpora,
-            title: "Corpus Library (.db)",
-            subtitle: "0 个 DB 语料库",
-            emptyTitle: "还没有 DB 语料库",
-            emptyDescription: "使用语料构建器从文件制作 DB。"
+            title: "Corpus Library",
+            subtitle: "0 条语料 · .db 格式",
+            emptyTitle: "还没有语料",
+            emptyDescription: "从 TXT、DOCX、PDF 导入文件后即可开始分析。"
         ),
         filterChips: [],
         overflowActions: [],

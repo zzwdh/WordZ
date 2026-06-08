@@ -30,7 +30,6 @@ struct LibraryWindowView: View {
         }
         .task {
             await workspace.initializeIfNeeded()
-            await workspace.refreshLibraryManagement()
         }
         .frame(minWidth: 1120, minHeight: 760)
     }

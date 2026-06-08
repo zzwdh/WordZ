@@ -78,54 +78,13 @@ struct LibraryManagementPresentationModifier: ViewModifier {
 
 extension LibraryManagementView {
     var libraryContentColumn: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            NativeWindowHeader(
-                title: viewModel.scene.content.title,
-                subtitle: viewModel.scene.content.subtitle
-            )
-            libraryManagerCommandBar
+        VStack(alignment: .leading, spacing: 14) {
+            libraryHubHeader
+            libraryHubOverviewBand
             libraryPrimaryContentPane
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var libraryManagerCommandBar: some View {
-        AdaptiveToolbarSurface {
-            HStack(spacing: 12) {
-                Label(viewModel.scene.currentScopeSummary, systemImage: "externaldrive")
-                    .font(.callout.weight(.semibold))
-                    .lineLimit(1)
-
-                Spacer(minLength: 12)
-
-                if let importProgress = viewModel.scene.importProgress {
-                    ProgressView(value: importProgress)
-                        .frame(width: 120)
-                    Text(viewModel.scene.importDetail ?? viewModel.scene.statusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Button {
-                    onAction(.showCorpusBuilder)
-                } label: {
-                    Label(t("构建器", "Builder"), systemImage: "hammer")
-                }
-                .controlSize(.small)
-
-                Button {
-                    onAction(.importPaths)
-                } label: {
-                    Label(t("制作 DB", "Build DB"), systemImage: "plus")
-                }
-                .controlSize(.small)
-                .adaptiveGlassButtonStyle(prominent: true)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-        }
     }
 
     @ViewBuilder
@@ -140,16 +99,11 @@ extension LibraryManagementView {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
-            AdaptiveEmptyStateSurface {
-                ContentUnavailableView(
-                    t("选择项目", "Select an Item"),
-                    systemImage: "sidebar.right",
-                    description: Text(t("选择文件夹、语料集或语料后查看详情。", "Select a folder, corpus set, or corpus to inspect details."))
-                )
-                .padding(24)
+            ScrollView {
+                libraryHubEmptyInspector
+                    .padding(20)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 

@@ -104,7 +104,7 @@ enum WorkspaceWorkflowPlanner {
             return .handledByResultRun
         case .showWelcome, .openWindow, .showSettings, .toggleInspector, .openSourceReader,
              .resultArtifact(.copy), .resultArtifact(.preview), .resultArtifact(.share),
-             .resultArtifact(.openSourceReader), .resultArtifact(.captureExcerpt), .checkForUpdates, .downloadUpdate,
+             .resultArtifact(.openSourceReader), .checkForUpdates, .downloadUpdate,
              .installDownloadedUpdate, .exportDiagnostics, .openProjectHome, .openReleaseNotes,
              .openFeedback, .clearRecentDocuments, .noOp:
             return .none

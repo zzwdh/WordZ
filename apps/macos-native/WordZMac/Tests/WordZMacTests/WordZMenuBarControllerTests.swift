@@ -29,7 +29,7 @@ final class WordZMenuBarControllerTests: XCTestCase {
         XCTAssertEqual(statusHost.insertCallCount, 2)
     }
 
-    func testMenuBarControllerBuildsWorkspaceTaskAndUpdateMenus() throws {
+    func testMenuBarControllerBuildsWorkspaceAndUpdateMenus() throws {
         let workspace = makeMainWorkspaceViewModel(repository: FakeWorkspaceRepository())
         workspace.settings.applyContext(
             WorkspaceSceneContext(
@@ -42,7 +42,6 @@ final class WordZMenuBarControllerTests: XCTestCase {
         )
         workspace.sidebar.librarySnapshot = makeBootstrapState().librarySnapshot
         workspace.sidebar.selectedCorpusID = "corpus-1"
-        _ = workspace.taskCenter.beginTask(title: "Download Update", detail: "Running", progress: 0.4)
         workspace.settings.applyUpdateState(
             NativeUpdateStateSnapshot(
                 currentVersion: "1.2.9",
@@ -79,9 +78,7 @@ final class WordZMenuBarControllerTests: XCTestCase {
         XCTAssertTrue(rootMenu.items.contains(where: { $0.title == "工作区" }))
         XCTAssertTrue(rootMenu.items.contains(where: { $0.title == "发现新版本" }))
 
-        let taskMenuItem = try XCTUnwrap(rootMenu.items.first(where: { $0.title == "后台任务 (1)" }))
-        let taskMenu = try XCTUnwrap(taskMenuItem.submenu)
-        XCTAssertTrue(taskMenu.items.contains(where: { $0.title == "打开任务中心" }))
+        XCTAssertFalse(rootMenu.items.contains(where: { $0.title.hasPrefix("后台任务") }))
 
         let workspaceMenuItem = try XCTUnwrap(rootMenu.items.first(where: { $0.title == "工作区" }))
         let workspaceMenu = try XCTUnwrap(workspaceMenuItem.submenu)

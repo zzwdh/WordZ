@@ -21,7 +21,6 @@ package enum NativeWindowToolbarMode: Equatable {
 package enum NativeWindowSearchMode: Equatable {
     case none
     case libraryToolbar
-    case taskCenterToolbar
 }
 
 package enum NativeWindowSplitAccessoryMode: Equatable {
@@ -106,24 +105,6 @@ package struct NativeWindowPresentationProfile: Equatable {
                 prefersAdvancedPlacement: false,
                 minimumPlacementSize: nil
             )
-        case .evidenceWorkbench:
-            return NativeWindowPresentationProfile(
-                route: route,
-                visualTiers: NativeWindowVisualTiers(
-                    chrome: .fullVisualRefresh,
-                    content: .chromeOnly,
-                    accessory: .glassSurface
-                ),
-                toolbarMode: .swiftUIPrimary,
-                searchMode: .none,
-                splitAccessoryMode: .none,
-                prefersTransparentTitleBar: false,
-                prefersHiddenTitle: false,
-                prefersBackgroundDrag: false,
-                prefersToolbarBackgroundHidden: false,
-                prefersAdvancedPlacement: false,
-                minimumPlacementSize: nil
-            )
         case .sourceReader:
             return NativeWindowPresentationProfile(
                 route: route,
@@ -159,24 +140,6 @@ package struct NativeWindowPresentationProfile: Equatable {
                 prefersToolbarBackgroundHidden: false,
                 prefersAdvancedPlacement: false,
                 minimumPlacementSize: nil
-            )
-        case .taskCenter:
-            return NativeWindowPresentationProfile(
-                route: route,
-                visualTiers: NativeWindowVisualTiers(
-                    chrome: .glassSurface,
-                    content: .glassSurface,
-                    accessory: .glassSurface
-                ),
-                toolbarMode: .utilitySceneChrome,
-                searchMode: .taskCenterToolbar,
-                splitAccessoryMode: .none,
-                prefersTransparentTitleBar: true,
-                prefersHiddenTitle: true,
-                prefersBackgroundDrag: true,
-                prefersToolbarBackgroundHidden: true,
-                prefersAdvancedPlacement: true,
-                minimumPlacementSize: CGSize(width: 560, height: 420)
             )
         case .updatePrompt:
             return NativeWindowPresentationProfile(

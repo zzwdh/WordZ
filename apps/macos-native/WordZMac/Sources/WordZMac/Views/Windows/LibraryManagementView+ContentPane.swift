@@ -42,7 +42,6 @@ extension LibraryManagementView {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .animation(.easeInOut(duration: 0.16), value: viewModel.scene.selectedCorpusIDs)
             }
         }
     }
@@ -51,14 +50,14 @@ extension LibraryManagementView {
         VStack(alignment: .leading, spacing: 14) {
             AdaptiveToolbarSurface {
                 HStack(spacing: 12) {
-                    Image(systemName: "hammer")
+                    Image(systemName: "tray.and.arrow.down")
                         .foregroundStyle(.secondary)
                         .frame(width: 18)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Corpus Builder (Files)")
+                        Text("Import Corpus")
                             .font(.callout.weight(.semibold))
-                        Text(t("输出为一个命名 .db 语料库", "Outputs one named .db corpus"))
+                        Text(t("选择文件生成可分析语料", "Choose files and create an analyzable corpus"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -68,7 +67,7 @@ extension LibraryManagementView {
                     Button {
                         onAction(.importPaths)
                     } label: {
-                        Label(t("选择文件并制作 DB", "Choose Files and Build DB"), systemImage: "plus")
+                        Label(t("选择文件", "Choose Files"), systemImage: "plus")
                     }
                     .adaptiveGlassButtonStyle(prominent: true)
                 }
@@ -95,7 +94,7 @@ extension LibraryManagementView {
                 if viewModel.scene.selectedCorpusIDs.count > 1 {
                     HStack(spacing: 10) {
                         Label(
-                            t("已选择 \(viewModel.scene.selectedCorpusIDs.count) 个 DB", "Selected \(viewModel.scene.selectedCorpusIDs.count) DB corpora"),
+                            t("已选择 \(viewModel.scene.selectedCorpusIDs.count) 条语料", "Selected \(viewModel.scene.selectedCorpusIDs.count) corpora"),
                             systemImage: "square.stack.3d.down.right"
                         )
                         .font(.caption)
@@ -104,7 +103,7 @@ extension LibraryManagementView {
                         Spacer(minLength: 0)
 
                         selectionActionButton(
-                            title: t("合并为 DB 语料集", "Merge as DB Set"),
+                            title: t("保存为语料集", "Save as Set"),
                             systemImage: "tray.full",
                             isProminent: true
                         ) {
@@ -279,7 +278,7 @@ extension LibraryManagementView {
                     Button {
                         onAction(.importPaths)
                     } label: {
-                        Label(t("制作 DB", "Build DB"), systemImage: "plus")
+                        Label(t("添加文件", "Add Files"), systemImage: "plus")
                     }
                     .adaptiveGlassButtonStyle(prominent: true)
                 }
@@ -300,25 +299,25 @@ private struct LibraryCorpusBuilderReferenceView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 12)], spacing: 12) {
-                NativeMetricTile(title: "Corpus Library", value: "\(dbCount)")
+                NativeMetricTile(title: "Corpora", value: "\(dbCount)")
                 NativeMetricTile(title: "Folders", value: "\(folderCount)")
-                NativeMetricTile(title: "Output", value: ".db")
+                NativeMetricTile(title: "Format", value: ".db")
                 NativeMetricTile(title: "Default", value: "我的语料库")
             }
 
             VStack(alignment: .leading, spacing: 0) {
                 builderDetailRow(title: "Input", value: "TXT · DOCX · PDF")
                 Divider()
-                builderDetailRow(title: "Build", value: "Selected files -> one DB")
+                builderDetailRow(title: "Import", value: "Selected files -> one corpus")
                 Divider()
-                builderDetailRow(title: "Library", value: "Corpus Library (.db)")
+                builderDetailRow(title: "Library", value: "Corpus Library")
                 Divider()
                 builderDetailRow(title: "Reuse", value: "a+b+c -> dbA, b+c+d -> dbB")
             }
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             Button(action: onBuild) {
-                Label("Build DB", systemImage: "plus")
+                Label("Choose Files", systemImage: "plus")
             }
             .adaptiveGlassButtonStyle(prominent: true)
 

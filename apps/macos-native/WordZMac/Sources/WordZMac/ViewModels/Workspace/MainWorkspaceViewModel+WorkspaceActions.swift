@@ -4,10 +4,11 @@ private let lifecycleLogger = WordZTelemetry.logger(category: "Lifecycle")
 
 @MainActor
 extension MainWorkspaceViewModel {
-    func initializeIfNeeded() async {
+    @discardableResult
+    func initializeIfNeeded() async -> Bool {
         guard !initialized else {
             lifecycleLogger.debug("initializeIfNeeded.skippedAlreadyInitialized")
-            return
+            return false
         }
         let startedAt = Date()
         lifecycleLogger.info("initializeIfNeeded.started")
@@ -24,6 +25,7 @@ extension MainWorkspaceViewModel {
         lifecycleLogger.info(
             "initializeIfNeeded.completed durationMs=\(WordZTelemetry.elapsedMilliseconds(since: startedAt), privacy: .public) presets=\(self.analysisPresets.count, privacy: .public)"
         )
+        return true
     }
 
     func refreshAll() async {

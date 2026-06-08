@@ -111,6 +111,7 @@ actor NativeTopicEngine: TopicAnalysisEngine {
             embeddings: reducedEmbeddings.vectors,
             clustered: clustered,
             model: model,
+            language: options.language,
             diagnostics: diagnostics,
             warnings: warnings
         )

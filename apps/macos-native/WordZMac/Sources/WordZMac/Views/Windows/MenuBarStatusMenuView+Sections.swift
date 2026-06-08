@@ -10,32 +10,6 @@ extension MenuBarStatusMenuView {
         }
     }
 
-    @ViewBuilder
-    var taskStatusSection: some View {
-        if hasTaskItems {
-            Divider()
-            Menu(taskMenuTitle) {
-                Text(menuLabel(taskCenter.scene.summary))
-                Button(t("打开任务中心", "Open Task Center")) {
-                    openWindowRoute(.taskCenter)
-                }
-                if !taskCenter.scene.highlightedItems.isEmpty {
-                    Divider()
-                    ForEach(taskCenter.scene.highlightedItems) { item in
-                        taskMenuItem(item)
-                    }
-                }
-                if taskCenter.scene.completedCount > 0 || taskCenter.scene.failedCount > 0 {
-                    Divider()
-                    Button(t("清理已完成任务", "Clear Finished Tasks")) {
-                        logMenuBarAction("clearFinishedTasks")
-                        workspace.clearFinishedTasks()
-                    }
-                }
-            }
-        }
-    }
-
     var workspaceMenuSection: some View {
         Menu(t("工作区", "Workspace")) {
             Button(windowTitle(.mainWorkspace)) {
@@ -84,7 +58,6 @@ extension MenuBarStatusMenuView {
     var windowMenuSection: some View {
         Menu(t("窗口", "Windows")) {
             windowMenuButton(.library)
-            windowMenuButton(.taskCenter)
             Divider()
             Button(t("设置…", "Settings…")) {
                 openSettingsWindow()
@@ -161,17 +134,6 @@ extension MenuBarStatusMenuView {
 
     var recentDocuments: [RecentDocumentItem] {
         settings.scene.recentDocuments
-    }
-
-    var hasTaskItems: Bool {
-        !taskCenter.scene.items.isEmpty
-    }
-
-    var taskMenuTitle: String {
-        if taskCenter.scene.runningCount > 0 {
-            return t("后台任务", "Background Tasks") + " (\(taskCenter.scene.runningCount))"
-        }
-        return t("后台任务", "Background Tasks")
     }
 
     var updateMenuTitle: String {

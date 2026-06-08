@@ -153,7 +153,6 @@ final class EngineeringGuardrailTests: XCTestCase {
             "Analysis/Services/Topics/NativeTopicEngine+PartitionEvaluation.swift",
             "Analysis/Services/Topics/NativeTopicEngine+PartitionScoringProfile.swift",
             "Analysis/Services/Topics/NativeTopicEngine+VectorMath.swift",
-            "App/WordZMacApp+FeatureWindows.swift",
             "Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift",
             "ViewModels/Library/LibraryManagementViewModel+SceneNavigation.swift",
             "ViewModels/Library/LibraryManagementViewModel+SceneDetail.swift",

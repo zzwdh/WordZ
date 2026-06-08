@@ -36,7 +36,6 @@ enum SentimentPageAction {
     case toggleCorpusSelection(String)
     case changeReferenceCorpus(String?)
     case openSourceReader
-    case addCurrentRowToEvidenceWorkbench
     case exportSummary
     case exportStructuredJSON
 }

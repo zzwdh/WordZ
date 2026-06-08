@@ -4,14 +4,8 @@ import Foundation
 final class WordZMenuBarStatusModel: ObservableObject {
     @Published private(set) var iconState: WordZMenuBarIconState = .idle
 
-    private var hasRunningTasks = false
     private var canInstallDownloadedUpdate = false
     private var isDownloadingUpdate = false
-
-    func applyTaskCenterScene(_ scene: NativeTaskCenterSceneModel) {
-        hasRunningTasks = scene.runningCount > 0
-        syncIconState()
-    }
 
     func applyUpdateState(_ snapshot: NativeUpdateStateSnapshot) {
         canInstallDownloadedUpdate = snapshot.canInstallDownloadedUpdate
@@ -23,7 +17,7 @@ final class WordZMenuBarStatusModel: ObservableObject {
         let nextState: WordZMenuBarIconState
         if canInstallDownloadedUpdate {
             nextState = .updateReady
-        } else if hasRunningTasks || isDownloadingUpdate {
+        } else if isDownloadingUpdate {
             nextState = .tasksRunning
         } else {
             nextState = .idle

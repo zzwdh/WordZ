@@ -4,10 +4,10 @@ extension LibraryManagementView {
     var libraryNavigationSidebar: some View {
         List(selection: navigationSelectionBinding) {
             Section {
-                Label("Corpus Library (.db)", systemImage: "externaldrive")
+                Label("Corpus Library", systemImage: "books.vertical")
                     .tag(Optional(LibraryManagementNavigationSelection.allCorpora))
 
-                Label(t("语料构建器", "Corpus Builder"), systemImage: "hammer")
+                Label(t("导入语料", "Import Corpus"), systemImage: "tray.and.arrow.down")
                     .tag(Optional(LibraryManagementNavigationSelection.corpusBuilder))
             }
 
@@ -82,7 +82,7 @@ extension LibraryManagementView {
             }
         } header: {
             navigationSectionHeader(title: t("语料集", "Corpus Sets"), summary: viewModel.scene.corpusSetsSummary) {
-                Button(t("制作 DB 语料集", "Create DB Corpus Set")) { onAction(.saveCurrentCorpusSet) }
+                Button(t("保存为语料集", "Save as Corpus Set")) { onAction(.saveCurrentCorpusSet) }
                 if viewModel.scene.selectedCorpusSetID != nil {
                     Divider()
                     Button(t("删除语料集", "Delete Corpus Set"), role: .destructive) {
@@ -103,7 +103,7 @@ extension LibraryManagementView {
             Button(t("打开语料集", "Open Corpus Set")) {
                 onAction(.selectCorpusSet(corpusSet.id))
             }
-            Button(t("制作 DB 语料集", "Create DB Corpus Set")) {
+            Button(t("保存为语料集", "Save as Corpus Set")) {
                 onAction(.saveCurrentCorpusSet)
             }
             Button(t("删除语料集", "Delete Corpus Set"), role: .destructive) {

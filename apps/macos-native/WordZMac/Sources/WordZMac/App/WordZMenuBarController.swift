@@ -59,8 +59,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
         case quickLookCurrentContent
         case shareCurrentContent
         case openRecentDocument(String)
-        case taskAction(NativeBackgroundTaskAction)
-        case clearFinishedTasks
         case checkForUpdates
         case downloadUpdate
         case installDownloadedUpdate
@@ -196,16 +194,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
             menu.addItem(disabledLabelItem(snapshot.currentCorpusTitle))
         }
 
-        if snapshot.hasTaskItems {
-            menu.addItem(.separator())
-            menu.addItem(
-                submenuItem(
-                    snapshot.taskMenuTitle,
-                    submenu: makeTaskMenu(snapshot: snapshot)
-                )
-            )
-        }
-
         menu.addItem(.separator())
         menu.addItem(
             submenuItem(
@@ -234,41 +222,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
                 modifierMask: [.command]
             )
         )
-    }
-
-    private func makeTaskMenu(snapshot: WordZMenuBarSnapshot) -> NSMenu {
-        let menu = configuredSubmenu()
-        menu.addItem(disabledLabelItem(menuLabel(workspace.taskCenter.scene.summary)))
-        menu.addItem(
-            actionItem(
-                t("打开任务中心", "Open Task Center"),
-                action: .openWindow(.taskCenter)
-            )
-        )
-
-        if !workspace.taskCenter.scene.highlightedItems.isEmpty {
-            menu.addItem(.separator())
-            for item in workspace.taskCenter.scene.highlightedItems {
-                let title = menuLabel("\(item.title) · \(item.progressLabel(in: localization.effectiveMode))")
-                if let action = item.primaryAction {
-                    menu.addItem(actionItem(title, action: .taskAction(action)))
-                } else {
-                    menu.addItem(disabledLabelItem(title))
-                }
-            }
-        }
-
-        if workspace.taskCenter.scene.completedCount > 0 || workspace.taskCenter.scene.failedCount > 0 {
-            menu.addItem(.separator())
-            menu.addItem(
-                actionItem(
-                    t("清理已完成任务", "Clear Finished Tasks"),
-                    action: .clearFinishedTasks
-                )
-            )
-        }
-
-        return menu
     }
 
     private func makeWorkspaceMenu(snapshot: WordZMenuBarSnapshot) -> NSMenu {
@@ -325,13 +278,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
                 action: .openWindow(.library)
             )
         )
-        menu.addItem(
-            actionItem(
-                windowTitle(.taskCenter),
-                action: .openWindow(.taskCenter)
-            )
-        )
-        menu.addItem(.separator())
         menu.addItem(
             actionItem(
                 t("设置…", "Settings…"),
@@ -477,13 +423,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
                 await self.openWindowRouteAndAwaitActivation(.mainWorkspace)
                 await self.workspace.openRecentDocument(corpusID)
             }
-        case .taskAction(let action):
-            performMenuBarAction("taskAction", detail: action.title(in: localization.effectiveMode)) {
-                await self.workspace.performTaskAction(action)
-            }
-        case .clearFinishedTasks:
-            logMenuBarAction("clearFinishedTasks")
-            workspace.clearFinishedTasks()
         case .checkForUpdates:
             performMenuBarAction("checkForUpdates") {
                 await self.workspace.checkForUpdatesNow()
@@ -531,7 +470,6 @@ package final class WordZMenuBarController: NSObject, ObservableObject, NSMenuDe
         WordZMenuBarSnapshot(
             settingsScene: workspace.settings.scene,
             selectedCorpus: workspace.sidebar.selectedCorpus,
-            taskCenterScene: workspace.taskCenter.scene,
             languageMode: localization.effectiveMode
         )
     }
@@ -561,15 +499,12 @@ private struct WordZMenuBarSnapshot {
     let currentWorkspaceTitle: String
     let currentCorpusTitle: String
     let recentDocuments: [RecentDocumentItem]
-    let hasTaskItems: Bool
-    let taskMenuTitle: String
     let updateMenuTitle: String
     let updateSummaryLine: String
 
     init(
         settingsScene: SettingsPaneSceneModel,
         selectedCorpus: LibraryCorpusItem?,
-        taskCenterScene: NativeTaskCenterSceneModel,
         languageMode: AppLanguageMode
     ) {
         let workspaceSummary = settingsScene.workspaceSummary.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -591,13 +526,6 @@ private struct WordZMenuBarSnapshot {
         }
 
         self.recentDocuments = settingsScene.recentDocuments
-        self.hasTaskItems = !taskCenterScene.items.isEmpty
-
-        if taskCenterScene.runningCount > 0 {
-            self.taskMenuTitle = wordZText("后台任务", "Background Tasks", mode: languageMode) + " (\(taskCenterScene.runningCount))"
-        } else {
-            self.taskMenuTitle = wordZText("后台任务", "Background Tasks", mode: languageMode)
-        }
 
         if settingsScene.canInstallDownloadedUpdate {
             self.updateMenuTitle = wordZText("更新已下载", "Update Ready", mode: languageMode)

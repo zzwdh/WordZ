@@ -17,9 +17,9 @@ extension LibraryManagementViewModel {
 
         return LibraryImportPreflightSceneModel(
             id: UUID().uuidString,
-            title: wordZText("制作 DB 语料库", "Create DB Corpus", mode: languageMode),
+            title: wordZText("导入语料", "Import Corpus", mode: languageMode),
             subtitle: String(
-                format: wordZText("将检查 %d 个入口，并把可导入文本合并为一个 DB。", "Checking %d selected entries and merging importable text into one DB.", mode: languageMode),
+                format: wordZText("将检查 %d 个入口，并把可导入文本合并为一个可分析语料（.db 格式）。", "Checking %d selected entries and merging importable text into one analyzable corpus (.db format).", mode: languageMode),
                 paths.count
             ),
             paths: paths,
@@ -29,7 +29,7 @@ extension LibraryManagementViewModel {
             supportedCountText: "\(result.supportedCount)",
             unsupportedCountText: "\(result.unsupportedCount)",
             duplicateRiskCountText: "\(result.duplicateRiskCount)",
-            preserveHierarchyText: wordZText("可导入文件会合并为一个 DB 语料库", "Importable files will be merged into one DB corpus", mode: languageMode),
+            preserveHierarchyText: wordZText("可导入文件会合并为一个可分析语料", "Importable files will be merged into one analyzable corpus", mode: languageMode),
             warnings: result.warnings,
             previewItems: result.previewItems
         )

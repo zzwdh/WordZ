@@ -163,6 +163,10 @@ struct WordZMacCommands: Commands {
                 }
             }
             .disabled(!isContextEnabled(\.canSelectMainRoute))
+
+            Divider()
+
+            annotationDisplayMenu
         }
 
         CommandGroup(after: .windowArrangement) {
@@ -171,8 +175,6 @@ struct WordZMacCommands: Commands {
             windowButton(.library)
                 .keyboardShortcut("1", modifiers: [.command])
 
-            windowButton(.taskCenter)
-                .keyboardShortcut("2", modifiers: [.command])
         }
 
         CommandMenu(t("分析", "Analysis")) {
@@ -231,77 +233,14 @@ struct WordZMacCommands: Commands {
                 }
             }
             .disabled(!isContextEnabled(\.canExportReportBundle))
+
         }
 
-        dossierAndAnnotationCommands
+        helpCommands
     }
 
     @CommandsBuilder
-    private var dossierAndAnnotationCommands: some Commands {
-        CommandMenu(t("证据", "Evidence")) {
-            Button(t("保存保留摘录为文本…", "Save Kept Excerpts as Text…")) {
-                performFocusedCommand("exportEvidenceDossier") { context in
-                    await exportEvidenceDossier(using: context)
-                }
-            }
-            .disabled(!isContextEnabled(\.canExportEvidenceDossier))
-        }
-
-        annotationAndHelpCommands
-    }
-
-    @CommandsBuilder
-    private var annotationAndHelpCommands: some Commands {
-        CommandMenu(t("标注显示", "Annotation Display")) {
-            Section(t("显示口径", "Display Profile")) {
-                ForEach(WorkspaceAnnotationProfile.allCases) { profile in
-                    Button(profile.title(in: localization.effectiveMode)) {
-                        workspace.setAnnotationProfile(profile)
-                    }
-                    .disabled(!annotationCommandsEnabled)
-                }
-            }
-
-            Divider()
-
-            Menu(t("文字范围", "Script Scope")) {
-                ForEach(TokenScript.allCases) { script in
-                    Button {
-                        workspace.toggleAnnotationScript(script)
-                    } label: {
-                        if workspace.annotationState.scriptSet.contains(script) {
-                            Label(script.title(in: localization.effectiveMode), systemImage: "checkmark")
-                        } else {
-                            Text(script.title(in: localization.effectiveMode))
-                        }
-                    }
-                    .disabled(!annotationCommandsEnabled)
-                }
-            }
-
-            Menu(t("词类筛选", "Part-of-Speech Filter")) {
-                ForEach(TokenLexicalClass.allCases) { lexicalClass in
-                    Button {
-                        workspace.toggleAnnotationLexicalClass(lexicalClass)
-                    } label: {
-                        if workspace.annotationState.lexicalClassSet.contains(lexicalClass) {
-                            Label(lexicalClass.title(in: localization.effectiveMode), systemImage: "checkmark")
-                        } else {
-                            Text(lexicalClass.title(in: localization.effectiveMode))
-                        }
-                    }
-                    .disabled(!annotationCommandsEnabled)
-                }
-            }
-
-            Divider()
-
-            Button(t("清空显示筛选", "Clear Display Filters")) {
-                workspace.clearAnnotationFilters()
-            }
-            .disabled(!annotationCommandsEnabled || (workspace.annotationState.lexicalClasses.isEmpty && workspace.annotationState.scripts.isEmpty))
-        }
-
+    private var helpCommands: some Commands {
         CommandGroup(replacing: .help) {
             Button(t("使用指南", "Usage Guide")) {
                 openWindowRoute(.help)
@@ -363,6 +302,58 @@ struct WordZMacCommands: Commands {
                     await workspace.openFeedback()
                 }
             }
+        }
+    }
+
+    private var annotationDisplayMenu: some View {
+        Menu(t("标注显示", "Annotation Display")) {
+            Section(t("显示口径", "Display Profile")) {
+                ForEach(WorkspaceAnnotationProfile.allCases) { profile in
+                    Button(profile.title(in: localization.effectiveMode)) {
+                        workspace.setAnnotationProfile(profile)
+                    }
+                    .disabled(!annotationCommandsEnabled)
+                }
+            }
+
+            Divider()
+
+            Menu(t("文字范围", "Script Scope")) {
+                ForEach(TokenScript.allCases) { script in
+                    Button {
+                        workspace.toggleAnnotationScript(script)
+                    } label: {
+                        if workspace.annotationState.scriptSet.contains(script) {
+                            Label(script.title(in: localization.effectiveMode), systemImage: "checkmark")
+                        } else {
+                            Text(script.title(in: localization.effectiveMode))
+                        }
+                    }
+                    .disabled(!annotationCommandsEnabled)
+                }
+            }
+
+            Menu(t("词类筛选", "Part-of-Speech Filter")) {
+                ForEach(TokenLexicalClass.allCases) { lexicalClass in
+                    Button {
+                        workspace.toggleAnnotationLexicalClass(lexicalClass)
+                    } label: {
+                        if workspace.annotationState.lexicalClassSet.contains(lexicalClass) {
+                            Label(lexicalClass.title(in: localization.effectiveMode), systemImage: "checkmark")
+                        } else {
+                            Text(lexicalClass.title(in: localization.effectiveMode))
+                        }
+                    }
+                    .disabled(!annotationCommandsEnabled)
+                }
+            }
+
+            Divider()
+
+            Button(t("清空显示筛选", "Clear Display Filters")) {
+                workspace.clearAnnotationFilters()
+            }
+            .disabled(!annotationCommandsEnabled || (workspace.annotationState.lexicalClasses.isEmpty && workspace.annotationState.scripts.isEmpty))
         }
     }
 
@@ -508,11 +499,6 @@ struct WordZMacCommands: Commands {
     private func exportCurrent(using context: WorkspaceCommandContext) async {
         guard context.canExportCurrent else { return }
         await workspace.performResultArtifactAction(.export, preferredWindowRoute: context.route)
-    }
-
-    private func exportEvidenceDossier(using context: WorkspaceCommandContext) async {
-        guard context.canExportEvidenceDossier else { return }
-        await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: context.route)
     }
 
     private func exportEvidenceJSON(using context: WorkspaceCommandContext) async {

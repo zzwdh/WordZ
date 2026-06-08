@@ -231,7 +231,7 @@ struct LibraryWindowToolbar: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             toolbarButton(
-                title: wordZText("制作 DB", "Build DB", mode: languageMode),
+                title: wordZText("添加文件", "Add Files", mode: languageMode),
                 systemImage: "plus",
                 isProminent: true,
                 action: { onAction(.importPaths) }
@@ -257,7 +257,7 @@ struct LibraryWindowToolbar: ToolbarContent {
         if #available(macOS 26.0, *), NativePlatformCapabilities.current.supportsToolbarSharedBackground {
             ToolbarItem(placement: .automatic) {
                 Menu {
-                    Button(wordZText("语料构建器", "Corpus Builder", mode: languageMode)) {
+                    Button(wordZText("导入语料", "Import Corpus", mode: languageMode)) {
                         onAction(.showCorpusBuilder)
                     }
 
@@ -280,7 +280,7 @@ struct LibraryWindowToolbar: ToolbarContent {
         } else {
             ToolbarItem(placement: .automatic) {
                 Menu {
-                    Button(wordZText("语料构建器", "Corpus Builder", mode: languageMode)) {
+                    Button(wordZText("导入语料", "Import Corpus", mode: languageMode)) {
                         onAction(.showCorpusBuilder)
                     }
 
@@ -413,28 +413,9 @@ struct NativeLibrarySearchPresentationModifier: ViewModifier {
     }
 }
 
-struct NativeTaskCenterSearchPresentationModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        let capabilities = NativePlatformCapabilities.current
-        let profile = NativeWindowPresentationProfile.profile(for: .taskCenter)
-
-        if #available(macOS 26.0, *),
-           capabilities.supportsSearchToolbarBehavior,
-           profile.resolvedSearchMode(capabilities: capabilities) == .taskCenterToolbar {
-            content.searchToolbarBehavior(.automatic)
-        } else {
-            content
-        }
-    }
-}
-
 extension View {
     func nativeLibrarySearchPresentation() -> some View {
         modifier(NativeLibrarySearchPresentationModifier())
-    }
-
-    func nativeTaskCenterSearchPresentation() -> some View {
-        modifier(NativeTaskCenterSearchPresentationModifier())
     }
 
     func adaptiveGlassButtonStyle(prominent: Bool = false) -> some View {

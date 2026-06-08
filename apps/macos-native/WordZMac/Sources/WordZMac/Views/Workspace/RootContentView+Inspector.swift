@@ -50,15 +50,15 @@ extension RootContentView {
     var workspaceScopeInspectorSection: some View {
         NativeWindowSection(
             title: wordZText("语料范围", "Corpus Scope", mode: languageMode),
-            subtitle: wordZText("选择当前分析的目标 DB 语料库和参照 DB 语料库", "Choose target and reference DB corpora for the current analysis", mode: languageMode)
+            subtitle: wordZText("选择当前分析的目标语料和参照语料", "Choose target and reference corpora for the current analysis", mode: languageMode)
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 inspectorPicker(
-                    title: wordZText("目标 DB", "Target DB Corpus", mode: languageMode),
+                    title: wordZText("目标语料", "Target Corpus", mode: languageMode),
                     selection: targetCorpusSelectionBinding
                 ) {
                     if viewModel.sidebar.scene.corpusOptions.isEmpty {
-                        Text(wordZText("没有可用 DB 语料库", "No DB corpora available", mode: languageMode))
+                        Text(wordZText("没有可用语料", "No corpora available", mode: languageMode))
                             .tag("")
                     } else {
                         ForEach(viewModel.sidebar.scene.corpusOptions) { item in
@@ -70,10 +70,10 @@ extension RootContentView {
                 .disabled(viewModel.sidebar.scene.corpusOptions.isEmpty)
 
                 inspectorPicker(
-                    title: wordZText("参照 DB", "Reference DB Corpus", mode: languageMode),
+                    title: wordZText("参照语料", "Reference Corpus", mode: languageMode),
                     selection: referenceCorpusSelectionBinding
                 ) {
-                    Text(wordZText("不使用参照 DB", "No reference DB corpus", mode: languageMode))
+                    Text(wordZText("不使用参照语料", "No reference corpus", mode: languageMode))
                         .tag(noneSelectionID)
                     ForEach(viewModel.sidebar.scene.corpusOptions) { item in
                         Text(item.title)
@@ -95,7 +95,7 @@ extension RootContentView {
         let targetCorpus = viewModel.sidebar.scene.targetCorpus
 
         NativeWindowSection(
-            title: wordZText("当前 DB 语料库", "Current DB Corpus", mode: languageMode),
+            title: wordZText("当前语料", "Current Corpus", mode: languageMode),
             subtitle: targetCorpus.summary
         ) {
             VStack(alignment: .leading, spacing: 12) {

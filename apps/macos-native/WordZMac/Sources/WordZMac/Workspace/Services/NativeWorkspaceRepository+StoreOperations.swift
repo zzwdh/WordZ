@@ -531,7 +531,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 32,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
             )
         }
         return try store.listEvidenceItems()
@@ -543,7 +543,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 33,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
             )
         }
         return try store.saveEvidenceItem(item)
@@ -555,7 +555,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 34,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
             )
         }
         try store.deleteEvidenceItem(itemID: itemID)
@@ -567,7 +567,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 35,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录篮。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
             )
         }
         try store.replaceEvidenceItems(items)

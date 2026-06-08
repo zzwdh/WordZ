@@ -101,7 +101,6 @@ enum WorkspaceFeatureFactory {
             return AnyView(
                 KWICView(
                     viewModel: workspace.kwic,
-                    evidenceWorkbench: workspace.evidenceWorkbench,
                     isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.kwic),
                     onAction: dispatcher.handleKWICAction
                 )
@@ -118,7 +117,6 @@ enum WorkspaceFeatureFactory {
             return AnyView(
                 LocatorView(
                     viewModel: workspace.locator,
-                    evidenceWorkbench: workspace.evidenceWorkbench,
                     isBusy: workspace.isFeatureBusy(WorkspaceFeatureKey.locator),
                     onAction: dispatcher.handleLocatorAction
                 )

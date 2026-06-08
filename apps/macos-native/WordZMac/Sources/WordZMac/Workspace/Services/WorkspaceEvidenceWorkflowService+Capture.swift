@@ -69,7 +69,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已暂存摘录。", "Saved the excerpt.", mode: .system),
+            successMessage: wordZText("已保存摘录。", "Saved excerpt.", mode: .system),
             features: features
         )
     }
@@ -125,7 +125,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已暂存摘录。", "Saved the excerpt.", mode: .system),
+            successMessage: wordZText("已保存摘录。", "Saved excerpt.", mode: .system),
             features: features
         )
     }
@@ -186,7 +186,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已从 DB 来源预览暂存摘录。", "Saved the DB source preview excerpt.", mode: .system),
+            successMessage: wordZText("已保存 DB 来源预览摘录。", "Saved DB source preview excerpt.", mode: .system),
             features: features
         )
     }

@@ -26,10 +26,6 @@ extension MainWorkspaceViewModel {
         settings.applyUpdateState(updateState)
         menuBarStatus.applyUpdateState(updateState)
         taskCenter.restoreHistory(initialHostPreferences.taskHistory)
-        menuBarStatus.applyTaskCenterScene(taskCenter.scene)
-        taskCenter.onSceneChange = { [weak self] scene in
-            self?.menuBarStatus.applyTaskCenterScene(scene)
-        }
         taskCenter.onHistoryChange = { [weak self] history in
             self?.persistTaskHistory(history)
         }

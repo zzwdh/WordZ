@@ -21,17 +21,39 @@ package enum NativeWindowRouting {
 
     package static func register(_ window: NSWindow?, for route: NativeWindowRoute) {
         guard let window else {
-            if let registeredWindow = registeredWindows[route]?.window,
-               registeredWindow.identifier == identifier(for: route) {
-                registeredWindow.identifier = nil
+            if registeredWindows[route]?.window == nil {
+                registeredWindows[route] = nil
                 pendingPresentationRequests[route] = nil
             }
-            registeredWindows[route] = nil
+            return
+        }
+        let routeIdentifier = identifier(for: route)
+        if let previousWindow = registeredWindows[route]?.window,
+           previousWindow !== window,
+           previousWindow.identifier == routeIdentifier {
+            previousWindow.identifier = nil
+        }
+        if registeredWindows[route]?.window === window,
+           window.identifier == routeIdentifier {
+            pendingPresentationRequests[route] = nil
             return
         }
         registeredWindows[route] = WeakWindowBox(window: window)
         pendingPresentationRequests[route] = nil
-        window.identifier = identifier(for: route)
+        window.identifier = routeIdentifier
+    }
+
+    package static func unregister(_ window: NSWindow?, for route: NativeWindowRoute) {
+        guard let window else {
+            register(nil, for: route)
+            return
+        }
+        guard registeredWindows[route]?.window === window else { return }
+        if window.identifier == identifier(for: route) {
+            window.identifier = nil
+        }
+        registeredWindows[route] = nil
+        pendingPresentationRequests[route] = nil
     }
 
     package static func cancelPendingPresentationRequest(for route: NativeWindowRoute) {

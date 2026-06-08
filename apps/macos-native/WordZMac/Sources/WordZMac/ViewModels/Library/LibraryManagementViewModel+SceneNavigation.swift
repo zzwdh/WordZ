@@ -27,7 +27,7 @@ extension LibraryManagementViewModel {
         let searchSuffix = hasSearchQuery ? " · 搜索 “\(normalizedSearchQuery)”" : ""
         switch navigationSelection {
         case .corpusBuilder:
-            return "语料构建器" + searchSuffix
+            return "导入语料" + searchSuffix
         case .recycleBin:
             return "查看回收站 \(recycleSnapshot.totalCount) 项" + searchSuffix
         case .savedCorpusSet, .recentCorpusSet:
@@ -59,10 +59,10 @@ extension LibraryManagementViewModel {
         case .corpusBuilder:
             return LibraryManagementContentSceneModel(
                 mode: .corpusBuilder,
-                title: "Corpus Builder (Files)",
-                subtitle: "从 TXT、DOCX、PDF 制作独立 DB 语料库",
-                emptyTitle: "选择文件制作 DB",
-                emptyDescription: "构建完成后会出现在 Corpus Library (.db)。"
+                title: "Import Corpus",
+                subtitle: "从 TXT、DOCX、PDF 生成可分析语料",
+                emptyTitle: "选择文件导入语料",
+                emptyDescription: "导入后会出现在 Corpus Library；底层仍保存为可复用的 .db 格式。"
             )
         case .recycleBin:
             return LibraryManagementContentSceneModel(
@@ -97,12 +97,12 @@ extension LibraryManagementViewModel {
         case .allCorpora:
             return LibraryManagementContentSceneModel(
                 mode: .corpora,
-                title: "Corpus Library (.db)",
-                subtitle: "\(visibleCorpora.count) 个 DB 语料库",
-                emptyTitle: hasSearchQuery ? "当前搜索没有匹配 DB" : "还没有 DB 语料库",
+                title: "Corpus Library",
+                subtitle: "\(visibleCorpora.count) 条语料 · .db 格式",
+                emptyTitle: hasSearchQuery ? "当前搜索没有匹配语料" : "还没有语料",
                 emptyDescription: hasSearchQuery
-                    ? "可以调整搜索词，或打开语料构建器继续制作 DB。"
-                    : "使用语料构建器从文件制作 DB。"
+                    ? "可以调整搜索词，或继续导入文件。"
+                    : "从 TXT、DOCX、PDF 导入文件后即可开始分析。"
             )
         }
     }
@@ -118,7 +118,7 @@ extension LibraryManagementViewModel {
             return "回收站"
         }
         if showsCorpusBuilder {
-            return "语料构建器"
+            return "导入语料"
         }
         return "全部语料"
     }

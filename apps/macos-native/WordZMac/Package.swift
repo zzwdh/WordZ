@@ -69,7 +69,9 @@ let package = Package(
                 "Support/LinguisticAnnotationSupport.swift"
             ],
             resources: [
+                .copy("Resources/ReferenceCorpora"),
                 .copy("Resources/Sentiment"),
+                .copy("Resources/Stopwords"),
                 .process("Resources/TopicLocalEmbeddingModel.json"),
                 .process("Resources/TopicModelManifest.json")
             ]

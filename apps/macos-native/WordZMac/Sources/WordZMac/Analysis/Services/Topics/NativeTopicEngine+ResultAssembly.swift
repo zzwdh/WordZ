@@ -6,6 +6,7 @@ extension NativeTopicEngine {
         embeddings: [[Double]],
         clustered: TopicClusteringResult,
         model: TopicEmbeddingModel,
+        language: String,
         diagnostics: TopicAnalysisDiagnostics,
         warnings: [String]
     ) -> TopicAnalysisResult {
@@ -119,6 +120,7 @@ extension NativeTopicEngine {
             modelVersion: modelVersion,
             modelProvider: model.providerLabel,
             usesFallbackProvider: model.providerLabel == "hashed-fallback",
+            language: language,
             diagnostics: diagnostics,
             clusters: summaries,
             segments: sortedSegments,

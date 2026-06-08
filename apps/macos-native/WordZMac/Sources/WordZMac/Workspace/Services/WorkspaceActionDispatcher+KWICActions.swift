@@ -8,14 +8,6 @@ extension WorkspaceActionDispatcher {
             handleWorkspaceIntent(.runAnalysis(.kwic))
         case .saveCorpusSet:
             launch { await self.workspace.saveKWICCorpusSet(preferredWindowRoute: self.preferredWindowRoute) }
-        case .addCurrentRowToEvidenceWorkbench:
-            handleWorkspaceIntent(.resultArtifact(.captureExcerpt))
-        case .setEvidenceReviewStatus(let itemID, let reviewStatus):
-            launch { await self.workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: reviewStatus) }
-        case .saveSelectedEvidenceNote:
-            launch { await self.workspace.saveSelectedEvidenceNote() }
-        case .deleteEvidenceItem(let itemID):
-            launch { await self.workspace.deleteEvidenceItem(itemID) }
         case .saveCurrentHitSet:
             launch { await self.workspace.saveKWICCurrentHitSet(preferredWindowRoute: self.preferredWindowRoute) }
         case .saveVisibleHitSet:

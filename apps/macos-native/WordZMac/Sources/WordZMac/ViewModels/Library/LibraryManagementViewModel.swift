@@ -3,13 +3,24 @@ import Foundation
 @MainActor
 final class LibraryManagementViewModel: ObservableObject {
     @Published var selectedCorpusSetID: String? {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != selectedCorpusSetID else { return }
+            if !isSyncingCorpusSelection {
+                requestSceneSync()
+            }
+        }
     }
     @Published var selectedFolderID: String? {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != selectedFolderID else { return }
+            if !isSyncingCorpusSelection {
+                requestSceneSync()
+            }
+        }
     }
     @Published var selectedCorpusID: String? {
         didSet {
+            guard oldValue != selectedCorpusID else { return }
             if corpusInfoSheet?.id != selectedCorpusID {
                 corpusInfoSheet = nil
             }
@@ -20,35 +31,51 @@ final class LibraryManagementViewModel: ObservableObject {
             } else if metadataEditorSheet?.id != selectedCorpusID {
                 metadataEditorSheet = nil
             }
-            syncScene()
+            if !isSyncingCorpusSelection {
+                requestSceneSync()
+            }
         }
     }
     @Published var selectedCorpusIDs: Set<String> = [] {
         didSet {
+            guard oldValue != selectedCorpusIDs else { return }
             if metadataEditorSheet?.isBatchEdit == true, selectedCorpusIDs.count < 2 {
                 metadataEditorSheet = nil
             }
-            syncScene()
+            if !isSyncingCorpusSelection {
+                requestSceneSync()
+            }
         }
     }
     @Published var selectedRecycleEntryID: String? {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != selectedRecycleEntryID else { return }
+            requestSceneSync()
+        }
     }
     @Published var preserveHierarchy = true {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != preserveHierarchy else { return }
+            requestSceneSync()
+        }
     }
     @Published var searchQuery = "" {
         didSet {
             guard oldValue != searchQuery else { return }
-            normalizeCorpusSelectionForCurrentState()
-            syncScene()
+            deferSceneSync {
+                normalizeCorpusSelectionForCurrentState()
+                requestSceneSync()
+            }
         }
     }
     @Published var metadataFilterState = CorpusMetadataFilterState.empty {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != metadataFilterState else { return }
+            requestSceneSync()
+        }
     }
     @Published var importProgressSnapshot: LibraryImportProgressSnapshot? {
-        didSet { syncScene() }
+        didSet { requestSceneSync() }
     }
     @Published var corpusInfoSheet: LibraryCorpusInfoSceneModel?
     @Published var importPreflightSheet: LibraryImportPreflightSceneModel?
@@ -62,14 +89,25 @@ final class LibraryManagementViewModel: ObservableObject {
     var statusMessage = ""
     var isBusy = false
     var isSyncingCorpusSelection = false
+    var deferredSceneSyncDepth = 0
+    var needsDeferredSceneSync = false
     var showsRecycleBin = false {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != showsRecycleBin else { return }
+            requestSceneSync()
+        }
     }
     var showsCorpusBuilder = false {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != showsCorpusBuilder else { return }
+            requestSceneSync()
+        }
     }
     var recentCorpusSetIDs: [String] = [] {
-        didSet { syncScene() }
+        didSet {
+            guard oldValue != recentCorpusSetIDs else { return }
+            requestSceneSync()
+        }
     }
 
     var selectedFolder: LibraryFolderItem? {
@@ -104,12 +142,21 @@ final class LibraryManagementViewModel: ObservableObject {
     }
 
     var filteredCorpora: [LibraryCorpusItem] {
-        librarySnapshot.corpora.filter { corpus in
-            let corpusSetMatches = selectedCorpusSet == nil || selectedCorpusSet?.corpusIDs.contains(corpus.id) == true
-            let folderMatches = selectedFolderID == nil || corpus.folderId == selectedFolderID
-            let metadataMatches = metadataFilterState.isEmpty || metadataFilterState.matches(corpus.metadata)
-            let searchMatches = matchesSearchQuery(corpus)
-            return corpusSetMatches && folderMatches && metadataMatches && searchMatches
+        let selectedCorpusSetIDs = selectedCorpusSet.map { Set($0.corpusIDs) }
+        let selectedFolderID = selectedFolderID
+        let metadataFilterState = metadataFilterState
+        let normalizedSearchQuery = normalizedSearchQuery
+        return librarySnapshot.corpora.filter { corpus in
+            if let selectedCorpusSetIDs, !selectedCorpusSetIDs.contains(corpus.id) {
+                return false
+            }
+            if let selectedFolderID, corpus.folderId != selectedFolderID {
+                return false
+            }
+            if !metadataFilterState.isEmpty, !metadataFilterState.matches(corpus.metadata) {
+                return false
+            }
+            return Self.matchesCorpus(corpus, normalizedSearchQuery: normalizedSearchQuery)
         }
     }
 
@@ -130,7 +177,14 @@ final class LibraryManagementViewModel: ObservableObject {
     }
 
     func matchesSearchQuery(_ corpus: LibraryCorpusItem) -> Bool {
-        guard hasSearchQuery else { return true }
+        Self.matchesCorpus(corpus, normalizedSearchQuery: normalizedSearchQuery)
+    }
+
+    private static func matchesCorpus(
+        _ corpus: LibraryCorpusItem,
+        normalizedSearchQuery: String
+    ) -> Bool {
+        guard !normalizedSearchQuery.isEmpty else { return true }
         let searchableFields = [
             corpus.name,
             corpus.folderName,

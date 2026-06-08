@@ -5,20 +5,6 @@ import SwiftUI
 private let menuBarLogger = WordZTelemetry.logger(category: "MenuBar")
 
 extension MenuBarStatusMenuView {
-    @ViewBuilder
-    func taskMenuItem(_ item: NativeBackgroundTaskItem) -> some View {
-        let title = menuLabel("\(item.title) · \(item.progressLabel(in: languageMode))")
-        if let action = item.primaryAction {
-            Button(title) {
-                performMenuBarAction("taskAction", detail: item.title) {
-                    await workspace.performTaskAction(action)
-                }
-            }
-        } else {
-            Text(title)
-        }
-    }
-
     func openMainWorkspace() {
         openWindowRoute(.mainWorkspace)
     }

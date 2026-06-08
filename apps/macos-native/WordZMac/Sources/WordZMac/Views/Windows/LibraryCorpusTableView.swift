@@ -8,103 +8,170 @@ struct LibraryCorpusTableView: View {
     let onAction: (LibraryManagementAction) -> Void
 
     var body: some View {
-        Table(corpora, selection: $selectedCorpusIDs) {
-            TableColumn(t("DB 语料库", "DB Corpus")) { corpus in
-                corpusNameCell(corpus)
+        List(selection: $selectedCorpusIDs) {
+            ForEach(corpora) { corpus in
+                corpusRow(corpus)
+                    .tag(corpus.id)
                     .contextMenu { corpusContextMenu(for: corpus) }
                     .onTapGesture(count: 2) {
                         onAction(.selectCorpus(corpus.id))
                         onAction(.openSelectedCorpus)
                     }
+                    .help(corpusHelpText(for: corpus))
             }
-            .width(min: 180, ideal: 240)
-
-            TableColumn(t("DB 文件", "DB File")) { corpus in
-                Text(corpus.databaseFileName)
-                    .font(.callout.monospaced())
-                    .lineLimit(1)
-                    .contextMenu { corpusContextMenu(for: corpus) }
-            }
-            .width(min: 160, ideal: 220)
-
-            TableColumn(t("可用度", "Readiness")) { corpus in
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(readinessTint(for: corpus.readiness.level))
-                            .frame(width: 7, height: 7)
-                        Text("\(corpus.readiness.title) · \(corpus.readiness.scoreText)")
-                            .font(.callout.weight(.medium))
-                            .lineLimit(1)
-                    }
-                    Text(corpus.readiness.detailText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .contextMenu { corpusContextMenu(for: corpus) }
-            }
-            .width(min: 160, ideal: 220)
-
-            TableColumn(t("文件夹", "Folder")) { corpus in
-                Text(corpus.subtitle)
-                    .lineLimit(1)
-                    .contextMenu { corpusContextMenu(for: corpus) }
-            }
-            .width(min: 96, ideal: 130, max: 220)
-
-            TableColumn(t("源格式", "Source Format")) { corpus in
-                Text(corpus.sourceType.uppercased())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .contextMenu { corpusContextMenu(for: corpus) }
-            }
-            .width(min: 88, ideal: 110, max: 140)
-
-            TableColumn(t("项目状态", "Project Status")) { corpus in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(corpus.metadataSummary)
-                        .lineLimit(1)
-                    Text(corpus.cleaningStatusTitle)
-                        .font(.caption)
-                        .foregroundStyle(corpus.cleaningStatus == .pending ? .orange : .secondary)
-                        .lineLimit(1)
-                }
-                .contextMenu { corpusContextMenu(for: corpus) }
-            }
-            .width(min: 160, ideal: 220)
-
-            TableColumn(t("来源链", "Source Chain")) { corpus in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(corpus.representedPath.isEmpty ? t("WordZ DB 内部来源", "WordZ DB internal source") : corpus.representedPath)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(t("中文/中英混合可分析", "Chinese/mixed analysis ready"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .contextMenu { corpusContextMenu(for: corpus) }
-            }
-            .width(min: 220, ideal: 320)
         }
-        .tableStyle(.inset(alternatesRowBackgrounds: false))
+        .listStyle(.inset)
         .scrollContentBackground(.hidden)
-        .accessibilityLabel(t("语料表格", "Corpus table"))
+        .accessibilityLabel(t("语料列表", "Corpus list"))
     }
 
-    private func corpusNameCell(_ corpus: LibraryManagementCorpusSceneItem) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(corpus.title)
-                .font(.callout.weight(.semibold))
-                .lineLimit(1)
-            Text("DB")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+    private func corpusRow(_ corpus: LibraryManagementCorpusSceneItem) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(corpus.title)
+                        .font(.callout.weight(.semibold))
+                        .lineLimit(1)
+
+                    sourceBadge(corpus.sourceType)
+
+                    if isDefaultReferenceCorpus(corpus) {
+                        referenceBadge
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "externaldrive")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Text(corpus.databaseFileName)
+                        .font(.caption.monospaced())
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Text("·")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+
+                    Text(corpus.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text("·")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+
+                    Text(corpus.metadataSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 6) {
+                    metadataIssueBadges(for: corpus)
+
+                    Text(corpus.cleaningStatusTitle)
+                        .font(.caption2)
+                        .foregroundStyle(cleaningTint(for: corpus.cleaningStatus))
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+                }
+            }
+            .layoutPriority(1)
+
+            VStack(alignment: .leading, spacing: 6) {
+                readinessBadge(for: corpus)
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+    }
+
+    private func readinessBadge(for corpus: LibraryManagementCorpusSceneItem) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Circle()
+                .fill(readinessTint(for: corpus.readiness.level))
+                .frame(width: 7, height: 7)
+                .padding(.top, 5)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(corpus.readiness.title) · \(corpus.readiness.scoreText)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+
+                Text(corpus.readiness.detailText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(width: 150, alignment: .leading)
+    }
+
+    private func sourceBadge(_ sourceType: String) -> some View {
+        Text(sourceType.uppercased())
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.secondary.opacity(0.10), in: Capsule())
+            .lineLimit(1)
+    }
+
+    private var referenceBadge: some View {
+        Label(t("参照", "Reference"), systemImage: "character.book.closed")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.purple)
+            .lineLimit(1)
+    }
+
+    @ViewBuilder
+    private func metadataIssueBadges(for corpus: LibraryManagementCorpusSceneItem) -> some View {
+        if corpus.hasMissingYear {
+            metadataIssueBadge(t("缺年份", "No Year"), systemImage: "calendar")
+        }
+        if corpus.hasMissingGenre {
+            metadataIssueBadge(t("缺体裁", "No Genre"), systemImage: "text.book.closed")
+        }
+        if corpus.hasMissingTags {
+            metadataIssueBadge(t("缺标签", "No Tags"), systemImage: "tag")
+        }
+        if !corpus.hasMissingYear && !corpus.hasMissingGenre && !corpus.hasMissingTags {
+            Label(t("元数据完整", "Metadata Complete"), systemImage: "checkmark.circle")
+                .font(.caption2)
+                .foregroundStyle(.green)
+        }
+    }
+
+    private func metadataIssueBadge(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption2)
+            .foregroundStyle(.orange)
+            .lineLimit(1)
+    }
+
+    private func isDefaultReferenceCorpus(_ corpus: LibraryManagementCorpusSceneItem) -> Bool {
+        corpus.representedPath.contains("ReferenceCorpora")
+            || corpus.representedPath.contains("ToRCH2014")
+            || corpus.title.localizedCaseInsensitiveContains("ToRCH2014")
+    }
+
+    private func corpusHelpText(for corpus: LibraryManagementCorpusSceneItem) -> String {
+        let source = corpus.representedPath.isEmpty
+            ? t("WordZ DB 内部来源", "WordZ DB internal source")
+            : corpus.representedPath
+        return [
+            corpus.title,
+            corpus.databaseFileName,
+            source,
+            corpus.readiness.detailText
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: "\n")
     }
 
     @ViewBuilder
@@ -155,4 +222,16 @@ struct LibraryCorpusTableView: View {
             return .red
         }
     }
+
+    private func cleaningTint(for status: LibraryCorpusCleaningStatus) -> Color {
+        switch status {
+        case .pending:
+            return .orange
+        case .cleaned:
+            return .green
+        case .cleanedWithChanges:
+            return .blue
+        }
+    }
+
 }

@@ -26,7 +26,7 @@ extension WorkspaceEvidenceWorkflowService {
             )
             await exportTextDocument(
                 document,
-                title: wordZText("保存保留摘录", "Save Kept Excerpts", mode: .system),
+                title: wordZText("保存摘录", "Save Excerpts", mode: .system),
                 successStatus: wordZText("已保存摘录到", "Saved excerpts to", mode: .system),
                 features: features,
                 preferredRoute: preferredRoute

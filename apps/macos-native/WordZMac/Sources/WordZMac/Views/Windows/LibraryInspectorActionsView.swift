@@ -115,6 +115,12 @@ struct LibraryInspectorActionsView: View {
             return "tray.full"
         case .restoreSelectedRecycleEntry:
             return "arrow.uturn.backward"
+        case .backupLibrary:
+            return "archivebox"
+        case .restoreLibrary:
+            return "arrow.counterclockwise"
+        case .repairLibrary:
+            return "wrench.adjustable"
         case .deleteSelectedCorpus,
              .deleteSelectedFolder,
              .deleteSelectedCorpusSet,

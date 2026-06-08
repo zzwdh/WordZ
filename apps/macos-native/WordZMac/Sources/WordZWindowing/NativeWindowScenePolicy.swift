@@ -61,17 +61,6 @@ package struct NativeWindowScenePolicy: Equatable {
                 usesDefaultPlacement: true,
                 usesIdealPlacement: true
             )
-        case .evidenceWorkbench:
-            return NativeWindowScenePolicy(
-                route: route,
-                defaultSize: CGSize(width: 920, height: 640),
-                minimumSize: CGSize(width: 760, height: 520),
-                resizability: .automatic,
-                restorationPolicy: .disabled,
-                launchPolicy: .suppressed,
-                usesDefaultPlacement: true,
-                usesIdealPlacement: true
-            )
         case .sourceReader:
             return NativeWindowScenePolicy(
                 route: route,
@@ -89,17 +78,6 @@ package struct NativeWindowScenePolicy: Equatable {
                 defaultSize: CGSize(width: 980, height: 720),
                 minimumSize: CGSize(width: 780, height: 560),
                 resizability: .automatic,
-                restorationPolicy: .disabled,
-                launchPolicy: .suppressed,
-                usesDefaultPlacement: true,
-                usesIdealPlacement: true
-            )
-        case .taskCenter:
-            return NativeWindowScenePolicy(
-                route: route,
-                defaultSize: CGSize(width: 560, height: 420),
-                minimumSize: CGSize(width: 560, height: 420),
-                resizability: .contentSize,
                 restorationPolicy: .disabled,
                 launchPolicy: .suppressed,
                 usesDefaultPlacement: true,

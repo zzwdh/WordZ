@@ -179,11 +179,6 @@ final class NativeWindowPresentationTests: XCTestCase {
             .libraryToolbar
         )
         XCTAssertEqual(
-            NativeWindowPresentationProfile.profile(for: .taskCenter)
-                .resolvedSearchMode(capabilities: capabilities),
-            .taskCenterToolbar
-        )
-        XCTAssertEqual(
             NativeWindowPresentationProfile.profile(for: .about)
                 .resolvedToolbarMode(capabilities: capabilities),
             .utilitySceneChrome
@@ -234,16 +229,26 @@ final class NativeWindowPresentationTests: XCTestCase {
         XCTAssertEqual(settingsPolicy.restorationPolicy, .disabled)
     }
 
+    func testScenePolicyLaunchAndRestorationMatchWindowRole() {
+        let mainPolicy = NativeWindowScenePolicy.policy(for: .mainWorkspace)
+        let libraryPolicy = NativeWindowScenePolicy.policy(for: .library)
+
+        XCTAssertEqual(mainPolicy.launchPolicy, .presented)
+        XCTAssertEqual(mainPolicy.restorationPolicy, .automatic)
+        XCTAssertEqual(libraryPolicy.launchPolicy, .suppressed)
+        XCTAssertEqual(libraryPolicy.restorationPolicy, .automatic)
+
+        for route in [NativeWindowRoute.sourceReader, .settings, .updatePrompt, .about, .help, .releaseNotes] {
+            let policy = NativeWindowScenePolicy.policy(for: route)
+            XCTAssertEqual(policy.launchPolicy, .suppressed, "Expected \(route.id) to stay hidden until explicitly requested.")
+            XCTAssertEqual(policy.restorationPolicy, .disabled, "Expected \(route.id) to avoid automatic restoration churn.")
+        }
+    }
+
     func testScenePolicyKeepsUtilityWindowsContentSized() {
-        let taskCenterPolicy = NativeWindowScenePolicy.policy(for: .taskCenter)
         let updatePolicy = NativeWindowScenePolicy.policy(for: .updatePrompt)
         let aboutPolicy = NativeWindowScenePolicy.policy(for: .about)
 
-        XCTAssertEqual(taskCenterPolicy.defaultSize, CGSize(width: 560, height: 420))
-        XCTAssertEqual(taskCenterPolicy.minimumSize, CGSize(width: 560, height: 420))
-        XCTAssertEqual(taskCenterPolicy.resizability, .contentSize)
-        XCTAssertEqual(taskCenterPolicy.restorationPolicy, .disabled)
-        XCTAssertEqual(taskCenterPolicy.launchPolicy, .suppressed)
         XCTAssertEqual(updatePolicy.defaultSize, CGSize(width: 560, height: 420))
         XCTAssertEqual(updatePolicy.minimumSize, CGSize(width: 560, height: 420))
         XCTAssertEqual(updatePolicy.resizability, .contentSize)

@@ -11,8 +11,8 @@ extension TopicsView {
                     tone: .warning,
                     title: t("主题模型已切换到稳定兜底模式", "Topics model is using a stable fallback mode"),
                     message: t(
-                        "当前系统英文句向量不可用，因此 Topics 结果会退化为探索性近似结果；不过现在这个兜底模式已经保证跨启动稳定。",
-                        "The system English sentence embedding is unavailable, so Topics results are using an approximate fallback mode. The fallback is now stable across launches, but quality may be lower."
+                        "当前系统句向量不可用，因此 Topics 结果会退化为探索性近似结果；不过现在这个兜底模式已经保证跨启动稳定。",
+                        "The system sentence embedding is unavailable, so Topics results are using an approximate fallback mode. The fallback is now stable across launches, but quality may be lower."
                     )
                 )
             }
