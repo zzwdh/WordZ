@@ -4,6 +4,7 @@ private let topicLogger = WordZTelemetry.logger(category: "Topics")
 
 actor NativeTopicEngine: TopicAnalysisEngine {
     let modelManager: TopicModelManager
+    let runtimeTuning: NativeAnalysisRuntimeTuning
     let maxSliceCacheEntries: Int
     let maxEmbeddingCacheEntries: Int
     let maxReductionCacheEntries: Int
@@ -17,13 +18,15 @@ actor NativeTopicEngine: TopicAnalysisEngine {
     init(
         modelManager: TopicModelManager = TopicModelManager(),
         maxSliceCacheEntries: Int = 8,
-        maxEmbeddingCacheEntries: Int = 2048,
-        maxReductionCacheEntries: Int = 32
+        maxEmbeddingCacheEntries: Int? = nil,
+        maxReductionCacheEntries: Int? = nil,
+        runtimeTuning: NativeAnalysisRuntimeTuning = .topicTuning()
     ) {
         self.modelManager = modelManager
+        self.runtimeTuning = runtimeTuning
         self.maxSliceCacheEntries = max(1, maxSliceCacheEntries)
-        self.maxEmbeddingCacheEntries = max(64, maxEmbeddingCacheEntries)
-        self.maxReductionCacheEntries = max(4, maxReductionCacheEntries)
+        self.maxEmbeddingCacheEntries = max(64, maxEmbeddingCacheEntries ?? runtimeTuning.topicEmbeddingCacheEntries)
+        self.maxReductionCacheEntries = max(4, maxReductionCacheEntries ?? runtimeTuning.topicReductionCacheEntries)
     }
 
     func analyze(
@@ -67,6 +70,7 @@ actor NativeTopicEngine: TopicAnalysisEngine {
         logStageCompleted("embedding", startedAt: embeddingStartedAt, metadata: [
             "slices": "\(slices.count)",
             "provider": model.providerLabel,
+            "batchSize": "\(runtimeTuning.topicEmbeddingBatchSize)",
             "dimensions": "\(embeddings.first?.count ?? 0)",
             "reducedDimensions": "\(reducedEmbeddings.reducedDimensions ?? (embeddings.first?.count ?? 0))",
             "explainedVariance": reducedEmbeddings.explainedVariance.map { String(format: "%.3f", $0) } ?? "n/a"
@@ -125,7 +129,7 @@ actor NativeTopicEngine: TopicAnalysisEngine {
             ? 0
             : Double(result.outlierCount) / Double(result.totalSegments)
         topicLogger.info(
-            "topics.completed provider=\(model.providerLabel, privacy: .public) slices=\(result.totalSegments) clustered=\(result.clusteredSegments) clusters=\(result.clusters.count) reducedDimensions=\(reducedEmbeddings.reducedDimensions ?? (embeddings.first?.count ?? 0)) explainedVariance=\(reducedEmbeddings.explainedVariance.map { String(format: "%.3f", $0) } ?? "n/a", privacy: .public) outlierRatio=\(String(format: "%.3f", outlierRatio), privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: analysisStartedAt))"
+            "topics.completed provider=\(model.providerLabel, privacy: .public) slices=\(result.totalSegments) clustered=\(result.clusteredSegments) clusters=\(result.clusters.count) reducedDimensions=\(reducedEmbeddings.reducedDimensions ?? (embeddings.first?.count ?? 0)) explainedVariance=\(reducedEmbeddings.explainedVariance.map { String(format: "%.3f", $0) } ?? "n/a", privacy: .public) outlierRatio=\(String(format: "%.3f", outlierRatio), privacy: .public) tuning=\(self.runtimeTuning.summaryLine, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: analysisStartedAt))"
         )
         return result
     }
@@ -174,7 +178,7 @@ actor NativeTopicEngine: TopicAnalysisEngine {
     }
 
     func shouldUseApproximateClustering(vectorCount: Int) -> Bool {
-        vectorCount > Self.exactClusteringVectorLimit
+        vectorCount > runtimeTuning.topicExactClusteringVectorLimit
     }
 
     func logStageCompleted(

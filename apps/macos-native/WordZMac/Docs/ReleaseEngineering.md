@@ -28,7 +28,7 @@
 - `Scripts/release-manifest.sh`
   独立生成带 release metadata 的发布资产校验清单
 - `Scripts/release-metadata-check.sh`
-  在发版前核对 `package.json` 版本、release highlights 和对应 `Release Notes` 是否齐全
+  在发版前核对 `VERSION`、`RELEASE_HIGHLIGHTS.md` 和对应 `Release Notes` 是否齐全
 - `Scripts/verify-release.sh`
   使用 `checksums.txt` 校验 release 资产
 - `Scripts/release-smoke.sh`
@@ -89,7 +89,8 @@
 2. 新建下一次版本的 `ReleaseNotes` 草稿
 3. 先保持运行中版本号不变，不要提前把应用展示版本切到下一个版本
 4. 等下一次版本真正进入发版收尾阶段，再统一更新：
-   - `package.json`
+   - `VERSION`
+   - `RELEASE_HIGHLIGHTS.md`
    - 应用内版本说明
    - 发布脚本中的示例命令
 

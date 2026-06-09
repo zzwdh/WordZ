@@ -32,7 +32,7 @@ extension NativeTopicEngine {
             )
         }
 
-        if vectors.count > Self.exactClusteringVectorLimit {
+        if vectors.count > runtimeTuning.topicExactClusteringVectorLimit {
             return approximateClusterVectors(
                 vectors,
                 minTopicSize: minTopicSize,

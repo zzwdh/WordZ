@@ -54,7 +54,7 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
                 activeTab: "stats",
                 selectedFolderName: "全部",
                 selectedCorpusName: "Demo Corpus",
-                engineEntryPath: "/engine/index.mjs",
+                analysisRuntime: "Swift native macOS",
                 runtimeWorkingDirectory: tempRoot.path,
                 userDataDirectory: tempRoot.path,
                 taskCenterSummary: "No background tasks right now.",

@@ -143,6 +143,7 @@ extension LibraryManagementViewModel {
     }
 
     func setImportProgress(_ snapshot: LibraryImportProgressSnapshot?) {
+        guard importProgressSnapshot != snapshot else { return }
         importProgressSnapshot = snapshot
     }
 

@@ -75,7 +75,10 @@ final class LibraryManagementViewModel: ObservableObject {
         }
     }
     @Published var importProgressSnapshot: LibraryImportProgressSnapshot? {
-        didSet { requestSceneSync() }
+        didSet {
+            guard oldValue != importProgressSnapshot else { return }
+            requestSceneSync()
+        }
     }
     @Published var corpusInfoSheet: LibraryCorpusInfoSceneModel?
     @Published var importPreflightSheet: LibraryImportPreflightSceneModel?

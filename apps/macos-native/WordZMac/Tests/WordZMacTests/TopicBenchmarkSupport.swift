@@ -61,11 +61,18 @@ struct TopicBenchmarkHardwareProfile: Codable, Equatable {
     let hardwareClass: String
     let hasMetalGPU: Bool
     let hasAppleNeuralEngine: Bool
+    let processorCount: Int
+    let activeProcessorCount: Int
+    let physicalMemoryMB: Int
+    let lowPowerModeEnabled: Bool
+    let thermalProfile: String
+    let operatingSystem: String
     let coreMLComputeUnits: [String: String]
     let summaryLine: String
 
     static func current() -> Self {
-        let snapshot = HardwareAccelerationPolicy.currentSnapshot()
+        let profile = HardwareAccelerationPolicy.currentHardwareProfile()
+        let snapshot = profile.acceleration
         let providerFamilies: [SentimentModelProviderFamily] = [
             .bundledCoreML,
             .embeddingLogReg,
@@ -79,7 +86,7 @@ struct TopicBenchmarkHardwareProfile: Codable, Equatable {
                 computeUnitsLabel(
                     HardwareAccelerationPolicy.coreMLComputeUnits(
                         for: family,
-                        snapshot: snapshot
+                        profile: profile
                     )
                 )
             )
@@ -89,20 +96,22 @@ struct TopicBenchmarkHardwareProfile: Codable, Equatable {
             hardwareClass: hardwareClass,
             hasMetalGPU: snapshot.hasMetalGPU,
             hasAppleNeuralEngine: snapshot.hasAppleNeuralEngine,
+            processorCount: profile.processorCount,
+            activeProcessorCount: profile.activeProcessorCount,
+            physicalMemoryMB: profile.physicalMemoryMegabytes,
+            lowPowerModeEnabled: profile.lowPowerModeEnabled,
+            thermalProfile: profile.thermalProfile.rawValue,
+            operatingSystem: profile.operatingSystem.displayVersion,
             coreMLComputeUnits: computeUnits,
             summaryLine: summaryLine(
-                hardwareClass: hardwareClass,
-                hasMetalGPU: snapshot.hasMetalGPU,
-                hasAppleNeuralEngine: snapshot.hasAppleNeuralEngine,
+                profile: profile,
                 coreMLComputeUnits: computeUnits
             )
         )
     }
 
     private static func summaryLine(
-        hardwareClass: String,
-        hasMetalGPU: Bool,
-        hasAppleNeuralEngine: Bool,
+        profile: NativeHardwareProfile,
         coreMLComputeUnits: [String: String]
     ) -> String {
         let orderedFamilies = [
@@ -116,7 +125,7 @@ struct TopicBenchmarkHardwareProfile: Codable, Equatable {
                 return "\(family.rawValue)=\(units)"
             }
             .joined(separator: " ")
-        return "hardware=\(hardwareClass) metal=\(hasMetalGPU) ane=\(hasAppleNeuralEngine) \(computeSummary)"
+        return "\(profile.summaryLine) \(computeSummary)"
     }
 
     private static func computeUnitsLabel(_ units: MLComputeUnits) -> String {

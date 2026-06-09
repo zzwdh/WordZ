@@ -21,9 +21,10 @@ workspace verticals that are being split out of core.
 
 `WordZLibraryFeature`, `WordZWorkbenchUI`, `WordZWindowing`, `WordZAnalysis`,
 `WordZStorage`, `WordZEngine`, `WordZHost`, `WordZExport`, `WordZDiagnostics`,
-and `WordZShared` are the target boundaries the app is moving toward. New code
-should move into the narrowest target or source domain that can own it without
-reaching back into the workspace shell.
+and `WordZShared` are the target boundaries the app is moving toward.
+`WordZEngine` now owns native runtime path and JSON support, not a Node process
+transport. New code should move into the narrowest target or source domain that
+can own it without reaching back into the workspace shell.
 
 ## Source Ownership
 

@@ -3,12 +3,13 @@ set -euo pipefail
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+source "$SCRIPT_DIR/release-support.sh"
 APP_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 REPO_ROOT=$(cd "$APP_ROOT/../../.." && pwd)
 DIST_DIR="${WORDZ_MAC_DIST_DIR:-$APP_ROOT/dist-native}"
 APP_NAME="${WORDZ_MAC_APP_NAME:-WordZ}"
 BUNDLE_ID="${WORDZ_MAC_BUNDLE_ID:-com.zzwdh.wordz.native}"
-VERSION="${WORDZ_MAC_VERSION:-$(node -p "require('$REPO_ROOT/package.json').version")}"
+VERSION="$(release_support_current_version)"
 BUILD_NUMBER="${WORDZ_MAC_BUILD_NUMBER:-$(date +%Y%m%d%H%M%S)}"
 ARCH_NAME="${WORDZ_MAC_ARCH:-$(uname -m)}"
 SWIFT_PRODUCT="${WORDZ_MAC_SWIFT_PRODUCT:-WordZMac}"
@@ -42,7 +43,7 @@ EXECUTABLE_SHA256="$(/usr/bin/shasum -a 256 "$EXECUTABLE_PATH" | /usr/bin/awk '{
 GIT_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
 GIT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR/WordZMacScripts"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$EXECUTABLE_PATH" "$MACOS_DIR/$SWIFT_PRODUCT"
 chmod +x "$MACOS_DIR/$SWIFT_PRODUCT"
 
@@ -54,9 +55,7 @@ if [[ -f "$REPO_ROOT/build/icon.icns" ]]; then
   cp "$REPO_ROOT/build/icon.icns" "$RESOURCES_DIR/$APP_NAME.icns"
 fi
 
-cp "$APP_ROOT/Scripts/export-xlsx.mjs" "$RESOURCES_DIR/WordZMacScripts/export-xlsx.mjs"
-
-for locale_dir in "$APP_ROOT/Sources/WordZMac/Resources/"*.lproj; do
+for locale_dir in "$APP_ROOT"/Sources/WordZMac/Resources/*.lproj(N); do
   if [[ -d "$locale_dir" ]]; then
     cp -R "$locale_dir" "$RESOURCES_DIR/$(basename "$locale_dir")"
   fi

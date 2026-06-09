@@ -6,7 +6,7 @@ WordZMac now organizes source code by domain first, then by UI layer.
 
 - `Analysis`: analysis engines, scene builders, page-state protocols, filtering and pagination support.
 - `Workspace`: workspace repository, coordinators, scene graph, shell composition, and workflow orchestration.
-- `Engine`: local engine transport, RPC support, engine-facing models and contracts.
+- `Engine`: native analysis-facing models, JSON decoding helpers, and macOS runtime paths.
 - `Storage`: local corpus library persistence, workspace snapshots, and storage support.
 - `Host`: macOS-native integrations such as updates, notifications, dialogs, quick look, sharing, and window state.
 - `Export`: CSV/TXT/XLSX export and preview-file generation.
@@ -31,7 +31,7 @@ WordZMac now organizes source code by domain first, then by UI layer.
 
 - Primary type files use `TypeName.swift`.
 - Responsibility slices use `TypeName+Concern.swift`.
-- Domain subfolders should use role names such as `Services`, `Support`, `Models`, `Protocols`, `Stores`, `Builders`, `State`, and `Transport`.
+- Domain subfolders should use role names such as `Services`, `Support`, `Models`, `Protocols`, `Stores`, `Builders`, and `State`.
 - Page view models should keep the pattern `PageViewModel.swift`, `+Actions`, `+Persistence`, and `+Scene` when that split is useful.
 
 ## Editing rules

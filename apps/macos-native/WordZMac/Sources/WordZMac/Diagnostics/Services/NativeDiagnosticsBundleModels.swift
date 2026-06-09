@@ -14,7 +14,7 @@ struct NativeDiagnosticsBundleContext: Codable, Equatable, Sendable {
     let activeTab: String
     let selectedFolderName: String
     let selectedCorpusName: String
-    let engineEntryPath: String
+    let analysisRuntime: String
     let runtimeWorkingDirectory: String
     let userDataDirectory: String
     let taskCenterSummary: String

@@ -1594,7 +1594,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertNotNil(diagnosticsBundleService.lastPayload)
         XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("WordZMac Diagnostics") == true)
         XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("Bundle ID") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Bundle Identifier") == true)
-        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("引擎入口") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Engine Entry") == true)
+        XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("Analysis Runtime") == true)
         XCTAssertTrue(diagnosticsBundleService.lastPayload?.reportText.contains("后台任务摘要") == true || diagnosticsBundleService.lastPayload?.reportText.contains("Background Task Summary") == true)
         XCTAssertFalse(diagnosticsBundleService.lastPayload?.reportText.contains("/tmp/WordZ-1.2.0-mac-arm64.dmg") == true)
         XCTAssertEqual(diagnosticsBundleService.lastPayload?.hostPreferences.recentDocuments.first?.representedPath, "<redacted>/demo.txt")

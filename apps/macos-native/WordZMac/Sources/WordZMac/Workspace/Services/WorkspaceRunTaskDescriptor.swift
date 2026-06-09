@@ -7,6 +7,25 @@ struct WorkspaceRunTaskDescriptor {
     let detailEn: String
     let successZh: String
     let successEn: String
+    let runtimeTaskKey: WorkspaceRuntimeTaskKey?
+
+    init(
+        titleZh: String,
+        titleEn: String,
+        detailZh: String,
+        detailEn: String,
+        successZh: String,
+        successEn: String,
+        runtimeTaskKey: WorkspaceRuntimeTaskKey? = nil
+    ) {
+        self.titleZh = titleZh
+        self.titleEn = titleEn
+        self.detailZh = detailZh
+        self.detailEn = detailEn
+        self.successZh = successZh
+        self.successEn = successEn
+        self.runtimeTaskKey = runtimeTaskKey
+    }
 
     func title(in mode: AppLanguageMode) -> String {
         wordZText(titleZh, titleEn, mode: mode)
@@ -29,7 +48,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在统计词频与基础指标…",
             detailEn: "Calculating frequencies and core metrics…",
             successZh: "统计结果已生成。",
-            successEn: "Stats results are ready."
+            successEn: "Stats results are ready.",
+            runtimeTaskKey: .stats
         )
     }
 
@@ -40,7 +60,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在整理词项与频次…",
             detailEn: "Preparing lexical items and counts…",
             successZh: "词表结果已生成。",
-            successEn: "Word list results are ready."
+            successEn: "Word list results are ready.",
+            runtimeTaskKey: .word
         )
     }
 
@@ -51,7 +72,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在切分文本并生成词元…",
             detailEn: "Tokenizing the corpus text…",
             successZh: "分词结果已生成。",
-            successEn: "Tokenization results are ready."
+            successEn: "Tokenization results are ready.",
+            runtimeTaskKey: .tokenize
         )
     }
 
@@ -62,7 +84,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在汇总多语料频次差异…",
             detailEn: "Comparing frequencies across corpora…",
             successZh: "对比结果已生成。",
-            successEn: "Comparison results are ready."
+            successEn: "Comparison results are ready.",
+            runtimeTaskKey: .compare
         )
     }
 
@@ -73,7 +96,20 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在计算 neutrality / positivity / negativity 分布…",
             detailEn: "Scoring neutrality / positivity / negativity distributions…",
             successZh: "情感结果已生成。",
-            successEn: "Sentiment results are ready."
+            successEn: "Sentiment results are ready.",
+            runtimeTaskKey: .sentiment
+        )
+    }
+
+    static var topics: Self {
+        Self(
+            titleZh: "Topics 建模",
+            titleEn: "Run Topics",
+            detailZh: "正在准备主题建模…",
+            detailEn: "Preparing topic modeling…",
+            successZh: "Topics 结果已准备完成。",
+            successEn: "Topics results are ready.",
+            runtimeTaskKey: .topics
         )
     }
 
@@ -84,7 +120,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在对比 Target 与 Reference 语料…",
             detailEn: "Comparing the target and reference corpora…",
             successZh: "关键词结果已生成。",
-            successEn: "Keyword results are ready."
+            successEn: "Keyword results are ready.",
+            runtimeTaskKey: .keyword
         )
     }
 
@@ -95,7 +132,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在计算列联表统计量…",
             detailEn: "Calculating contingency table statistics…",
             successZh: "卡方结果已生成。",
-            successEn: "Chi-square results are ready."
+            successEn: "Chi-square results are ready.",
+            runtimeTaskKey: .chiSquare
         )
     }
 
@@ -106,7 +144,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在统计检索词在语料中的分布…",
             detailEn: "Calculating term distribution across the corpus…",
             successZh: "Plot 结果已生成。",
-            successEn: "Plot results are ready."
+            successEn: "Plot results are ready.",
+            runtimeTaskKey: .plot
         )
     }
 
@@ -117,7 +156,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在定位节点词上下文…",
             detailEn: "Locating keyword-in-context rows…",
             successZh: "KWIC 结果已生成。",
-            successEn: "KWIC results are ready."
+            successEn: "KWIC results are ready.",
+            runtimeTaskKey: .kwic
         )
     }
 
@@ -128,7 +168,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在统计连续词串…",
             detailEn: "Counting contiguous token sequences…",
             successZh: "N-Gram 结果已生成。",
-            successEn: "N-gram results are ready."
+            successEn: "N-gram results are ready.",
+            runtimeTaskKey: .ngram
         )
     }
 
@@ -139,7 +180,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在抽取连续高频词串…",
             detailEn: "Extracting contiguous lexical bundles…",
             successZh: "Cluster 结果已生成。",
-            successEn: "Cluster results are ready."
+            successEn: "Cluster results are ready.",
+            runtimeTaskKey: .cluster
         )
     }
 
@@ -150,7 +192,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在计算搭配词与窗口统计…",
             detailEn: "Calculating collocates and window statistics…",
             successZh: "搭配结果已生成。",
-            successEn: "Collocate results are ready."
+            successEn: "Collocate results are ready.",
+            runtimeTaskKey: .collocate
         )
     }
 
@@ -161,7 +204,8 @@ extension WorkspaceRunTaskDescriptor {
             detailZh: "正在定位索引行所在上下文…",
             detailEn: "Locating the surrounding sentence context…",
             successZh: "定位结果已生成。",
-            successEn: "Locator results are ready."
+            successEn: "Locator results are ready.",
+            runtimeTaskKey: .locator
         )
     }
 }

@@ -1196,6 +1196,35 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(scenePublishCount, 1)
     }
 
+    func testLibraryManagementViewModelSkipsDuplicateImportProgressSceneSyncs() {
+        let viewModel = LibraryManagementViewModel()
+        viewModel.applyBootstrap(makeBootstrapState().librarySnapshot)
+
+        var scenePublishCount = 0
+        let sceneCancellable = viewModel.$scene.dropFirst().sink { _ in
+            scenePublishCount += 1
+        }
+        defer {
+            sceneCancellable.cancel()
+        }
+
+        let progress = LibraryImportProgressSnapshot(
+            phase: .importing,
+            totalCount: 4,
+            completedCount: 2,
+            importedCount: 2,
+            skippedCount: 0,
+            currentPath: "/tmp/demo.txt",
+            currentName: "demo.txt"
+        )
+
+        viewModel.setImportProgress(progress)
+        viewModel.setImportProgress(progress)
+
+        XCTAssertEqual(scenePublishCount, 1)
+        XCTAssertEqual(viewModel.scene.importProgress, 0.5)
+    }
+
     func testLibraryManagementViewModelBuildsCorpusReadinessAndMetadataStudio() {
         let viewModel = LibraryManagementViewModel()
         let snapshot = LibrarySnapshot(

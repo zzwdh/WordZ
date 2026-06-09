@@ -4,7 +4,6 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PAT
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 source "$SCRIPT_DIR/release-support.sh"
-NODE_BIN="$(release_support_node_bin)"
 
 if [[ $# -lt 1 ]]; then
   echo "usage: $0 <manifest-or-dist-dir> [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--notes-file <path>] [--draft] [--prerelease] [--clobber]" >&2
@@ -81,15 +80,19 @@ NOTES_PATH="${NOTES_PATH_OVERRIDE:-$(release_support_release_notes_path "$VERSIO
 TITLE="${TITLE_OVERRIDE:-$(release_support_release_title_from_notes "$NOTES_PATH")}"
 TITLE="${TITLE:-WordZ $VERSION}"
 
-asset_names=("${(@f)$("$NODE_BIN" -e '
-const path = require("path");
-const manifest = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-for (const asset of manifest.assets || []) {
-  if (asset && asset.name) console.log(asset.name);
-}
-if (manifest.checksumsFileName) console.log(manifest.checksumsFileName);
-console.log(path.basename(process.argv[1]));
-' "$MANIFEST_PATH")}")
+asset_names=()
+asset_index=0
+while true; do
+  asset_name="$(release_support_read_manifest_value "$MANIFEST_PATH" "assets.$asset_index.name" 2>/dev/null || true)"
+  [[ -n "$asset_name" ]] || break
+  asset_names+=("$asset_name")
+  asset_index=$((asset_index + 1))
+done
+checksums_file_name="$(release_support_read_manifest_value "$MANIFEST_PATH" checksumsFileName 2>/dev/null || true)"
+if [[ -n "$checksums_file_name" ]]; then
+  asset_names+=("$checksums_file_name")
+fi
+asset_names+=("${MANIFEST_PATH:t}")
 
 asset_paths=()
 for asset_name in "${asset_names[@]}"; do

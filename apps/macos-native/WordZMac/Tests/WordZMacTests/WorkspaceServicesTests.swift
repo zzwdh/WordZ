@@ -440,7 +440,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,
@@ -482,7 +482,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,
@@ -521,7 +521,7 @@ final class WorkspaceServicesTests: XCTestCase {
         let store = WorkspaceSceneGraphStore()
         let shell = WorkspaceShellSceneModel(
             workspaceSummary: "工作区：空",
-            buildSummary: "SwiftUI + Node.js sidecar",
+            buildSummary: "SwiftUI native macOS",
             toolbar: WorkspaceToolbarSceneModel(items: [])
         )
         let statsScene = StatsSceneBuilder().build(
@@ -571,7 +571,7 @@ final class WorkspaceServicesTests: XCTestCase {
         let store = WorkspaceSceneGraphStore()
         let shell = WorkspaceShellSceneModel(
             workspaceSummary: "工作区：空",
-            buildSummary: "SwiftUI + Node.js sidecar",
+            buildSummary: "SwiftUI native macOS",
             toolbar: WorkspaceToolbarSceneModel(items: [])
         )
         let initialStatsScene = StatsSceneBuilder().build(
@@ -654,7 +654,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,
@@ -1679,7 +1679,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,
@@ -1734,7 +1734,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,
@@ -1789,7 +1789,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,
@@ -1848,7 +1848,7 @@ final class WorkspaceServicesTests: XCTestCase {
             sidebar: .empty,
             shell: WorkspaceShellSceneModel(
                 workspaceSummary: "工作区：空",
-                buildSummary: "SwiftUI + Node.js sidecar",
+                buildSummary: "SwiftUI native macOS",
                 toolbar: WorkspaceToolbarSceneModel(items: [])
             ),
             library: .empty,

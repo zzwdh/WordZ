@@ -167,8 +167,7 @@ let package = Package(
             name: "WordZWorkspaceCoreTests",
             dependencies: [
                 "WordZWorkspaceCore",
-                "WordZWorkspaceFeature",
-                "WordZEngine"
+                "WordZWorkspaceFeature"
             ],
             path: "Tests/WordZMacTests",
             resources: [

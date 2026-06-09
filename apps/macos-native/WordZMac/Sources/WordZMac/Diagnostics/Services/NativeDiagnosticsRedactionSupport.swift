@@ -119,7 +119,7 @@ extension NativeDiagnosticsBundleContext {
             activeTab: activeTab,
             selectedFolderName: selectedFolderName,
             selectedCorpusName: selectedCorpusName,
-            engineEntryPath: NativeDiagnosticsRedactionSupport.redactPath(engineEntryPath),
+            analysisRuntime: analysisRuntime,
             runtimeWorkingDirectory: NativeDiagnosticsRedactionSupport.redactPath(runtimeWorkingDirectory),
             userDataDirectory: NativeDiagnosticsRedactionSupport.redactPath(userDataDirectory),
             taskCenterSummary: taskCenterSummary,

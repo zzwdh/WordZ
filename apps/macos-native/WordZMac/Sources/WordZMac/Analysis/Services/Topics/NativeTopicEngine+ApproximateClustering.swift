@@ -18,7 +18,7 @@ extension NativeTopicEngine {
             minTopicSize: minTopicSize
         )
         .flatMap { clusterCount in
-            (0..<Self.approximateClusteringSeedVariants).compactMap { seedVariant -> TopicPartitionEvaluation? in
+            (0..<runtimeTuning.topicApproximateClusteringSeedVariants).compactMap { seedVariant -> TopicPartitionEvaluation? in
                 let partition = approximatePartition(
                     normalizedVectors,
                     clusterCount: clusterCount,
@@ -96,7 +96,7 @@ extension NativeTopicEngine {
         let maxFeasibleClusters = max(1, vectorCount / minClusterSize)
         let sqrtBudget = max(2, Int(sqrt(Double(vectorCount)).rounded(.up)))
         let upperBound = min(
-            Self.approximateClusteringClusterLimit,
+            runtimeTuning.topicApproximateClusteringClusterLimit,
             maxFeasibleClusters,
             sqrtBudget
         )
@@ -129,7 +129,7 @@ extension NativeTopicEngine {
         var assignmentSimilarities = Array(repeating: -Double.infinity, count: vectors.count)
         var latestClusters: [ClusterState] = []
 
-        for iteration in 0..<Self.approximateClusteringIterationLimit {
+        for iteration in 0..<runtimeTuning.topicApproximateClusteringIterationLimit {
             var members = Array(
                 repeating: [Int](),
                 count: centroids.count

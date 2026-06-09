@@ -4,7 +4,6 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PAT
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 source "$SCRIPT_DIR/release-support.sh"
-NODE_BIN="$(release_support_node_bin)"
 
 if [[ $# -lt 3 ]]; then
   echo "usage: $0 <app-name> <version> <dist-dir> [arch]" >&2
@@ -24,9 +23,9 @@ DMG_PATH="$DIST_DIR/$DMG_NAME"
 PKG_PATH="$DIST_DIR/$PKG_NAME"
 CHECKSUMS_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.checksums.txt"
 MANIFEST_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.manifest.json"
-PACKAGE_JSON_PATH="$(release_support_package_json_path)"
 APP_ROOT="$(release_support_app_root)"
 RELEASE_NOTES_PATH="$(release_support_release_notes_path "$VERSION")"
+RELEASE_HIGHLIGHTS_PATH="$(release_support_release_highlights_path)"
 RELEASE_NOTES_EXISTS=0
 if [[ -f "$RELEASE_NOTES_PATH" ]]; then
   RELEASE_NOTES_EXISTS=1
@@ -35,20 +34,15 @@ RELEASE_NOTES_RELATIVE_PATH="${RELEASE_NOTES_PATH#$APP_ROOT/}"
 RELEASE_TAG="$(release_support_release_tag "$VERSION")"
 RELEASE_PAGE_URL="$(release_support_release_page_url "$VERSION")"
 REPOSITORY_SLUG="$(release_support_repository_slug)"
+RELEASE_CHANNEL="$(release_support_release_channel)"
+RELEASE_HIGHLIGHTS_JSON="$(release_support_release_highlights_json "$RELEASE_HIGHLIGHTS_PATH")"
 NOTARIZED_APP="${WORDZ_MAC_NOTARIZED_APP:-0}"
 NOTARIZED_DMG="${WORDZ_MAC_NOTARIZED_DMG:-0}"
 NOTARIZED_PKG="${WORDZ_MAC_NOTARIZED_PKG:-0}"
-RELEASE_CHANNEL="$(
-  "$NODE_BIN" -e '
-const fs = require("fs");
-const pkg = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-process.stdout.write((pkg.wordz && pkg.wordz.release && pkg.wordz.release.channel) || "stable");
-' "$PACKAGE_JSON_PATH"
-)"
 
-for path in "$APP_BUNDLE" "$ZIP_PATH" "$DMG_PATH" "$PKG_PATH"; do
-  if [[ ! -e "$path" ]]; then
-    echo "missing release artifact: $path" >&2
+for artifact_path in "$APP_BUNDLE" "$ZIP_PATH" "$DMG_PATH" "$PKG_PATH"; do
+  if [[ ! -e "$artifact_path" ]]; then
+    echo "missing release artifact: $artifact_path" >&2
     exit 1
   fi
 done
@@ -66,84 +60,52 @@ $dmg_sha  $DMG_NAME
 $pkg_sha  $PKG_NAME
 EOF
 
-APP_NAME="$APP_NAME" \
-VERSION="$VERSION" \
-ARCH_NAME="$ARCH_NAME" \
-ZIP_NAME="$ZIP_NAME" \
-ZIP_SIZE="$zip_size" \
-ZIP_SHA="$zip_sha" \
-DMG_NAME="$DMG_NAME" \
-DMG_SIZE="$dmg_size" \
-DMG_SHA="$dmg_sha" \
-PKG_NAME="$PKG_NAME" \
-PKG_SIZE="$pkg_size" \
-PKG_SHA="$pkg_sha" \
-CHECKSUMS_FILE_NAME="${CHECKSUMS_PATH:t}" \
-MANIFEST_PATH="$MANIFEST_PATH" \
-PACKAGE_JSON_PATH="$PACKAGE_JSON_PATH" \
-RELEASE_TAG="$RELEASE_TAG" \
-RELEASE_CHANNEL="$RELEASE_CHANNEL" \
-RELEASE_NOTES_EXISTS="$RELEASE_NOTES_EXISTS" \
-RELEASE_NOTES_RELATIVE_PATH="$RELEASE_NOTES_RELATIVE_PATH" \
-RELEASE_PAGE_URL="$RELEASE_PAGE_URL" \
-REPOSITORY_SLUG="$REPOSITORY_SLUG" \
-NOTARIZED_APP="$NOTARIZED_APP" \
-NOTARIZED_DMG="$NOTARIZED_DMG" \
-NOTARIZED_PKG="$NOTARIZED_PKG" \
-"$NODE_BIN" -e '
-const fs = require("fs");
-const path = require("path");
-
-const pkg = JSON.parse(fs.readFileSync(process.env.PACKAGE_JSON_PATH, "utf8"));
-const highlights = pkg.wordz && Array.isArray(pkg.wordz.releaseNotes) ? pkg.wordz.releaseNotes : [];
-
-const manifest = {
-  appName: process.env.APP_NAME,
-  version: process.env.VERSION,
-  architecture: process.env.ARCH_NAME,
-  generatedAt: new Date().toISOString(),
-  release: {
-    channel: process.env.RELEASE_CHANNEL || "stable",
-    tag: process.env.RELEASE_TAG,
-    repository: process.env.REPOSITORY_SLUG || "",
-    releasePageURL: process.env.RELEASE_PAGE_URL || "",
-    notesAvailable: process.env.RELEASE_NOTES_EXISTS === "1",
-    notesPath: process.env.RELEASE_NOTES_EXISTS === "1" ? process.env.RELEASE_NOTES_RELATIVE_PATH : "",
-    highlights
+/bin/cat > "$MANIFEST_PATH" <<JSON
+{
+  "appName": "$(release_support_json_escape "$APP_NAME")",
+  "version": "$(release_support_json_escape "$VERSION")",
+  "architecture": "$(release_support_json_escape "$ARCH_NAME")",
+  "generatedAt": "$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "release": {
+    "channel": "$(release_support_json_escape "$RELEASE_CHANNEL")",
+    "tag": "$(release_support_json_escape "$RELEASE_TAG")",
+    "repository": "$(release_support_json_escape "$REPOSITORY_SLUG")",
+    "releasePageURL": "$(release_support_json_escape "$RELEASE_PAGE_URL")",
+    "notesAvailable": $([[ "$RELEASE_NOTES_EXISTS" -eq 1 ]] && echo true || echo false),
+    "notesPath": "$([[ "$RELEASE_NOTES_EXISTS" -eq 1 ]] && release_support_json_escape "$RELEASE_NOTES_RELATIVE_PATH")",
+    "highlights": $RELEASE_HIGHLIGHTS_JSON
   },
-  appBundle: {
-    name: process.env.APP_NAME + ".app",
-    notarized: process.env.NOTARIZED_APP === "1"
+  "appBundle": {
+    "name": "$(release_support_json_escape "$APP_NAME").app",
+    "notarized": $([[ "$NOTARIZED_APP" == "1" ]] && echo true || echo false)
   },
-  assets: [
+  "assets": [
     {
-      name: process.env.ZIP_NAME,
-      kind: "zip",
-      size: Number(process.env.ZIP_SIZE),
-      sha256: process.env.ZIP_SHA,
-      containsStapledApp: process.env.NOTARIZED_APP === "1"
+      "name": "$(release_support_json_escape "$ZIP_NAME")",
+      "kind": "zip",
+      "size": $zip_size,
+      "sha256": "$(release_support_json_escape "$zip_sha")",
+      "containsStapledApp": $([[ "$NOTARIZED_APP" == "1" ]] && echo true || echo false)
     },
     {
-      name: process.env.DMG_NAME,
-      kind: "dmg",
-      size: Number(process.env.DMG_SIZE),
-      sha256: process.env.DMG_SHA,
-      notarized: process.env.NOTARIZED_DMG === "1"
+      "name": "$(release_support_json_escape "$DMG_NAME")",
+      "kind": "dmg",
+      "size": $dmg_size,
+      "sha256": "$(release_support_json_escape "$dmg_sha")",
+      "notarized": $([[ "$NOTARIZED_DMG" == "1" ]] && echo true || echo false)
     },
     {
-      name: process.env.PKG_NAME,
-      kind: "pkg",
-      size: Number(process.env.PKG_SIZE),
-      sha256: process.env.PKG_SHA,
-      containsStapledApp: process.env.NOTARIZED_APP === "1",
-      notarized: process.env.NOTARIZED_PKG === "1"
+      "name": "$(release_support_json_escape "$PKG_NAME")",
+      "kind": "pkg",
+      "size": $pkg_size,
+      "sha256": "$(release_support_json_escape "$pkg_sha")",
+      "containsStapledApp": $([[ "$NOTARIZED_APP" == "1" ]] && echo true || echo false),
+      "notarized": $([[ "$NOTARIZED_PKG" == "1" ]] && echo true || echo false)
     }
   ],
-  checksumsFileName: process.env.CHECKSUMS_FILE_NAME
-};
-
-fs.writeFileSync(process.env.MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n");
-'
+  "checksumsFileName": "$(release_support_json_escape "${CHECKSUMS_PATH:t}")"
+}
+JSON
 
 echo "$CHECKSUMS_PATH"
 echo "$MANIFEST_PATH"

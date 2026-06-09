@@ -28,36 +28,57 @@ extension NativeTopicEngine {
             model.providerRevision
         ].joined(separator: "::")
 
-        return slices.map { slice in
-            let cacheKey = "\(providerKey)::\(slice.id)"
-            if let cached = embeddingCache[cacheKey] {
-                touchEmbeddingCacheKey(cacheKey)
-                return cached
-            }
-
-            let input = slice.embeddingInput
-            let embedded = model.vector(for: input)
-                ?? model.vector(
-                    for: TopicEmbeddingInput(
-                        text: input.tokens.joined(separator: " "),
-                        tokens: input.tokens,
-                        keywordTerms: input.keywordTerms,
-                        keywordBigrams: input.keywordBigrams
+        var embeddings: [[Double]] = []
+        embeddings.reserveCapacity(slices.count)
+        let batchSize = max(1, runtimeTuning.topicEmbeddingBatchSize)
+        for batchStart in stride(from: 0, to: slices.count, by: batchSize) {
+            let batchEnd = min(slices.count, batchStart + batchSize)
+            for slice in slices[batchStart..<batchEnd] {
+                embeddings.append(
+                    embedding(
+                        for: slice,
+                        providerKey: providerKey,
+                        model: model
                     )
                 )
-                ?? Array(repeating: 0.0, count: max(32, model.expectedDimensions))
-            let normalized = normalize(embedded)
-
-            embeddingCache[cacheKey] = normalized
-            embeddingCacheOrder.removeAll(where: { $0 == cacheKey })
-            embeddingCacheOrder.append(cacheKey)
-            if embeddingCacheOrder.count > maxEmbeddingCacheEntries,
-               let evicted = embeddingCacheOrder.first {
-                embeddingCache.removeValue(forKey: evicted)
-                embeddingCacheOrder.removeFirst()
             }
-            return normalized
         }
+        return embeddings
+    }
+
+    private func embedding(
+        for slice: TopicTextSlice,
+        providerKey: String,
+        model: TopicEmbeddingModel
+    ) -> [Double] {
+        let cacheKey = "\(providerKey)::\(slice.id)"
+        if let cached = embeddingCache[cacheKey] {
+            touchEmbeddingCacheKey(cacheKey)
+            return cached
+        }
+
+        let input = slice.embeddingInput
+        let embedded = model.vector(for: input)
+            ?? model.vector(
+                for: TopicEmbeddingInput(
+                    text: input.tokens.joined(separator: " "),
+                    tokens: input.tokens,
+                    keywordTerms: input.keywordTerms,
+                    keywordBigrams: input.keywordBigrams
+                )
+            )
+            ?? Array(repeating: 0.0, count: max(32, model.expectedDimensions))
+        let normalized = normalize(embedded)
+
+        embeddingCache[cacheKey] = normalized
+        embeddingCacheOrder.removeAll(where: { $0 == cacheKey })
+        embeddingCacheOrder.append(cacheKey)
+        if embeddingCacheOrder.count > maxEmbeddingCacheEntries,
+           let evicted = embeddingCacheOrder.first {
+            embeddingCache.removeValue(forKey: evicted)
+            embeddingCacheOrder.removeFirst()
+        }
+        return normalized
     }
 
     func reduceEmbeddingsIfNeeded(
@@ -350,29 +371,43 @@ extension NativeTopicEngine {
         guard !vector.isEmpty else { return }
 
         for basisVector in basis where basisVector.count == vector.count {
-            let projection = dot(vector, basisVector)
+            let projection = -dot(vector, basisVector)
             guard projection != 0 else { continue }
-            for index in vector.indices {
-                vector[index] -= basisVector[index] * projection
-            }
+            cblas_daxpy(
+                Int32(vector.count),
+                projection,
+                basisVector,
+                1,
+                &vector,
+                1
+            )
         }
     }
 
     func normalized(_ vector: [Double]) -> [Double] {
         let norm = l2Norm(vector)
         guard norm > Self.zeroTolerance else { return [] }
-        return vector.map { $0 / norm }
+        var scale = 1.0 / norm
+        var normalized = Array(repeating: 0.0, count: vector.count)
+        vDSP_vsmulD(
+            vector,
+            1,
+            &scale,
+            &normalized,
+            1,
+            vDSP_Length(vector.count)
+        )
+        return normalized
     }
 
     func l2Norm(_ vector: [Double]) -> Double {
-        sqrt(dot(vector, vector))
+        guard !vector.isEmpty else { return 0 }
+        return cblas_dnrm2(Int32(vector.count), vector, 1)
     }
 
     func dot(_ lhs: [Double], _ rhs: [Double]) -> Double {
         guard lhs.count == rhs.count else { return 0 }
-        return zip(lhs, rhs).reduce(0.0) { partialResult, pair in
-            partialResult + (pair.0 * pair.1)
-        }
+        return cblas_ddot(Int32(lhs.count), lhs, 1, rhs, 1)
     }
 
     func matrixVectorProduct(

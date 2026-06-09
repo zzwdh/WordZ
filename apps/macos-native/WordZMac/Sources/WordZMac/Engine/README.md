@@ -1,9 +1,8 @@
 # Engine
 
-Owns the local engine boundary.
+Owns native analysis-facing models and serialization helpers.
 
-- `Transport`: engine process lifecycle, RPC dispatch, and stream handling.
-- `Models`: engine request and response models.
-- `Support`: contracts, protocol helpers, and engine-specific path logic.
+- `Models`: native analysis request and response models.
+- `Support`: JSON helpers and macOS runtime path logic.
 
-Keep engine-facing serialization details inside this domain.
+Keep analysis-facing serialization details inside this domain.

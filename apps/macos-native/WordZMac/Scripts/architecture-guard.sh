@@ -150,28 +150,28 @@ check_architecture_contract_is_current() {
 }
 
 check_engine_source_target_split() {
-  print_check "Checking WordZEngine owns engine transport support..."
+  print_check "Checking WordZEngine owns native runtime support..."
 
   local engine_root="${REPO_ROOT}/Sources/WordZEngine"
   local core_decl
   core_decl=$(sed -n '/name: "WordZWorkspaceCore"/,/path: "Sources\/WordZMac"/p' "$PACKAGE_FILE")
 
   if ! grep -q '"WordZEngine"' <<< "$core_decl"; then
-    mark_failure "WordZWorkspaceCore should depend on WordZEngine for engine transport support."
+    mark_failure "WordZWorkspaceCore should depend on WordZEngine for native runtime support."
   fi
 
   local expected_engine_files=(
-    "$engine_root/Support/EngineContracts.swift"
     "$engine_root/Support/EngineJSONSupport.swift"
     "$engine_root/Support/EnginePaths.swift"
+  )
+
+  local removed_transport_files=(
+    "$engine_root/Support/EngineContracts.swift"
     "$engine_root/Support/EngineProtocolSupport.swift"
     "$engine_root/Transport/EngineClient.swift"
     "$engine_root/Transport/EngineClient+Invocation.swift"
     "$engine_root/Transport/EngineClient+Lifecycle.swift"
     "$engine_root/Transport/EngineClient+StreamHandling.swift"
-  )
-
-  local legacy_core_files=(
     "$ROOT_DIR/Engine/Support/EngineContracts.swift"
     "$ROOT_DIR/Engine/Support/EnginePaths.swift"
     "$ROOT_DIR/Engine/Support/EngineProtocolSupport.swift"
@@ -179,6 +179,11 @@ check_engine_source_target_split() {
     "$ROOT_DIR/Engine/Transport/EngineClient+Invocation.swift"
     "$ROOT_DIR/Engine/Transport/EngineClient+Lifecycle.swift"
     "$ROOT_DIR/Engine/Transport/EngineClient+StreamHandling.swift"
+    "$ROOT_DIR/Engine/Transport/EngineClient+AnalysisRPC.swift"
+    "$ROOT_DIR/Engine/Transport/EngineClient+LibraryRPC.swift"
+    "$ROOT_DIR/Engine/Transport/EngineClient+WorkspaceRPC.swift"
+    "$ROOT_DIR/Engine/Transport/EngineWorkspaceRepository.swift"
+    "$REPO_ROOT/Scripts/native-engine-entry.mjs"
   )
 
   local file_path
@@ -192,15 +197,11 @@ check_engine_source_target_split() {
     mark_failure "WordZEngine placeholder should be removed after source activation."
   fi
 
-  for file_path in "${legacy_core_files[@]}"; do
+  for file_path in "${removed_transport_files[@]}"; do
     if [[ -f "$file_path" ]]; then
-      mark_failure "Engine transport support should live in WordZEngine, not core: $file_path"
+      mark_failure "Node engine transport support should be removed from the macOS-native app: $file_path"
     fi
   done
-
-  if [[ ! -f "$ROOT_DIR/Engine/Transport/EngineWorkspaceRepository.swift" ]]; then
-    mark_failure "Workspace-facing engine repository adapter should remain in core for now."
-  fi
 }
 
 check_root_level_boundaries() {
@@ -288,7 +289,7 @@ check_workspace_feature_registry_is_data_only() {
 
 check_composition_types_stay_inside_app() {
   print_check "Checking concrete composition types stay inside App..."
-  local pattern='NativeAppContainer|NativeAppLiveComposition|HostDomainFactory|ExportDomainFactory|WorkspaceDomainFactory|StorageDomainFactory|EngineDomainFactory|DiagnosticsDomainFactory'
+  local pattern='NativeAppContainer|NativeAppLiveComposition|HostDomainFactory|ExportDomainFactory|WorkspaceDomainFactory|StorageDomainFactory|DiagnosticsDomainFactory'
   local result
   result=$(find "$ROOT_DIR" -path "$ROOT_DIR/App" -prune -o -type f -name '*.swift' -print0 \
     | xargs -0 rg -n "$pattern" || true)

@@ -2,7 +2,6 @@ import Foundation
 
 @MainActor
 struct NativeAppLiveComposition {
-    let engine: EngineDomainFactory
     let storage: StorageDomainFactory
     let host: HostDomainFactory
     let export: ExportDomainFactory
@@ -11,7 +10,6 @@ struct NativeAppLiveComposition {
 
     static func live() -> NativeAppLiveComposition {
         NativeAppLiveComposition(
-            engine: EngineDomainFactory(),
             storage: StorageDomainFactory(),
             host: HostDomainFactory(),
             export: ExportDomainFactory(),

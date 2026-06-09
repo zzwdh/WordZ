@@ -99,7 +99,7 @@ final class TopicsRealCorpusTests: XCTestCase {
         let samplePaths = [
             "build/license_en.txt",
             "apps/macos-native/WordZMac/README.md",
-            "packages/wordz-engine-js/README.md"
+            "apps/macos-native/WordZMac/Docs/ArchitectureBaseline-1.3.0.md"
         ]
 
         let documents = try samplePaths.map { relativePath -> String in

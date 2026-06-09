@@ -52,7 +52,6 @@ extension MainWorkspaceViewModel {
         let workspaceDraft = flowCoordinator.currentWorkspaceDraft(features: features)
         let uiSettings = settings.exportSnapshot()
         let redactedTaskHistory = taskCenter.persistedHistory().map { $0.redactedForDiagnostics() }
-        let engineEntryPath = (try? EnginePaths.engineEntryURL().path) ?? ""
         let startupCrashLogURL = EnginePaths.startupCrashLogURL()
         let storageSnapshot = makeDiagnosticsStorageSnapshot(userDataDirectory: settings.scene.userDataDirectory)?
             .redactedForDiagnostics()
@@ -66,7 +65,7 @@ extension MainWorkspaceViewModel {
             activeTab: selectedTab.snapshotValue,
             selectedFolderName: library.selectedFolder?.name ?? t("全部语料", "All Corpora"),
             selectedCorpusName: library.selectedCorpus?.name ?? sidebar.selectedCorpus?.name ?? "",
-            engineEntryPath: engineEntryPath,
+            analysisRuntime: "Swift native macOS",
             runtimeWorkingDirectory: EnginePaths.runtimeWorkingDirectoryURL().path,
             userDataDirectory: settings.scene.userDataDirectory,
             taskCenterSummary: taskCenter.scene.summary,
@@ -176,7 +175,7 @@ extension MainWorkspaceViewModel {
             "Active Tab: \(context.activeTab)",
             "Selected Folder: \(context.selectedFolderName)",
             "Selected Corpus: \(context.selectedCorpusName)",
-            "Engine Entry: \(context.engineEntryPath)",
+            "Analysis Runtime: \(context.analysisRuntime)",
             "Background Task Summary: \(context.taskCenterSummary)",
             "Recent Documents: \(hostPreferences.recentDocuments.count)",
             "Downloaded Update Path: \(hostPreferences.downloadedUpdatePath)"

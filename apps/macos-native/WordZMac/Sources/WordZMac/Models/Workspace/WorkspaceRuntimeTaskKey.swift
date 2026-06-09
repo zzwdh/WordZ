@@ -1,6 +1,6 @@
 import Foundation
 
-enum WorkspaceRuntimeTaskKey: String, CaseIterable, Sendable {
+enum WorkspaceRuntimeTaskKey: String, CaseIterable, Codable, Sendable {
     case stats
     case word
     case tokenize

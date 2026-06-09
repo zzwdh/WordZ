@@ -1,14 +1,5 @@
 #!/bin/zsh
 
-release_support_node_bin() {
-  local node_bin="${WORDZ_MAC_NODE_BIN:-$(command -v node || true)}"
-  if [[ -z "$node_bin" ]]; then
-    echo "node not found. Set WORDZ_MAC_NODE_BIN or install Node.js." >&2
-    return 1
-  fi
-  echo "$node_bin"
-}
-
 release_support_script_dir() {
   if [[ -n "${SCRIPT_DIR:-}" ]]; then
     echo "$SCRIPT_DIR"
@@ -29,8 +20,12 @@ release_support_repo_root() {
   cd "$app_root/../../.." && pwd
 }
 
-release_support_package_json_path() {
-  echo "$(release_support_repo_root)/package.json"
+release_support_version_path() {
+  echo "${WORDZ_MAC_VERSION_FILE:-$(release_support_app_root)/VERSION}"
+}
+
+release_support_release_highlights_path() {
+  echo "${WORDZ_MAC_RELEASE_HIGHLIGHTS_PATH:-$(release_support_app_root)/RELEASE_HIGHLIGHTS.md}"
 }
 
 release_support_dist_dir() {
@@ -38,11 +33,23 @@ release_support_dist_dir() {
 }
 
 release_support_current_version() {
-  local package_json
-  local node_bin
-  package_json="$(release_support_package_json_path)"
-  node_bin="$(release_support_node_bin)"
-  "$node_bin" -p "require('$package_json').version"
+  local version_file
+  if [[ -n "${WORDZ_MAC_VERSION:-}" ]]; then
+    echo "$WORDZ_MAC_VERSION"
+    return
+  fi
+
+  version_file="$(release_support_version_path)"
+  if [[ -f "$version_file" ]]; then
+    /usr/bin/awk 'NF { print $1; exit }' "$version_file"
+    return
+  fi
+
+  echo "native-preview"
+}
+
+release_support_release_channel() {
+  echo "${WORDZ_MAC_RELEASE_CHANNEL:-stable}"
 }
 
 release_support_release_tag() {
@@ -60,6 +67,48 @@ release_support_release_title_from_notes() {
   if [[ -f "$notes_path" ]]; then
     /usr/bin/awk '/^# / { sub(/^# /, ""); print; exit }' "$notes_path"
   fi
+}
+
+release_support_release_highlight_count() {
+  local highlights_path="${1:-$(release_support_release_highlights_path)}"
+  if [[ ! -f "$highlights_path" ]]; then
+    echo "0"
+    return
+  fi
+  /usr/bin/awk '/^- / { count += 1 } END { print count + 0 }' "$highlights_path"
+}
+
+release_support_json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\r'/}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\t'/\\t}"
+  echo "$value"
+}
+
+release_support_release_highlights_json() {
+  local highlights_path="${1:-$(release_support_release_highlights_path)}"
+  local first=1
+  local line
+  local highlight
+
+  echo "["
+  if [[ -f "$highlights_path" ]]; then
+    while IFS= read -r line; do
+      if [[ "$line" == "- "* ]]; then
+        highlight="${line#- }"
+        if [[ "$first" -eq 0 ]]; then
+          echo ","
+        fi
+        printf '    "%s"' "$(release_support_json_escape "$highlight")"
+        first=0
+      fi
+    done < "$highlights_path"
+  fi
+  echo
+  echo "  ]"
 }
 
 release_support_resolve_latest_manifest() {
@@ -122,32 +171,33 @@ release_support_read_manifest_value() {
 }
 
 release_support_repository_slug() {
-  local package_json
-  local node_bin
-  package_json="$(release_support_package_json_path)"
-  node_bin="$(release_support_node_bin)"
-  "$node_bin" -e '
-const fs = require("fs");
-const pkg = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-const candidates = [
-  pkg.repository && pkg.repository.url,
-  pkg.repository && pkg.repository.path,
-  pkg.bugs && pkg.bugs.url,
-  pkg.homepage
-];
-for (const value of candidates) {
-  if (!value) continue;
-  const normalized = String(value)
-    .trim()
-    .replace(/^git\+/, "")
-    .replace(/\.git$/, "");
-  const match = normalized.match(/github\.com[:/]+([^/]+)\/([^/]+?)(?:\/|$)/i);
-  if (match) {
-    process.stdout.write(match[1] + "/" + match[2]);
-    process.exit(0);
-  }
-}
-' "$package_json" 2>/dev/null || true
+  local remote
+  local owner
+  local repo
+  local rest
+
+  if [[ -n "${WORDZ_MAC_REPOSITORY:-}" ]]; then
+    echo "$WORDZ_MAC_REPOSITORY"
+    return
+  fi
+
+  remote="$(git -C "$(release_support_repo_root)" config --get remote.origin.url 2>/dev/null || true)"
+  remote="${remote#git+}"
+  if [[ "$remote" == git@github.com:* ]]; then
+    remote="${remote#git@github.com:}"
+  elif [[ "$remote" == https://github.com/* ]]; then
+    remote="${remote#https://github.com/}"
+  elif [[ "$remote" == http://github.com/* ]]; then
+    remote="${remote#http://github.com/}"
+  fi
+  remote="${remote%.git}"
+
+  owner="${remote%%/*}"
+  rest="${remote#*/}"
+  repo="${rest%%/*}"
+  if [[ -n "$owner" && -n "$repo" && "$rest" != "$remote" ]]; then
+    echo "$owner/$repo"
+  fi
 }
 
 release_support_release_page_url() {

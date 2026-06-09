@@ -224,7 +224,7 @@ The architecture guard now also freezes these composition rules:
 
 1. `App/Composition` must remain free of `SwiftUI` and `AppKit` imports.
 2. Concrete composition-root types must stay inside `App`:
-   `NativeAppContainer`, `NativeAppLiveComposition`, `HostDomainFactory`, `ExportDomainFactory`, `WorkspaceDomainFactory`, `StorageDomainFactory`, `EngineDomainFactory`, `DiagnosticsDomainFactory`.
+   `NativeAppContainer`, `NativeAppLiveComposition`, `HostDomainFactory`, `ExportDomainFactory`, `WorkspaceDomainFactory`, `StorageDomainFactory`, `DiagnosticsDomainFactory`.
 3. The app path should treat `App/Composition` as assembly-only and not as a second workflow layer.
 
 These guard rules are intentionally narrower than a full “composition purity” rewrite. The goal is to prevent new leakage while keeping the remaining test seams stable.
