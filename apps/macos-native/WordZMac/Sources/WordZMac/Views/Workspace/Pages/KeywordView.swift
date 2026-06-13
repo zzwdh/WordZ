@@ -8,7 +8,7 @@ struct KeywordView: View {
 
     var body: some View {
         UtilityPageScaffold(
-            title: t("Keyword Suite", "Keyword Suite"),
+            title: t("关键词计算", "Keyword Analysis"),
             scrollMode: .manual
         ) {
             WorkbenchFixedTopScrollContent {

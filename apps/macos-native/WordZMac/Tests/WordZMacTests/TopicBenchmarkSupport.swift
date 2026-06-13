@@ -1,4 +1,3 @@
-import CoreML
 import Foundation
 @testable import WordZWorkspaceCore
 
@@ -83,7 +82,7 @@ struct TopicBenchmarkHardwareProfile: Codable, Equatable {
         let computeUnits = Dictionary(uniqueKeysWithValues: providerFamilies.map { family in
             (
                 family.rawValue,
-                computeUnitsLabel(
+                HardwareAccelerationPolicy.coreMLComputeUnitsLabel(
                     HardwareAccelerationPolicy.coreMLComputeUnits(
                         for: family,
                         profile: profile
@@ -126,21 +125,6 @@ struct TopicBenchmarkHardwareProfile: Codable, Equatable {
             }
             .joined(separator: " ")
         return "\(profile.summaryLine) \(computeSummary)"
-    }
-
-    private static func computeUnitsLabel(_ units: MLComputeUnits) -> String {
-        switch units {
-        case .cpuOnly:
-            return "cpuOnly"
-        case .cpuAndGPU:
-            return "cpuAndGPU"
-        case .cpuAndNeuralEngine:
-            return "cpuAndNeuralEngine"
-        case .all:
-            return "all"
-        @unknown default:
-            return "unknown"
-        }
     }
 }
 

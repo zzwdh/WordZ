@@ -71,7 +71,7 @@ struct WorkspaceSidebarSceneModel: Equatable {
     static let empty = WorkspaceSidebarSceneModel(
         appName: "WordZ",
         versionLabel: "mac native preview",
-        engineStatus: l10n("正在连接本地引擎...", table: "Errors", mode: .system, fallback: "Connecting to the native engine…"),
+        engineStatus: l10n("正在准备分析功能...", table: "Errors", mode: .system, fallback: "Preparing analysis features…"),
         engineState: .connecting,
         targetCorpus: WorkspaceSidebarCorpusSlotSceneModel(
             title: "Target Corpus",

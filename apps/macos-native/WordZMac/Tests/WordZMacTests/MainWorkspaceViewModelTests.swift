@@ -15,7 +15,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.sceneGraph.context.appName, "WordZ")
         XCTAssertEqual(workspace.sceneGraph.activeTab, .kwic)
         XCTAssertEqual(workspace.sceneGraph.sidebar.currentCorpus?.title, "Demo Corpus")
-        XCTAssertEqual(workspace.sceneGraph.settings.workspaceSummary, "工作区：Demo Corpus ｜ 当前 DB 语料库：Demo Corpus")
+        XCTAssertEqual(workspace.sceneGraph.settings.workspaceSummary, "工作区：Demo Corpus ｜ 当前语料：Demo Corpus")
         XCTAssertFalse(workspace.isWelcomePresented)
     }
 
@@ -455,8 +455,8 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(opened)
         XCTAssertEqual(annotationItems.map(\.id), ["lemma", "lexical-class", "script"])
         XCTAssertEqual(annotationItems.first?.value, "alpha")
-        XCTAssertTrue(export.text.contains("DB Source Preview"))
-        XCTAssertTrue(export.text.contains("DB Corpus: Demo Corpus"))
+        XCTAssertTrue(export.text.contains("Source Text"))
+        XCTAssertTrue(export.text.contains("Corpus: Demo Corpus"))
         XCTAssertTrue(export.text.contains("Annotation: \(workspace.annotationState.summary(in: .system))"))
         XCTAssertTrue(export.text.contains("Full Source Sentence"))
         XCTAssertTrue(export.text.contains("Delta alpha."))
@@ -511,10 +511,10 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertNotEqual(previewPath, sourceURL.path)
         XCTAssertTrue(previewPath.hasSuffix(".txt"))
         let previewText = try String(contentsOfFile: previewPath, encoding: .utf8)
-        XCTAssertTrue(previewText.contains("DB Source Preview"))
-        XCTAssertTrue(previewText.contains("DB Corpus: Demo Corpus"))
+        XCTAssertTrue(previewText.contains("Source Text"))
+        XCTAssertTrue(previewText.contains("Corpus: Demo Corpus"))
         XCTAssertTrue(previewText.contains("Full Source Sentence"))
-        XCTAssertEqual(workspace.settings.scene.supportStatus, "已打开 DB 来源文本的 Quick Look 预览。")
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已打开来源文本预览。")
     }
 
     func testCaptureCurrentSourceReaderEvidenceItemPersistsExcerptDraft() async {
@@ -1014,8 +1014,8 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
         let text = try String(contentsOf: exportURL, encoding: .utf8)
         XCTAssertTrue(text.contains("alpha"))
-        XCTAssertTrue(text.contains("Direction: Positive") || text.contains("Direction: 正关键词"))
-        XCTAssertTrue(text.contains("Example: alpha example"))
+        XCTAssertTrue(text.contains("方向: Positive") || text.contains("方向: 正关键词"))
+        XCTAssertTrue(text.contains("示例: alpha example"))
     }
 
     func testImportKeywordReferenceWordListLoadsEditableTextAndMetadata() async throws {
@@ -1607,7 +1607,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         ])
         XCTAssertEqual(hostActions.exportedDiagnosticArchivePath, "/tmp/WordZMac-diagnostics.zip")
         XCTAssertEqual(hostActions.exportedDiagnosticPreferredRoute, .settings)
-        XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出诊断包到 /tmp/WordZMac-diagnostics.zip")
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出诊断信息到 /tmp/WordZMac-diagnostics.zip")
     }
 
     func testExportDiagnosticsEmitsCompletionNotification() async {
@@ -1628,7 +1628,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await fulfillment(of: [notified], timeout: 1)
 
         XCTAssertEqual(notificationService.notifications.count, 1)
-        XCTAssertEqual(notificationService.notifications.last?.0, "导出诊断包")
+        XCTAssertEqual(notificationService.notifications.last?.0, "导出诊断信息")
         XCTAssertEqual(notificationService.notifications.last?.1, "已完成")
         XCTAssertEqual(notificationService.notifications.last?.2, "/tmp/WordZMac-diagnostics.zip")
     }

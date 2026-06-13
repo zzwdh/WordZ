@@ -76,7 +76,7 @@ extension LibraryManagementView {
             }
 
             LibraryCorpusBuilderReferenceView(
-                dbCount: viewModel.scene.corpora.count,
+                corpusCount: viewModel.scene.corpora.count,
                 folderCount: viewModel.scene.folders.count,
                 onBuild: { onAction(.importPaths) }
             )
@@ -292,32 +292,34 @@ extension LibraryManagementView {
 }
 
 private struct LibraryCorpusBuilderReferenceView: View {
-    let dbCount: Int
+    @Environment(\.wordZLanguageMode) private var languageMode
+
+    let corpusCount: Int
     let folderCount: Int
     let onBuild: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 12)], spacing: 12) {
-                NativeMetricTile(title: "Corpora", value: "\(dbCount)")
-                NativeMetricTile(title: "Folders", value: "\(folderCount)")
-                NativeMetricTile(title: "Format", value: ".db")
-                NativeMetricTile(title: "Default", value: "我的语料库")
+                NativeMetricTile(title: t("语料", "Corpora"), value: "\(corpusCount)")
+                NativeMetricTile(title: t("文件夹", "Folders"), value: "\(folderCount)")
+                NativeMetricTile(title: t("支持格式", "Supported"), value: "TXT · DOCX · PDF")
+                NativeMetricTile(title: t("默认名称", "Default Name"), value: "我的语料库")
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                builderDetailRow(title: "Input", value: "TXT · DOCX · PDF")
+                builderDetailRow(title: t("输入", "Input"), value: t("TXT、DOCX、PDF 文件", "TXT, DOCX, PDF files"))
                 Divider()
-                builderDetailRow(title: "Import", value: "Selected files -> one corpus")
+                builderDetailRow(title: t("导入", "Import"), value: t("合并为一条可分析语料", "Merged into one analyzable corpus"))
                 Divider()
-                builderDetailRow(title: "Library", value: "Corpus Library")
+                builderDetailRow(title: t("管理", "Manage"), value: t("可重命名、移动、补齐元数据", "Rename, move, and complete metadata"))
                 Divider()
-                builderDetailRow(title: "Reuse", value: "a+b+c -> dbA, b+c+d -> dbB")
+                builderDetailRow(title: t("复用", "Reuse"), value: t("可保存为命名语料集", "Save as a named corpus set"))
             }
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             Button(action: onBuild) {
-                Label("Choose Files", systemImage: "plus")
+                Label(t("选择文件", "Choose Files"), systemImage: "plus")
             }
             .adaptiveGlassButtonStyle(prominent: true)
 
@@ -338,5 +340,9 @@ private struct LibraryCorpusBuilderReferenceView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    private func t(_ zh: String, _ en: String) -> String {
+        wordZText(zh, en, mode: languageMode)
     }
 }

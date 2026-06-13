@@ -104,7 +104,7 @@ struct SourceReaderSourceChainView: View {
     }
 
     private var accessibilitySummary: String {
-        let prefix = title ?? wordZText("高亮来源链", "Highlight Source Chain", mode: languageMode)
+        let prefix = title ?? wordZText("出处定位", "Source Location", mode: languageMode)
         return ([prefix] + items.map { "\($0.title): \($0.value)" }).joined(separator: ". ")
     }
 }

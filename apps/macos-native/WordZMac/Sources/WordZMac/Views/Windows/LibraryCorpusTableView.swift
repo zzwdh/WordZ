@@ -33,20 +33,18 @@ struct LibraryCorpusTableView: View {
                         .font(.callout.weight(.semibold))
                         .lineLimit(1)
 
-                    sourceBadge(corpus.sourceType)
-
                     if isDefaultReferenceCorpus(corpus) {
                         referenceBadge
                     }
                 }
 
                 HStack(spacing: 6) {
-                    Image(systemName: "externaldrive")
+                    Image(systemName: "doc.text")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
 
-                    Text(corpus.databaseFileName)
-                        .font(.caption.monospaced())
+                    Text(corpus.sourceSummary)
+                        .font(.caption)
                         .lineLimit(1)
                         .truncationMode(.middle)
 
@@ -112,16 +110,6 @@ struct LibraryCorpusTableView: View {
         .frame(width: 150, alignment: .leading)
     }
 
-    private func sourceBadge(_ sourceType: String) -> some View {
-        Text(sourceType.uppercased())
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.secondary.opacity(0.10), in: Capsule())
-            .lineLimit(1)
-    }
-
     private var referenceBadge: some View {
         Label(t("参照", "Reference"), systemImage: "character.book.closed")
             .font(.caption2.weight(.semibold))
@@ -161,13 +149,10 @@ struct LibraryCorpusTableView: View {
     }
 
     private func corpusHelpText(for corpus: LibraryManagementCorpusSceneItem) -> String {
-        let source = corpus.representedPath.isEmpty
-            ? t("WordZ DB 内部来源", "WordZ DB internal source")
-            : corpus.representedPath
         return [
             corpus.title,
-            corpus.databaseFileName,
-            source,
+            corpus.sourceSummary,
+            corpus.metadataSummary,
             corpus.readiness.detailText
         ]
         .filter { !$0.isEmpty }

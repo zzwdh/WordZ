@@ -15,8 +15,8 @@ extension KeywordSceneBuilder {
                 rows: keywordRows(result?.words ?? []),
                 emptyTitle: wordZText("尚未生成关键词结果", "No keyword results yet", mode: .system),
                 emptyMessage: wordZText(
-                    "选择 Focus / Reference 并运行分析，结果会显示单词级关键词。",
-                    "Choose focus/reference corpora and run the suite to inspect word keywords.",
+                    "选择目标语料和参照语料并运行分析，结果会显示单词级关键词。",
+                    "Choose focus/reference corpora and run keyword analysis to inspect word keywords.",
                     mode: .system
                 )
             )
@@ -35,7 +35,7 @@ extension KeywordSceneBuilder {
                 rows: keywordRows(result?.ngrams ?? []),
                 emptyTitle: wordZText("尚未生成 N-gram 结果", "No N-gram results yet", mode: .system),
                 emptyMessage: wordZText(
-                    "N-grams 会显示句内 2-5 gram 连续序列的 keyness 结果。",
+                    "N-grams 会显示句内 2-5 gram 连续序列的关键词结果。",
                     "N-grams show sentence-bounded 2-5 gram keyness results.",
                     mode: .system
                 )
@@ -55,12 +55,12 @@ extension KeywordSceneBuilder {
             case .keywordDatabase:
                 return KeywordBuildRowsPayload(
                     rows: keywordDatabaseRows(lists: savedLists),
-                    emptyTitle: wordZText("尚未保存关键词词表", "No saved keyword lists yet", mode: .system),
-                    emptyMessage: wordZText(
-                        "保存几份关键词词表后，这里会汇总 coverage、平均显著性和平均效应值。",
-                        "After saving several lists, this view aggregates coverage, mean keyness, and mean effect size.",
-                        mode: .system
-                    )
+                emptyTitle: wordZText("尚未保存关键词词表", "No saved keyword lists yet", mode: .system),
+                emptyMessage: wordZText(
+                    "保存几份关键词词表后，这里会汇总覆盖数、平均显著性和平均差异强度。",
+                    "After saving several lists, this view aggregates coverage, mean keyness, and mean effect size.",
+                    mode: .system
+                )
                 )
             }
         }

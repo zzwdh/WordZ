@@ -55,9 +55,9 @@ final class SourceReaderViewModel: ObservableObject {
         else { return nil }
 
         var metadataLines = [
-            "DB Source Preview",
+            "Source Text",
             "Origin: \(context.origin.title(in: .system))",
-            "DB Corpus: \(context.corpusName)"
+            "Corpus: \(context.corpusName)"
         ]
 
         if let filePath = normalizedValue(context.filePath) {
@@ -118,8 +118,8 @@ final class SourceReaderViewModel: ObservableObject {
                 code: 2,
                 userInfo: [
                     NSLocalizedDescriptionKey: wordZText(
-                        "当前没有可阅读的 DB 来源上下文。",
-                        "There is no readable DB source context available right now.",
+                        "当前没有可阅读的来源文本。",
+                        "There is no readable source text available right now.",
                         mode: .system
                     )
                 ]
@@ -170,7 +170,7 @@ final class SourceReaderViewModel: ObservableObject {
                     return storedArtifact.sentences
                 }
             } catch {
-                // Fall back to live tokenization so DB source preview stays available
+                // Fall back to live tokenization so source text preview stays available
                 // even when the saved shard artifact cannot be reused.
             }
         }
@@ -311,7 +311,7 @@ final class SourceReaderViewModel: ObservableObject {
         return [
             SourceReaderAnnotationSceneItem(
                 id: "lemma",
-                title: wordZText("Lemma", "Lemma", mode: languageMode),
+                title: wordZText("词元", "Word Base", mode: languageMode),
                 value: normalizedValue(token.annotations.lemma) ?? "—"
             ),
             SourceReaderAnnotationSceneItem(
@@ -445,8 +445,8 @@ final class SourceReaderViewModel: ObservableObject {
             code: 1,
             userInfo: [
                 NSLocalizedDescriptionKey: wordZText(
-                    "无法读取 DB 中保存的来源文本。",
-                    "Unable to read the source text saved in the DB.",
+                    "无法读取来源文本。",
+                    "Unable to read the source text.",
                     mode: .system
                 )
             ]

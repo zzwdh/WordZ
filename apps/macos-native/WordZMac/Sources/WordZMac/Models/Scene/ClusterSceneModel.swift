@@ -58,19 +58,19 @@ enum ClusterColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .frequency:
             return wordZText("频次", "Frequency", mode: mode)
         case .normalizedFrequency:
-            return wordZText("标准化频率", "NormFreq", mode: mode)
+            return wordZText("标准频次", "Normalized Frequency", mode: mode)
         case .range:
-            return "Range"
+            return wordZText("覆盖范围", "Range", mode: mode)
         case .rangePercentage:
-            return "Range%"
+            return wordZText("覆盖率", "Range %", mode: mode)
         case .referenceFrequency:
-            return wordZText("参考频次", "Ref Freq", mode: mode)
+            return wordZText("参考频次", "Reference Frequency", mode: mode)
         case .referenceNormalizedFrequency:
-            return wordZText("参考标准化频率", "Ref NormFreq", mode: mode)
+            return wordZText("参考标准频次", "Reference Normalized Frequency", mode: mode)
         case .referenceRange:
-            return wordZText("参考范围", "Ref Range", mode: mode)
+            return wordZText("参考覆盖范围", "Reference Range", mode: mode)
         case .logRatio:
-            return "LogRatio"
+            return wordZText("差异强度", "Difference Strength", mode: mode)
         }
     }
 }

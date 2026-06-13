@@ -185,6 +185,7 @@ final class HardwareAccelerationPolicyTests: XCTestCase {
         XCTAssertEqual(regular.topicExactClusteringVectorLimit, 320)
         XCTAssertEqual(regular.topicApproximateClusteringIterationLimit, 32)
         XCTAssertEqual(regular.topicApproximateClusteringSeedVariants, 5)
+        XCTAssertEqual(regular.topicSimilarityMatrixMultiplicationMinVectors, 64)
         XCTAssertEqual(regular.topicEmbeddingCacheEntries, 2_048)
 
         let conserving = NativeAnalysisRuntimeTuning.topicTuning(
@@ -197,6 +198,7 @@ final class HardwareAccelerationPolicyTests: XCTestCase {
         XCTAssertEqual(conserving.topicExactClusteringVectorLimit, 240)
         XCTAssertEqual(conserving.topicApproximateClusteringIterationLimit, 24)
         XCTAssertEqual(conserving.topicApproximateClusteringSeedVariants, 3)
+        XCTAssertEqual(conserving.topicSimilarityMatrixMultiplicationMinVectors, 96)
         XCTAssertEqual(conserving.topicEmbeddingCacheEntries, 1_024)
         XCTAssertTrue(conserving.shouldConserveResources)
     }

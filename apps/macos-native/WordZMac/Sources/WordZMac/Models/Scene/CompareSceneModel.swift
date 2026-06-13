@@ -13,7 +13,7 @@ enum CompareSortMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .keynessDescending:
-            return "Keyness 降序"
+            return "显著性降序"
         case .spreadDescending:
             return "覆盖降序"
         case .totalDescending:
@@ -21,7 +21,7 @@ enum CompareSortMode: String, CaseIterable, Identifiable {
         case .rangeDescending:
             return "差异降序"
         case .effectDescending:
-            return "效应值降序"
+            return "差异强度降序"
         case .alphabeticalAscending:
             return "按词升序"
         }
@@ -30,7 +30,7 @@ enum CompareSortMode: String, CaseIterable, Identifiable {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .keynessDescending:
-            return wordZText("Keyness 降序", "Keyness Descending", mode: mode)
+            return wordZText("显著性降序", "Significance Descending", mode: mode)
         case .spreadDescending:
             return wordZText("覆盖降序", "Spread Descending", mode: mode)
         case .totalDescending:
@@ -38,7 +38,7 @@ enum CompareSortMode: String, CaseIterable, Identifiable {
         case .rangeDescending:
             return wordZText("差异降序", "Range Descending", mode: mode)
         case .effectDescending:
-            return wordZText("效应值降序", "Effect Descending", mode: mode)
+            return wordZText("差异强度降序", "Effect Descending", mode: mode)
         case .alphabeticalAscending:
             return wordZText("按词升序", "Alphabetical Ascending", mode: mode)
         }
@@ -101,9 +101,9 @@ enum CompareColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .word:
             return "词"
         case .keyness:
-            return "Keyness"
+            return "显著性"
         case .effect:
-            return "Log Ratio"
+            return "差异强度"
         case .spread:
             return "覆盖语料"
         case .total:
@@ -122,9 +122,9 @@ enum CompareColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .word:
             return wordZText("词", "Word", mode: mode)
         case .keyness:
-            return wordZText("Keyness", "Keyness", mode: mode)
+            return wordZText("显著性", "Significance", mode: mode)
         case .effect:
-            return wordZText("Log Ratio", "Log Ratio", mode: mode)
+            return wordZText("差异强度", "Difference Strength", mode: mode)
         case .spread:
             return wordZText("覆盖语料", "Spread", mode: mode)
         case .total:

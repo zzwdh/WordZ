@@ -1,3 +1,4 @@
+import Accelerate
 import Foundation
 
 extension NativeTopicEngine {
@@ -6,31 +7,47 @@ extension NativeTopicEngine {
         minTopicSize: Int,
         partitionScoringProfile: TopicPartitionScoringProfile = .balanced
     ) -> TopicClusteringResult {
-        let normalizedVectors = vectors.map(normalize)
-        let conservativePartition = approximateConservativeFallbackPartition(
-            vectors: normalizedVectors,
-            minTopicSize: minTopicSize,
-            scoringProfile: partitionScoringProfile
-        )
+        let diagnostics = TopicApproximateClusteringDiagnosticsBuilder()
+        let normalizedVectors = diagnostics.measure("normalizing") {
+            vectors.map(normalize)
+        }
+        let normalizedMatrix = diagnostics.measure("matrixBuild") {
+            normalizedVectorMatrix(for: normalizedVectors)
+        }
+        let conservativePartition = diagnostics.measure("candidateSearch") {
+            approximateConservativeFallbackPartition(
+                vectors: normalizedVectors,
+                minTopicSize: minTopicSize,
+                scoringProfile: partitionScoringProfile
+            )
+        }
 
-        let bestPartition = candidateApproximateClusterCounts(
-            for: normalizedVectors.count,
-            minTopicSize: minTopicSize
-        )
-        .flatMap { clusterCount in
-            (0..<runtimeTuning.topicApproximateClusteringSeedVariants).compactMap { seedVariant -> TopicPartitionEvaluation? in
-                let partition = approximatePartition(
+        func evaluateCandidate(
+            clusterCount: Int,
+            seedVariant: Int,
+            iterationLimit: Int
+        ) -> TopicPartitionEvaluation? {
+            diagnostics.recordCandidateEvaluation()
+            let partition = diagnostics.measure("assignment") {
+                approximatePartition(
                     normalizedVectors,
+                    normalizedMatrix: normalizedMatrix,
                     clusterCount: clusterCount,
                     minTopicSize: minTopicSize,
-                    seedVariant: seedVariant
+                    seedVariant: seedVariant,
+                    iterationLimit: iterationLimit
                 )
-                let refined = refineApproximatePartition(
+            }
+            let refined = diagnostics.measure("refinement") {
+                refineApproximatePartition(
                     partition,
                     vectors: normalizedVectors,
+                    normalizedMatrix: normalizedMatrix,
                     minTopicSize: minTopicSize
                 )
-                return evaluateApproximatePartition(
+            }
+            return diagnostics.measure("evaluation") {
+                evaluateApproximatePartition(
                     refined,
                     vectors: normalizedVectors,
                     totalCount: normalizedVectors.count,
@@ -39,7 +56,70 @@ extension NativeTopicEngine {
                 )
             }
         }
-        .max(by: comparePartitions)
+
+        let candidateCounts = diagnostics.measure("candidateSearch") {
+            candidateApproximateClusterCounts(
+                for: normalizedVectors.count,
+                minTopicSize: minTopicSize
+            )
+        }
+        let usesTwoStageSearch = normalizedVectors.count >= runtimeTuning.topicApproximateClusteringLargeCorpusVectorThreshold
+        let bestPartition: TopicPartitionEvaluation?
+        if usesTwoStageSearch {
+            diagnostics.setUsedTwoStageSearch(true)
+            let coarseCounts = diagnostics.measure("candidateSearch") {
+                coarseApproximateClusterCounts(from: candidateCounts)
+            }
+            diagnostics.setCoarseCandidateCounts(coarseCounts)
+            let coarseEvaluations: [(clusterCount: Int, evaluation: TopicPartitionEvaluation)] = coarseCounts.compactMap { clusterCount in
+                evaluateCandidate(
+                    clusterCount: clusterCount,
+                    seedVariant: 0,
+                    iterationLimit: runtimeTuning.topicApproximateClusteringCoarseIterationLimit
+                ).map { (clusterCount, $0) }
+            }
+            let refinedCounts = diagnostics.measure("candidateSearch") {
+                Array(
+                    coarseEvaluations
+                        .sorted { lhs, rhs in
+                            comparePartitions(rhs.evaluation, lhs.evaluation)
+                        }
+                        .prefix(max(1, runtimeTuning.topicApproximateClusteringRefineCandidateLimit))
+                        .map(\.clusterCount)
+                )
+            }
+            diagnostics.setRefinedCandidateCounts(refinedCounts)
+            let refinedEvaluations: [(clusterCount: Int, evaluation: TopicPartitionEvaluation)] = refinedCounts.flatMap { clusterCount in
+                (0..<runtimeTuning.topicApproximateClusteringSeedVariants).compactMap { seedVariant -> (clusterCount: Int, evaluation: TopicPartitionEvaluation)? in
+                    evaluateCandidate(
+                        clusterCount: clusterCount,
+                        seedVariant: seedVariant,
+                        iterationLimit: runtimeTuning.topicApproximateClusteringIterationLimit
+                    ).map { (clusterCount, $0) }
+                }
+            }
+            let eligibleEvaluations = refinedEvaluations.isEmpty ? coarseEvaluations : refinedEvaluations
+            bestPartition = eligibleEvaluations
+                .map(\.evaluation)
+                .max(by: comparePartitions)
+        } else {
+            diagnostics.setRefinedCandidateCounts(candidateCounts)
+            bestPartition = candidateCounts
+                .flatMap { clusterCount in
+                    (0..<runtimeTuning.topicApproximateClusteringSeedVariants).compactMap { seedVariant -> TopicPartitionEvaluation? in
+                        evaluateCandidate(
+                            clusterCount: clusterCount,
+                            seedVariant: seedVariant,
+                            iterationLimit: runtimeTuning.topicApproximateClusteringIterationLimit
+                        )
+                    }
+                }
+                .max(by: comparePartitions)
+        }
+
+        let approximateDiagnostics = diagnostics.build()
+        let sortedConservativeClusters = clustersWithSortedMembers(conservativePartition.validClusters)
+        let sortedConservativeOutliers = conservativePartition.outlierIndices.sorted()
 
         var warnings = [
             approximateClusteringWarning()
@@ -47,12 +127,13 @@ extension NativeTopicEngine {
 
         guard let bestPartition else {
             return TopicClusteringResult(
-                validClusters: sortedClusters(conservativePartition.validClusters),
-                outlierIndices: conservativePartition.outlierIndices.sorted(),
+                validClusters: sortedClusters(sortedConservativeClusters),
+                outlierIndices: sortedConservativeOutliers,
                 similarityMatrix: [],
                 silhouetteScore: conservativePartition.silhouetteScore,
                 strategy: .approximateRefined,
-                warnings: warnings
+                warnings: warnings,
+                approximateDiagnostics: approximateDiagnostics
             )
         }
 
@@ -66,22 +147,24 @@ extension NativeTopicEngine {
         ) {
             warnings.append(conservativeFallbackWarning())
             return TopicClusteringResult(
-                validClusters: sortedClusters(conservativePartition.validClusters),
-                outlierIndices: conservativePartition.outlierIndices.sorted(),
+                validClusters: sortedClusters(sortedConservativeClusters),
+                outlierIndices: sortedConservativeOutliers,
                 similarityMatrix: [],
                 silhouetteScore: conservativePartition.silhouetteScore,
                 strategy: .approximateRefined,
-                warnings: warnings
+                warnings: warnings,
+                approximateDiagnostics: approximateDiagnostics
             )
         }
 
         return TopicClusteringResult(
-            validClusters: sortedClusters(bestPartition.validClusters),
+            validClusters: sortedClusters(clustersWithSortedMembers(bestPartition.validClusters)),
             outlierIndices: bestPartition.outlierIndices.sorted(),
             similarityMatrix: [],
             silhouetteScore: bestPartition.silhouetteScore,
             strategy: .approximateRefined,
-            warnings: warnings
+            warnings: warnings,
+            approximateDiagnostics: approximateDiagnostics
         )
     }
 
@@ -103,12 +186,35 @@ extension NativeTopicEngine {
         return Array(1...max(1, upperBound))
     }
 
+    func coarseApproximateClusterCounts(from candidateCounts: [Int]) -> [Int] {
+        guard !candidateCounts.isEmpty else { return [] }
+
+        let candidateSet = Set(candidateCounts)
+        let configuredCounts = runtimeTuning.topicApproximateClusteringCoarseCandidateCounts
+            .filter { candidateSet.contains($0) }
+        if !configuredCounts.isEmpty {
+            return Array(Set(configuredCounts + [candidateCounts.first!, candidateCounts.last!])).sorted()
+        }
+
+        let targetCount = min(6, candidateCounts.count)
+        guard targetCount < candidateCounts.count else { return candidateCounts }
+
+        let stride = max(1, Int(ceil(Double(candidateCounts.count) / Double(targetCount))))
+        var selected = candidateCounts.enumerated()
+            .compactMap { index, value in index % stride == 0 ? value : nil }
+        if selected.last != candidateCounts.last {
+            selected.append(candidateCounts.last!)
+        }
+        return Array(Set(selected)).sorted()
+    }
 
     func approximatePartition(
         _ vectors: [[Double]],
+        normalizedMatrix: TopicNormalizedVectorMatrix? = nil,
         clusterCount: Int,
         minTopicSize: Int,
-        seedVariant: Int
+        seedVariant: Int,
+        iterationLimit: Int? = nil
     ) -> [ClusterState] {
         let boundedClusterCount = max(1, min(clusterCount, vectors.count))
         guard boundedClusterCount > 1 else {
@@ -128,19 +234,22 @@ extension NativeTopicEngine {
         var assignments = Array(repeating: 0, count: vectors.count)
         var assignmentSimilarities = Array(repeating: -Double.infinity, count: vectors.count)
         var latestClusters: [ClusterState] = []
+        let iterationLimit = max(1, iterationLimit ?? runtimeTuning.topicApproximateClusteringIterationLimit)
 
-        for iteration in 0..<runtimeTuning.topicApproximateClusteringIterationLimit {
+        for iteration in 0..<iterationLimit {
             var members = Array(
                 repeating: [Int](),
                 count: centroids.count
             )
             var changed = false
+            let centroidAssignments = bestCentroidAssignments(
+                for: vectors,
+                normalizedMatrix: normalizedMatrix,
+                centroids: centroids
+            )
 
             for index in vectors.indices {
-                let assignment = bestCentroidAssignment(
-                    for: vectors[index],
-                    centroids: centroids
-                )
+                let assignment = centroidAssignments[index]
                 if assignments[index] != assignment.index {
                     changed = true
                     assignments[index] = assignment.index
@@ -170,7 +279,7 @@ extension NativeTopicEngine {
             latestClusters = members.enumerated().compactMap { clusterIndex, memberIndices in
                 guard !memberIndices.isEmpty else { return nil }
                 return ClusterState(
-                    memberIndices: memberIndices.sorted(),
+                    memberIndices: memberIndices,
                     centroid: centroid(for: memberIndices, vectors: vectors)
                 )
             }
@@ -226,7 +335,7 @@ extension NativeTopicEngine {
         for vector: [Double],
         centroids: [[Double]]
     ) -> Double {
-        centroids.map { cosineSimilarity(vector, $0) }.max() ?? -Double.infinity
+        centroids.map { normalizedCosineSimilarity(vector, $0) }.max() ?? -Double.infinity
     }
 
     func bestCentroidAssignment(
@@ -236,7 +345,7 @@ extension NativeTopicEngine {
         var bestIndex = 0
         var bestSimilarity = -Double.infinity
         for (index, centroid) in centroids.enumerated() {
-            let similarity = cosineSimilarity(vector, centroid)
+            let similarity = normalizedCosineSimilarity(vector, centroid)
             if similarity > bestSimilarity {
                 bestSimilarity = similarity
                 bestIndex = index
@@ -248,11 +357,13 @@ extension NativeTopicEngine {
     func refineApproximatePartition(
         _ clusters: [ClusterState],
         vectors: [[Double]],
+        normalizedMatrix: TopicNormalizedVectorMatrix? = nil,
         minTopicSize: Int
     ) -> [ClusterState] {
         let reassigned = refinedApproximateReassignment(
             clusters,
             vectors: vectors,
+            normalizedMatrix: normalizedMatrix,
             minTopicSize: minTopicSize
         )
         return peelApproximateOutliers(
@@ -265,19 +376,22 @@ extension NativeTopicEngine {
     func refinedApproximateReassignment(
         _ clusters: [ClusterState],
         vectors: [[Double]],
+        normalizedMatrix: TopicNormalizedVectorMatrix? = nil,
         minTopicSize: Int
     ) -> [ClusterState] {
         guard !clusters.isEmpty else { return [] }
 
-        var centroids = clusters.map(\.centroid)
+        let centroids = clusters.map(\.centroid)
         var members = Array(repeating: [Int](), count: centroids.count)
         var assignmentSimilarities = Array(repeating: -Double.infinity, count: vectors.count)
+        let centroidAssignments = bestCentroidAssignments(
+            for: vectors,
+            normalizedMatrix: normalizedMatrix,
+            centroids: centroids
+        )
 
         for index in vectors.indices {
-            let assignment = bestCentroidAssignment(
-                for: vectors[index],
-                centroids: centroids
-            )
+            let assignment = centroidAssignments[index]
             members[assignment.index].append(index)
             assignmentSimilarities[index] = assignment.similarity
         }
@@ -298,10 +412,6 @@ extension NativeTopicEngine {
                 members[donorIndex].removeAll(where: { $0 == displaced })
                 members[clusterIndex] = [displaced]
             }
-        }
-
-        centroids = members.map { memberIndices in
-            centroid(for: memberIndices, vectors: vectors)
         }
 
         return members.enumerated().compactMap { _, memberIndices in
@@ -330,7 +440,7 @@ extension NativeTopicEngine {
             let memberSimilarities = cluster.memberIndices.map { memberIndex in
                 (
                     memberIndex,
-                    cosineSimilarity(vectors[memberIndex], cluster.centroid)
+                    normalizedCosineSimilarity(vectors[memberIndex], cluster.centroid)
                 )
             }
             let sortedSimilarities = memberSimilarities.map(\.1).sorted()
@@ -381,7 +491,7 @@ extension NativeTopicEngine {
     ) -> TopicPartitionEvaluation {
         let allIndices = Array(vectors.indices)
         let globalCentroid = centroid(for: allIndices, vectors: vectors)
-        let centroidSimilarities = allIndices.map { cosineSimilarity(vectors[$0], globalCentroid) }
+        let centroidSimilarities = allIndices.map { normalizedCosineSimilarity(vectors[$0], globalCentroid) }
         let mean = centroidSimilarities.reduce(0, +) / Double(max(1, centroidSimilarities.count))
         let variance = centroidSimilarities.reduce(0.0) { partialResult, similarity in
             let delta = similarity - mean
@@ -429,6 +539,107 @@ extension NativeTopicEngine {
             clusteredCoverage: vectors.isEmpty ? 0 : Double(clusterMembers.count) / Double(vectors.count),
             score: 0
         )
+    }
+
+    func normalizedVectorMatrix(for vectors: [[Double]]) -> TopicNormalizedVectorMatrix? {
+        guard let columnCount = vectors.first?.count, columnCount > 0 else { return nil }
+        guard vectors.allSatisfy({ $0.count == columnCount }) else { return nil }
+
+        var storage: [Double] = []
+        storage.reserveCapacity(vectors.count * columnCount)
+        for vector in vectors {
+            storage.append(contentsOf: vector)
+        }
+        return TopicNormalizedVectorMatrix(
+            rowCount: vectors.count,
+            columnCount: columnCount,
+            storage: storage
+        )
+    }
+
+    func bestCentroidAssignments(
+        for vectors: [[Double]],
+        normalizedMatrix: TopicNormalizedVectorMatrix?,
+        centroids: [[Double]]
+    ) -> [(index: Int, similarity: Double)] {
+        if let normalizedMatrix,
+           let accelerated = acceleratedBestCentroidAssignments(
+               matrix: normalizedMatrix,
+               centroids: centroids
+           ) {
+            return accelerated
+        }
+
+        return vectors.map { vector in
+            bestCentroidAssignment(for: vector, centroids: centroids)
+        }
+    }
+
+    func acceleratedBestCentroidAssignments(
+        matrix: TopicNormalizedVectorMatrix,
+        centroids: [[Double]]
+    ) -> [(index: Int, similarity: Double)]? {
+        guard !centroids.isEmpty,
+              centroids.allSatisfy({ $0.count == matrix.columnCount }) else {
+            return nil
+        }
+
+        let clusterCount = centroids.count
+        let centroidStorage = centroids.flatMap { $0 }
+        var scores = Array(repeating: 0.0, count: matrix.rowCount * clusterCount)
+        matrix.storage.withUnsafeBufferPointer { matrixPointer in
+            centroidStorage.withUnsafeBufferPointer { centroidPointer in
+                scores.withUnsafeMutableBufferPointer { scorePointer in
+                    guard let matrixBaseAddress = matrixPointer.baseAddress,
+                          let centroidBaseAddress = centroidPointer.baseAddress,
+                          let scoreBaseAddress = scorePointer.baseAddress else {
+                        return
+                    }
+                    cblas_dgemm(
+                        CblasRowMajor,
+                        CblasNoTrans,
+                        CblasTrans,
+                        Int32(matrix.rowCount),
+                        Int32(clusterCount),
+                        Int32(matrix.columnCount),
+                        1.0,
+                        matrixBaseAddress,
+                        Int32(matrix.columnCount),
+                        centroidBaseAddress,
+                        Int32(matrix.columnCount),
+                        0.0,
+                        scoreBaseAddress,
+                        Int32(clusterCount)
+                    )
+                }
+            }
+        }
+
+        var assignments: [(index: Int, similarity: Double)] = []
+        assignments.reserveCapacity(matrix.rowCount)
+        for rowIndex in 0..<matrix.rowCount {
+            let rowOffset = rowIndex * clusterCount
+            var bestIndex = 0
+            var bestSimilarity = -Double.infinity
+            for clusterIndex in 0..<clusterCount {
+                let similarity = scores[rowOffset + clusterIndex]
+                if similarity > bestSimilarity {
+                    bestSimilarity = similarity
+                    bestIndex = clusterIndex
+                }
+            }
+            assignments.append((bestIndex, max(-1, min(1, bestSimilarity))))
+        }
+        return assignments
+    }
+
+    func clustersWithSortedMembers(_ clusters: [ClusterState]) -> [ClusterState] {
+        clusters.map { cluster in
+            ClusterState(
+                memberIndices: cluster.memberIndices.sorted(),
+                centroid: cluster.centroid
+            )
+        }
     }
 
 }

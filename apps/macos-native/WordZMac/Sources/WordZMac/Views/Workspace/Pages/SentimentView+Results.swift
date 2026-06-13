@@ -132,7 +132,7 @@ extension SentimentView {
 
             WorkbenchToolbarSection {
                 HStack(spacing: 12) {
-                    Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
+                    Button(t("打开来源文本", "Open Source Text")) {
                         onAction(.openSourceReader)
                     }
                     .disabled(isBusy || !viewModel.canOpenSelectedRowSourceReader)
@@ -142,7 +142,7 @@ extension SentimentView {
                     }
                     .disabled(isBusy)
 
-                    Button(t("导出结构化 JSON", "Export Structured JSON")) {
+                    Button(t("导出情感明细", "Export Sentiment Details")) {
                         onAction(.exportStructuredJSON)
                     }
                     .disabled(isBusy)

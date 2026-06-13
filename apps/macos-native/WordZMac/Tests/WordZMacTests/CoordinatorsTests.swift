@@ -59,7 +59,7 @@ final class CoordinatorsTests: XCTestCase {
         XCTAssertEqual(features.kwic.keyword, "keyword")
         XCTAssertEqual(features.collocate.minFreq, "2")
         XCTAssertEqual(sceneStore.context.appName, "WordZ")
-        XCTAssertEqual(features.sidebar.engineStatus, "本地引擎已连接")
+        XCTAssertEqual(features.sidebar.engineStatus, "分析功能已就绪")
         XCTAssertEqual(features.sidebar.lastErrorMessage, "")
     }
 
@@ -101,7 +101,7 @@ final class CoordinatorsTests: XCTestCase {
 
         await appCoordinator.refreshAll(features: features)
 
-        XCTAssertEqual(features.sidebar.engineStatus, "本地引擎连接失败")
+        XCTAssertEqual(features.sidebar.engineStatus, "分析功能准备失败")
         XCTAssertEqual(features.sidebar.lastErrorMessage, "load failed")
         XCTAssertFalse(features.shell.isBusy)
     }

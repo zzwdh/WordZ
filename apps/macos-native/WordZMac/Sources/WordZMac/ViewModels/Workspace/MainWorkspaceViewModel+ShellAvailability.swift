@@ -32,7 +32,6 @@ extension MainWorkspaceViewModel {
             referenceCorpusID: sidebarReferenceCorpusID,
             referenceSummaryOverride: sidebarReferenceSummaryOverride,
             referenceDetailOverride: sidebarReferenceDetailOverride,
-            keywordEnabledOverride: selectedTab == .keyword ? keyword.workflowKeywordEnabled : nil,
             resultsSummary: currentSidebarResultsSummary(
                 using: graph,
                 selectedTab: selectedTab,

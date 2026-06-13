@@ -343,7 +343,7 @@ final class WorkspaceServicesTests: XCTestCase {
 
         XCTAssertEqual(presentation.displayName, "Opened Corpus")
         XCTAssertEqual(presentation.representedPath, "/tmp/corpus.txt")
-        XCTAssertEqual(presentation.workspaceSummary, "工作区：Opened Corpus ｜ 当前 DB 语料库：Opened Corpus")
+        XCTAssertEqual(presentation.workspaceSummary, "工作区：Opened Corpus ｜ 当前语料：Opened Corpus")
     }
 
     @MainActor

@@ -14,6 +14,7 @@ struct LibraryManagementCorpusSceneItem: Identifiable, Equatable {
     let sourceType: String
     let databaseFileName: String
     let representedPath: String
+    let sourceSummary: String
     let metadataSummary: String
     let readiness: LibraryCorpusReadinessSceneModel
     let cleaningStatus: LibraryCorpusCleaningStatus

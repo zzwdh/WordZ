@@ -39,7 +39,7 @@ extension WorkspaceSentimentWorkflowService {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(presentationResult),
               let text = String(data: data, encoding: .utf8) else {
-            features.sidebar.setError(wordZText("无法生成情感 JSON 导出内容。", "Unable to generate the sentiment JSON export.", mode: .system))
+            features.sidebar.setError(wordZText("无法生成情感明细导出内容。", "Unable to generate the sentiment detail export.", mode: .system))
             return
         }
         let document = PlainTextExportDocument(
@@ -49,8 +49,8 @@ extension WorkspaceSentimentWorkflowService {
         )
         await analysisWorkflow.exportTextDocument(
             document,
-            title: wordZText("导出情感 JSON", "Export Sentiment JSON", mode: .system),
-            successStatus: wordZText("情感 JSON 已导出到", "Sentiment JSON exported to", mode: .system),
+            title: wordZText("导出情感明细", "Export Sentiment Details", mode: .system),
+            successStatus: wordZText("情感明细已导出到", "Sentiment details exported to", mode: .system),
             features: featureSet,
             preferredRoute: preferredRoute
         )

@@ -20,8 +20,8 @@ extension KeywordView {
 
             Text(
                 t(
-                    "Keyword Suite 强制使用显式 Focus / Reference。Words、Terms、N-grams 共用同一套统计量、方向、阈值和语言筛选；annotation 的唯一主控入口在工具栏和命令菜单。",
-                    "Keyword Suite always uses explicit focus/reference scopes. Words, Terms, and N-grams share the same statistics, direction, thresholds, and language filters; annotation controls live in the toolbar and command menu."
+                    "先选目标语料和参照语料，再运行关键词计算。词、术语和 N-grams 共用同一套统计方式、方向、阈值和语言筛选。",
+                    "Choose focus and reference scopes before running keyword analysis. Words, Terms, and N-grams share the same statistic, direction, thresholds, and language filters."
                 )
             )
             .font(.caption)
@@ -74,7 +74,7 @@ extension KeywordView {
     var focusSelectionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                Text(t("Focus", "Focus"))
+                Text(t("目标语料", "Focus"))
                     .font(.headline)
                 WorkbenchMenuPicker(
                     title: t("范围", "Scope"),
@@ -88,7 +88,7 @@ extension KeywordView {
             switch viewModel.focusSelectionKind {
             case .singleCorpus:
                 corpusPicker(
-                    title: t("Focus Corpus", "Focus Corpus"),
+                    title: t("目标语料", "Focus Corpus"),
                     selection: Binding(
                         get: { viewModel.selectedFocusCorpusID ?? "" },
                         set: { viewModel.selectedFocusCorpusID = $0.isEmpty ? nil : $0 }
@@ -102,7 +102,7 @@ extension KeywordView {
                 )
             case .namedCorpusSet:
                 corpusSetPicker(
-                    title: t("Focus Corpus Set", "Focus Corpus Set"),
+                    title: t("目标语料集", "Focus Corpus Set"),
                     selection: Binding(
                         get: { viewModel.selectedFocusCorpusSetID ?? "" },
                         set: { viewModel.selectedFocusCorpusSetID = $0.isEmpty ? nil : $0 }
@@ -115,10 +115,10 @@ extension KeywordView {
     var referenceSelectionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                Text(t("Reference", "Reference"))
+                Text(t("参照语料", "Reference"))
                     .font(.headline)
                 WorkbenchMenuPicker(
-                    title: t("来源", "Source"),
+                    title: t("类型", "Type"),
                     selection: $viewModel.referenceSourceKind,
                     options: Array(KeywordReferenceSourceKind.allCases)
                 ) {
@@ -129,7 +129,7 @@ extension KeywordView {
             switch viewModel.referenceSourceKind {
             case .singleCorpus:
                 corpusPicker(
-                    title: t("Reference Corpus", "Reference Corpus"),
+                    title: t("参照语料", "Reference Corpus"),
                     selection: Binding(
                         get: { viewModel.selectedReferenceCorpusID ?? "" },
                         set: { viewModel.selectedReferenceCorpusID = $0.isEmpty ? nil : $0 }
@@ -137,7 +137,7 @@ extension KeywordView {
                 )
             case .namedCorpusSet:
                 corpusSetPicker(
-                    title: t("Reference Corpus Set", "Reference Corpus Set"),
+                    title: t("参照语料集", "Reference Corpus Set"),
                     selection: Binding(
                         get: { viewModel.selectedReferenceCorpusSetID ?? "" },
                         set: { viewModel.selectedReferenceCorpusSetID = $0.isEmpty ? nil : $0 }
@@ -166,7 +166,7 @@ extension KeywordView {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(WordZTheme.primary, lineWidth: 1)
                 )
-            Text(t("每行一个词项，或使用 term<TAB>freq。", "One term per line, or use term<TAB>freq."))
+            Text(t("每行一个词；需要频次时，可写成“词<TAB>频次”。", "One term per line, or use term<TAB>freq."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if !viewModel.importedReferenceParseSummaryText.isEmpty {
@@ -189,11 +189,11 @@ extension KeywordView {
             Text(t("阈值", "Thresholds"))
                 .font(.headline)
             HStack(spacing: 12) {
-                keywordThresholdField(title: t("Min Focus", "Min Focus"), text: $viewModel.minFocusFrequency)
-                keywordThresholdField(title: t("Min Ref", "Min Ref"), text: $viewModel.minReferenceFrequency)
-                keywordThresholdField(title: t("Min Combined", "Min Combined"), text: $viewModel.minCombinedFrequency)
-                keywordThresholdField(title: t("Max p", "Max p"), text: $viewModel.maxPValue)
-                keywordThresholdField(title: t("Min |LR|", "Min |LR|"), text: $viewModel.minAbsLogRatio)
+                keywordThresholdField(title: t("目标最小词频", "Min Focus"), text: $viewModel.minFocusFrequency)
+                keywordThresholdField(title: t("参照最小词频", "Min Reference"), text: $viewModel.minReferenceFrequency)
+                keywordThresholdField(title: t("合计最小词频", "Min Combined"), text: $viewModel.minCombinedFrequency)
+                keywordThresholdField(title: t("显著性上限", "Max p"), text: $viewModel.maxPValue)
+                keywordThresholdField(title: t("差异强度下限", "Min Difference Strength"), text: $viewModel.minAbsLogRatio)
             }
         }
     }
@@ -210,7 +210,7 @@ extension KeywordView {
 
     var statisticPicker: some View {
         WorkbenchMenuPicker(
-            title: t("统计量", "Statistic"),
+            title: t("显著性算法", "Statistic"),
             selection: $viewModel.statistic,
             options: Array(KeywordStatisticMethod.allCases)
         ) {

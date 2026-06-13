@@ -7,7 +7,7 @@ extension CompareView {
                 HStack(spacing: 12) {
                     Text(selectedRow.word)
                         .font(.headline)
-                    Text("Keyness \(selectedRow.keynessText) · Log Ratio \(selectedRow.effectText) · p \(selectedRow.pValueText)")
+                    Text("\(t("显著性", "Significance")) \(selectedRow.keynessText) · \(t("差异强度", "Difference Strength")) \(selectedRow.effectText) · \(t("p 值", "p")) \(selectedRow.pValueText)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -21,7 +21,7 @@ extension CompareView {
                     compareDetailMetric(t("覆盖", "Spread"), value: selectedRow.spreadText)
                     compareDetailMetric(t("总频", "Total"), value: selectedRow.totalText)
                     compareDetailMetric(t("差异", "Range"), value: selectedRow.rangeText)
-                    compareDetailMetric(t("参考标准频次", "Reference Norm Freq"), value: selectedRow.referenceNormFreqText)
+                    compareDetailMetric(t("参考标准频次", "Reference Standard Frequency"), value: selectedRow.referenceNormFreqText)
                 }
 
                 HStack(spacing: 16) {
@@ -71,7 +71,7 @@ extension CompareView {
                         onAction(.openTopics)
                     }
                     .disabled(!viewModel.canOpenTopicsCrossAnalysis || isBusy)
-                    Button(t("转到 Keyword Suite", "Analyze in Keyword Suite")) {
+                    Button(t("转到关键词计算", "Analyze Keywords")) {
                         onAction(.analyzeInKeywordSuite)
                     }
                     Menu(t("阅读导出", "Reading Export")) {
@@ -99,7 +99,7 @@ extension CompareView {
         WorkbenchEmptyStateCard(
             title: t("尚未生成对比结果", "No comparison results yet"),
             systemImage: "square.2.layers.3d.top.filled",
-            message: t("先选择至少两条语料，再运行对比。系统会用 Keyness 和 Log Ratio 帮你判断哪些词在哪个语料中更突出。", "Select at least two corpora and run Compare. WordZ will use Keyness and Log Ratio to show which words are most distinctive in each corpus."),
+            message: t("先选择至少两条语料，再运行对比。系统会用显著性和差异强度帮你判断哪些词在哪个语料中更突出。", "Select at least two corpora and run Compare. WordZ will show which words stand out in each corpus."),
             suggestions: [
                 t("优先选择体裁或来源差异明显的语料，结果更容易解释。", "Start with corpora that differ clearly by genre or source so the contrast is easier to interpret."),
                 t("需要做课堂演示时，先保留默认搜索设置，再逐步加入停用词过滤。", "For teaching demos, keep the default search settings first, then add stopword filtering step by step.")
@@ -344,7 +344,7 @@ extension CompareView {
                         .buttonStyle(.borderless)
                         .disabled(isBusy)
 
-                        Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
+                        Button(t("打开来源文本", "Open Source Text")) {
                             onAction(.openSentimentSourceReader(exemplar.id))
                         }
                         .buttonStyle(.borderless)

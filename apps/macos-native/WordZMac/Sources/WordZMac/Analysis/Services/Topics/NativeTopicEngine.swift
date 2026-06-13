@@ -57,7 +57,7 @@ actor NativeTopicEngine: TopicAnalysisEngine {
         ])
         try Task.checkCancellation()
 
-        progress?(TopicAnalysisProgress(stage: .embedding, detail: "Embedding paragraph vectors", progress: 0.4))
+        progress?(TopicAnalysisProgress(stage: .embedding, detail: "Analyzing paragraph similarity", progress: 0.4))
         let embeddingStartedAt = Date()
         let embeddings = makeEmbeddings(for: slices, model: model)
         let allowsApproximateClustering = shouldUseApproximateClustering(vectorCount: slices.count)
@@ -108,7 +108,8 @@ actor NativeTopicEngine: TopicAnalysisEngine {
                 originalDimensions: reducedEmbeddings.originalDimensions,
                 reducedDimensions: reducedEmbeddings.reducedDimensions,
                 explainedVariance: reducedEmbeddings.explainedVariance
-            )
+            ),
+            approximateClustering: clustered.approximateDiagnostics
         )
         let result = buildResult(
             slices: slices,

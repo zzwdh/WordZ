@@ -10,7 +10,7 @@ final class SettingsTests: XCTestCase {
                 appName: "WordZ",
                 versionLabel: "v1.1.0",
                 workspaceSummary: "工作区：Demo",
-                buildSummary: "SwiftUI + Swift native engine",
+                buildSummary: "本机分析版",
                 help: ["Docs", "Feedback"]
             )
         )
@@ -105,7 +105,7 @@ final class SettingsTests: XCTestCase {
 
     func testSettingsSceneDefaultsRemainStable() {
         XCTAssertEqual(SettingsPaneSceneModel.empty.workspaceSummary, "等待载入本地语料库")
-        XCTAssertEqual(SettingsPaneSceneModel.empty.buildSummary, "SwiftUI + Swift native engine")
+        XCTAssertEqual(SettingsPaneSceneModel.empty.buildSummary, "本机分析版")
         XCTAssertEqual(SettingsPaneSceneModel.empty.supportStatus, "准备就绪")
     }
 

@@ -144,15 +144,33 @@ struct TopicEmbeddingReductionDiagnostics: Equatable, Sendable {
     )
 }
 
+struct TopicApproximateClusteringDiagnostics: Equatable, Sendable {
+    let stageDurationsMs: [String: Double]
+    let candidateEvaluationCount: Int
+    let coarseCandidateCounts: [Int]
+    let refinedCandidateCounts: [Int]
+    let usedTwoStageSearch: Bool
+
+    static let none = TopicApproximateClusteringDiagnostics(
+        stageDurationsMs: [:],
+        candidateEvaluationCount: 0,
+        coarseCandidateCounts: [],
+        refinedCandidateCounts: [],
+        usedTwoStageSearch: false
+    )
+}
+
 struct TopicAnalysisDiagnostics: Equatable, Sendable {
     let providerTier: TopicProviderTier
     let clusteringStrategy: TopicClusteringStrategy
     let embeddingReduction: TopicEmbeddingReductionDiagnostics
+    let approximateClustering: TopicApproximateClusteringDiagnostics?
 
     static let `default` = TopicAnalysisDiagnostics(
         providerTier: .bundled,
         clusteringStrategy: .exact,
-        embeddingReduction: .none
+        embeddingReduction: .none,
+        approximateClustering: nil
     )
 }
 

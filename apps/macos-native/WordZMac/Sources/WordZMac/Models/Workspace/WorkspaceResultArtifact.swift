@@ -157,7 +157,7 @@ extension WorkspaceResultArtifactAction {
             return WorkspaceResultArtifactActionDescriptor(
                 action: self,
                 title: wordZText("来源", "Source", mode: languageMode),
-                help: wordZText("打开当前证据的 DB 来源预览", "Open the DB source preview for current evidence", mode: languageMode),
+                help: wordZText("打开当前证据的来源文本", "Open the source text for current evidence", mode: languageMode),
                 systemImage: "doc.text.magnifyingglass",
                 isProminent: false
             )

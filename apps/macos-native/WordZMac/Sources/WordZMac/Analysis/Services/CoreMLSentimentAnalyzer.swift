@@ -253,8 +253,8 @@ final class CoreMLSentimentAnalyzer: SentimentAnalyzing {
             let weightedPredictions = try sentenceUnits.map { unit -> (prediction: SentimentModelPrediction, weight: Double) in
                 let prediction = try predict(text: unit.text, model: model)
                 return (
-                    prediction,
-                    sentenceAggregationWeight(
+                    prediction: prediction,
+                    weight: sentenceAggregationWeight(
                         for: prediction,
                         text: unit.text,
                         request: request
@@ -289,7 +289,8 @@ final class CoreMLSentimentAnalyzer: SentimentAnalyzing {
                 providerID: model.providerID,
                 providerFamily: model.providerFamily,
                 inferencePath: .model,
-                modelInputKind: model.inputSchemaKind
+                modelInputKind: model.inputSchemaKind,
+                coreMLComputeUnits: model.coreMLComputeUnits
             )
 
             return SentimentRowResult(
@@ -416,7 +417,8 @@ final class CoreMLSentimentAnalyzer: SentimentAnalyzing {
             providerID: model.providerID,
             providerFamily: model.providerFamily,
             inferencePath: .model,
-            modelInputKind: model.inputSchemaKind
+            modelInputKind: model.inputSchemaKind,
+            coreMLComputeUnits: model.coreMLComputeUnits
         )
 
         return SentimentRowResult(

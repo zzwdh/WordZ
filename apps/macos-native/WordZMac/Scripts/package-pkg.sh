@@ -10,5 +10,5 @@ APP_NAME="${WORDZ_MAC_APP_NAME:-WordZ}"
 VERSION="$(release_support_current_version)"
 ARCH_NAME="${WORDZ_MAC_ARCH:-$(uname -m)}"
 
-APP_BUNDLE=$(bash "$SCRIPT_DIR/build-app.sh" | tail -n 1)
+APP_BUNDLE=$(zsh "$SCRIPT_DIR/build-app.sh" | tail -n 1)
 zsh "$SCRIPT_DIR/package-pkg-from-app.sh" "$APP_BUNDLE" "$APP_NAME" "$VERSION" "$DIST_DIR" "$ARCH_NAME"

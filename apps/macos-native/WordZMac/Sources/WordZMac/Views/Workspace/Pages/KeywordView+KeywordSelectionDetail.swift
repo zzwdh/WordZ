@@ -24,7 +24,7 @@ extension KeywordView {
             Text(selectedRow.item)
                 .font(.headline)
             Text(
-                "\(selectedRow.directionText) · Score \(selectedRow.keynessText) · Log Ratio \(selectedRow.logRatioText) · p \(selectedRow.pValueText)"
+                "\(selectedRow.directionText) · \(t("显著性", "Significance")) \(selectedRow.keynessText) · \(t("差异强度", "Difference Strength")) \(selectedRow.logRatioText) · \(t("p 值", "p")) \(selectedRow.pValueText)"
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -35,22 +35,22 @@ extension KeywordView {
     func keywordSelectedRowMetrics(_ selectedRow: KeywordSceneRow) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 16) {
-                keywordMetric(t("Focus 频次", "Focus Freq"), value: selectedRow.focusFrequencyText)
-                keywordMetric(t("Reference 频次", "Reference Freq"), value: selectedRow.referenceFrequencyText)
-                keywordMetric(t("Focus 标准频次", "Focus Norm"), value: selectedRow.focusNormFrequencyText)
-                keywordMetric(t("Reference 标准频次", "Reference Norm"), value: selectedRow.referenceNormFrequencyText)
+                keywordMetric(t("目标频次", "Focus Freq"), value: selectedRow.focusFrequencyText)
+                keywordMetric(t("参照频次", "Reference Freq"), value: selectedRow.referenceFrequencyText)
+                keywordMetric(t("目标标准频次", "Target Standard Frequency"), value: selectedRow.focusNormFrequencyText)
+                keywordMetric(t("参照标准频次", "Reference Standard Frequency"), value: selectedRow.referenceNormFrequencyText)
             }
 
             HStack(spacing: 16) {
-                keywordMetric(t("Focus 覆盖", "Focus Range"), value: selectedRow.focusRangeText)
-                keywordMetric(t("Reference 覆盖", "Reference Range"), value: selectedRow.referenceRangeText)
+                keywordMetric(t("目标覆盖", "Focus Range"), value: selectedRow.focusRangeText)
+                keywordMetric(t("参照覆盖", "Reference Range"), value: selectedRow.referenceRangeText)
             }
         }
     }
 
     func keywordSelectedRowExample(_ rawRow: KeywordSuiteRow) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(t("Example", "Example"))
+            Text(t("示例", "Example"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(rawRow.example)
@@ -62,22 +62,22 @@ extension KeywordView {
 
     func keywordSelectedRowActions(_ rawRow: KeywordSuiteRow) -> some View {
         HStack(spacing: 12) {
-            Button(t("导出 Row Context", "Export Row Context")) {
+            Button(t("导出上下文", "Export Context")) {
                 onAction(.exportRowContext)
             }
             .buttonStyle(.bordered)
 
-            Button(t("在 KWIC 中打开 Focus", "Open Focus in KWIC")) {
+            Button(t("查看目标语境", "Open Focus in KWIC")) {
                 onAction(.openFocusKWIC)
             }
             .disabled(rawRow.focusExampleCorpusID == nil && viewModel.resolvedFocusCorpusItems().isEmpty)
 
-            Button(t("在 KWIC 中打开 Reference", "Open Reference in KWIC")) {
+            Button(t("查看参照语境", "Open Reference in KWIC")) {
                 onAction(.openReferenceKWIC)
             }
             .disabled(rawRow.referenceExampleCorpusID == nil && viewModel.resolvedReferenceCorpusItems().isEmpty)
 
-            Button(t("打开 Compare 分布", "Open Compare Distribution")) {
+            Button(t("查看分布对比", "Open Compare Distribution")) {
                 onAction(.openCompareDistribution)
             }
             .disabled(viewModel.resolvedFocusCorpusItems().isEmpty)

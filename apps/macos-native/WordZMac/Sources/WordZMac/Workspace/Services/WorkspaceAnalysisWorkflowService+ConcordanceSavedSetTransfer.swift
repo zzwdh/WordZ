@@ -7,8 +7,8 @@ extension WorkspaceAnalysisWorkflowService {
         preferredRoute: NativeWindowRoute? = nil
     ) async {
         guard let path = await dialogService.chooseOpenPath(
-            title: wordZText("导入命中集 JSON", "Import Hit Set JSON", mode: .system),
-            message: wordZText("选择通过 KWIC 或 Locator 导出的命中集 JSON 文件。", "Choose a JSON file exported from KWIC or Locator hit sets.", mode: .system),
+            title: wordZText("导入命中集文件", "Import Hit Set File", mode: .system),
+            message: wordZText("选择通过 KWIC 或定位器导出的命中集文件。", "Choose a hit set file exported from KWIC or Locator.", mode: .system),
             allowedExtensions: ["json"],
             preferredRoute: preferredRoute
         ) else {
@@ -20,7 +20,7 @@ extension WorkspaceAnalysisWorkflowService {
             let existingSets = try await repository.listConcordanceSavedSets()
             let importedSets = try ConcordanceSavedSetTransferSupport.importedSets(from: data, existingSets: existingSets)
             guard !importedSets.isEmpty else {
-                features.sidebar.setError(wordZText("JSON 中没有可导入的命中集。", "There are no hit sets to import from this JSON file.", mode: .system))
+                features.sidebar.setError(wordZText("文件中没有可导入的命中集。", "There are no hit sets to import from this file.", mode: .system))
                 return
             }
             for set in importedSets {
@@ -63,7 +63,7 @@ extension WorkspaceAnalysisWorkflowService {
 
         let suggestedName = "\(slug(selectedSet.name, fallback: kind.rawValue))-hit-set.json"
         guard let path = await dialogService.chooseSavePath(
-            title: wordZText("导出命中集 JSON", "Export Hit Set JSON", mode: .system),
+            title: wordZText("导出命中集", "Export Hit Set", mode: .system),
             suggestedName: suggestedName,
             allowedExtension: "json",
             preferredRoute: preferredRoute

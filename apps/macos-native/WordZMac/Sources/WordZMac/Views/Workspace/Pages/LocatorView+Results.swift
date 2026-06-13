@@ -113,7 +113,7 @@ extension LocatorView {
                     Button {
                         onAction(.openSourceReader)
                     } label: {
-                        Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
+                        Label(t("打开来源文本", "Open Source Text"), systemImage: "doc.text.magnifyingglass")
                     }
                     WorkbenchCopyTextButton(
                         title: t("复制引文", "Copy Citation"),

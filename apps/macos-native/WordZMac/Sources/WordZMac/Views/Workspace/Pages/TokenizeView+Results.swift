@@ -76,7 +76,7 @@ extension TokenizeView {
             WorkbenchEmptyStateCard(
                 title: t("尚未生成分词结果", "No tokenization results yet"),
                 systemImage: "text.word.spacing",
-                message: t("先运行一次分词，WordZ 会按英文语料整理 token、lemma 和词类，方便你继续筛选、导出和教学展示。", "Run tokenization once and WordZ will organize English tokens, lemmas, and lexical classes for filtering, export, and teaching-oriented reading.")
+                message: t("先运行一次分词，WordZ 会整理原词、词元和词类，方便你继续筛选、导出和教学展示。", "Run tokenization once and WordZ will organize original words, word bases, and lexical classes for filtering, export, and teaching-oriented reading.")
             )
         }
     }
@@ -105,7 +105,7 @@ extension TokenizeView {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Label(t("当前选中 token", "Selected Token"), systemImage: "text.cursor")
+                    Label(t("当前选中词", "Selected Word"), systemImage: "text.cursor")
                         .font(.headline)
                     Spacer(minLength: 8)
                 }
@@ -114,7 +114,7 @@ extension TokenizeView {
                     HStack(spacing: 12) {
                         tokenPill(title: t("原词", "Original"), value: row.original)
                         tokenPill(title: t("规范词", "Normalized"), value: row.normalized)
-                        tokenPill(title: t("Lemma", "Lemma"), value: row.lemma)
+                        tokenPill(title: t("词元", "Word Base"), value: row.lemma)
                     }
                     HStack(spacing: 12) {
                         tokenPill(title: t("原词", "Original"), value: row.original)

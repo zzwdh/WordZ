@@ -31,7 +31,7 @@ extension NativeCorpusStore {
             "name": "WordZ",
             "version": bundleVersion ?? "native-preview",
             "help": [
-                "原生版当前默认使用 Swift 本地引擎。",
+                "WordZ 默认使用本机分析能力，不需要上传语料。",
                 "导入文本语料后，可直接运行 Stats / Word / KWIC / Collocate / N-Gram / Compare / Locator。"
             ],
             "releaseNotes": [

@@ -6,7 +6,7 @@ extension MainWorkspaceViewModel {
         if sidebar.scene.engineState == .failed {
             return WorkspaceIssueBanner(
                 tone: .error,
-                title: t("本地引擎启动失败", "Local Engine Startup Failed"),
+                title: t("分析功能准备失败", "Analysis Features Unavailable"),
                 message: sidebar.scene.errorMessage.isEmpty ? sidebar.scene.engineStatus : sidebar.scene.errorMessage,
                 recoveryAction: .refreshWorkspace
             )

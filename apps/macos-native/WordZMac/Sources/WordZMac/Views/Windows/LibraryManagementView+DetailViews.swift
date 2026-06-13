@@ -8,7 +8,7 @@ struct LibraryCorpusInfoSheetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            NativeWindowHeader(title: t("Corpus Details", "Corpus Details"), subtitle: scene.title) {
+            NativeWindowHeader(title: t("语料详情", "Corpus Details"), subtitle: scene.title) {
                 Button(t("打开语料", "Open Corpus")) {
                     dismiss()
                     onAction(.openSelectedCorpus)
@@ -19,7 +19,7 @@ struct LibraryCorpusInfoSheetView: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(t("Corpus name:", "Corpus name:"))
+                Text(t("名称：", "Name:"))
                     .font(.callout.weight(.semibold))
                 Text(scene.title)
                     .font(.callout)
@@ -71,35 +71,42 @@ struct LibraryCorpusInfoSheetView: View {
 
     private var detailRows: [(title: String, value: String)] {
         [
-            ("Project ID", scene.projectIDText),
-            ("DB Project", scene.dbProjectSummaryText),
-            ("DB File", scene.databaseFileNameText),
-            ("Source Chain", scene.sourceChainText),
-            ("Full Name", scene.title),
-            ("Short Name", scene.title),
-            ("File Count", scene.fileCountText),
-            ("Token Count", scene.tokenCountText),
-            ("Type Count", scene.typeCountText),
-            ("Indexed", "TRUE"),
-            ("Encoding", scene.encodingText),
-            ("Token Definition", "[\\p{L}\\p{N}]+"),
-            ("Format", "db"),
-            ("Indexer Type", "type"),
-            ("Indexer", "WordZ native indexer"),
-            ("Analysis Readiness", scene.analysisReadinessTitle),
-            ("Readiness Detail", scene.analysisReadinessDetail),
-            ("Action", scene.missingActionText),
-            ("Chinese Analysis", scene.chineseAnalysisText),
-            ("Source Format", scene.sourceType.uppercased()),
-            ("Folder", scene.folderName),
-            ("Imported At", scene.importedAtText),
-            ("Character Count", scene.characterCountText),
-            ("Sentence Count", scene.sentenceCountText),
-            ("Paragraph Count", scene.paragraphCountText),
+            (t("名称", "Name"), scene.title),
+            (t("文件夹", "Folder"), scene.folderName),
+            (t("来源", "Source"), sourceSummaryText),
+            (t("来源标签", "Source Label"), scene.sourceLabelText),
+            (t("年份", "Year"), scene.yearText),
+            (t("体裁", "Genre"), scene.genreText),
+            (t("标签", "Tags"), scene.tagsText),
+            (t("导入时间", "Imported At"), scene.importedAtText),
+            (t("整理状态", "Cleaning Status"), scene.cleaningStatusTitle),
+            (t("可分析状态", "Readiness"), scene.analysisReadinessTitle),
+            (t("状态说明", "Readiness Detail"), scene.analysisReadinessDetail),
+            (t("建议", "Action"), scene.missingActionText),
+            (t("文件数", "File Count"), scene.fileCountText),
+            (t("词数", "Token Count"), scene.tokenCountText),
+            (t("类型数", "Type Count"), scene.typeCountText),
+            (t("句数", "Sentence Count"), scene.sentenceCountText),
+            (t("段落数", "Paragraph Count"), scene.paragraphCountText),
+            (t("字符数", "Character Count"), scene.characterCountText),
             ("TTR", scene.ttrText),
-            ("STTR", scene.sttrText),
-            ("Source", scene.representedPath.isEmpty ? "WordZ DB" : scene.representedPath)
+            ("STTR", scene.sttrText)
         ]
+    }
+
+    private var sourceSummaryText: String {
+        let representedPath = scene.representedPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if representedPath.hasPrefix("wordz://corpus-set/") {
+            return t("语料集生成", "Created from corpus set")
+        }
+        guard !representedPath.isEmpty else {
+            return t("内置语料", "Built-in corpus")
+        }
+        let fileName = URL(fileURLWithPath: representedPath).lastPathComponent
+        guard !fileName.isEmpty else {
+            return t("文件导入", "File import")
+        }
+        return String(format: t("文件导入：%@", "File import: %@"), fileName)
     }
 
     private func t(_ zh: String, _ en: String) -> String {
@@ -374,8 +381,8 @@ struct LibraryInspectorView: View {
 
             if !scene.details.isEmpty {
                 NativeWindowSection(
-                    title: wordZText("字段", "Fields", mode: languageMode),
-                    subtitle: wordZText("当前选择的可复制属性", "Copyable properties for the current selection", mode: languageMode)
+                    title: wordZText("详情", "Details", mode: languageMode),
+                    subtitle: wordZText("当前选择的关键信息", "Key information for the current selection", mode: languageMode)
                 ) {
                     ForEach(scene.details) { detail in
                         inspectorDetailRow(detail)

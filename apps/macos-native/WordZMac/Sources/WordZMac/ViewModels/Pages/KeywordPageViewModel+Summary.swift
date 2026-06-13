@@ -17,11 +17,11 @@ extension KeywordPageViewModel {
         switch focusSelectionKind {
         case .singleCorpus:
             return selectedTargetCorpusItem()?.name
-                ?? wordZText("未选择 Focus 语料", "No focus corpus selected", mode: .system)
+                ?? wordZText("未选择目标语料", "No focus corpus selected", mode: .system)
         case .selectedCorpora:
             let items = resolvedFocusCorpusItems()
             guard !items.isEmpty else {
-                return wordZText("未选择 Focus 语料", "No focus corpora selected", mode: .system)
+                return wordZText("未选择目标语料", "No focus corpora selected", mode: .system)
             }
             let names = items.map(\.name).prefix(3).joined(separator: " · ")
             let suffix = items.count > 3 ? " +\(items.count - 3)" : ""
@@ -36,7 +36,7 @@ extension KeywordPageViewModel {
         switch referenceSourceKind {
         case .singleCorpus:
             return selectedReferenceCorpusItem()?.name
-                ?? wordZText("未选择 Reference 语料", "No reference corpus selected", mode: .system)
+                ?? wordZText("未选择参照语料", "No reference corpus selected", mode: .system)
         case .namedCorpusSet:
             return selectedReferenceCorpusSet()?.name
                 ?? wordZText("未选择命名参考集", "No named reference set selected", mode: .system)
@@ -104,9 +104,5 @@ extension KeywordPageViewModel {
             parseResult.rejectedLineCount,
             parseResult.acceptedItemCount
         )
-    }
-
-    var workflowKeywordEnabled: Bool {
-        canRun
     }
 }

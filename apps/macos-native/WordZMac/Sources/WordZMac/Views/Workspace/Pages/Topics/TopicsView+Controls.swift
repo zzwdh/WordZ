@@ -92,17 +92,17 @@ extension TopicsView {
 
     func providerLabel(for scene: TopicsSceneModel) -> String {
         if scene.usesFallbackProvider {
-            return t("稳定兜底", "Stable Fallback")
+            return t("备用主题分析", "Backup Topic Analysis")
         }
         switch scene.modelProvider {
         case "bundled-local-embedding":
-            return t("内置主题向量", "Bundled Topic Embedding")
+            return t("内置主题分析", "Built-in Topic Analysis")
         case "bundled-lexical-embedding":
-            return t("内置主题向量", "Bundled Topic Embedding")
+            return t("内置主题分析", "Built-in Topic Analysis")
         case "system-sentence-embedding":
-            return t("系统句向量", "System Embedding")
+            return t("系统主题分析", "System Topic Analysis")
         case "hashed-fallback":
-            return t("稳定兜底", "Stable Fallback")
+            return t("备用主题分析", "Backup Topic Analysis")
         default:
             return scene.modelProvider
         }

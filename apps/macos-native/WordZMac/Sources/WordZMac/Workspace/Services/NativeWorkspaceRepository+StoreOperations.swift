@@ -132,7 +132,7 @@ extension NativeWorkspaceRepositoryCore {
             throw NSError(
                 domain: "WordZMac.NativeWorkspaceRepository",
                 code: 501,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持制作 DB 语料库。"]
+                userInfo: [NSLocalizedDescriptionKey: "当前存储不支持合并语料。"]
             )
         }
         let result = try store.importMergedCorpusPaths(

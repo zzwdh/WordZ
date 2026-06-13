@@ -51,11 +51,11 @@ extension WorkspaceAnalysisWorkflowService {
         let importedReferenceItems = importedReferenceParseResult.items
 
         guard !focusCorpora.isEmpty else {
-            features.sidebar.setError(wordZText("Keyword Suite 需要先确定 Focus 语料。", "Keyword Suite needs a Focus corpus first.", mode: .system))
+            features.sidebar.setError(wordZText("请先选择要分析的目标语料。", "Choose a focus corpus before running keyword analysis.", mode: .system))
             return
         }
         guard !referenceCorpora.isEmpty || !importedReferenceItems.isEmpty else {
-            features.sidebar.setError(wordZText("Keyword Suite 需要显式选择 Reference 语料、命名参考集或导入词表。", "Keyword Suite requires an explicit Reference corpus, named reference set, or imported word list.", mode: .system))
+            features.sidebar.setError(wordZText("请先选择参照语料、参照语料集，或导入参照词表。", "Choose a reference corpus, reference set, or imported word list before running keyword analysis.", mode: .system))
             return
         }
 
@@ -65,7 +65,7 @@ extension WorkspaceAnalysisWorkflowService {
            focusIDs == referenceIDs,
            focusIDs.count == focusCorpora.count,
            referenceIDs.count == referenceCorpora.count {
-            features.sidebar.setError(wordZText("Focus 与 Reference 不能完全相同。", "Focus and Reference cannot be identical.", mode: .system))
+            features.sidebar.setError(wordZText("目标语料和参照语料不能完全相同。", "Focus and Reference cannot be identical.", mode: .system))
             return
         }
 

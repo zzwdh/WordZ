@@ -65,7 +65,7 @@ enum ConcordanceSavedSetTransferSupport {
             case .emptySelection:
                 return wordZText("没有可导出的命中集。", "No hit sets are available for export.", mode: .system)
             case .invalidPayload:
-                return wordZText("无法识别命中集 JSON。", "The hit set JSON payload is invalid.", mode: .system)
+                return wordZText("无法识别命中集文件。", "The hit set file is invalid.", mode: .system)
             }
         }
     }

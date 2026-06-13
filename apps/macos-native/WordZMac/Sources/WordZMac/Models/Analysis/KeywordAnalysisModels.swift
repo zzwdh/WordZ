@@ -47,9 +47,9 @@ enum KeywordStatisticMethod: String, CaseIterable, Identifiable, Codable, Sendab
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .logLikelihood:
-            return wordZText("Log-Likelihood", "Log-Likelihood", mode: mode)
+            return wordZText("似然比检验", "Likelihood Test", mode: mode)
         case .chiSquare:
-            return wordZText("Chi-square", "Chi-square", mode: mode)
+            return wordZText("卡方检验", "Chi-square Test", mode: mode)
         }
     }
 }

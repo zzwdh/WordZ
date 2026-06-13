@@ -127,7 +127,7 @@ final class NativeHostActionService: NativeHostActionServicing {
         try await exportArchiveBundle(
             archivePath: archivePath,
             suggestedName: suggestedName,
-            title: t("导出诊断包", "Export Diagnostics Bundle"),
+            title: t("导出诊断信息", "Export Diagnostics"),
             preferredRoute: preferredRoute
         )
     }

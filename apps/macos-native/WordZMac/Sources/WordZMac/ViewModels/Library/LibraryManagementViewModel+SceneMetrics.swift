@@ -89,6 +89,7 @@ extension LibraryManagementViewModel {
                     sourceType: corpus.sourceType,
                     databaseFileName: corpus.databaseFileDisplayName,
                     representedPath: corpus.representedPath,
+                    sourceSummary: corpusSourceSummary(for: corpus, languageMode: languageMode),
                     metadataSummary: corpus.metadata.compactSummary(in: languageMode),
                     readiness: readiness,
                     cleaningStatus: corpus.cleaningStatus,
@@ -154,6 +155,30 @@ extension LibraryManagementViewModel {
                 completionText: "\((completeMetadataCount * 100) / max(visibleCorpora.count, 1))%",
                 actionHintText: metadataActionHint
             )
+        )
+    }
+
+    private func corpusSourceSummary(
+        for corpus: LibraryCorpusItem,
+        languageMode: AppLanguageMode
+    ) -> String {
+        let representedPath = corpus.representedPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if representedPath.hasPrefix("wordz://corpus-set/") {
+            return wordZText("语料集生成", "Created from corpus set", mode: languageMode)
+        }
+        if representedPath.isEmpty {
+            return corpus.sourceType.lowercased() == "db"
+                ? wordZText("内置语料", "Built-in corpus", mode: languageMode)
+                : wordZText("导入语料", "Imported corpus", mode: languageMode)
+        }
+
+        let fileName = URL(fileURLWithPath: representedPath).lastPathComponent
+        guard !fileName.isEmpty else {
+            return wordZText("文件导入", "File import", mode: languageMode)
+        }
+        return String(
+            format: wordZText("文件导入：%@", "File import: %@", mode: languageMode),
+            fileName
         )
     }
 }

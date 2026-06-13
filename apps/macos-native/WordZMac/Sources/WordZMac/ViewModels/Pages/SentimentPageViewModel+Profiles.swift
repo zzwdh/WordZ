@@ -133,7 +133,7 @@ extension SentimentPageViewModel {
     private func importedBundleTitle(_ bundle: SentimentUserLexiconBundle) -> String {
         let trimmedID = bundle.manifest.id.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedID.isEmpty else {
-            return wordZText("导入词典", "Imported Bundle", mode: .system)
+            return wordZText("导入词典", "Imported Lexicon", mode: .system)
         }
         return trimmedID
     }
@@ -200,8 +200,8 @@ extension SentimentPageViewModel {
         }
         if candidate == .coreML {
             backendNotice = wordZText(
-                "本机当前没有可用的本地情感模型，已使用词典规则后端。",
-                "No local sentiment model is currently available, so WordZ is using the lexicon backend.",
+                "本机当前没有可用的本地情感模型，已改用词典规则分析。",
+                "No local sentiment model is currently available, so WordZ is using lexicon rules.",
                 mode: .system
             )
         }

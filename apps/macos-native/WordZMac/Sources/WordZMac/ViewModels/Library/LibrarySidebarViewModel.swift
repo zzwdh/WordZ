@@ -39,7 +39,7 @@ final class LibrarySidebarViewModel: ObservableObject {
     @Published var metadataTagsQuery = "" {
         didSet { handleMetadataFilterEdit(oldValue: oldValue, newValue: metadataTagsQuery) }
     }
-    @Published var engineStatus = wordZText("正在连接本地引擎...", "Connecting to local engine…", mode: .system)
+    @Published var engineStatus = wordZText("正在准备分析功能...", "Preparing analysis features…", mode: .system)
     @Published var lastErrorMessage = ""
     @Published var scene = WorkspaceSidebarSceneModel.empty
     @Published private(set) var recentMetadataSourceLabels: [String] = [] {
@@ -61,7 +61,6 @@ final class LibrarySidebarViewModel: ObservableObject {
     var workflowReferenceCorpusID: String?
     var workflowReferenceSummaryOverride: String?
     var workflowReferenceDetailOverride: String?
-    var workflowKeywordEnabledOverride: Bool?
     var resultsSummary: WorkspaceSidebarResultsSceneModel?
     var legacyMetadataYearQuery = ""
     var metadataSuggestionCalendar: Calendar = .current

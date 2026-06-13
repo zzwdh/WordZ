@@ -673,7 +673,7 @@ final class ViewModelsTests: XCTestCase {
         wait(for: [expectation], timeout: 1.0)
     }
 
-    func testLibrarySidebarViewModelBuildsWorkflowSidebarWithConditionalKeywordAndResults() {
+    func testLibrarySidebarViewModelBuildsWorkflowSidebarWithKeywordNavigationAndResults() {
         let viewModel = LibrarySidebarViewModel()
         viewModel.applyBootstrap(makeBootstrapState())
         viewModel.selectedCorpusID = "corpus-1"
@@ -697,7 +697,7 @@ final class ViewModelsTests: XCTestCase {
             viewModel.scene.referenceCorpus.title,
             wordZText("参照语料", "Reference Corpus", mode: viewModel.languageMode)
         )
-        XCTAssertFalse(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? true)
+        XCTAssertTrue(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? false)
         XCTAssertNil(viewModel.scene.results)
 
         viewModel.applyWorkflowState(
@@ -729,7 +729,7 @@ final class ViewModelsTests: XCTestCase {
                 tagsQuery: "课堂"
             ).summaryText(in: viewModel.languageMode)
         )
-        XCTAssertFalse(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? true)
+        XCTAssertTrue(viewModel.scene.analysisViews.first(where: { $0.tab == .keyword })?.isEnabled ?? false)
     }
 
     func testLibrarySidebarViewModelMetadataFiltersNarrowCorpusOptions() {
@@ -1077,10 +1077,13 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .showSelectedCorpusInfo }) ?? false)
         XCTAssertTrue(viewModel.scene.inspector?.actions.contains(where: { $0.action == .renameSelectedCorpus }) ?? false)
         XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "readiness" }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "zh-analysis" && $0.detail.contains("Topics") && $0.detail.contains("Sentiment") }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "DB File" && $0.value.contains(".db") }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "Source Format" && $0.value == "TXT" }) ?? false)
-        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "项目 ID" && $0.value == "corpus-2" }) ?? false)
+        XCTAssertFalse(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "zh-analysis" }) ?? true)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "文件夹" && $0.value == "Default" }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.details.contains(where: { $0.title == "元数据" && $0.value.contains("期刊") }) ?? false)
+        XCTAssertFalse(viewModel.scene.inspector?.details.contains(where: { $0.title == "DB File" }) ?? true)
+        XCTAssertFalse(viewModel.scene.inspector?.details.contains(where: { $0.title == "Source Format" }) ?? true)
+        XCTAssertFalse(viewModel.scene.inspector?.details.contains(where: { $0.title == "来源位置" }) ?? true)
+        XCTAssertFalse(viewModel.scene.inspector?.details.contains(where: { $0.title == "项目 ID" }) ?? true)
     }
 
     func testLibraryManagementViewModelSupportsBatchSelectionAndIntegritySummary() {
@@ -1130,8 +1133,10 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.metadataStudio.missingYearCount, 1)
         XCTAssertEqual(viewModel.scene.metadataStudio.missingGenreCount, 1)
         XCTAssertEqual(viewModel.scene.metadataStudio.missingTagsCount, 1)
-        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-build" && $0.detail.contains("dbA") }) ?? false)
+        XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-build" && $0.detail.contains("命名语料集") }) ?? false)
         XCTAssertTrue(viewModel.scene.inspector?.statusItems.contains(where: { $0.id == "batch-readiness" && $0.detail.contains("清洗") }) ?? false)
+        XCTAssertFalse(viewModel.scene.inspector?.details.contains(where: { $0.title == "格式" }) ?? true)
+        XCTAssertFalse(viewModel.scene.inspector?.details.contains(where: { $0.title == "源格式" }) ?? true)
     }
 
     func testLibraryManagementViewModelCoalescesSelectionSceneSyncs() {
@@ -1274,8 +1279,8 @@ final class ViewModelsTests: XCTestCase {
 
         XCTAssertEqual(scene.projectIDText, "corpus-1")
         XCTAssertEqual(scene.databaseFileNameText, "Demo Corpus.db")
-        XCTAssertEqual(scene.dbProjectSummaryText, "WordZ DB 项目 · 分析以 .db 为单位运行")
-        XCTAssertEqual(scene.sourceChainText, "Demo Corpus.db ← TXT ← /tmp/demo.txt")
+        XCTAssertEqual(scene.dbProjectSummaryText, "已加入语料库，可直接用于分析")
+        XCTAssertEqual(scene.sourceChainText, "文件导入：demo.txt")
         XCTAssertEqual(scene.analysisReadinessTitle, "可分析")
         XCTAssertEqual(scene.missingActionText, "可直接分析")
         XCTAssertTrue(scene.chineseAnalysisText.contains("Compare"))
@@ -1390,19 +1395,19 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertTrue(scene.warnings.contains(where: { $0.id == "preserve-hierarchy" }))
     }
 
-    func testLibraryManagementViewModelSeparatesCorpusBuilderFromDBLibrary() {
+    func testLibraryManagementViewModelSeparatesCorpusBuilderFromLibrary() {
         let viewModel = LibraryManagementViewModel()
         viewModel.applyBootstrap(makeBootstrapState().librarySnapshot)
 
         XCTAssertEqual(viewModel.scene.navigationSelection, .allCorpora)
-        XCTAssertEqual(viewModel.scene.content.title, "Corpus Library")
-        XCTAssertEqual(viewModel.scene.corpora.first?.databaseFileName, "Demo Corpus.db")
+        XCTAssertEqual(viewModel.scene.content.title, "全部语料")
+        XCTAssertEqual(viewModel.scene.corpora.first?.sourceSummary, "文件导入：demo.txt")
 
         viewModel.selectCorpusBuilder()
 
         XCTAssertEqual(viewModel.scene.navigationSelection, .corpusBuilder)
         XCTAssertEqual(viewModel.scene.content.mode, .corpusBuilder)
-        XCTAssertEqual(viewModel.scene.content.title, "Import Corpus")
+        XCTAssertEqual(viewModel.scene.content.title, "导入语料")
         XCTAssertTrue(viewModel.scene.selectedCorpusIDs.isEmpty)
     }
 
@@ -1822,11 +1827,11 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "origin" })?.value, "KWIC")
         XCTAssertEqual(
             viewModel.scene?.sourceChainItems.first(where: { $0.id == "corpus" })?.title,
-            wordZText("DB 语料库", "DB Corpus", mode: WordZLocalization.shared.effectiveMode)
+            wordZText("语料", "Corpus", mode: WordZLocalization.shared.effectiveMode)
         )
         XCTAssertEqual(
             viewModel.scene?.sourceChainItems.first(where: { $0.id == "source-file" })?.title,
-            wordZText("来源文件", "Original Source", mode: WordZLocalization.shared.effectiveMode)
+            wordZText("来源文件", "Source File", mode: WordZLocalization.shared.effectiveMode)
         )
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "query" })?.detail, "L1 / R1 · Phrase")
         XCTAssertEqual(viewModel.scene?.sourceChainItems.first(where: { $0.id == "current-highlight" })?.isCurrent, true)

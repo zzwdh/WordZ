@@ -4,6 +4,7 @@ import WordZAnalysis
 
 enum SentimentModelError: Error {
     case invalidModelManifest
+    case invalidProviderContract
     case modelUnavailable
     case invalidModelInterface
 }
@@ -12,6 +13,7 @@ enum SentimentModelAvailabilityReason: String, Codable, Sendable {
     case available
     case manifestMissing
     case invalidManifest
+    case invalidProviderContract
     case providerMissing
     case invalidInterface
     case loadFailed
@@ -50,6 +52,26 @@ struct SentimentModelInputSchemaManifest: Decodable, Equatable, Sendable {
         self.tokenTypeIDsFeatureName = tokenTypeIDsFeatureName
         self.maxSequenceLength = maxSequenceLength
     }
+}
+
+struct SentimentModelProviderDiagnostic: Codable, Equatable, Sendable {
+    let providerID: String
+    let providerRevision: String
+    let providerFamily: SentimentModelProviderFamily
+    let providerType: String
+    let inputSchemaKind: SentimentModelInputSchemaKind?
+    let tokenizerResource: String?
+    let benchmarkFixtureResource: String?
+    let sizeHintMB: Double?
+    let maxSequenceLength: Int?
+    let coreMLComputeUnits: String
+}
+
+struct SentimentModelProviderCatalog: Codable, Equatable, Sendable {
+    let revision: String
+    let defaultProviderID: String?
+    let language: String?
+    let providers: [SentimentModelProviderDiagnostic]
 }
 
 struct SentimentModelManifest: Decodable, Equatable, Sendable {
@@ -95,6 +117,7 @@ struct SentimentModelProviderManifest: Decodable, Equatable, Sendable {
     let providerFamily: SentimentModelProviderFamily?
     let inputSchema: SentimentModelInputSchemaManifest?
     let tokenizerResource: String?
+    let benchmarkFixtureResource: String?
     let labelMap: [String: String]?
     let sizeHintMB: Double?
     let confidenceFloor: Double?
@@ -153,6 +176,7 @@ struct SentimentLoadedModel {
     let maxCharactersPerUnit: Int
     let supportsSentenceLevelAggregation: Bool
     let sizeHintMB: Double?
+    let coreMLComputeUnits: String
 
     var inputFeatureName: String {
         inputKind.primaryFeatureName
@@ -228,6 +252,14 @@ final class SentimentModelManager: @unchecked Sendable {
                 defaultProviderID: nil,
                 resourceRevision: nil
             )
+        } catch SentimentModelError.invalidProviderContract {
+            let manifest = try? loadManifest(validateProviderContracts: false)
+            return SentimentModelAvailability(
+                isAvailable: false,
+                reason: .invalidProviderContract,
+                defaultProviderID: manifest?.defaultProviderID,
+                resourceRevision: manifest?.revision
+            )
         } catch SentimentModelError.invalidModelInterface {
             let manifest = try? loadManifest()
             return SentimentModelAvailability(
@@ -283,7 +315,42 @@ final class SentimentModelManager: @unchecked Sendable {
         throw SentimentModelError.modelUnavailable
     }
 
-    private func loadManifest() throws -> SentimentModelManifest {
+    func providerCatalog(
+        profile: NativeHardwareProfile = HardwareAccelerationPolicy.currentHardwareProfile()
+    ) throws -> SentimentModelProviderCatalog {
+        let manifest = try loadManifest()
+        return SentimentModelProviderCatalog(
+            revision: manifest.revision,
+            defaultProviderID: manifest.defaultProviderID,
+            language: manifest.language,
+            providers: manifest.providers.map { provider in
+                let inputKind = provider.inputSchema.map(inputKindHint)
+                let providerFamily = resolveProviderFamily(
+                    provider: provider,
+                    inputKind: inputKind
+                )
+                return SentimentModelProviderDiagnostic(
+                    providerID: provider.id,
+                    providerRevision: provider.revision ?? provider.id,
+                    providerFamily: providerFamily,
+                    providerType: provider.type,
+                    inputSchemaKind: provider.inputSchema?.kind,
+                    tokenizerResource: provider.tokenizerResource,
+                    benchmarkFixtureResource: provider.benchmarkFixtureResource,
+                    sizeHintMB: provider.sizeHintMB,
+                    maxSequenceLength: provider.inputSchema?.maxSequenceLength,
+                    coreMLComputeUnits: HardwareAccelerationPolicy.coreMLComputeUnitsLabel(
+                        for: providerFamily,
+                        profile: profile
+                    )
+                )
+            }
+        )
+    }
+
+    private func loadManifest(
+        validateProviderContracts: Bool = true
+    ) throws -> SentimentModelManifest {
         if let cachedManifest = withCachedManifest({ $0 }) {
             return cachedManifest
         }
@@ -298,6 +365,11 @@ final class SentimentModelManager: @unchecked Sendable {
         } catch {
             throw SentimentModelError.invalidModelManifest
         }
+
+        guard validateProviderContracts else {
+            return manifest
+        }
+        try validateProviderManifestContracts(in: manifest)
 
         withCachedManifest { cachedManifest in
             cachedManifest = manifest
@@ -333,10 +405,8 @@ final class SentimentModelManager: @unchecked Sendable {
             provider: provider,
             inputKind: provider.inputSchema.map(inputKindHint)
         )
-        let model = try modelLoader(
-            modelURL,
-            HardwareAccelerationPolicy.coreMLConfiguration(for: expectedProviderFamily)
-        )
+        let configuration = HardwareAccelerationPolicy.coreMLConfiguration(for: expectedProviderFamily)
+        let model = try modelLoader(modelURL, configuration)
         guard let inputKind = resolveInputKind(
             provider: provider,
             inputs: model.modelDescription.inputDescriptionsByName
@@ -387,8 +457,40 @@ final class SentimentModelManager: @unchecked Sendable {
             supportsSentenceLevelAggregation: provider.supportsSentenceLevelAggregation
                 ?? manifest.supportsSentenceLevelAggregation
                 ?? true,
-            sizeHintMB: provider.sizeHintMB
+            sizeHintMB: provider.sizeHintMB,
+            coreMLComputeUnits: HardwareAccelerationPolicy.coreMLComputeUnitsLabel(
+                configuration.computeUnits
+            )
         )
+    }
+
+    private func validateProviderManifestContracts(
+        in manifest: SentimentModelManifest
+    ) throws {
+        guard !manifest.providers.isEmpty else {
+            throw SentimentModelError.invalidModelManifest
+        }
+
+        for provider in manifest.providers {
+            let inputKind = provider.inputSchema.map(inputKindHint)
+            let providerFamily = resolveProviderFamily(
+                provider: provider,
+                inputKind: inputKind
+            )
+            guard providerFamily == .transformerCoreML else {
+                continue
+            }
+            guard let schema = provider.inputSchema,
+                  schema.kind == .tokenizedText,
+                  schema.inputIDsFeatureName?.isEmpty == false,
+                  schema.attentionMaskFeatureName?.isEmpty == false,
+                  (schema.maxSequenceLength ?? 0) > 0,
+                  provider.tokenizerResource?.isEmpty == false,
+                  (provider.sizeHintMB ?? 0) > 0,
+                  provider.benchmarkFixtureResource?.isEmpty == false else {
+                throw SentimentModelError.invalidProviderContract
+            }
+        }
     }
 
     private func resolveInputKind(

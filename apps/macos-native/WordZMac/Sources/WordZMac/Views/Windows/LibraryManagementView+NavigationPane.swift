@@ -4,7 +4,7 @@ extension LibraryManagementView {
     var libraryNavigationSidebar: some View {
         List(selection: navigationSelectionBinding) {
             Section {
-                Label("Corpus Library", systemImage: "books.vertical")
+                Label(t("全部语料", "All Corpora"), systemImage: "books.vertical")
                     .tag(Optional(LibraryManagementNavigationSelection.allCorpora))
 
                 Label(t("导入语料", "Import Corpus"), systemImage: "tray.and.arrow.down")

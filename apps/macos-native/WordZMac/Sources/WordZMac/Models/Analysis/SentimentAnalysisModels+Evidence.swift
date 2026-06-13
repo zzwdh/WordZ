@@ -95,6 +95,7 @@ struct SentimentRowDiagnostics: Equatable, Codable, Sendable {
     var providerFamily: SentimentModelProviderFamily?
     var inferencePath: SentimentInferencePath?
     var modelInputKind: SentimentModelInputSchemaKind?
+    var coreMLComputeUnits: String?
 
     init(
         mixedEvidence: Bool,
@@ -114,7 +115,8 @@ struct SentimentRowDiagnostics: Equatable, Codable, Sendable {
         providerID: String? = nil,
         providerFamily: SentimentModelProviderFamily? = nil,
         inferencePath: SentimentInferencePath? = nil,
-        modelInputKind: SentimentModelInputSchemaKind? = nil
+        modelInputKind: SentimentModelInputSchemaKind? = nil,
+        coreMLComputeUnits: String? = nil
     ) {
         self.mixedEvidence = mixedEvidence
         self.ruleSummary = ruleSummary
@@ -134,6 +136,7 @@ struct SentimentRowDiagnostics: Equatable, Codable, Sendable {
         self.providerFamily = providerFamily
         self.inferencePath = inferencePath
         self.modelInputKind = modelInputKind
+        self.coreMLComputeUnits = coreMLComputeUnits
     }
 
     static let empty = SentimentRowDiagnostics(
@@ -148,4 +151,3 @@ struct SentimentRowDiagnostics: Equatable, Codable, Sendable {
         modelRevision: nil
     )
 }
-

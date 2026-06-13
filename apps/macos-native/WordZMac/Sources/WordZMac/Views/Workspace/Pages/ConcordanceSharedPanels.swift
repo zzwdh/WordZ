@@ -119,7 +119,7 @@ struct ConcordanceSavedSetsSection<ViewModel: ConcordanceSavedSetsPanelState>: V
                 saveVisible()
             }
             .disabled(!canSaveVisible)
-            Button(t("导入 JSON", "Import JSON")) {
+            Button(t("导入命中集文件", "Import Hit Set File")) {
                 importJSON()
             }
             Button(t("刷新", "Refresh")) {
@@ -229,7 +229,7 @@ struct ConcordanceSavedSetsSection<ViewModel: ConcordanceSavedSetsPanelState>: V
                 saveNotes()
             }
             .disabled(!viewModel.hasUnsavedSavedSetNotesChanges)
-            Button(t("导出 JSON", "Export JSON")) {
+            Button(t("导出命中集", "Export Hit Set")) {
                 exportSelectedJSON()
             }
             Button(role: .destructive) {

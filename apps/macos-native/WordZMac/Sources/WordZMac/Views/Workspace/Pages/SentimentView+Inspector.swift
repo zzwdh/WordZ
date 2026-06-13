@@ -169,12 +169,12 @@ extension SentimentView {
                     .font(.caption.monospacedDigit())
             }
             if let modelRevision = row.diagnostics.modelRevision, !modelRevision.isEmpty {
-                Text("\(t("模型版本", "Model Revision")): \(modelRevision)")
+                Text("\(t("模型", "Model")): \(modelRevision)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             if let providerID = row.diagnostics.providerID, !providerID.isEmpty {
-                let providerLine = "\(t("Provider", "Provider")): \(providerID)"
+                let providerLine = "\(t("模型来源", "Model Source")): \(providerID)"
                     + (row.diagnostics.providerFamily.map {
                         " · \($0.title(in: languageMode))"
                     } ?? "")

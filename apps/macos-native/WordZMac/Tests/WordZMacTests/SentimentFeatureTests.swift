@@ -499,7 +499,7 @@ final class SentimentPresentationFeatureTests: XCTestCase {
         XCTAssertTrue(lines.contains("Negative: 0 (0.0%)"))
     }
 
-    func testSentimentExportSummaryIncludesModelProviderMetadata() {
+    func testSentimentExportSummaryUsesUserFacingModelMetadata() {
         let rawResult = SentimentRunResult(
             request: SentimentRunRequest(
                 source: .pastedText,
@@ -579,8 +579,9 @@ final class SentimentPresentationFeatureTests: XCTestCase {
             languageMode: .english
         )
 
-        XCTAssertTrue(lines.contains("Model Provider: bundled-coreml-sentiment"))
-        XCTAssertTrue(lines.contains("Provider Family: Sentence Embedding + Logistic Regression"))
+        XCTAssertTrue(lines.contains("Method: Local Model"))
+        XCTAssertFalse(lines.contains("Model Provider: bundled-coreml-sentiment"))
+        XCTAssertFalse(lines.contains("Provider Family: Sentence Embedding + Logistic Regression"))
     }
 
     func testCompareSentimentExplainerUsesEffectiveRowsAndReviewImpact() throws {
@@ -753,7 +754,7 @@ final class SentimentPresentationFeatureTests: XCTestCase {
         XCTAssertEqual(scene.selectedRowID, "sentiment-negative")
         XCTAssertTrue(scene.column(for: .evidence)?.isVisible ?? false)
         XCTAssertFalse(scene.column(for: .source)?.isVisible ?? true)
-        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Backend") || $0.contains("后端") }))
+        XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Method") || $0.contains("分析方式") }))
     }
 
     func testSentimentPageViewModelExportsCompareCrossAnalysisAndAnnotationMetadata() {
@@ -778,7 +779,7 @@ final class SentimentPresentationFeatureTests: XCTestCase {
 
         XCTAssertTrue(exportLines.contains(where: { $0.contains("Compare x Sentiment") }))
         XCTAssertTrue(exportLines.contains(where: { $0.contains("Focus Term: alpha") }))
-        XCTAssertTrue(exportLines.contains(where: { $0.contains("Annotation: Lemma Preferred") }))
+        XCTAssertTrue(exportLines.contains(where: { $0.contains("Annotation: Word Base Preferred") }))
         XCTAssertTrue(viewModel.scene?.exportMetadataLines.contains(where: {
             $0.contains("Compare x Sentiment")
         }) ?? false)
@@ -833,7 +834,7 @@ final class SentimentPresentationFeatureTests: XCTestCase {
         XCTAssertTrue(exportLines.contains(where: { $0.contains("Topics x Sentiment") }))
         XCTAssertTrue(exportLines.contains(where: { $0.contains("Focused Topic: topic-1") }))
         XCTAssertTrue(exportLines.contains(where: { $0.contains("Topic Scope: Topic 1") }))
-        XCTAssertTrue(exportLines.contains(where: { $0.contains("Annotation: Surface with Lemma Fallback") }))
+        XCTAssertTrue(exportLines.contains(where: { $0.contains("Annotation: Surface Forms with Word Base Support") }))
     }
 
     func testSentimentPageViewModelTracksFilteringColumnsAndCompareSelection() {

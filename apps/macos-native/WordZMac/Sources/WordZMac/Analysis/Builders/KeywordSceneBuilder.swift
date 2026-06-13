@@ -122,8 +122,8 @@ struct KeywordSceneBuilder {
             totalRows: sortedRows.count,
             stopwordFilter: configuration.tokenFilters.stopwordFilter,
             additionalLines: [
-                "\(wordZText("Focus", "Focus", mode: languageMode)): \(focusSummary)",
-                "\(wordZText("Reference", "Reference", mode: languageMode)): \(referenceSummary)",
+                "\(wordZText("目标语料", "Focus", mode: languageMode)): \(focusSummary)",
+                "\(wordZText("参照语料", "Reference", mode: languageMode)): \(referenceSummary)",
                 annotationSummary,
                 configurationSummary
             ]

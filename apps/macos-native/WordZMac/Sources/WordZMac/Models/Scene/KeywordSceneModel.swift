@@ -15,15 +15,15 @@ enum KeywordSortMode: String, CaseIterable, Identifiable {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .keynessDescending:
-            return wordZText("显著性降序", "Keyness Descending", mode: mode)
+            return wordZText("显著性降序", "Significance Descending", mode: mode)
         case .absLogRatioDescending:
-            return wordZText("效应值降序", "Abs Log Ratio Descending", mode: mode)
+            return wordZText("差异强度降序", "Difference Strength Descending", mode: mode)
         case .focusFrequencyDescending:
-            return wordZText("Focus 频次降序", "Focus Frequency Descending", mode: mode)
+            return wordZText("目标频次降序", "Focus Frequency Descending", mode: mode)
         case .focusNormFrequencyDescending:
-            return wordZText("Focus 标准频次降序", "Focus Normalized Frequency Descending", mode: mode)
+            return wordZText("目标标准频次降序", "Target Standard Frequency Descending", mode: mode)
         case .focusRangeDescending:
-            return wordZText("Focus 覆盖降序", "Focus Range Descending", mode: mode)
+            return wordZText("目标覆盖降序", "Focus Range Descending", mode: mode)
         case .coverageDescending:
             return wordZText("覆盖数降序", "Coverage Descending", mode: mode)
         case .updatedAtDescending:
@@ -95,25 +95,23 @@ enum KeywordColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .direction:
             return wordZText("方向", "Direction", mode: mode)
         case .focusFrequency:
-            return wordZText("Focus 频次", "Focus Freq", mode: mode)
+            return wordZText("目标频次", "Target Frequency", mode: mode)
         case .referenceFrequency:
-            return wordZText("Reference 频次", "Reference Freq", mode: mode)
+            return wordZText("参照频次", "Reference Frequency", mode: mode)
         case .focusNormFrequency:
-            return wordZText("Focus 标准频次", "Focus Norm", mode: mode)
+            return wordZText("目标标准频次", "Target Standard Frequency", mode: mode)
         case .referenceNormFrequency:
-            return wordZText("Reference 标准频次", "Reference Norm", mode: mode)
+            return wordZText("参照标准频次", "Reference Standard Frequency", mode: mode)
         case .keyness:
-            return statistic == .logLikelihood
-                ? wordZText("Log-Likelihood", "Log-Likelihood", mode: mode)
-                : wordZText("Chi-square", "Chi-square", mode: mode)
+            return wordZText("显著性", "Significance", mode: mode)
         case .logRatio:
-            return wordZText("Log Ratio", "Log Ratio", mode: mode)
+            return wordZText("差异强度", "Difference Strength", mode: mode)
         case .pValue:
-            return "p"
+            return wordZText("p 值", "p", mode: mode)
         case .focusRange:
-            return wordZText("Focus 覆盖", "Focus Range", mode: mode)
+            return wordZText("目标覆盖", "Focus Range", mode: mode)
         case .referenceRange:
-            return wordZText("Reference 覆盖", "Reference Range", mode: mode)
+            return wordZText("参照覆盖", "Reference Range", mode: mode)
         case .example:
             return wordZText("例句", "Example", mode: mode)
         case .diffStatus:
@@ -123,15 +121,15 @@ enum KeywordColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .rightRank:
             return wordZText("右侧排名", "Right Rank", mode: mode)
         case .logRatioDelta:
-            return wordZText("Log Ratio 差", "Log Ratio Delta", mode: mode)
+            return wordZText("差异强度差", "Difference Strength Delta", mode: mode)
         case .coverageCount:
             return wordZText("覆盖词表数", "Coverage Count", mode: mode)
         case .coverageRate:
             return wordZText("覆盖率", "Coverage Rate", mode: mode)
         case .meanKeyness:
-            return wordZText("平均显著性", "Mean Keyness", mode: mode)
+            return wordZText("平均显著性", "Mean Significance", mode: mode)
         case .meanAbsLogRatio:
-            return wordZText("平均绝对 Log Ratio", "Mean Abs Log Ratio", mode: mode)
+            return wordZText("平均差异强度", "Mean Difference Strength", mode: mode)
         case .lastSeenAt:
             return wordZText("最近出现", "Last Seen", mode: mode)
         }

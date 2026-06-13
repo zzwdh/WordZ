@@ -11,7 +11,7 @@ enum SourceReaderSourceChainBuilder {
         var items: [SourceReaderSourceChainItem] = [
             SourceReaderSourceChainItem(
                 id: "origin",
-                title: wordZText("来源分析", "Origin Analysis", mode: mode),
+                title: wordZText("来自分析", "From Analysis", mode: mode),
                 value: context.origin.title(in: mode),
                 detail: String(
                     format: wordZText("共 %d 条高亮", "%d highlights", mode: mode),
@@ -26,7 +26,7 @@ enum SourceReaderSourceChainBuilder {
             items.append(
                 SourceReaderSourceChainItem(
                     id: "query",
-                    title: wordZText("查询口径", "Query Scope", mode: mode),
+                    title: wordZText("查询词", "Query", mode: mode),
                     value: query,
                     detail: queryDetail(for: context),
                     systemImage: "magnifyingglass",
@@ -39,9 +39,9 @@ enum SourceReaderSourceChainBuilder {
             items.append(
                 SourceReaderSourceChainItem(
                     id: "corpus",
-                    title: wordZText("DB 语料库", "DB Corpus", mode: mode),
+                    title: wordZText("语料", "Corpus", mode: mode),
                     value: corpusName,
-                    detail: normalizedText(context.corpusID),
+                    detail: nil,
                     systemImage: "books.vertical",
                     isCurrent: false
                 )
@@ -52,7 +52,7 @@ enum SourceReaderSourceChainBuilder {
             items.append(
                 SourceReaderSourceChainItem(
                     id: "source-file",
-                    title: wordZText("来源文件", "Original Source", mode: mode),
+                    title: wordZText("来源文件", "Source File", mode: mode),
                     value: (filePath as NSString).lastPathComponent,
                     detail: filePath,
                     systemImage: "doc.text",

@@ -33,7 +33,7 @@
 "下载更新" = "Download Update";
 "安装已下载更新" = "Install Downloaded Update";
 "在 Finder 中显示已下载更新" = "Reveal Downloaded Update in Finder";
-"导出诊断包…" = "Export Diagnostics Bundle…";
+"导出诊断信息…" = "Export Diagnostics…";
 "项目主页" = "Project Home";
 "GitHub 反馈" = "GitHub Feedback";
 "保存设置" = "Save Settings";
@@ -62,7 +62,7 @@
 "还没有最近打开记录" = "No recent documents yet";
 "打开并分析语料后，这里会出现最近访问记录。" = "Open and analyze a corpus to populate this list.";
 "支持与诊断" = "Support & Diagnostics";
-"导出诊断包" = "Export Diagnostics Bundle";
+"导出诊断信息" = "Export Diagnostics";
 "打开用户数据目录" = "Open User Data Folder";
 "使用说明" = "Usage Guide";
 "关于" = "About";
@@ -76,7 +76,7 @@
 "按当前运行任务计算" = "Based on currently running tasks";
 "当前没有运行中的任务" = "No tasks are currently running";
 "当前没有后台任务" = "No background tasks";
-"更新检查、更新下载和诊断包导出会在这里显示进度与结果。" = "Update checks, downloads, and diagnostics bundle exports will appear here.";
+"更新检查、更新下载和诊断信息导出会在这里显示进度与结果。" = "Update checks, downloads, and diagnostics exports will appear here.";
 "打开任务中心" = "Open Task Center";
 "清理已完成任务" = "Clear Finished Tasks";
 "窗口" = "Windows";
@@ -111,13 +111,13 @@
 "正在准备安装包" = "Preparing Installer";
 "准备安装更新" = "Ready to Install Update";
 "启动时发现新更新" = "Update Found at Launch";
-"原生版概览" = "Native Overview";
-"纯 Swift 宿主与本地引擎" = "Pure Swift host with native engine";
-"当前原生版已经支持语料管理、主分析工作流、工作区恢复、导出、更新检查和原生命令体系。" = "The native app now supports corpus management, the main analysis workflow, workspace restore, export, update checks, and native commands.";
+"功能概览" = "Overview";
+"本机分析与语料管理" = "Local analysis and corpus management";
+"WordZ 支持语料管理、主要分析流程、工作区恢复、导出、更新检查和常用快捷操作。" = "WordZ supports corpus management, core analysis workflows, workspace restore, export, update checks, and common shortcuts.";
 "版本" = "Version";
 "语言" = "Language";
 "快速操作" = "Quick Actions";
-"常用宿主入口" = "Common host actions";
+"常用入口" = "Common actions";
 "检查更新" = "Check for Updates";
 "支持状态" = "Support Status";
 "打开用户数据目录" = "Open User Data Directory";

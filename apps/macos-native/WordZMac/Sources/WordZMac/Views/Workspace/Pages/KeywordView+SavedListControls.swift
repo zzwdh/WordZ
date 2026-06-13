@@ -51,18 +51,18 @@ extension KeywordView {
 
     var keywordSavedListTransferButtons: some View {
         HStack(spacing: 8) {
-            Button(t("导入 JSON", "Import JSON")) {
+            Button(t("导入词表文件", "Import List File")) {
                 onAction(.importSavedListsJSON)
             }
             .buttonStyle(.bordered)
 
-            Button(t("导出所选 JSON", "Export Selected JSON")) {
+            Button(t("导出所选词表", "Export Selected List")) {
                 onAction(.exportSelectedSavedListJSON)
             }
             .buttonStyle(.bordered)
             .disabled(viewModel.selectedSavedList == nil)
 
-            Button(t("导出全部 JSON", "Export All JSON")) {
+            Button(t("导出全部词表", "Export All Lists")) {
                 onAction(.exportAllSavedListsJSON)
             }
             .buttonStyle(.bordered)

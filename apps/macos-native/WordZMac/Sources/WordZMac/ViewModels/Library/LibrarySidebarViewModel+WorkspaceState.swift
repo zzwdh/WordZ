@@ -4,7 +4,7 @@ import Foundation
 extension LibrarySidebarViewModel {
     func applyBootstrap(_ state: WorkspaceBootstrapState) {
         engineState = .connected
-        engineStatus = wordZText("本地引擎已连接", "Local engine connected", mode: languageMode)
+        engineStatus = wordZText("分析功能已就绪", "Analysis features ready", mode: languageMode)
         lastErrorMessage = ""
         applyRecentMetadataSourceLabels(state.uiSettings.recentMetadataSourceLabels)
         applyRecentCorpusSetIDs(state.uiSettings.recentCorpusSetIDs)
@@ -22,7 +22,6 @@ extension LibrarySidebarViewModel {
         referenceCorpusID: String?,
         referenceSummaryOverride: String? = nil,
         referenceDetailOverride: String? = nil,
-        keywordEnabledOverride: Bool? = nil,
         resultsSummary: WorkspaceSidebarResultsSceneModel?
     ) {
         self.activeAnalysisTab = activeAnalysisTab
@@ -30,7 +29,6 @@ extension LibrarySidebarViewModel {
         self.workflowReferenceCorpusID = referenceCorpusID
         self.workflowReferenceSummaryOverride = referenceSummaryOverride
         self.workflowReferenceDetailOverride = referenceDetailOverride
-        self.workflowKeywordEnabledOverride = keywordEnabledOverride
         self.resultsSummary = resultsSummary
         syncScene()
     }
@@ -42,7 +40,7 @@ extension LibrarySidebarViewModel {
 
     func setConnectionFailure(_ message: String) {
         engineState = .failed
-        engineStatus = wordZText("本地引擎连接失败", "Local engine connection failed", mode: languageMode)
+        engineStatus = wordZText("分析功能准备失败", "Analysis features could not be prepared", mode: languageMode)
         lastErrorMessage = message
         syncScene()
     }

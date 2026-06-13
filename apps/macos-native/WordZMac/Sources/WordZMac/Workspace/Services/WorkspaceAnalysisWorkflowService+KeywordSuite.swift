@@ -8,7 +8,7 @@ extension WorkspaceAnalysisWorkflowService {
         markWorkspaceEdited: @escaping @MainActor (WorkspaceFeatureSet) -> Void
     ) async {
         guard let path = await dialogService.chooseOpenPath(
-            title: wordZText("导入 Reference 词表", "Import Reference Word List", mode: .system),
+            title: wordZText("导入参照词表", "Import Reference Word List", mode: .system),
             message: wordZText(
                 "选择 TXT 或 TSV 词表文件。支持每行一个词项，或 term<TAB>freq。",
                 "Choose a TXT or TSV word list. Supports one term per line, or term<TAB>freq.",
@@ -35,7 +35,7 @@ extension WorkspaceAnalysisWorkflowService {
                 features.library.setStatus(
                     String(
                         format: wordZText(
-                            "已导入 Reference 词表：%d 项，接受 %d 行，拒绝 %d 行。",
+                            "已导入参照词表：%d 项，接受 %d 行，拒绝 %d 行。",
                             "Imported reference word list: %d items, %d accepted lines, %d rejected lines.",
                             mode: .system
                         ),
@@ -129,8 +129,8 @@ extension WorkspaceAnalysisWorkflowService {
         preferredRoute: NativeWindowRoute? = nil
     ) async {
         guard let path = await dialogService.chooseOpenPath(
-            title: wordZText("导入关键词词表 JSON", "Import Keyword Lists JSON", mode: .system),
-            message: wordZText("选择通过 Keyword Suite 导出的 JSON 词表文件。", "Choose a JSON file exported from Keyword Suite.", mode: .system),
+            title: wordZText("导入关键词词表文件", "Import Keyword List File", mode: .system),
+            message: wordZText("选择从 WordZ 导出的关键词词表文件。", "Choose a keyword list file exported from WordZ.", mode: .system),
             allowedExtensions: ["json"],
             preferredRoute: preferredRoute
         ) else {
@@ -192,7 +192,7 @@ extension WorkspaceAnalysisWorkflowService {
         }
 
         guard let path = await dialogService.chooseSavePath(
-            title: wordZText("导出关键词词表 JSON", "Export Keyword Lists JSON", mode: .system),
+            title: wordZText("导出关键词词表", "Export Keyword Lists", mode: .system),
             suggestedName: suggestedName,
             allowedExtension: "json",
             preferredRoute: preferredRoute
@@ -234,7 +234,7 @@ extension WorkspaceAnalysisWorkflowService {
 
         await exportTextDocument(
             ReadingExportSupport.keywordRowContextDocument(row: row, scene: scene),
-            title: wordZText("导出关键词上下文", "Export Keyword Row Context", mode: .system),
+            title: wordZText("导出关键词上下文", "Export Keyword Context", mode: .system),
             successStatus: wordZText("已导出关键词上下文到", "Exported keyword row context to", mode: .system),
             features: features,
             preferredRoute: preferredRoute

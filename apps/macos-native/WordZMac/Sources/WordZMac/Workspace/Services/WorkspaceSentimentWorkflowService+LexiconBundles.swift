@@ -9,10 +9,10 @@ extension WorkspaceSentimentWorkflowService {
     ) async {
         let featureSet = features.withFeatureSet { $0 }
         guard let path = await analysisWorkflow.dialogService.chooseOpenPath(
-            title: wordZText("导入 Sentiment Bundle", "Import Sentiment Bundle", mode: .system),
+            title: wordZText("导入自定义情感词典", "Import Custom Sentiment Lexicon", mode: .system),
             message: wordZText(
-                "选择包含 manifest 和 entries 的 JSON bundle 文件。",
-                "Choose a JSON bundle file containing a manifest and entries.",
+                "选择自定义情感词典文件。",
+                "Choose a custom sentiment lexicon file.",
                 mode: .system
             ),
             allowedExtensions: ["json"],
@@ -32,8 +32,8 @@ extension WorkspaceSentimentWorkflowService {
             if outcome.rejectedEntryCount > 0 {
                 status = String(
                     format: wordZText(
-                        "已导入用户词典 bundle“%@”：接受 %d 条，跳过 %d 条。",
-                        "Imported user lexicon bundle “%@”: accepted %d rules and skipped %d.",
+                        "已导入自定义情感词典“%@”：接受 %d 条，跳过 %d 条。",
+                        "Imported custom sentiment lexicon “%@”: accepted %d rules and skipped %d.",
                         mode: .system
                     ),
                     outcome.bundle.manifest.id,
@@ -43,8 +43,8 @@ extension WorkspaceSentimentWorkflowService {
             } else {
                 status = String(
                     format: wordZText(
-                        "已导入用户词典 bundle“%@”：共 %d 条规则。",
-                        "Imported user lexicon bundle “%@” with %d rules.",
+                        "已导入自定义情感词典“%@”：共 %d 条规则。",
+                        "Imported custom sentiment lexicon “%@” with %d rules.",
                         mode: .system
                     ),
                     outcome.bundle.manifest.id,

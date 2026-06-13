@@ -49,6 +49,20 @@ final class SentimentBenchmarkReportTests: XCTestCase {
             snapshots,
             to: defaultReportOutputURL
         )
+        let generatedData = try Data(contentsOf: defaultReportOutputURL)
+        let generatedBundle = try JSONDecoder().decode(
+            SentimentBenchmarkSnapshotBundle.self,
+            from: generatedData
+        )
+        let defaultProvider = try XCTUnwrap(
+            generatedBundle.modelProviderCatalog.providers.first {
+                $0.providerID == generatedBundle.modelProviderCatalog.defaultProviderID
+            }
+        )
+        XCTAssertEqual(defaultProvider.providerFamily, .embeddingLogReg)
+        XCTAssertEqual(defaultProvider.inputSchemaKind, .denseFeatures)
+        XCTAssertNotNil(defaultProvider.sizeHintMB)
+        XCTAssertFalse(defaultProvider.coreMLComputeUnits.isEmpty)
     }
 
     private var defaultReportOutputURL: URL {

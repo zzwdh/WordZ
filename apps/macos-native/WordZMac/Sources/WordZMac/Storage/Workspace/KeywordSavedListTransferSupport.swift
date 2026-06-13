@@ -16,7 +16,7 @@ enum KeywordSavedListTransferSupport {
             case .emptySelection:
                 return wordZText("没有可导出的关键词词表。", "No keyword lists are available for export.", mode: .system)
             case .invalidPayload:
-                return wordZText("无法识别关键词词表 JSON。", "The keyword list JSON payload is invalid.", mode: .system)
+                return wordZText("无法识别关键词词表文件。", "The keyword list file is invalid.", mode: .system)
             }
         }
     }

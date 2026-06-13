@@ -64,7 +64,7 @@ extension HelpCenterWindowView {
                 Button(t("刷新工作区", "Refresh Workspace")) {
                     Task { await workspace.refreshAll() }
                 }
-                Button(t("导出诊断包", "Export Diagnostics Bundle")) {
+                Button(t("导出诊断信息", "Export Diagnostics")) {
                     Task { await workspace.exportDiagnostics(preferredWindowRoute: .help) }
                 }
                 if !workspace.settings.scene.userDataDirectory.isEmpty {
@@ -79,7 +79,7 @@ extension HelpCenterWindowView {
     var supportFeedbackSection: some View {
         NativeWindowSection(title: t("支持与反馈", "Support & Feedback"), subtitle: workspace.settings.scene.supportStatus) {
             HStack {
-                Button(t("导出诊断包", "Export Diagnostics Bundle")) {
+                Button(t("导出诊断信息", "Export Diagnostics")) {
                     Task { await workspace.exportDiagnostics(preferredWindowRoute: .help) }
                 }
                 Button(t("GitHub 反馈", "GitHub Feedback")) { Task { await workspace.openFeedback() } }

@@ -15,8 +15,8 @@ extension AboutWindowView {
     }
 
     var aboutOverviewSection: some View {
-        NativeWindowSection(title: t("原生版概览", "Native Overview"), subtitle: t("纯 Swift 宿主与本地引擎", "Pure Swift host with native engine")) {
-            Text(t("当前原生版已经支持语料管理、主分析工作流、工作区恢复、导出、更新检查和原生命令体系。", "The native app now supports corpus management, the main analysis workflow, workspace restore, export, update checks, and native commands."))
+        NativeWindowSection(title: t("功能概览", "Overview"), subtitle: t("本机分析与语料管理", "Local analysis and corpus management")) {
+            Text(t("WordZ 支持语料管理、主要分析流程、工作区恢复、导出、更新检查和常用快捷操作。", "WordZ supports corpus management, core analysis workflows, workspace restore, export, update checks, and common shortcuts."))
                 .fixedSize(horizontal: false, vertical: true)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
@@ -36,7 +36,7 @@ extension AboutWindowView {
     }
 
     var aboutQuickActionsSection: some View {
-        NativeWindowSection(title: t("快速操作", "Quick Actions"), subtitle: t("常用宿主入口", "Common host actions")) {
+        NativeWindowSection(title: t("快速操作", "Quick Actions"), subtitle: t("常用入口", "Common actions")) {
             HStack {
                 Button(t("检查更新", "Check for Updates")) {
                     Task { await workspace.checkForUpdatesNow() }

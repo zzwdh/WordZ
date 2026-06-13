@@ -46,7 +46,7 @@ extension SentimentView {
             if viewModel.canEditWorkspaceCalibration {
                 HStack(spacing: 12) {
                     thresholdSlider(
-                        title: t("当前 Pack Bias", "Current Pack Bias"),
+                        title: t("当前校准偏移", "Current Calibration Bias"),
                         binding: Binding(
                             get: { viewModel.currentPackCalibrationBias },
                             set: { viewModel.currentPackCalibrationBias = $0 }
@@ -80,7 +80,7 @@ extension SentimentView {
             }
 
             if viewModel.importedLexiconBundles.isEmpty {
-                Text(t("尚未导入自定义词典。导入 JSON bundle 后，它会出现在 Profile 列表里，并跟随工作区一起恢复。", "No custom lexicon bundle has been imported yet. After importing a JSON bundle, it will appear in the Profile list and restore with this workspace."))
+                Text(t("尚未导入自定义词典。导入后，它会出现在判定方式列表里，并跟随工作区一起恢复。", "No custom lexicon has been imported yet. After importing one, it will appear in the profile list and restore with this workspace."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {

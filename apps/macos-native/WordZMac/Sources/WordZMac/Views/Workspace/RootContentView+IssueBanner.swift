@@ -31,7 +31,7 @@ extension RootContentView {
                     commandHandler.openHelpCenter()
                 }
                 .adaptiveGlassButtonStyle()
-                Button(wordZText("导出诊断包", "Export Diagnostics Bundle", mode: languageMode)) {
+                Button(wordZText("导出诊断信息", "Export Diagnostics", mode: languageMode)) {
                     commandHandler.exportDiagnostics()
                 }
                 .adaptiveGlassButtonStyle()

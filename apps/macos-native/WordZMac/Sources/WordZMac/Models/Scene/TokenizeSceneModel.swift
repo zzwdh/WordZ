@@ -31,9 +31,9 @@ enum TokenizeSortMode: String, CaseIterable, Identifiable {
         case .normalizedDescending:
             return wordZText("规范词降序", "Normalized Descending", mode: mode)
         case .lemmaAscending:
-            return wordZText("词形升序", "Lemma Ascending", mode: mode)
+            return wordZText("词元升序", "Word Base Ascending", mode: mode)
         case .lemmaDescending:
-            return wordZText("词形降序", "Lemma Descending", mode: mode)
+            return wordZText("词元降序", "Word Base Descending", mode: mode)
         case .lexicalClassAscending:
             return wordZText("词类升序", "Lexical Class Ascending", mode: mode)
         case .lexicalClassDescending:
@@ -94,7 +94,7 @@ enum TokenizeColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .normalized:
             return wordZText("规范词", "Normalized", mode: mode)
         case .lemma:
-            return wordZText("词形", "Lemma", mode: mode)
+            return wordZText("词元", "Word Base", mode: mode)
         case .lexicalClass:
             return wordZText("词类", "Lexical Class", mode: mode)
         case .script:

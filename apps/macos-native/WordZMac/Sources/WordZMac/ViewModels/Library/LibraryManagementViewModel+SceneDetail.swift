@@ -28,7 +28,7 @@ extension LibraryManagementViewModel {
                         id: "set-source-chain",
                         title: "来源范围",
                         detail: selectedCorpusSet.metadataFilterState.isEmpty
-                            ? "固定快照：只使用保存时选中的 DB。"
+                            ? "固定范围：使用保存时选中的语料。"
                             : "智能范围：按元数据筛选动态整理，可继续补齐来源、年份、体裁和标签。",
                         systemImage: "point.3.connected.trianglepath.dotted",
                         level: .info
@@ -56,7 +56,7 @@ extension LibraryManagementViewModel {
                     .init(
                         id: "batch-build",
                         title: "可保存为命名语料集",
-                        detail: "所选语料会合并为一个可复用的 .db 语料集，例如 a+b+c -> dbA，b+c+d -> dbB。",
+                        detail: "所选语料会保存为一个命名语料集，之后可直接在分析中选择。",
                         systemImage: "tray.full",
                         level: .success
                     ),
@@ -74,9 +74,7 @@ extension LibraryManagementViewModel {
                 ],
                 details: [
                     .init(id: "batch-count", title: "选中数量", value: "\(selectedCorpusIDs.count)"),
-                    .init(id: "batch-scope", title: "当前位置", value: currentScopeSummaryForInspector()),
-                    .init(id: "batch-format", title: "格式", value: "DB"),
-                    .init(id: "batch-sources", title: "源格式", value: sourceTypeSummary(for: currentSelection))
+                    .init(id: "batch-scope", title: "当前位置", value: currentScopeSummaryForInspector())
                 ],
                 actions: [
                     .init(id: "save-set", title: "保存为语料集", role: .primary, action: .saveCurrentCorpusSet)
@@ -92,17 +90,11 @@ extension LibraryManagementViewModel {
                 title: selectedCorpus.name,
                 subtitle: "语料",
                 statusItems: corpusInspectorStatusItems(
-                    readiness: readiness,
-                    languageMode: languageMode
+                    readiness: readiness
                 ),
                 details: [
-                    .init(id: "name", title: "名称", value: selectedCorpus.name),
-                    .init(id: "database-file", title: "DB File", value: selectedCorpus.databaseFileDisplayName),
                     .init(id: "folder", title: "文件夹", value: selectedCorpus.folderName),
-                    .init(id: "source", title: "Source Format", value: selectedCorpus.sourceType.uppercased()),
-                    .init(id: "source-path", title: "来源位置", value: selectedCorpus.representedPath.isEmpty ? "WordZ DB 内部来源" : selectedCorpus.representedPath),
-                    .init(id: "metadata", title: "元数据", value: selectedCorpus.metadata.compactSummary(in: languageMode)),
-                    .init(id: "project-id", title: "项目 ID", value: selectedCorpus.id)
+                    .init(id: "metadata", title: "元数据", value: selectedCorpus.metadata.compactSummary(in: languageMode))
                 ],
                 actions: [
                     .init(id: "open", title: "打开语料", role: .primary, action: .openSelectedCorpus),
@@ -179,8 +171,7 @@ extension LibraryManagementViewModel {
     }
 
     private func corpusInspectorStatusItems(
-        readiness: LibraryCorpusReadinessSceneModel,
-        languageMode: AppLanguageMode
+        readiness: LibraryCorpusReadinessSceneModel
     ) -> [LibraryManagementInspectorStatusItem] {
         [
             .init(
@@ -189,13 +180,6 @@ extension LibraryManagementViewModel {
                 detail: readiness.detailText,
                 systemImage: statusImage(for: readiness.level),
                 level: statusLevel(for: readiness.level)
-            ),
-            .init(
-                id: "zh-analysis",
-                title: "中文/中英混合分析",
-                detail: chineseAnalysisSupportText(mode: languageMode),
-                systemImage: "character.book.closed",
-                level: .success
             )
         ]
     }
@@ -246,18 +230,16 @@ extension LibraryManagementViewModel {
         }
     }
 
-    private func sourceChainSummary(
-        sourceType: String,
-        representedPath: String,
-        databaseFileName: String
-    ) -> String {
-        if representedPath.hasPrefix("wordz://corpus-set/") {
-            return "\(databaseFileName) ← WordZ DB 语料集合并"
+    private func sourceChainSummary(representedPath: String) -> String {
+        let normalizedPath = representedPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalizedPath.hasPrefix("wordz://corpus-set/") {
+            return "语料集生成"
         }
-        guard !representedPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return "\(databaseFileName) ← WordZ DB 内部来源"
+        guard !normalizedPath.isEmpty else {
+            return "内置语料"
         }
-        return "\(databaseFileName) ← \(sourceType.uppercased()) ← \(representedPath)"
+        let fileName = URL(fileURLWithPath: normalizedPath).lastPathComponent
+        return fileName.isEmpty ? "文件导入" : "文件导入：\(fileName)"
     }
 
     private func chineseAnalysisSupportText(mode: AppLanguageMode) -> String {
@@ -270,16 +252,6 @@ extension LibraryManagementViewModel {
 
     private func readinessActionText(for readiness: LibraryCorpusReadinessSceneModel) -> String {
         readiness.issueTitles.isEmpty ? "可直接分析" : readiness.issueTitles.joined(separator: " · ")
-    }
-
-    private func sourceTypeSummary(for corpora: [LibraryCorpusItem]) -> String {
-        let counts = Dictionary(grouping: corpora, by: { $0.sourceType.uppercased() })
-            .mapValues(\.count)
-        guard !counts.isEmpty else { return "—" }
-        return counts.keys.sorted().map { key in
-            "\(key) \(counts[key] ?? 0)"
-        }
-        .joined(separator: " · ")
     }
 
     func makeCorpusInfoScene(
@@ -296,14 +268,12 @@ extension LibraryManagementViewModel {
             projectIDText: summary.corpusId,
             databaseFileNameText: databaseFileName,
             dbProjectSummaryText: wordZText(
-                "WordZ DB 项目 · 分析以 .db 为单位运行",
-                "WordZ DB project · analysis runs against the .db corpus",
+                "已加入语料库，可直接用于分析",
+                "Added to Library and ready for analysis",
                 mode: languageMode
             ),
             sourceChainText: sourceChainSummary(
-                sourceType: summary.sourceType,
-                representedPath: summary.representedPath,
-                databaseFileName: databaseFileName
+                representedPath: summary.representedPath
             ),
             analysisReadinessTitle: readiness.title,
             analysisReadinessDetail: readiness.detailText,

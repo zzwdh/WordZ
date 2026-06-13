@@ -75,7 +75,7 @@ extension TokenLemmaStrategy {
         case .normalizedSurface:
             return wordZText("规范词优先", "Normalized surface", mode: mode)
         case .lemmaPreferred:
-            return wordZText("Lemma 优先", "Lemma-preferred", mode: mode)
+            return wordZText("词元优先", "Word base preferred", mode: mode)
         }
     }
 
@@ -84,7 +84,7 @@ extension TokenLemmaStrategy {
         case .normalizedSurface:
             return wordZText("沿用当前的小写规范词。", "Keep the current lowercased normalized token.", mode: mode)
         case .lemmaPreferred:
-            return wordZText("若系统可给出 lemma，则优先使用 lemma。", "Use system lemmas when available; otherwise fall back to normalized tokens.", mode: mode)
+            return wordZText("若系统可给出词元，则优先使用词元。", "Use word bases when available; otherwise use normalized tokens.", mode: mode)
         }
     }
 }

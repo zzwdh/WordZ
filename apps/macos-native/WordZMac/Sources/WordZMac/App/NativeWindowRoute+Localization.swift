@@ -8,7 +8,7 @@ extension NativeWindowRoute {
         case .library:
             return l10n("语料库", table: "Windows", mode: mode, fallback: "Library")
         case .sourceReader:
-            return l10n("DB 来源预览", table: "Windows", mode: mode, fallback: "DB Source Preview")
+            return l10n("来源文本", table: "Windows", mode: mode, fallback: "Source Text")
         case .settings:
             return l10n("设置", table: "Windows", mode: mode, fallback: "Settings")
         case .updatePrompt:

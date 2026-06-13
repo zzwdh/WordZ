@@ -119,14 +119,14 @@ extension CompareSceneBuilder {
                 : targetItems.map(\.title).joined(separator: " · ")
             let referenceSummary = wordZText("参考语料：", "Reference Corpus: ", mode: languageMode) + referenceItem.title + " · " + wordZText("目标语料：", "Target Corpora: ", mode: languageMode) + targetSummary
             let methodSummary = wordZText(
-                "当前结果使用固定参考语料。系统会把所选参考语料与其余已选语料合并后的目标语料组做 keyness 比较，因此更适合做可复现的对比实验。",
+                "当前结果使用固定参考语料。系统会把所选参考语料与其余已选语料合并后的目标语料组做显著性比较，因此更适合做可复现的对比实验。",
                 "These results use a fixed reference corpus. WordZ compares the chosen reference corpus against the pooled target set formed by the remaining selected corpora, which is better suited to reproducible comparative studies.",
                 mode: languageMode
             )
             let methodNotes = [
                 wordZText(
-                    "Keyness 为正时，表示该词在目标语料组更突出；为负时，表示该词在参考语料更突出。",
-                    "A positive Keyness means the word is more prominent in the target set; a negative value means it is more prominent in the reference corpus.",
+                    "显著性为正时，表示该词在目标语料组更突出；为负时，表示该词在参考语料更突出。",
+                    "A positive significance value means the word is more prominent in the target set; a negative value means it is more prominent in the reference corpus.",
                     mode: languageMode
                 ),
                 wordZText(
@@ -150,7 +150,7 @@ extension CompareSceneBuilder {
                 : selectedTitles.joined(separator: " · ")
             let referenceSummary = wordZText("参考语料集：", "Reference Set: ", mode: languageMode) + referenceLabel + " · " + wordZText("目标语料：", "Target Corpora: ", mode: languageMode) + targetSummary
             let methodSummary = wordZText(
-                "当前结果使用命名参考语料集。系统会把参考语料集中的语料合并为一组，并与当前所选目标语料组做 keyness 比较，更适合做稳定的课程作业和论文复现实验。",
+                "当前结果使用命名参考语料集。系统会把参考语料集中的语料合并为一组，并与当前所选目标语料组做显著性比较，更适合做稳定的课程作业和论文复现实验。",
                 "These results use a named reference corpus set. WordZ merges the saved reference-set corpora into one reference group and compares it against the current target selection, which is better suited to reproducible coursework and research workflows.",
                 mode: languageMode
             )
@@ -161,8 +161,8 @@ extension CompareSceneBuilder {
                     mode: languageMode
                 ),
                 wordZText(
-                    "阅读结果时，建议同时看 Keyness、Log Ratio 和完整分布，确认差异是否来自整体频率还是单个语料偏高。",
-                    "Read Keyness together with Log Ratio and the full distribution to tell whether a contrast comes from the whole target set or a single corpus spike.",
+                    "阅读结果时，建议同时看显著性、差异强度和完整分布，确认差异是否来自整体频率还是单个语料偏高。",
+                    "Read significance together with difference strength and the full distribution to tell whether a contrast comes from the whole target set or a single corpus spike.",
                     mode: languageMode
                 )
             ]
@@ -181,19 +181,19 @@ extension CompareSceneBuilder {
                 mode: languageMode
             ),
             methodSummary: wordZText(
-                "Keyness 使用带方向的 log-likelihood，并辅以 Log Ratio 作为效应值。每个词都把标准化频次最高的语料视为目标语料，其余所选语料合并为参考语料。",
-                "Keyness uses signed log-likelihood, with Log Ratio as the effect size. For each word, the corpus with the highest normalized frequency is treated as the target corpus and the remaining selected corpora are merged into the reference corpus.",
+                "显著性会判断一个词是否在某条语料中更突出，并用差异强度辅助解释差距大小。每个词都把标准频次最高的语料视为目标语料，其余所选语料合并为参考语料。",
+                "WordZ checks whether each word stands out in one corpus, then uses difference strength to explain the size of the gap. For each word, the corpus with the highest standard frequency is treated as the target corpus and the remaining selected corpora are merged into the reference corpus.",
                 mode: languageMode
             ),
             methodNotes: [
                 wordZText(
-                    "Keyness 适合找“在哪个语料里显著更突出”的词，而不只是看总频次。",
-                    "Keyness helps identify which corpus makes a word statistically distinctive, not just more frequent in raw counts.",
+                    "显著性适合找“在哪个语料里更突出”的词，而不只是看总频次。",
+                    "Significance helps identify which corpus makes a word distinctive, not just more frequent in raw counts.",
                     mode: languageMode
                 ),
                 wordZText(
-                    "阅读结果时，建议同时看 Keyness、Log Ratio 和完整分布。",
-                    "Read Keyness together with Log Ratio and the full per-corpus distribution for a more reliable interpretation.",
+                    "阅读结果时，建议同时看显著性、差异强度和完整分布。",
+                    "Read significance together with difference strength and the full per-corpus distribution for a more reliable interpretation.",
                     mode: languageMode
                 )
             ],
@@ -216,7 +216,7 @@ extension CompareSceneBuilder {
         languageMode: AppLanguageMode
     ) -> [String] {
         AnalysisExportMetadataSupport.notes(
-            analysisTitle: wordZText("语料对比 / Keyness", "Corpus Compare / Keyness", mode: languageMode),
+            analysisTitle: wordZText("语料对比 / 显著性", "Corpus Compare / Significance", mode: languageMode),
             languageMode: languageMode,
             visibleRows: visibleRows,
             totalRows: totalRows,

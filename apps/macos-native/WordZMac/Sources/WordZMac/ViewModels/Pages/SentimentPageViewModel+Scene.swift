@@ -100,8 +100,8 @@ extension SentimentPageViewModel {
         }
         if result.request.backend != result.backendKind {
             backendNotice = wordZText(
-                "当前所选模型后端不可用，已自动回退到词典规则后端。",
-                "The requested model backend is unavailable, so WordZ fell back to the lexicon backend.",
+                "当前所选本地模型不可用，已自动改用词典规则分析。",
+                "The requested local model is unavailable, so WordZ is using lexicon rules.",
                 mode: .system
             )
         } else {

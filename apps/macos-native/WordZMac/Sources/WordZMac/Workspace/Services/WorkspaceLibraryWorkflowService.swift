@@ -303,7 +303,7 @@ final class WorkspaceLibraryWorkflowService {
 
             let createdTaskID = taskCenter.beginTask(
                 title: isMergedImport
-                    ? wordZText("制作 DB 语料库", "Create DB Corpus", mode: .system)
+                    ? wordZText("合并语料", "Create Merged Corpus", mode: .system)
                     : wordZText("导入语料", "Import Corpora", mode: .system),
                 detail: wordZText("正在准备导入语料…", "Preparing corpus import…", mode: .system),
                 progress: 0
@@ -316,7 +316,7 @@ final class WorkspaceLibraryWorkflowService {
                         throw NSError(
                             domain: "WordZMac.WorkspaceLibraryWorkflowService",
                             code: 501,
-                            userInfo: [NSLocalizedDescriptionKey: wordZText("当前仓储尚不支持制作 DB 语料库。", "The current repository cannot create DB corpora.", mode: .system)]
+                            userInfo: [NSLocalizedDescriptionKey: wordZText("当前存储不支持合并语料。", "The current storage cannot create merged corpora.", mode: .system)]
                         )
                     }
                     return try await mergedRepository.importMergedCorpusPaths(

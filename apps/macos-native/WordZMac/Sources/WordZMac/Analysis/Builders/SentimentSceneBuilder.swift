@@ -386,12 +386,9 @@ struct SentimentSceneBuilder {
             "\(wordZText("来源", "Source", mode: languageMode)): \(rawResult.request.source.title(in: languageMode))",
             "\(wordZText("单位", "Unit", mode: languageMode)): \(rawResult.request.unit.title(in: languageMode))",
             "\(wordZText("上下文", "Context", mode: languageMode)): \(rawResult.request.contextBasis.title(in: languageMode))",
-            "\(wordZText("后端", "Backend", mode: languageMode)): \(rawResult.backendKind.title(in: languageMode))",
-            "\(wordZText("后端版本", "Backend Revision", mode: languageMode)): \(rawResult.backendRevision)",
-            "\(wordZText("资源版本", "Resource Revision", mode: languageMode)): \(rawResult.resourceRevision)",
-            "\(wordZText("规则包", "Domain Pack", mode: languageMode)): \(rawResult.request.domainPackSummary(in: languageMode))",
-            "\(wordZText("规则配置", "Rule Profile", mode: languageMode)): \(rawResult.request.ruleProfile.title)",
-            "\(wordZText("校准版本", "Calibration Revision", mode: languageMode)): \(rawResult.calibrationProfileRevision)",
+            "\(wordZText("分析方式", "Method", mode: languageMode)): \(rawResult.backendKind.title(in: languageMode))",
+            "\(wordZText("情感词库", "Lexicon Pack", mode: languageMode)): \(rawResult.request.domainPackSummary(in: languageMode))",
+            "\(wordZText("判定方式", "Rule Profile", mode: languageMode)): \(rawResult.request.ruleProfile.title)",
             "\(wordZText("阈值预设", "Threshold Preset", mode: languageMode)): \(thresholdPreset.title(in: languageMode))",
             "\(wordZText("决策阈值", "Decision Threshold", mode: languageMode)): \(format(rawResult.request.thresholds.decisionThreshold))",
             "\(wordZText("最小证据", "Minimum Evidence", mode: languageMode)): \(format(rawResult.request.thresholds.minimumEvidence))",
@@ -402,16 +399,16 @@ struct SentimentSceneBuilder {
         ]
 
         if !rawResult.lexiconVersion.isEmpty {
-            lines.append("Lexicon: \(rawResult.lexiconVersion)")
+            lines.append("\(wordZText("情感词典", "Lexicon", mode: languageMode)): \(rawResult.lexiconVersion)")
         }
         if !rawResult.activePackIDs.isEmpty {
             lines.append(
-                "\(wordZText("激活规则包", "Active Packs", mode: languageMode)): \(rawResult.activePackIDs.map { $0.title(in: languageMode) }.joined(separator: ", "))"
+                "\(wordZText("使用词库", "Active Lexicons", mode: languageMode)): \(rawResult.activePackIDs.map { $0.title(in: languageMode) }.joined(separator: ", "))"
             )
         }
         if !rawResult.userLexiconBundleIDs.isEmpty {
             lines.append(
-                "\(wordZText("用户词典", "User Lexicon Bundles", mode: languageMode)): \(rawResult.userLexiconBundleIDs.joined(separator: ", "))"
+                "\(wordZText("自定义词典", "Custom Dictionaries", mode: languageMode)): \(rawResult.userLexiconBundleIDs.joined(separator: ", "))"
             )
         }
 

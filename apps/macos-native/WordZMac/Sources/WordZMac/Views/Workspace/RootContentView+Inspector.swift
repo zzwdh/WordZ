@@ -135,7 +135,7 @@ extension RootContentView {
         AdaptiveSelectionAccessorySurface {
             HStack(spacing: 8) {
                 inspectorActionButton(
-                    title: wordZText("打开 DB", "Open DB", mode: languageMode),
+                    title: wordZText("打开语料", "Open Corpus", mode: languageMode),
                     systemImage: "arrow.up.right.square",
                     isProminent: true,
                     isEnabled: viewModel.shell.scene.toolbar.item(for: .openSelected)?.isEnabled ?? false
@@ -152,7 +152,7 @@ extension RootContentView {
                     }
 
                     inspectorActionButton(
-                        title: wordZText("DB 信息", "DB Info", mode: languageMode),
+                        title: wordZText("语料信息", "Corpus Info", mode: languageMode),
                         systemImage: "info.circle"
                     ) {
                         dispatcher.handleSidebarAction(.showCorpusInfoSelected(corpusID))

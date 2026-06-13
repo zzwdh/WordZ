@@ -5,11 +5,11 @@ extension WorkspaceAnalysisWorkflowService {
     func localizedTopicProgressDetail(_ progress: TopicAnalysisProgress) -> String {
         switch progress.stage {
         case .preparing:
-            return wordZText("正在加载 Topics 模型…", "Loading the Topics model…", mode: .system)
+            return wordZText("正在准备主题分析…", "Preparing topic analysis…", mode: .system)
         case .segmenting:
             return wordZText("正在切分语料段落…", "Segmenting corpus paragraphs…", mode: .system)
         case .embedding:
-            return wordZText("正在生成段落向量…", "Embedding paragraph vectors…", mode: .system)
+            return wordZText("正在分析段落相似度…", "Analyzing paragraph similarity…", mode: .system)
         case .clustering:
             return wordZText("正在聚类主题…", "Clustering topics…", mode: .system)
         case .summarizing:

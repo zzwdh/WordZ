@@ -173,6 +173,7 @@ struct SentimentAnalysisCoordinator {
         diagnostics.providerFamily = modelRow.diagnostics.providerFamily
         diagnostics.modelRevision = modelRow.diagnostics.modelRevision
         diagnostics.modelInputKind = modelRow.diagnostics.modelInputKind
+        diagnostics.coreMLComputeUnits = modelRow.diagnostics.coreMLComputeUnits
         diagnostics.confidence = modelRow.diagnostics.confidence
         diagnostics.topMargin = modelRow.diagnostics.topMargin
         diagnostics.scopeNotes = Array(

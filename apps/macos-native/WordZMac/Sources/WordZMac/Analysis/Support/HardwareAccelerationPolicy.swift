@@ -213,4 +213,31 @@ enum HardwareAccelerationPolicy {
         )
         return configuration
     }
+
+    static func coreMLComputeUnitsLabel(_ units: MLComputeUnits) -> String {
+        switch units {
+        case .all:
+            return "all"
+        case .cpuAndGPU:
+            return "cpuAndGPU"
+        case .cpuOnly:
+            return "cpuOnly"
+        case .cpuAndNeuralEngine:
+            return "cpuAndNeuralEngine"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
+    static func coreMLComputeUnitsLabel(
+        for providerFamily: SentimentModelProviderFamily,
+        profile: NativeHardwareProfile = currentHardwareProfile()
+    ) -> String {
+        coreMLComputeUnitsLabel(
+            coreMLComputeUnits(
+                for: providerFamily,
+                profile: profile
+            )
+        )
+    }
 }

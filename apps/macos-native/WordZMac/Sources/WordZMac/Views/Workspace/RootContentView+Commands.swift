@@ -35,7 +35,7 @@ struct RootContentCommandHandler {
         case .checkForUpdates:
             return wordZText("重新检查更新", "Retry Update Check", mode: languageMode)
         case .exportDiagnostics:
-            return wordZText("重试导出诊断包", "Retry Export Diagnostics Bundle", mode: languageMode)
+            return wordZText("重试导出诊断信息", "Retry Export Diagnostics", mode: languageMode)
         }
     }
 

@@ -5,7 +5,7 @@ import WordZEngine
 extension MainWorkspaceViewModel {
     func exportDiagnostics(preferredWindowRoute: NativeWindowRoute? = nil) async {
         let taskID = taskCenter.beginTask(
-            title: t("导出诊断包", "Export Diagnostics Bundle"),
+            title: t("导出诊断信息", "Export Diagnostics"),
             detail: t("正在整理运行状态与工作区快照…", "Collecting runtime state and workspace snapshots…"),
             progress: 0
         )
@@ -21,7 +21,7 @@ extension MainWorkspaceViewModel {
                 suggestedName: suggestedName,
                 preferredRoute: preferredWindowRoute?.hostPresentationHint
             ) {
-                settings.setSupportStatus("\(t("已导出诊断包到", "Exported diagnostics bundle to")) \(savedPath)")
+                settings.setSupportStatus("\(t("已导出诊断信息到", "Exported diagnostics to")) \(savedPath)")
                 clearActiveIssue()
                 taskCenter.completeTask(
                     id: taskID,
@@ -29,14 +29,14 @@ extension MainWorkspaceViewModel {
                     action: .openFile(path: savedPath)
                 )
             } else {
-                let cancelled = t("已取消导出诊断包。", "Diagnostics export was cancelled.")
+                let cancelled = t("已取消导出诊断信息。", "Diagnostics export was cancelled.")
                 settings.setSupportStatus(cancelled)
                 taskCenter.failTask(id: taskID, detail: cancelled)
             }
         } catch {
             presentIssue(
                 error,
-                titleZh: "导出诊断包失败",
+                titleZh: "导出诊断信息失败",
                 titleEn: "Diagnostics Export Failed",
                 recoveryAction: .exportDiagnostics
             )

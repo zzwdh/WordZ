@@ -19,7 +19,7 @@ extension LibraryManagementViewModel {
             id: UUID().uuidString,
             title: wordZText("导入语料", "Import Corpus", mode: languageMode),
             subtitle: String(
-                format: wordZText("将检查 %d 个入口，并把可导入文本合并为一个可分析语料（.db 格式）。", "Checking %d selected entries and merging importable text into one analyzable corpus (.db format).", mode: languageMode),
+                format: wordZText("将检查 %d 个入口，并把可导入文本合并为一个可分析语料。", "Checking %d selected entries and merging importable text into one analyzable corpus.", mode: languageMode),
                 paths.count
             ),
             paths: paths,
@@ -207,7 +207,7 @@ private struct LibraryImportPreflightScanner {
                 .init(
                     id: "preserve-hierarchy",
                     title: wordZText("文件夹会递归读取", "Folders will be scanned recursively", mode: languageMode),
-                    detail: wordZText("找到的可导入文件会进入同一个 DB 语料库。", "Importable files found inside folders are added to the same DB corpus.", mode: languageMode),
+                    detail: wordZText("找到的可导入文件会进入同一条语料。", "Importable files found inside folders are added to the same corpus.", mode: languageMode),
                     systemImage: "folder.badge.gearshape"
                 )
             )

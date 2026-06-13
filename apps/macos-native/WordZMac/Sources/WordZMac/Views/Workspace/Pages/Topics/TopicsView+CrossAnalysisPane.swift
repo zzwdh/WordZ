@@ -124,7 +124,7 @@ extension TopicsView {
                                 .buttonStyle(.borderless)
                                 .disabled(isBusy)
 
-                                Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
+                                Button(t("打开来源文本", "Open Source Text")) {
                                     onAction(.openSentimentSourceReader(exemplar.id))
                                 }
                                 .buttonStyle(.borderless)

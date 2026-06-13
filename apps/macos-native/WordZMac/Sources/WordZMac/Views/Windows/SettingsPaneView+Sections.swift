@@ -171,7 +171,7 @@ extension SettingsPaneView {
     var supportSection: some View {
         NativeWindowSection(title: t("支持与诊断", "Support & Diagnostics"), subtitle: settings.scene.supportStatus) {
             HStack {
-                Button(t("导出诊断包", "Export Diagnostics Bundle")) { onAction(.exportDiagnostics) }
+                Button(t("导出诊断信息", "Export Diagnostics")) { onAction(.exportDiagnostics) }
                 Button(t("打开用户数据目录", "Open User Data Folder")) { onAction(.openUserDataDirectory) }
             }
 

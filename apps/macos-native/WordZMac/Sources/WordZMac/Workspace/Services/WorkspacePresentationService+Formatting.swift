@@ -15,10 +15,10 @@ extension WorkspacePresentationService {
         openedCorpus: OpenedCorpus?,
         workspaceSnapshot: WorkspaceSnapshotSummary?
     ) -> String {
-        let corpusLabel = openedCorpus?.displayName ?? selectedCorpus?.name ?? "未打开 DB 语料库"
+        let corpusLabel = openedCorpus?.displayName ?? selectedCorpus?.name ?? "未打开语料"
         let workspaceLabel = workspaceSnapshot?.corpusNames.isEmpty == false
             ? "工作区：\(workspaceSnapshot?.corpusNames.joined(separator: "、") ?? "")"
             : "工作区：空"
-        return "\(workspaceLabel) ｜ 当前 DB 语料库：\(corpusLabel)"
+        return "\(workspaceLabel) ｜ 当前语料：\(corpusLabel)"
     }
 }

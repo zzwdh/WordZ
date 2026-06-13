@@ -112,7 +112,7 @@ struct NativeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
                 includedFiles: (manifestEntries + [
                     NativeDiagnosticsBundleManifestEntry(
                         path: "manifest.json",
-                        description: "Inventory of the diagnostics bundle contents."
+                        description: "Inventory of the exported diagnostics contents."
                     )
                 ]).sorted { $0.path < $1.path }
             )
@@ -120,7 +120,7 @@ struct NativeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
                 manifest,
                 to: bundleDirectoryURL.appendingPathComponent("manifest.json"),
                 relativeTo: bundleDirectoryURL,
-                description: "Inventory of the diagnostics bundle contents.",
+                description: "Inventory of the exported diagnostics contents.",
                 manifestEntries: &manifestEntries
             )
 

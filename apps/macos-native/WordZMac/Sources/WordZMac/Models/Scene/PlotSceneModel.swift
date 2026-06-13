@@ -16,17 +16,17 @@ enum PlotColumnKey: String, CaseIterable, Identifiable, Hashable {
         case .row:
             return wordZText("行", "Row", mode: mode)
         case .fileID:
-            return "FileID"
+            return wordZText("文件", "File", mode: mode)
         case .filePath:
-            return "FilePath"
+            return wordZText("文件路径", "File Path", mode: mode)
         case .fileTokens:
-            return "FileTokens"
+            return wordZText("文件词数", "File Tokens", mode: mode)
         case .frequency:
-            return "Freq"
+            return wordZText("频次", "Frequency", mode: mode)
         case .normalizedFrequency:
-            return "NormFreq"
+            return wordZText("标准频次", "Normalized Frequency", mode: mode)
         case .plot:
-            return "Plot"
+            return wordZText("分布", "Plot", mode: mode)
         }
     }
 }

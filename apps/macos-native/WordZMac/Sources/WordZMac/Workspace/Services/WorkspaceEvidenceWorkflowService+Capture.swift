@@ -139,7 +139,7 @@ extension WorkspaceEvidenceWorkflowService {
         draft: EvidenceCaptureDraft? = nil
     ) async {
         guard let corpus = sourceReaderCorpusMetadata(context: context, features: features) else {
-            features.sidebar.setError(wordZText("当前 DB 来源预览没有关联语料。", "The current DB source preview is not attached to a corpus.", mode: .system))
+            features.sidebar.setError(wordZText("当前来源文本没有关联语料。", "The current source text is not attached to a corpus.", mode: .system))
             return
         }
 
@@ -186,7 +186,7 @@ extension WorkspaceEvidenceWorkflowService {
 
         await saveEvidenceItem(
             item,
-            successMessage: wordZText("已保存 DB 来源预览摘录。", "Saved DB source preview excerpt.", mode: .system),
+            successMessage: wordZText("已保存来源文本摘录。", "Saved source text excerpt.", mode: .system),
             features: features
         )
     }

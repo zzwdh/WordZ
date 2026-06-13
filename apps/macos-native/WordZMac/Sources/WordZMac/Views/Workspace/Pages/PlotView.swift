@@ -50,7 +50,7 @@ struct PlotView: View {
                         Button {
                             onAction(.openSourceReader)
                         } label: {
-                            Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
+                            Label(t("打开来源文本", "Open Source Text"), systemImage: "doc.text.magnifyingglass")
                         }
                         .disabled(viewModel.selectedSceneRow?.markers.isEmpty != false || isBusy)
                     }
@@ -118,11 +118,11 @@ struct PlotView: View {
                         Text(selectedRow.displayPath)
                             .font(.headline)
                             .lineLimit(2)
-                        Text("FileID \(selectedRow.fileID) · Freq \(selectedRow.frequency) · NormFreq \(selectedRow.normalizedFrequencyText)")
+                        Text("\(t("文件", "File")) \(selectedRow.fileID) · \(t("频次", "Frequency")) \(selectedRow.frequency) · \(t("标准频次", "Normalized Frequency")) \(selectedRow.normalizedFrequencyText)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if let marker = viewModel.selectedSceneMarker {
-                            Text("Sentence \(marker.sentenceId + 1) · Token \(marker.tokenIndex + 1)")
+                            Text("\(t("句", "Sentence")) \(marker.sentenceId + 1) · \(t("词", "Token")) \(marker.tokenIndex + 1)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -141,7 +141,7 @@ struct PlotView: View {
                         Button {
                             onAction(.openSourceReader)
                         } label: {
-                            Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
+                            Label(t("打开来源文本", "Open Source Text"), systemImage: "doc.text.magnifyingglass")
                         }
                         .disabled(selectedRow.markers.isEmpty || isBusy)
                     }

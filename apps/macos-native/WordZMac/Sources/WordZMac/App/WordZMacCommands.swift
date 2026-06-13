@@ -71,7 +71,7 @@ struct WordZMacCommands: Commands {
             .keyboardShortcut(.downArrow, modifiers: [.command, .shift])
             .disabled(!isContextEnabled(\.canOpenSelectedCorpus))
 
-            Button(t("打开 DB 来源预览", "Open DB Source Preview")) {
+            Button(t("打开来源文本", "Open Source Text")) {
                 performFocusedCommand("openSourceView") { context in
                     await openSourceView(using: context)
                 }
@@ -284,7 +284,7 @@ struct WordZMacCommands: Commands {
                     }
                 }
             }
-            Button(t("导出诊断包…", "Export Diagnostics Bundle…")) {
+            Button(t("导出诊断信息…", "Export Diagnostics…")) {
                 performAsyncCommand("exportDiagnostics") {
                     await workspace.exportDiagnostics()
                 }

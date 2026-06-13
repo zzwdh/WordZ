@@ -74,8 +74,8 @@ extension LibraryManagementViewModel {
             }
 
         let librarySummary = hasSearchQuery
-            ? "DB \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count) · 搜索 “\(normalizedSearchQuery)”"
-            : "DB \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count)"
+            ? "语料 \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count) · 搜索 “\(normalizedSearchQuery)”"
+            : "语料 \(librarySnapshot.corpora.count) · 文件夹 \(librarySnapshot.folders.count)"
         let recycleSummary = "回收站 \(recycleSnapshot.totalCount) 项"
         let metadataFilterSummary = metadataFilterState.summaryText(in: WordZLocalization.shared.effectiveMode)
         let importProgress = importProgressSnapshot?.progress

@@ -88,8 +88,8 @@ extension SentimentView {
                    viewModel.currentPackRecommendation.usesAutomaticSelection {
                     Text(
                         t(
-                            "当前将按 \(viewModel.currentPackSummaryTitle) 运行；若要固定规则包，请手动选择非 Mixed 的 pack。",
-                            "This run will use \(viewModel.currentPackSummaryTitle); choose a non-Mixed pack to pin it."
+                            "当前将按 \(viewModel.currentPackSummaryTitle) 运行；若要固定情感词库，请手动选择具体词库。",
+                            "This run will use \(viewModel.currentPackSummaryTitle); choose a specific lexicon pack to pin it."
                         )
                     )
                     .font(.caption2)
@@ -140,7 +140,7 @@ extension SentimentView {
 
     var backendPicker: some View {
         WorkbenchMenuPicker(
-            title: t("后端", "Backend"),
+            title: t("分析方式", "Method"),
             selection: Binding(
                 get: { viewModel.backend },
                 set: { onAction(.changeBackend($0)) }
@@ -153,7 +153,7 @@ extension SentimentView {
 
     var domainPackPicker: some View {
         WorkbenchMenuPicker(
-            title: t("规则包", "Pack"),
+            title: t("情感词库", "Lexicon Pack"),
             selection: Binding(
                 get: { viewModel.selectedDomainPackID },
                 set: { onAction(.changeDomainPack($0)) }
@@ -293,11 +293,11 @@ extension SentimentView {
         default:
             sourceSummary = "neutrality / positivity / negativity"
         }
-        let packSummary = " · \(t("规则包", "Pack")): \(viewModel.currentPackSummaryTitle)"
+        let packSummary = " · \(t("情感词库", "Lexicon Pack")): \(viewModel.currentPackSummaryTitle)"
         let lexiconSummary = viewModel.backend == .lexicon
-            ? "\(packSummary) · \(t("配置", "Profile")): \(viewModel.selectedRuleProfile.title) · \(t("校准", "Calibration")): \(viewModel.selectedCalibrationProfileTitle(in: languageMode))\(selectedBundleSummarySuffix)"
+            ? "\(packSummary) · \(t("判定方式", "Profile")): \(viewModel.selectedRuleProfile.title) · \(t("校准", "Calibration")): \(viewModel.selectedCalibrationProfileTitle(in: languageMode))\(selectedBundleSummarySuffix)"
             : packSummary
-        return "\(t("当前后端", "Selected backend")): \(viewModel.backend.title(in: languageMode))\(lexiconSummary) · \(sourceSummary)"
+        return "\(t("当前分析方式", "Selected method")): \(viewModel.backend.title(in: languageMode))\(lexiconSummary) · \(sourceSummary)"
     }
 
     var selectedBundleSummarySuffix: String {

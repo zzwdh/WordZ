@@ -5,6 +5,11 @@ struct NativeAnalysisRuntimeTuning: Codable, Equatable, Sendable {
     let topicApproximateClusteringIterationLimit: Int
     let topicApproximateClusteringClusterLimit: Int
     let topicApproximateClusteringSeedVariants: Int
+    let topicApproximateClusteringLargeCorpusVectorThreshold: Int
+    let topicApproximateClusteringCoarseCandidateCounts: [Int]
+    let topicApproximateClusteringCoarseIterationLimit: Int
+    let topicApproximateClusteringRefineCandidateLimit: Int
+    let topicSimilarityMatrixMultiplicationMinVectors: Int
     let topicEmbeddingBatchSize: Int
     let topicEmbeddingCacheEntries: Int
     let topicReductionCacheEntries: Int
@@ -21,6 +26,13 @@ struct NativeAnalysisRuntimeTuning: Codable, Equatable, Sendable {
             topicApproximateClusteringIterationLimit: conserving ? 24 : 32,
             topicApproximateClusteringClusterLimit: conserving ? 10 : 12,
             topicApproximateClusteringSeedVariants: conserving ? 3 : 5,
+            topicApproximateClusteringLargeCorpusVectorThreshold: conserving ? 3_000 : 5_000,
+            topicApproximateClusteringCoarseCandidateCounts: conserving
+                ? [2, 4, 6, 8, 10]
+                : [2, 4, 6, 8, 10, 12],
+            topicApproximateClusteringCoarseIterationLimit: conserving ? 6 : 8,
+            topicApproximateClusteringRefineCandidateLimit: conserving ? 2 : 3,
+            topicSimilarityMatrixMultiplicationMinVectors: conserving ? 96 : 64,
             topicEmbeddingBatchSize: conserving ? 160 : 320,
             topicEmbeddingCacheEntries: conserving ? 1_024 : 2_048,
             topicReductionCacheEntries: conserving ? 16 : 32,
@@ -36,6 +48,11 @@ struct NativeAnalysisRuntimeTuning: Codable, Equatable, Sendable {
             "iterations=\(topicApproximateClusteringIterationLimit)",
             "clusterLimit=\(topicApproximateClusteringClusterLimit)",
             "seedVariants=\(topicApproximateClusteringSeedVariants)",
+            "largeApproxThreshold=\(topicApproximateClusteringLargeCorpusVectorThreshold)",
+            "coarseCounts=\(topicApproximateClusteringCoarseCandidateCounts.map(String.init).joined(separator: ","))",
+            "coarseIterations=\(topicApproximateClusteringCoarseIterationLimit)",
+            "refineCandidates=\(topicApproximateClusteringRefineCandidateLimit)",
+            "matrixMinVectors=\(topicSimilarityMatrixMultiplicationMinVectors)",
             "batchSize=\(topicEmbeddingBatchSize)",
             "embeddingCache=\(topicEmbeddingCacheEntries)",
             "reductionCache=\(topicReductionCacheEntries)",

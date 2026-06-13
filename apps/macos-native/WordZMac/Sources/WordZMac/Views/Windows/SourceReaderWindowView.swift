@@ -32,7 +32,7 @@ struct SourceReaderWindowView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(sourceReader.scene?.title ?? t("DB 来源预览", "DB Source Preview"))
+                        Text(sourceReader.scene?.title ?? t("来源文本", "Source Text"))
                             .font(.title3.weight(.semibold))
                         if let subtitle = sourceReader.scene?.subtitle, !subtitle.isEmpty {
                             Text(subtitle)
@@ -82,7 +82,7 @@ struct SourceReaderWindowView: View {
                         }
                         .disabled(sourceReader.currentFilePath == nil)
 
-                        Button(t("预览 DB 文本", "Preview DB Text")) {
+                        Button(t("预览来源文本", "Preview Source Text")) {
                             Task { await workspace.quickLookSourceReaderContent() }
                         }
                     }
@@ -104,7 +104,7 @@ struct SourceReaderWindowView: View {
         if sourceReader.isLoading {
             VStack(spacing: 12) {
                 ProgressView()
-                Text(t("正在准备 DB 来源文本…", "Preparing DB source text…"))
+                Text(t("正在准备来源文本…", "Preparing source text…"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -162,7 +162,7 @@ struct SourceReaderWindowView: View {
 
                                     SourceReaderSourceChainView(
                                         items: scene.sourceChainItems,
-                                        title: t("高亮来源链", "Highlight Source Chain"),
+                                        title: t("出处定位", "Source Location"),
                                         showsDetails: true
                                     )
 
@@ -197,7 +197,7 @@ struct SourceReaderWindowView: View {
 
                         WorkbenchSectionCard {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text(t("DB 来源句子", "DB Source Sentences"))
+                                Text(t("来源句子", "Source Sentences"))
                                     .font(.headline)
 
                                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -240,11 +240,11 @@ struct SourceReaderWindowView: View {
             .navigationSplitViewStyle(.balanced)
         } else {
             WorkbenchEmptyStateCard(
-                title: t("还没有 DB 来源预览内容", "No DB source preview yet"),
+                title: t("还没有来源文本", "No source text yet"),
                 systemImage: "doc.text.magnifyingglass",
                 message: t(
-                    "先从 KWIC、定位器或 Plot 选择一条带来源记录的结果，再打开 DB 来源预览。",
-                    "Select a source-backed result from KWIC, Locator, or Plot, then open the DB source preview."
+                    "先从 KWIC、定位器或 Plot 选择一条带出处的结果，再打开来源文本。",
+                    "Select a result with a source location from KWIC, Locator, or Plot, then open the source text."
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)

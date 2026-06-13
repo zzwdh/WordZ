@@ -108,13 +108,13 @@ enum SentimentModelProviderFamily: String, CaseIterable, Codable, Sendable {
     func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .bundledCoreML:
-            return wordZText("内置 Core ML", "Bundled Core ML", mode: mode)
+            return wordZText("内置模型", "Built-in Model", mode: mode)
         case .embeddingLogReg:
-            return wordZText("句向量 + 逻辑回归", "Sentence Embedding + Logistic Regression", mode: mode)
+            return wordZText("内置模型", "Built-in Model", mode: mode)
         case .textMaxEnt:
-            return wordZText("文本最大熵", "Text MaxEnt", mode: mode)
+            return wordZText("内置模型", "Built-in Model", mode: mode)
         case .transformerCoreML:
-            return wordZText("Transformer Core ML", "Transformer Core ML", mode: mode)
+            return wordZText("内置模型", "Built-in Model", mode: mode)
         case .unknown:
             return wordZText("未知", "Unknown", mode: mode)
         }
@@ -153,7 +153,7 @@ enum SentimentInferencePath: String, CaseIterable, Codable, Sendable {
         case .hybrid:
             return wordZText("混合判别", "Hybrid", mode: mode)
         case .fallback:
-            return wordZText("回退路径", "Fallback", mode: mode)
+            return wordZText("备用判定", "Backup Decision", mode: mode)
         }
     }
 }

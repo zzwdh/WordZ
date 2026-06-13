@@ -55,11 +55,11 @@ if [[ -f "$REPO_ROOT/build/icon.icns" ]]; then
   cp "$REPO_ROOT/build/icon.icns" "$RESOURCES_DIR/$APP_NAME.icns"
 fi
 
-for locale_dir in "$APP_ROOT"/Sources/WordZMac/Resources/*.lproj(N); do
+while IFS= read -r locale_dir; do
   if [[ -d "$locale_dir" ]]; then
     cp -R "$locale_dir" "$RESOURCES_DIR/$(basename "$locale_dir")"
   fi
-done
+done < <(/usr/bin/find "$APP_ROOT/Sources/WordZMac/Resources" -maxdepth 1 -type d -name "*.lproj" 2>/dev/null)
 
 /bin/cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

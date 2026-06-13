@@ -12,9 +12,9 @@ enum WorkspaceAnnotationProfile: String, CaseIterable, Identifiable, Codable, Se
         case .surface:
             return wordZText("表层词形", "Surface", mode: mode)
         case .lemmaPreferred:
-            return wordZText("Lemma 优先", "Lemma Preferred", mode: mode)
+            return wordZText("词元优先", "Word Base Preferred", mode: mode)
         case .surfaceWithLemmaFallback:
-            return wordZText("表层词形（lemma 兜底）", "Surface with Lemma Fallback", mode: mode)
+            return wordZText("表层词形（自动补全词元）", "Surface Forms with Word Base Support", mode: mode)
         }
     }
 
@@ -23,9 +23,9 @@ enum WorkspaceAnnotationProfile: String, CaseIterable, Identifiable, Codable, Se
         case .surface:
             return wordZText("默认使用规范表层词形。", "Use normalized surface tokens by default.", mode: mode)
         case .lemmaPreferred:
-            return wordZText("优先使用 lemma，缺失时退回规范词。", "Prefer lemmas and fall back to normalized tokens when missing.", mode: mode)
+            return wordZText("优先使用词元，缺失时使用规范词。", "Prefer word bases and use normalized tokens when missing.", mode: mode)
         case .surfaceWithLemmaFallback:
-            return wordZText("优先显示规范词，在解释层补充 lemma。", "Prefer normalized surface forms and surface lemmas as explanatory fallback.", mode: mode)
+            return wordZText("优先显示规范词，并在需要时补充词元。", "Prefer normalized surface forms and add word bases when useful.", mode: mode)
         }
     }
 

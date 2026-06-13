@@ -59,10 +59,10 @@ extension LibraryManagementViewModel {
         case .corpusBuilder:
             return LibraryManagementContentSceneModel(
                 mode: .corpusBuilder,
-                title: "Import Corpus",
+                title: "导入语料",
                 subtitle: "从 TXT、DOCX、PDF 生成可分析语料",
                 emptyTitle: "选择文件导入语料",
-                emptyDescription: "导入后会出现在 Corpus Library；底层仍保存为可复用的 .db 格式。"
+                emptyDescription: "导入后会出现在语料库，随后可直接用于分析。"
             )
         case .recycleBin:
             return LibraryManagementContentSceneModel(
@@ -97,8 +97,8 @@ extension LibraryManagementViewModel {
         case .allCorpora:
             return LibraryManagementContentSceneModel(
                 mode: .corpora,
-                title: "Corpus Library",
-                subtitle: "\(visibleCorpora.count) 条语料 · .db 格式",
+                title: "全部语料",
+                subtitle: "\(visibleCorpora.count) 条语料",
                 emptyTitle: hasSearchQuery ? "当前搜索没有匹配语料" : "还没有语料",
                 emptyDescription: hasSearchQuery
                     ? "可以调整搜索词，或继续导入文件。"

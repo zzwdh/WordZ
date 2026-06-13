@@ -36,7 +36,7 @@ final class WordZMenuBarControllerTests: XCTestCase {
                 appName: "WordZ",
                 versionLabel: "v1.2.9",
                 workspaceSummary: "Demo Workspace",
-                buildSummary: "SwiftUI + Swift native engine",
+                buildSummary: "本机分析版",
                 help: []
             )
         )

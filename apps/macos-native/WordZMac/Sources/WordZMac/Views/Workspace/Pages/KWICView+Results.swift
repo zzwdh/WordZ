@@ -104,7 +104,7 @@ extension KWICView {
         WorkbenchSectionCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
-                    Text(t("DB 来源预览", "DB Source Preview"))
+                    Text(t("来源文本", "Source Text"))
                         .font(.headline)
                     Spacer()
                     Text(t("句", "Sentence") + " \(selectedRow.sentenceId + 1)")
@@ -128,7 +128,7 @@ extension KWICView {
                     Button {
                         onAction(.openSourceReader)
                     } label: {
-                        Label(t("打开 DB 来源预览", "Open DB Source Preview"), systemImage: "doc.text.magnifyingglass")
+                        Label(t("打开来源文本", "Open Source Text"), systemImage: "doc.text.magnifyingglass")
                     }
                     WorkbenchCopyTextButton(
                         title: t("复制引文", "Copy Citation"),

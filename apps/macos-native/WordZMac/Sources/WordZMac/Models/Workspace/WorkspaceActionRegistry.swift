@@ -83,7 +83,7 @@ enum WorkspaceActionRegistry {
         case .openSelected:
             return wordZText("打开选中", "Open Selected", mode: languageMode)
         case .openSourceReader:
-            return wordZText("DB 来源", "DB Source", mode: languageMode)
+            return wordZText("来源文本", "Source Text", mode: languageMode)
         case .annotationControls:
             return wordZText("标注显示", "Annotation Display", mode: languageMode)
         case .copyCurrentResult:

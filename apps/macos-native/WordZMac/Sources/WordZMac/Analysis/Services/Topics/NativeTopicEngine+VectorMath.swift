@@ -2,42 +2,6 @@ import Accelerate
 import Foundation
 
 extension NativeTopicEngine {
-    func pairwiseSimilarityMatrix(for vectors: [[Double]]) -> [[Double]] {
-        pairwiseSimilarityMatrix(for: vectors, lexicalContext: nil)
-    }
-
-    func pairwiseSimilarityMatrix(
-        for vectors: [[Double]],
-        lexicalContext: TopicClusteringLexicalContext?
-    ) -> [[Double]] {
-        guard !vectors.isEmpty else { return [] }
-
-        var matrix = Array(
-            repeating: Array(repeating: 0.0, count: vectors.count),
-            count: vectors.count
-        )
-        for lhs in vectors.indices {
-            matrix[lhs][lhs] = 1
-            for rhs in (lhs + 1)..<vectors.count {
-                let similarity: Double
-                if let lexicalContext {
-                    similarity = exactHybridSimilarity(
-                        lhsIndex: lhs,
-                        rhsIndex: rhs,
-                        vectors: vectors,
-                        lexicalContext: lexicalContext
-                    )
-                } else {
-                    similarity = cosineSimilarity(vectors[lhs], vectors[rhs])
-                }
-                matrix[lhs][rhs] = similarity
-                matrix[rhs][lhs] = similarity
-            }
-        }
-        return matrix
-    }
-
-
     func centroid(for memberIndices: [Int], vectors: [[Double]]) -> [Double] {
         guard let firstIndex = memberIndices.first else { return [] }
 
@@ -86,7 +50,7 @@ extension NativeTopicEngine {
         let similarities = clusters.map { cluster -> Double in
             guard !cluster.memberIndices.isEmpty else { return 0 }
             let total = cluster.memberIndices.reduce(0.0) { partialResult, memberIndex in
-                partialResult + cosineSimilarity(vectors[memberIndex], cluster.centroid)
+                partialResult + normalizedCosineSimilarity(vectors[memberIndex], cluster.centroid)
             }
             return total / Double(cluster.memberIndices.count)
         }
@@ -101,7 +65,7 @@ extension NativeTopicEngine {
         var comparisons = 0
         for lhs in 0..<clusters.count {
             for rhs in (lhs + 1)..<clusters.count {
-                total += cosineDistance(
+                total += normalizedCosineDistance(
                     clusters[lhs].centroid,
                     clusters[rhs].centroid
                 )
@@ -219,6 +183,15 @@ extension NativeTopicEngine {
     func cosineDistance(_ lhs: [Double], _ rhs: [Double]) -> Double {
         let boundedSimilarity = max(-1, min(1, cosineSimilarity(lhs, rhs)))
         return (1 - boundedSimilarity) / 2
+    }
+
+    func normalizedCosineSimilarity(_ lhs: [Double], _ rhs: [Double]) -> Double {
+        guard lhs.count == rhs.count, !lhs.isEmpty else { return 0 }
+        return max(-1, min(1, cblas_ddot(Int32(lhs.count), lhs, 1, rhs, 1)))
+    }
+
+    func normalizedCosineDistance(_ lhs: [Double], _ rhs: [Double]) -> Double {
+        (1 - normalizedCosineSimilarity(lhs, rhs)) / 2
     }
 
     func normalize(_ vector: [Double]) -> [Double] {

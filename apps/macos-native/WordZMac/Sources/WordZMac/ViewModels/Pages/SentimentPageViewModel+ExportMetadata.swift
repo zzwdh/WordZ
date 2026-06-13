@@ -5,23 +5,19 @@ extension SentimentPageViewModel {
         annotationSummary: String,
         languageMode: AppLanguageMode
     ) -> [String] {
-        let effectivePackID = rawResult?.request.resolvedDomainPackID ?? currentPackRecommendation.effectivePackID
         var lines: [String] = [
-            "\(wordZText("规则包", "Domain Pack", mode: languageMode)): \(rawResult?.request.domainPackSummary(in: languageMode) ?? currentPackRecommendation.summary(in: languageMode))",
-            "\(wordZText("规则配置", "Rule Profile", mode: languageMode)): \(selectedRuleProfile.title)",
-            "\(wordZText("校准配置", "Calibration Profile", mode: languageMode)): \(selectedCalibrationProfileTitle(in: languageMode))",
+            "\(wordZText("情感词库", "Lexicon Pack", mode: languageMode)): \(rawResult?.request.domainPackSummary(in: languageMode) ?? currentPackRecommendation.summary(in: languageMode))",
+            "\(wordZText("判定方式", "Rule Profile", mode: languageMode)): \(selectedRuleProfile.title)",
+            "\(wordZText("校准", "Calibration", mode: languageMode)): \(selectedCalibrationProfileTitle(in: languageMode))",
             "\(wordZText("Review Filter", "Review Filter", mode: languageMode)): \(reviewFilter.title(in: languageMode))",
             "\(wordZText("审校状态", "Review Status", mode: languageMode)): \(reviewStatusFilter.title(in: languageMode))"
         ]
 
         if !selectedRuleProfile.importedBundleIDs.isEmpty {
             lines.append(
-                "\(wordZText("用户词典", "User Lexicon Bundles", mode: languageMode)): \(selectedRuleProfile.importedBundleIDs.joined(separator: ", "))"
+                "\(wordZText("自定义词典", "Custom Dictionaries", mode: languageMode)): \(selectedRuleProfile.importedBundleIDs.joined(separator: ", "))"
             )
         }
-        lines.append(
-            "\(wordZText("当前 Pack Bias", "Current Pack Bias", mode: languageMode)): \(String(format: "%.2f", selectedCalibrationProfile.domainBiasAdjustments[effectivePackID.rawValue] ?? 0))"
-        )
 
         if showOnlyHardCases {
             lines.append(wordZText("仅显示难例", "Showing hard cases only", mode: languageMode))

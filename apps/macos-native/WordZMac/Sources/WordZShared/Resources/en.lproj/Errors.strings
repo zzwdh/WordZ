@@ -4,7 +4,7 @@
 "未知" = "Unknown";
 "当前没有后台任务。" = "No background tasks right now.";
 "等待初始化" = "Waiting for initialization";
-"正在连接本地引擎..." = "Connecting to the native engine…";
+"正在准备分析功能..." = "Preparing analysis features…";
 "未选择语料" = "No corpus selected";
 "已导入 %d 条语料，跳过 %d 条。" = "Imported %d corpora and skipped %d.";
 "已创建文件夹“%@”。" = "Created folder \"%@\".";

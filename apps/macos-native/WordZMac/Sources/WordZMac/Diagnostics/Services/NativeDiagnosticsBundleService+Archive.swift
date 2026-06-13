@@ -16,7 +16,7 @@ extension NativeDiagnosticsBundleService {
             throw NSError(
                 domain: "WordZMac.NativeDiagnosticsBundleService",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: stderr.isEmpty ? "无法创建诊断包压缩文件。" : stderr]
+                userInfo: [NSLocalizedDescriptionKey: stderr.isEmpty ? "无法创建诊断信息文件。" : stderr]
             )
         }
     }

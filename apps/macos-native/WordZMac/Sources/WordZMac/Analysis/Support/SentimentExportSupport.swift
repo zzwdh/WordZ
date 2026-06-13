@@ -23,18 +23,15 @@ enum SentimentExportSupport {
     ) -> [String] {
         let rawResult = presentationResult.rawResult
         var lines = [
-            wordZText("WordZ Sentiment Analysis 摘要", "WordZ Sentiment Analysis Summary", mode: languageMode),
+            wordZText("WordZ 情感分析摘要", "WordZ Sentiment Analysis Summary", mode: languageMode),
             "",
             "\(wordZText("来源", "Source", mode: languageMode)): \(rawResult.request.source.title(in: languageMode))",
             "\(wordZText("单位", "Unit", mode: languageMode)): \(rawResult.request.unit.title(in: languageMode))",
             "\(wordZText("上下文", "Context", mode: languageMode)): \(rawResult.request.contextBasis.title(in: languageMode))",
-            "\(wordZText("后端", "Backend", mode: languageMode)): \(rawResult.backendKind.title(in: languageMode))",
-            "\(wordZText("后端版本", "Backend Revision", mode: languageMode)): \(rawResult.backendRevision)",
-            "\(wordZText("资源版本", "Resource Revision", mode: languageMode)): \(rawResult.resourceRevision)",
-            "\(wordZText("规则包", "Domain Pack", mode: languageMode)): \(rawResult.request.domainPackSummary(in: languageMode))",
-            "\(wordZText("规则配置", "Rule Profile", mode: languageMode)): \(rawResult.request.ruleProfile.title)",
-            "\(wordZText("校准版本", "Calibration Revision", mode: languageMode)): \(rawResult.calibrationProfileRevision)",
-            "\(wordZText("聚合方式", "Aggregation", mode: languageMode)): \(aggregationSummary(for: rawResult.request.unit, languageMode: languageMode))",
+            "\(wordZText("分析方式", "Method", mode: languageMode)): \(rawResult.backendKind.title(in: languageMode))",
+            "\(wordZText("情感词库", "Lexicon Pack", mode: languageMode)): \(rawResult.request.domainPackSummary(in: languageMode))",
+            "\(wordZText("判定方式", "Rule Profile", mode: languageMode)): \(rawResult.request.ruleProfile.title)",
+            "\(wordZText("汇总方式", "Aggregation", mode: languageMode)): \(aggregationSummary(for: rawResult.request.unit, languageMode: languageMode))",
             "",
             "\(wordZText("总条数", "Total Texts", mode: languageMode)): \(presentationResult.effectiveOverallSummary.totalTexts)",
             "\(wordZText("积极", "Positive", mode: languageMode)): \(presentationResult.effectiveOverallSummary.positiveCount) (\(formatPercent(presentationResult.effectiveOverallSummary.positiveRatio)))",
@@ -46,31 +43,18 @@ enum SentimentExportSupport {
         ]
 
         if !rawResult.lexiconVersion.isEmpty {
-            lines.insert("Lexicon: \(rawResult.lexiconVersion)", at: 6)
+            lines.insert("\(wordZText("情感词典", "Lexicon", mode: languageMode)): \(rawResult.lexiconVersion)", at: 6)
         }
         if !rawResult.activePackIDs.isEmpty {
             lines.insert(
-                "\(wordZText("激活规则包", "Active Packs", mode: languageMode)): \(rawResult.activePackIDs.map { $0.title(in: languageMode) }.joined(separator: ", "))",
+                "\(wordZText("使用词库", "Active Lexicons", mode: languageMode)): \(rawResult.activePackIDs.map { $0.title(in: languageMode) }.joined(separator: ", "))",
                 at: 7
             )
         }
         if !rawResult.userLexiconBundleIDs.isEmpty {
             lines.insert(
-                "\(wordZText("用户词典", "User Lexicon Bundles", mode: languageMode)): \(rawResult.userLexiconBundleIDs.joined(separator: ", "))",
+                "\(wordZText("自定义词典", "Custom Dictionaries", mode: languageMode)): \(rawResult.userLexiconBundleIDs.joined(separator: ", "))",
                 at: 8
-            )
-        }
-        if let providerID = rawResult.providerID,
-           !providerID.isEmpty {
-            lines.insert(
-                "\(wordZText("模型 Provider", "Model Provider", mode: languageMode)): \(providerID)",
-                at: min(lines.count, 8)
-            )
-        }
-        if let providerFamily = rawResult.providerFamily {
-            lines.insert(
-                "\(wordZText("Provider 家族", "Provider Family", mode: languageMode)): \(providerFamily.title(in: languageMode))",
-                at: min(lines.count, 9)
             )
         }
 

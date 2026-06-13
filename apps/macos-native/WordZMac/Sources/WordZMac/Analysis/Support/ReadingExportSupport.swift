@@ -114,19 +114,19 @@ enum ReadingExportSupport {
             .replacingOccurrences(of: "/", with: "-")
         let lines = [
             row.item,
-            "Direction: \(row.direction.title(in: .system))",
-            "Keyness: \(String(format: "%.2f", row.keynessScore))",
-            "Log Ratio: \(String(format: "%.2f", row.logRatio))",
-            "p: \(row.pValue < 0.001 && row.pValue > 0 ? "<0.001" : String(format: "%.3f", row.pValue))",
-            "Focus Frequency: \(row.focusFrequency)",
-            "Reference Frequency: \(row.referenceFrequency)",
-            "Focus Normalized Frequency: \(String(format: "%.1f", row.focusNormalizedFrequency))",
-            "Reference Normalized Frequency: \(String(format: "%.1f", row.referenceNormalizedFrequency))",
-            "Focus Range: \(row.focusRange)",
-            "Reference Range: \(row.referenceRange)",
-            scene.focusSummary.isEmpty ? "" : "Focus: \(scene.focusSummary)",
-            scene.referenceSummary.isEmpty ? "" : "Reference: \(scene.referenceSummary)",
-            row.example.isEmpty ? "" : "Example: \(row.example)"
+            "方向: \(row.direction.title(in: .system))",
+            "显著性: \(String(format: "%.2f", row.keynessScore))",
+            "差异强度: \(String(format: "%.2f", row.logRatio))",
+            "p 值: \(row.pValue < 0.001 && row.pValue > 0 ? "<0.001" : String(format: "%.3f", row.pValue))",
+            "目标频次: \(row.focusFrequency)",
+            "参照频次: \(row.referenceFrequency)",
+            "目标标准频次: \(String(format: "%.1f", row.focusNormalizedFrequency))",
+            "参照标准频次: \(String(format: "%.1f", row.referenceNormalizedFrequency))",
+            "目标覆盖: \(row.focusRange)",
+            "参照覆盖: \(row.referenceRange)",
+            scene.focusSummary.isEmpty ? "" : "目标语料: \(scene.focusSummary)",
+            scene.referenceSummary.isEmpty ? "" : "参照语料: \(scene.referenceSummary)",
+            row.example.isEmpty ? "" : "示例: \(row.example)"
         ]
 
         return makeDocument(
@@ -177,15 +177,15 @@ enum ReadingExportSupport {
         rows.map { row in
             """
             \(row.word)
-            Keyness: \(row.keynessText)
-            Log Ratio: \(row.effectText)
-            p: \(row.pValueText)
-            Spread: \(row.spreadText)
-            Total: \(row.totalText)
-            Range: \(row.rangeText)
-            Reference: \(row.referenceLabelText)
-            Dominant Corpus: \(row.dominantCorpus)
-            Distribution: \(row.distributionText)
+            显著性: \(row.keynessText)
+            差异强度: \(row.effectText)
+            p 值: \(row.pValueText)
+            覆盖: \(row.spreadText)
+            总频次: \(row.totalText)
+            差异: \(row.rangeText)
+            参考语料: \(row.referenceLabelText)
+            主导语料: \(row.dominantCorpus)
+            分布: \(row.distributionText)
             """
         }
         .joined(separator: "\n\n")

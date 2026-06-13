@@ -20,8 +20,8 @@ extension KeywordView {
             onNextPage: { onAction(.nextPage) },
             allowsMultipleSelection: false,
             emptyMessage: scene.emptyStateMessage,
-            accessibilityLabel: t("Keyword Suite 结果表格", "Keyword Suite results table"),
-            activationHint: t("使用方向键浏览关键词结果。", "Use arrow keys to browse keyword suite results.")
+            accessibilityLabel: t("关键词结果表格", "Keyword results table"),
+            activationHint: t("使用方向键浏览关键词结果。", "Use arrow keys to browse keyword results.")
         ) {
             Text(keywordResultHeaderTitle(scene))
                 .font(.headline)

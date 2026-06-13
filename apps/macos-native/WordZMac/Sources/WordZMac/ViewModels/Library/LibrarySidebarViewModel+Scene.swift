@@ -132,21 +132,9 @@ extension LibrarySidebarViewModel {
         )
     }
 
-    private func isAnalysisEnabled(_ tab: WorkspaceDetailTab) -> Bool {
+    private func isAnalysisEnabled(_: WorkspaceDetailTab) -> Bool {
         guard !isBusy else { return false }
-
-        switch tab {
-        case .keyword:
-            if let workflowKeywordEnabledOverride {
-                return workflowKeywordEnabledOverride && metadataFilterState.isEmpty
-            }
-            guard let targetID = targetCorpus?.id,
-                  let referenceID = referenceCorpus?.id
-            else { return false }
-            return targetID != referenceID && metadataFilterState.isEmpty
-        default:
-            return true
-        }
+        return true
     }
 
     var languageMode: AppLanguageMode {

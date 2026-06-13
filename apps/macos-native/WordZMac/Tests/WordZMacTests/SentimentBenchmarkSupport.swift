@@ -173,6 +173,7 @@ struct SentimentBenchmarkProfileSnapshot: Codable {
 
 struct SentimentBenchmarkSnapshotBundle: Codable {
     let generatedAt: String
+    let modelProviderCatalog: SentimentModelProviderCatalog
     let profiles: [SentimentBenchmarkProfileSnapshot]
 }
 
@@ -653,6 +654,7 @@ enum SentimentBenchmarkReporter {
         let formatter = ISO8601DateFormatter()
         let bundle = SentimentBenchmarkSnapshotBundle(
             generatedAt: formatter.string(from: Date()),
+            modelProviderCatalog: try SentimentModelManager().providerCatalog(),
             profiles: snapshots
         )
         let encoder = JSONEncoder()

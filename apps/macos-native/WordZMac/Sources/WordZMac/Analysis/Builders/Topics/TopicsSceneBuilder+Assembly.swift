@@ -29,8 +29,8 @@ extension TopicsSceneBuilder {
         crossAnalysisMetadataLines: [String] = []
     ) -> [String] {
         var additionalLines = [
-            "\(wordZText("模型来源", "Model Provider", mode: languageMode)): \(providerLabel(for: result.modelProvider, languageMode: languageMode))",
-            "\(wordZText("模型版本", "Model Version", mode: languageMode)): \(result.modelVersion)",
+            "\(wordZText("分析方式", "Analysis Method", mode: languageMode)): \(providerLabel(for: result.modelProvider, languageMode: languageMode))",
+            "\(wordZText("方式版本", "Method Version", mode: languageMode)): \(result.modelVersion)",
             "\(wordZText("分析语言", "Analysis Language", mode: languageMode)): \(topicLanguageLabel(for: result.language, languageMode: languageMode))",
             "\(wordZText("关键词样式", "Keyword Style", mode: languageMode)): \(wordZText("单词", "Single-word only", mode: languageMode))",
             "\(wordZText("每主题关键词数", "Keywords per Topic", mode: languageMode)): \(keywordDisplayCount)",
@@ -73,11 +73,11 @@ extension TopicsSceneBuilder {
     func providerLabel(for provider: String, languageMode: AppLanguageMode) -> String {
         switch provider {
         case "bundled-local-embedding", "bundled-lexical-embedding":
-            return wordZText("内置主题向量", "Bundled Topic Embedding", mode: languageMode)
+            return wordZText("内置主题分析", "Built-in Topic Analysis", mode: languageMode)
         case "system-sentence-embedding":
-            return wordZText("系统句向量", "System Embedding", mode: languageMode)
+            return wordZText("系统主题分析", "System Topic Analysis", mode: languageMode)
         case "hashed-fallback":
-            return wordZText("稳定兜底", "Stable Fallback", mode: languageMode)
+            return wordZText("备用主题分析", "Backup Topic Analysis", mode: languageMode)
         default:
             return provider
         }

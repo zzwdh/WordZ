@@ -25,7 +25,7 @@ struct SettingsPaneSceneModel: Equatable {
 
     static let empty = SettingsPaneSceneModel(
         workspaceSummary: l10n("等待载入本地语料库", table: "Errors", mode: .system, fallback: "Waiting for the local corpus library"),
-        buildSummary: "SwiftUI + Swift native engine",
+        buildSummary: "本机分析版",
         help: [],
         releaseNotes: [],
         latestReleaseNotes: [],

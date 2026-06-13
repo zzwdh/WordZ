@@ -52,8 +52,8 @@ extension KeywordSceneBuilder {
         return [
             summary.label,
             "\(wordZText("语料", "Corpora", mode: languageMode)) \(summary.corpusCount)",
-            "\(wordZText("tokens", "tokens", mode: languageMode)) \(summary.tokenCount)",
-            "\(wordZText("types", "types", mode: languageMode)) \(summary.typeCount)"
+            "\(wordZText("词数", "tokens", mode: languageMode)) \(summary.tokenCount)",
+            "\(wordZText("不同词项", "types", mode: languageMode)) \(summary.typeCount)"
         ].joined(separator: " · ")
     }
 
@@ -69,8 +69,8 @@ extension KeywordSceneBuilder {
         return [
             summary.label,
             "\(scopeLabel) \(summary.corpusCount)",
-            "\(wordZText("tokens", "tokens", mode: languageMode)) \(summary.tokenCount)",
-            "\(wordZText("types", "types", mode: languageMode)) \(summary.typeCount)"
+            "\(wordZText("词数", "tokens", mode: languageMode)) \(summary.tokenCount)",
+            "\(wordZText("不同词项", "types", mode: languageMode)) \(summary.typeCount)"
         ].joined(separator: " · ")
     }
 
@@ -81,13 +81,13 @@ extension KeywordSceneBuilder {
         [
             "\(wordZText("单位", "Unit", mode: languageMode)): \(configuration.unit.title(in: languageMode))",
             "\(wordZText("方向", "Direction", mode: languageMode)): \(configuration.direction.title(in: languageMode))",
-            "\(wordZText("统计量", "Statistic", mode: languageMode)): \(configuration.statistic.title(in: languageMode))",
+            "\(wordZText("显著性算法", "Statistic", mode: languageMode)): \(configuration.statistic.title(in: languageMode))",
             "\(wordZText("语言预设", "Language Preset", mode: languageMode)): \(configuration.tokenFilters.languagePreset.title(in: languageMode))",
-            "\(wordZText("Min Focus", "Min Focus", mode: languageMode)): \(configuration.thresholds.minFocusFreq)",
-            "\(wordZText("Min Reference", "Min Reference", mode: languageMode)): \(configuration.thresholds.minReferenceFreq)",
-            "\(wordZText("Min Combined", "Min Combined", mode: languageMode)): \(configuration.thresholds.minCombinedFreq)",
-            "\(wordZText("Max p", "Max p", mode: languageMode)): \(String(format: "%.3f", configuration.thresholds.maxPValue))",
-            "\(wordZText("Min |Log Ratio|", "Min |Log Ratio|", mode: languageMode)): \(String(format: "%.2f", configuration.thresholds.minAbsLogRatio))",
+            "\(wordZText("目标最小词频", "Min Focus", mode: languageMode)): \(configuration.thresholds.minFocusFreq)",
+            "\(wordZText("参照最小词频", "Min Reference", mode: languageMode)): \(configuration.thresholds.minReferenceFreq)",
+            "\(wordZText("合计最小词频", "Min Combined", mode: languageMode)): \(configuration.thresholds.minCombinedFreq)",
+            "\(wordZText("显著性上限", "Max p", mode: languageMode)): \(String(format: "%.3f", configuration.thresholds.maxPValue))",
+            "\(wordZText("差异强度下限", "Min Difference Strength", mode: languageMode)): \(String(format: "%.2f", configuration.thresholds.minAbsLogRatio))",
             configuration.tokenFilters.stopwordFilter.summaryText(in: languageMode)
         ].joined(separator: " · ")
     }
@@ -108,19 +108,19 @@ extension KeywordSceneBuilder {
         switch activeTab {
         case .words:
             baseSummary = wordZText(
-                "Words 页基于显式 Focus / Reference 比较单词级 keyness，并同时给出显著性、效应值和覆盖数。",
-                "The Words tab compares explicit focus/reference corpora and reports keyness, effect size, and range for single-word items.",
+                "词页会比较目标语料和参照语料，找出更能代表目标语料的单词，并给出显著性、差异强度和覆盖数。",
+                "The Words tab compares target and reference corpora, then reports significance, difference strength, and coverage for single-word items.",
                 mode: languageMode
             )
         case .terms:
             baseSummary = wordZText(
-                "Terms 页从句内 2-5 gram 候选中筛出符合词法规则的多词术语，再按当前统计量排序。",
+                "术语页会从句内 2-5 gram 候选中筛出更像术语的多词表达，再按当前显著性算法排序。",
                 "The Terms tab filters sentence-bounded 2-5 gram candidates through lexical rules before ranking them by the current statistic.",
                 mode: languageMode
             )
         case .ngrams:
             baseSummary = wordZText(
-                "N-grams 页显示句内连续 2-5 gram 候选的关键词结果，不跨句拼接。",
+                "N-grams 页显示句内连续 2-5 gram 片段的关键词结果，不跨句拼接。",
                 "The N-grams tab ranks sentence-bounded contiguous 2-5 gram candidates without crossing sentence boundaries.",
                 mode: languageMode
             )
@@ -129,29 +129,29 @@ extension KeywordSceneBuilder {
             case .pairwiseDiff:
                 if let primarySavedList, let secondarySavedList {
                     baseSummary = wordZText(
-                        "当前正在比较 \(primarySavedList.name) 和 \(secondarySavedList.name) 两份已保存词表，展示共有项与单边项以及 log ratio 差值。",
-                        "This view compares saved lists \(primarySavedList.name) and \(secondarySavedList.name), showing shared items, one-sided items, and log-ratio deltas.",
+                        "当前正在比较 \(primarySavedList.name) 和 \(secondarySavedList.name) 两份已保存词表，展示共有项、单边项和差异强度变化。",
+                        "This view compares saved lists \(primarySavedList.name) and \(secondarySavedList.name), showing shared items, one-sided items, and difference strength changes.",
                         mode: languageMode
                     )
                 } else {
                     baseSummary = wordZText(
-                        "Pairwise Diff 会比较两份已保存词表的共有项、缺失项和排序变化。",
+                        "词表对比会比较两份已保存词表的共有项、缺失项和排序变化。",
                         "Pairwise Diff compares two saved lists for shared items, missing items, and ranking changes.",
                         mode: languageMode
                     )
                 }
             case .keywordDatabase:
                 baseSummary = wordZText(
-                    "Keyword Database 会聚合多份已保存词表，按 coverage 和平均效应值追踪反复出现的 key-key words。",
-                    "Keyword Database aggregates saved lists by coverage and average effect size to surface recurring key-key words.",
+                    "关键词汇总会聚合多份已保存词表，按覆盖数和平均差异强度追踪反复出现的关键词。",
+                    "Keyword summary aggregates saved lists by coverage and average difference strength to surface recurring keywords.",
                     mode: languageMode
                 )
             }
         }
 
         let scopeSummary = [
-            "\(wordZText("Focus", "Focus", mode: languageMode)): \(focusSummary)",
-            "\(wordZText("Reference", "Reference", mode: languageMode)): \(referenceSummary)",
+            "\(wordZText("目标语料", "Focus", mode: languageMode)): \(focusSummary)",
+            "\(wordZText("参照语料", "Reference", mode: languageMode)): \(referenceSummary)",
             annotationState.summary(in: languageMode)
         ].joined(separator: " ")
 
@@ -175,7 +175,7 @@ extension KeywordSceneBuilder {
         case .words, .terms, .ngrams:
             return [
                 wordZText(
-                    "Direction = Both 时会同时保留正关键词和负关键词，方向列会明确标出来源侧。",
+                    "方向设为“双向”时，会同时保留目标语料更突出和参照语料更突出的词。",
                     "With Direction = Both, both positive and negative keywords are retained and explicitly marked in the Direction column.",
                     mode: languageMode
                 ),
@@ -185,18 +185,18 @@ extension KeywordSceneBuilder {
                     mode: languageMode
                 ),
                 wordZText(
-                    "Stopword、脚本和词类筛选会在候选生成前生效，因此会同时影响频次、覆盖和示例。",
+                    "停用词、脚本和词类筛选会在候选生成前生效，因此会同时影响频次、覆盖和示例。",
                     "Stopword, script, and lexical-class filters are applied before candidate generation, so they affect counts, ranges, and examples together.",
                     mode: languageMode
                 ),
                 configuration.thresholds.minCombinedFreq > 1
                     ? wordZText(
-                        "当前启用了 combined frequency 阈值，用来压低偶发候选的噪声。",
+                        "当前启用了合计最小词频，用来降低偶发候选的噪声。",
                         "A combined-frequency threshold is active to reduce accidental low-frequency noise.",
                         mode: languageMode
                     )
                     : wordZText(
-                        "当前 combined frequency 阈值较低，解释低频项时要更谨慎。",
+                        "当前合计最小词频较低，解释低频项时要更谨慎。",
                         "The combined-frequency threshold is low, so interpret rare items more cautiously.",
                         mode: languageMode
                     )
@@ -206,26 +206,26 @@ extension KeywordSceneBuilder {
             case .pairwiseDiff:
                 return [
                     wordZText(
-                        "Only Left / Only Right 表示该词仅出现于单边保存词表。",
+                        "仅左侧 / 仅右侧表示该词只出现在其中一份保存词表。",
                         "Only Left / Only Right indicates that an item appears in only one of the two saved lists.",
                         mode: languageMode
                     ),
                     wordZText(
-                        "Log Ratio Delta = 左侧 log ratio - 右侧 log ratio。",
-                        "Log Ratio Delta is calculated as left log ratio minus right log ratio.",
+                        "差异强度差 = 左侧词表差异强度 - 右侧词表差异强度。",
+                        "Difference strength delta is calculated as left list strength minus right list strength.",
                         mode: languageMode
                     )
                 ]
             case .keywordDatabase:
                 return [
                     wordZText(
-                        "Coverage Count 表示一个词项出现于多少份已保存词表。",
+                        "覆盖词表数表示一个词项出现于多少份已保存词表。",
                         "Coverage Count shows how many saved lists contain the item.",
                         mode: languageMode
                     ),
                     wordZText(
-                        "Mean Keyness 使用各列表中绝对显著性的平均值，避免正负方向互相抵消。",
-                        "Mean Keyness uses the average absolute keyness across lists to avoid positive/negative cancellation.",
+                        "平均显著性使用各列表中绝对显著性的平均值，避免正负方向互相抵消。",
+                        "Mean significance uses the average absolute significance across lists to avoid positive/negative cancellation.",
                         mode: languageMode
                     )
                 ]
@@ -240,11 +240,11 @@ extension KeywordSceneBuilder {
     ) -> String {
         switch activeTab {
         case .words:
-            return wordZText("关键词分析 / Words", "Keyword Suite / Words", mode: languageMode)
+            return wordZText("关键词计算 / 词", "Keyword Analysis / Words", mode: languageMode)
         case .terms:
-            return wordZText("关键词分析 / Terms", "Keyword Suite / Terms", mode: languageMode)
+            return wordZText("关键词计算 / 术语", "Keyword Analysis / Terms", mode: languageMode)
         case .ngrams:
-            return wordZText("关键词分析 / N-grams", "Keyword Suite / N-grams", mode: languageMode)
+            return wordZText("关键词计算 / N-grams", "Keyword Analysis / N-grams", mode: languageMode)
         case .lists:
             return listMode.title(in: languageMode)
         }

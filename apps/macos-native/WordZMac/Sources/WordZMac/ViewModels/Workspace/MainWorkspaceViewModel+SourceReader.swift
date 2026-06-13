@@ -4,11 +4,11 @@ import Foundation
 extension MainWorkspaceViewModel {
     func openCurrentSourceReader() async -> Bool {
         guard let context = await currentSourceReaderLaunchContext() else {
-            let message = t("当前页面没有可打开的 DB 来源定位。", "The current page does not have a DB source location to open.")
+            let message = t("当前页面没有可打开的来源文本。", "The current page does not have source text to open.")
             settings.setSupportStatus(message)
             activeIssue = WorkspaceIssueBanner(
                 tone: .warning,
-                title: t("无法打开 DB 来源预览", "Unable to Open DB Source Preview"),
+                title: t("无法打开来源文本", "Unable to Open Source Text"),
                 message: message,
                 recoveryAction: .refreshWorkspace
             )
@@ -17,11 +17,11 @@ extension MainWorkspaceViewModel {
 
         do {
             try await sourceReader.load(context: context, repository: appCoordinator.repository)
-            settings.setSupportStatus(t("已更新 DB 来源预览。", "Updated the DB source preview."))
+            settings.setSupportStatus(t("已更新来源文本。", "Updated the source text."))
             clearActiveIssue()
             return true
         } catch {
-            presentIssue(error, titleZh: "无法打开 DB 来源预览", titleEn: "Unable to Open DB Source Preview")
+            presentIssue(error, titleZh: "无法打开来源文本", titleEn: "Unable to Open Source Text")
             return false
         }
     }
@@ -68,7 +68,7 @@ extension MainWorkspaceViewModel {
 
         do {
             try await hostActionService.quickLook(path: targetPath)
-            settings.setSupportStatus(t("已打开 DB 来源文本的 Quick Look 预览。", "Opened Quick Look for the DB source text."))
+            settings.setSupportStatus(t("已打开来源文本预览。", "Opened the source text preview."))
             clearActiveIssue()
         } catch {
             presentIssue(error, titleZh: "无法打开 Quick Look 预览", titleEn: "Unable to Open Quick Look")
@@ -177,7 +177,7 @@ extension MainWorkspaceViewModel {
            !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return title
         }
-        return t("DB 来源预览", "DB Source Preview")
+        return t("来源文本", "Source Text")
     }
 
     private func currentSourceReaderLaunchContext() async -> SourceReaderLaunchContext? {

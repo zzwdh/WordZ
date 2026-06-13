@@ -9,10 +9,10 @@ extension TopicsView {
             if scene.usesFallbackProvider {
                 WorkbenchIssueBanner(
                     tone: .warning,
-                    title: t("主题模型已切换到稳定兜底模式", "Topics model is using a stable fallback mode"),
+                    title: t("主题分析已切换到备用方式", "Topic analysis is using a backup method"),
                     message: t(
-                        "当前系统句向量不可用，因此 Topics 结果会退化为探索性近似结果；不过现在这个兜底模式已经保证跨启动稳定。",
-                        "The system sentence embedding is unavailable, so Topics results are using an approximate fallback mode. The fallback is now stable across launches, but quality may be lower."
+                        "当前系统分析方式不可用，因此主题结果会使用近似方式生成；结果可用于探索，但建议结合原文复核。",
+                        "The system analysis method is unavailable, so topic results are generated with an approximate method. Use them for exploration and review the source text when needed."
                     )
                 )
             }
@@ -32,7 +32,7 @@ extension TopicsView {
     func topicsMetricGrid(_ scene: TopicsSceneModel) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
             WorkbenchMetricCard(
-                title: t("模型来源", "Model Provider"),
+                title: t("分析方式", "Analysis Method"),
                 value: providerLabel(for: scene),
                 subtitle: scene.modelVersion
             )

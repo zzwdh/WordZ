@@ -47,7 +47,7 @@ extension WorkspaceEvidenceWorkflowService {
         }
 
         guard let path = await dialogService.chooseSavePath(
-            title: wordZText("导出摘录 JSON", "Export Excerpts JSON", mode: .system),
+            title: wordZText("导出摘录数据", "Export Excerpt Data", mode: .system),
             suggestedName: "wordz-excerpts.json",
             allowedExtension: "json",
             preferredRoute: preferredRoute
@@ -58,7 +58,7 @@ extension WorkspaceEvidenceWorkflowService {
         do {
             let data = try EvidenceTransferSupport.exportData(items: exportItems)
             try data.write(to: URL(fileURLWithPath: path), options: .atomic)
-            features.library.setStatus(wordZText("已导出摘录 JSON 到", "Exported excerpts JSON to", mode: .system) + " " + path)
+            features.library.setStatus(wordZText("已导出摘录数据到", "Exported excerpt data to", mode: .system) + " " + path)
             features.sidebar.clearError()
         } catch {
             features.sidebar.setError(error.localizedDescription)
