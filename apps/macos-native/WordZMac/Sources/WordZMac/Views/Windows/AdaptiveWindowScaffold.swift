@@ -111,7 +111,7 @@ struct AdaptiveEmptyStateSurface<Content: View>: View {
 }
 
 extension View {
-    func adaptiveWindowScaffold(for route: NativeWindowRoute) -> some View {
+    package func adaptiveWindowScaffold(for route: NativeWindowRoute) -> some View {
         AdaptiveWindowScaffold(route: route) {
             self
         }

@@ -62,6 +62,7 @@ final class FeatureActivationRegressionTests: XCTestCase {
         XCTAssertTrue(contents.contains("WordZLibraryFeatureModule.activationSummary"))
         XCTAssertTrue(contents.contains("makeFeaturePages: WordZWorkspaceFeaturePageFactory.makePageBundle"))
         XCTAssertTrue(contents.contains("makeLibraryPages: WordZLibraryFeaturePageFactory.makePageBundle"))
+        XCTAssertTrue(contents.contains("libraryWindowContent: WordZLibraryWindowFactory.makeWindow"))
         XCTAssertTrue(contents.contains("NativeAppContainer.live("))
     }
 }

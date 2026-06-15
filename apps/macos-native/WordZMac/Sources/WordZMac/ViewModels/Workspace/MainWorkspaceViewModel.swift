@@ -4,9 +4,9 @@ import SwiftUI
 import WordZHost
 @MainActor
 package final class MainWorkspaceViewModel: ObservableObject {
-    @Published var sidebar: LibrarySidebarViewModel
+    @Published package var sidebar: LibrarySidebarViewModel
     @Published var shell: WorkspaceShellViewModel
-    @Published var library: LibraryManagementViewModel
+    @Published package var library: LibraryManagementViewModel
     @Published var stats: StatsPageViewModel
     @Published var word: WordPageViewModel
     @Published var tokenize: TokenizePageViewModel

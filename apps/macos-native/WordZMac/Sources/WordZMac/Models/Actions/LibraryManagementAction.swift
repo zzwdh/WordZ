@@ -1,6 +1,6 @@
 import Foundation
 
-enum LibraryManagementAction: Equatable {
+package enum LibraryManagementAction: Equatable {
     case refresh
     case importPaths
     case confirmImportPreflight(paths: [String], corpusName: String)

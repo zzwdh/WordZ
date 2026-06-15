@@ -32,7 +32,8 @@ package struct WordZAppShell: App {
             workspace: workspace,
             applicationDelegate: applicationDelegate,
             menuBarController: menuBarController,
-            localization: localization
+            localization: localization,
+            libraryWindowContent: WordZLibraryWindowFactory.makeWindow
         )
     }
 }

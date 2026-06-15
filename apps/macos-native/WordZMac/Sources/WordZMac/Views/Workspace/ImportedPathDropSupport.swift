@@ -96,7 +96,7 @@ struct ImportedPathDropModifier: ViewModifier {
 }
 
 extension View {
-    func importedPathDropDestination(
+    package func importedPathDropDestination(
         route: NativeWindowRoute,
         onImportPaths: @escaping @MainActor ([String]) async -> Void
     ) -> some View {

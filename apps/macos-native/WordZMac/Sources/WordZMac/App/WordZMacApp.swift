@@ -5,11 +5,12 @@ import WordZShared
 package enum WordZCoreAppScenes {
     @MainActor
     @SceneBuilder
-    package static func make(
+    package static func make<LibraryWindowContent: View>(
         workspace: MainWorkspaceViewModel,
         applicationDelegate: NativeApplicationDelegate,
         menuBarController: WordZMenuBarController,
-        localization: WordZLocalization
+        localization: WordZLocalization,
+        @ViewBuilder libraryWindowContent: @escaping (MainWorkspaceViewModel) -> LibraryWindowContent
     ) -> some Scene {
         WindowGroup("WordZ", id: NativeWindowRoute.mainWorkspace.id) {
             RootContentView(
@@ -28,7 +29,7 @@ package enum WordZCoreAppScenes {
         }
 
         Window("Library", id: NativeWindowRoute.library.id) {
-            LibraryWindowView(workspace: workspace)
+            libraryWindowContent(workspace)
                 .wordZLocalizedEnvironment(localization)
         }
         .nativeWindowScenePresentation(.library)

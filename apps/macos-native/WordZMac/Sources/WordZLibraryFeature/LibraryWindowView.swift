@@ -1,11 +1,19 @@
 import SwiftUI
-
 import WordZWindowing
-struct LibraryWindowView: View {
-    @ObservedObject var workspace: MainWorkspaceViewModel
+import WordZWorkspaceCore
+
+package enum WordZLibraryWindowFactory {
+    @MainActor
+    package static func makeWindow(workspace: MainWorkspaceViewModel) -> LibraryWindowView {
+        LibraryWindowView(workspace: workspace)
+    }
+}
+
+package struct LibraryWindowView: View {
+    @ObservedObject private var workspace: MainWorkspaceViewModel
     @StateObject private var dispatcher: WorkspaceActionDispatcher
 
-    init(workspace: MainWorkspaceViewModel) {
+    package init(workspace: MainWorkspaceViewModel) {
         self.workspace = workspace
         _dispatcher = StateObject(
             wrappedValue: WorkspaceActionDispatcher(
@@ -15,7 +23,7 @@ struct LibraryWindowView: View {
         )
     }
 
-    var body: some View {
+    package var body: some View {
         LibraryManagementView(
             viewModel: workspace.library,
             sidebar: workspace.sidebar,

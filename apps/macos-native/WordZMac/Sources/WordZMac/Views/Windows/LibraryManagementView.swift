@@ -2,7 +2,7 @@ import SwiftUI
 
 import WordZWindowing
 import WordZShared
-struct LibraryManagementView: View {
+package struct LibraryManagementView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @ObservedObject var viewModel: LibraryManagementViewModel
     @ObservedObject var sidebar: LibrarySidebarViewModel
@@ -11,7 +11,17 @@ struct LibraryManagementView: View {
     @State var isShowingLibraryReadiness = false
     @State var isShowingMetadataStudio = false
 
-    var body: some View {
+    package init(
+        viewModel: LibraryManagementViewModel,
+        sidebar: LibrarySidebarViewModel,
+        onAction: @escaping (LibraryManagementAction) -> Void
+    ) {
+        self.viewModel = viewModel
+        self.sidebar = sidebar
+        self.onAction = onAction
+    }
+
+    package var body: some View {
         NavigationSplitView {
             libraryNavigationSidebar
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)

@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 extension WorkspaceActionDispatcher {
-    func handleLibraryAction(_ action: LibraryManagementAction) {
+    package func handleLibraryAction(_ action: LibraryManagementAction) {
         switch action {
         case .showCorpusBuilder:
             sync(.librarySelection) {

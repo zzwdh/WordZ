@@ -71,7 +71,7 @@ enum JSONFieldReader {
     }
 }
 
-struct CorpusMetadataProfile: Codable, Equatable, Hashable, Sendable {
+package struct CorpusMetadataProfile: Codable, Equatable, Hashable, Sendable {
     let sourceLabel: String
     let yearLabel: String
     let genreLabel: String

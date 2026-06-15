@@ -3,7 +3,7 @@ import Foundation
 import WordZWindowing
 import WordZShared
 extension NativeWindowRoute {
-    func title(in mode: AppLanguageMode) -> String {
+    package func title(in mode: AppLanguageMode) -> String {
         switch self {
         case .mainWorkspace:
             return l10n("主窗口", table: "Windows", mode: mode, fallback: "Main Window")

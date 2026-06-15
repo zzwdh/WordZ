@@ -6,7 +6,7 @@ private let lifecycleLogger = WordZTelemetry.logger(category: "Lifecycle")
 @MainActor
 extension MainWorkspaceViewModel {
     @discardableResult
-    func initializeIfNeeded() async -> Bool {
+    package func initializeIfNeeded() async -> Bool {
         guard !initialized else {
             lifecycleLogger.debug("initializeIfNeeded.skippedAlreadyInitialized")
             return false
@@ -110,7 +110,7 @@ extension MainWorkspaceViewModel {
         clearActiveIssue()
     }
 
-    func handleExternalPaths(_ paths: [String]) async {
+    package func handleExternalPaths(_ paths: [String]) async {
         guard !paths.isEmpty else { return }
         cancelPendingInputStateSync()
         await flowCoordinator.importExternalPaths(paths, features: features)

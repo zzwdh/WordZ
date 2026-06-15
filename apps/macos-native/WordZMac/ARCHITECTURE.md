@@ -19,10 +19,11 @@ and most legacy source that has not yet moved into a narrower target.
 `WordZWorkspaceFeature` owns feature-module activation and page factories for
 workspace verticals that are being split out of core.
 
-`WordZLibraryFeature` owns Library-module activation and the page factory for
-the Library window surface. `WordZAppShell` injects that factory into
-`NativeAppContainer`; `WordZWorkspaceCore` may host the remaining Library bridge
-code until those views and workflows can move without reversing the dependency
+`WordZLibraryFeature` owns Library-module activation, the Library page factory,
+and the Library window entry. `WordZAppShell` injects the Library page factory
+into `NativeAppContainer` and injects the Library window content into
+`WordZCoreAppScenes`; `WordZWorkspaceCore` may host the remaining Library bridge
+views and workflows until they can move without reversing the dependency
 direction.
 
 `WordZWorkbenchUI`, `WordZWindowing`, `WordZAnalysis`, `WordZStorage`,

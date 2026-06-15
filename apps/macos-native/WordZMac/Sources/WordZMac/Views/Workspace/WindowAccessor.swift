@@ -164,7 +164,7 @@ struct WindowRouteBinder: ViewModifier {
 }
 
 extension View {
-    func bindWindowRoute(
+    package func bindWindowRoute(
         _ route: NativeWindowRoute,
         titleProvider: ((AppLanguageMode) -> String)? = nil,
         onResolve: @escaping (NSWindow?) -> Void = { _ in }

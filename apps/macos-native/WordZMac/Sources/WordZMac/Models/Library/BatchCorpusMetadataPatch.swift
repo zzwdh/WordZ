@@ -1,6 +1,6 @@
 import Foundation
 
-struct BatchCorpusMetadataPatch: Equatable, Sendable {
+package struct BatchCorpusMetadataPatch: Equatable, Sendable {
     let sourceLabel: String?
     let yearLabel: String?
     let genreLabel: String?

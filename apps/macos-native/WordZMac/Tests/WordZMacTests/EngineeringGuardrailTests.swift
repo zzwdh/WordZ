@@ -222,6 +222,14 @@ final class EngineeringGuardrailTests: XCTestCase {
             FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZLibraryFeature/WordZLibraryFeaturePageFactory.swift").path),
             "Library feature target should provide its page factory."
         )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZLibraryFeature/LibraryWindowView.swift").path),
+            "Library feature target should own the Library window entry."
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: sourceRoot.appendingPathComponent("Views/Windows/LibraryWindowView.swift").path),
+            "Library window entry should move out of the workspace core bridge."
+        )
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZLibraryFeature/WordZLibraryFeaturePlaceholder.swift").path),
             "Library feature placeholder should be removed once the target is declared."

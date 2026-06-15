@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 import WordZWindowing
-struct WorkspaceCommandContext: Equatable {
+package struct WorkspaceCommandContext: Equatable {
     let route: NativeWindowRoute
     let toolbar: WorkspaceToolbarSceneModel?
     let canRefreshWorkspace: Bool
@@ -72,7 +72,7 @@ struct WorkspaceCommandContext: Equatable {
         toolbar != nil
     }
 
-    static func == (lhs: WorkspaceCommandContext, rhs: WorkspaceCommandContext) -> Bool {
+    package static func == (lhs: WorkspaceCommandContext, rhs: WorkspaceCommandContext) -> Bool {
         lhs.route == rhs.route &&
             lhs.toolbar == rhs.toolbar &&
             lhs.canRefreshWorkspace == rhs.canRefreshWorkspace &&
@@ -129,14 +129,14 @@ private struct WorkspaceCommandContextKey: FocusedValueKey {
 }
 
 extension FocusedValues {
-    var workspaceCommandContext: WorkspaceCommandContext? {
+    package var workspaceCommandContext: WorkspaceCommandContext? {
         get { self[WorkspaceCommandContextKey.self] }
         set { self[WorkspaceCommandContextKey.self] = newValue }
     }
 }
 
 extension MainWorkspaceViewModel {
-    func commandContext(for route: NativeWindowRoute) -> WorkspaceCommandContext {
+    package func commandContext(for route: NativeWindowRoute) -> WorkspaceCommandContext {
         switch route {
         case .mainWorkspace:
             return WorkspaceCommandContext(

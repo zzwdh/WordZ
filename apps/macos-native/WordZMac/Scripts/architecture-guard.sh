@@ -722,9 +722,11 @@ check_library_feature_module_activation() {
   local feature_root="${REPO_ROOT}/Sources/WordZLibraryFeature"
   local feature_module_file="${feature_root}/WordZLibraryFeatureModule.swift"
   local feature_page_factory_file="${feature_root}/WordZLibraryFeaturePageFactory.swift"
+  local feature_window_file="${feature_root}/LibraryWindowView.swift"
   local legacy_placeholder_file="${feature_root}/WordZLibraryFeaturePlaceholder.swift"
   local app_shell_file="${REPO_ROOT}/Sources/WordZAppShell/WordZAppShellApp.swift"
   local app_container_file="$ROOT_DIR/App/Composition/NativeAppContainer.swift"
+  local app_scenes_file="$ROOT_DIR/App/WordZMacApp.swift"
 
   if [[ ! -f "$feature_module_file" ]]; then
     mark_failure "Expected activated library feature module file to exist: $feature_module_file"
@@ -738,6 +740,10 @@ check_library_feature_module_activation() {
     mark_failure "Activated library feature module should provide a production page factory: $feature_page_factory_file"
   fi
 
+  if [[ ! -f "$feature_window_file" ]]; then
+    mark_failure "Activated library feature module should own the Library window entry: $feature_window_file"
+  fi
+
   if ! rg -q '^import WordZLibraryFeature$' "$app_shell_file"; then
     mark_failure "App shell should import WordZLibraryFeature once the module is activated."
   fi
@@ -748,6 +754,22 @@ check_library_feature_module_activation() {
 
   if ! rg -q 'WordZLibraryFeaturePageFactory\.makePageBundle' "$app_shell_file"; then
     mark_failure "App shell should inject library page construction through WordZLibraryFeaturePageFactory."
+  fi
+
+  if ! rg -q 'WordZLibraryWindowFactory\.makeWindow' "$app_shell_file"; then
+    mark_failure "App shell should inject the Library window through WordZLibraryWindowFactory."
+  fi
+
+  if ! rg -q 'libraryWindowContent' "$app_scenes_file"; then
+    mark_failure "WordZCoreAppScenes should accept an injected Library window content builder."
+  fi
+
+  if rg -n 'LibraryWindowView' "$app_scenes_file" >/dev/null; then
+    mark_failure "WordZCoreAppScenes should not directly reference LibraryWindowView after Library target activation."
+  fi
+
+  if [[ -f "$ROOT_DIR/Views/Windows/LibraryWindowView.swift" ]]; then
+    mark_failure "LibraryWindowView should live in WordZLibraryFeature, not WordZWorkspaceCore."
   fi
 
   if ! rg -q 'LibraryPageBundleFactory' "$app_container_file"; then
