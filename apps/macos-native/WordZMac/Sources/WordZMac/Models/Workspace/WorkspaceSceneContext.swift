@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct WorkspaceSceneContext: Equatable {
     let appName: String

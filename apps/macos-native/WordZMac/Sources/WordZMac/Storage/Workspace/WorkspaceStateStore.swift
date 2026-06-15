@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import WordZStorage
 
 struct WorkspaceStateStore {
     struct StorageSummary: Equatable {

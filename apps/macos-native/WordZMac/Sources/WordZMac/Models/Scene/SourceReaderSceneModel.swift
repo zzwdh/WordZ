@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum SourceReaderOriginFeature: String, Equatable, Sendable {
     case kwic

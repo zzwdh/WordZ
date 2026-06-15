@@ -1,5 +1,7 @@
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct SettingsPaneView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @ObservedObject var settings: WorkspaceSettingsViewModel

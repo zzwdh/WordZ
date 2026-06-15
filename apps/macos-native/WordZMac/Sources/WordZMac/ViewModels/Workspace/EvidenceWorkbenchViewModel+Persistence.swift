@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension EvidenceWorkbenchViewModel {
     func apply(_ snapshot: WorkspaceSnapshotSummary) {

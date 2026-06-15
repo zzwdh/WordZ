@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import WordZStorage
 
 struct NativeStoredCorpusMetadata: Equatable {
     let schemaVersion: Int

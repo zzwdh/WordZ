@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct LocatorView: View {
     @Environment(\.wordZLanguageMode) var languageMode

@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum AnalysisExportMetadataSupport {
     static func notes(

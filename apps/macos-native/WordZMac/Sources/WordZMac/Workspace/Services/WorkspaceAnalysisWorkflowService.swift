@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 let analysisLogger = WordZTelemetry.logger(category: "Analysis")
 
 @MainActor

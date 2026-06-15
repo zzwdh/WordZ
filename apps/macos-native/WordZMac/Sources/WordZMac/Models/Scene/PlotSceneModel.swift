@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum PlotColumnKey: String, CaseIterable, Identifiable, Hashable {
     case row

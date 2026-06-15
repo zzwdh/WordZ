@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct LibraryManagementCorpusSceneMetrics {
     let corpora: [LibraryManagementCorpusSceneItem]

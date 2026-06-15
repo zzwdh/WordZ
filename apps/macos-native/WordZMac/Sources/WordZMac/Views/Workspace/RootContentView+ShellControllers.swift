@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 
+import WordZWindowing
 struct WorkspaceWindowLayoutState: DynamicProperty {
     @SceneStorage("wordz.workspace.sidebarVisible") private var isSidebarVisible = true
     @SceneStorage("wordz.workspace.inspectorVisible") private var isInspectorVisible = true

@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct KeywordSavedListTransferBundle: Codable, Equatable, Sendable {
     let version: Int

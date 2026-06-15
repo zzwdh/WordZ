@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import WordZShared
 
 enum SentimentReviewDecision: String, CaseIterable, Codable, Sendable {
     case confirmRaw

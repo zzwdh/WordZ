@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct WorkspaceSidebarCorpusOptionSceneItem: Identifiable, Equatable {
     let id: String

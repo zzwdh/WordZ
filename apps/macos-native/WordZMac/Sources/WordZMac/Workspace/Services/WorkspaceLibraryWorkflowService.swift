@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZShared
 @MainActor
 final class WorkspaceLibraryWorkflowService {
     let repository: any WorkspaceRepository
@@ -94,6 +96,12 @@ final class WorkspaceLibraryWorkflowService {
                     features: features,
                     syncFeatureContexts: syncFeatureContexts,
                     mergedCorpusName: corpusName
+                )
+            case .installEnglishReferenceCorpus(let kind):
+                await installEnglishReferenceCorpus(
+                    kind,
+                    features: features,
+                    syncFeatureContexts: syncFeatureContexts
                 )
             case .cleanSelectedCorpus:
                 if let selectedCorpusID = features.library.selectedCorpusID {
@@ -464,6 +472,79 @@ final class WorkspaceLibraryWorkflowService {
         }
     }
 
+    private func installEnglishReferenceCorpus(
+        _ kind: EnglishReferenceCorpusKind,
+        features: WorkspaceFeatureSet,
+        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
+    ) async {
+        let descriptor = EnglishReferenceCorpusCatalog.descriptor(for: kind)
+        let confirmed = await dialogService.confirm(
+            title: wordZText("下载英文参照语料", "Download English Reference Corpus", mode: .system),
+            message: "\(descriptor.name)\n\n\(descriptor.licenceNote)",
+            confirmTitle: wordZText("下载并安装", "Download and Install", mode: .system),
+            preferredRoute: .library
+        )
+        guard confirmed else { return }
+
+        var taskID: UUID?
+        do {
+            let createdTaskID = taskCenter.beginTask(
+                title: descriptor.shortName,
+                detail: wordZText("正在下载并安装参照语料…", "Downloading and installing reference corpus…", mode: .system),
+                progress: 0
+            )
+            taskID = createdTaskID
+            features.library.setBusy(true)
+            defer { features.library.setBusy(false) }
+
+            let userDataURL = features.settings.scene.userDataDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil
+                : URL(fileURLWithPath: features.settings.scene.userDataDirectory, isDirectory: true)
+
+            let summary = try await EnglishReferenceCorpusDownloadInstaller.downloadAndInstall(
+                kind,
+                userDataURL: userDataURL,
+                progress: { [weak taskCenter] message in
+                    Task { @MainActor in
+                        features.library.setStatus(message)
+                        taskCenter?.updateTask(id: createdTaskID, detail: message, progress: nil)
+                    }
+                }
+            )
+
+            try await libraryManagementCoordinator.refreshLibraryState(
+                into: features.library,
+                sidebar: features.sidebar
+            )
+            syncFeatureContexts(features)
+            persistenceWorkflow.persistWorkspaceState(
+                features: features,
+                syncFeatureContexts: syncFeatureContexts
+            )
+
+            let completion = wordZText(
+                "已添加 \(summary.corpusSetName)。",
+                "Added \(summary.corpusSetName).",
+                mode: .system
+            )
+            features.library.setStatus(completion)
+            features.sidebar.clearError()
+            taskCenter.completeTask(id: createdTaskID, detail: completion)
+        } catch {
+            let fallbackMessage = wordZText(
+                "下载失败。请从官方下载页获取文件后再导入：\(descriptor.downloadPageURL.absoluteString)",
+                "Download failed. Get the file from the official download page, then import it: \(descriptor.downloadPageURL.absoluteString)",
+                mode: .system
+            )
+            features.library.setError(error.localizedDescription)
+            features.library.setStatus(fallbackMessage)
+            features.sidebar.setError(error.localizedDescription)
+            if let taskID {
+                taskCenter.failTask(id: taskID, detail: error.localizedDescription)
+            }
+        }
+    }
+
     private func shouldTrackLibraryBusyState(for action: LibraryManagementAction) -> Bool {
         switch action {
         case .refresh,
@@ -480,6 +561,7 @@ final class WorkspaceLibraryWorkflowService {
                 .cleanSelectedCorpora,
                 .editSelectedCorpusMetadata,
                 .editSelectedCorporaMetadata,
+                .installEnglishReferenceCorpus,
                 .confirmImportPreflight(_, _),
                 .importPaths:
             return false

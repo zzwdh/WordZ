@@ -1,5 +1,6 @@
 import Foundation
 import WordZHost
+import WordZExport
 
 package typealias QuickLookPreviewFilePreparing = WordZHost.QuickLookPreviewFilePreparing
 package typealias QuickLookPreviewFileService = WordZHost.QuickLookPreviewFileService

@@ -1,6 +1,7 @@
 import Combine
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZShared
 
 @MainActor
 final class ViewModelsTests: XCTestCase {

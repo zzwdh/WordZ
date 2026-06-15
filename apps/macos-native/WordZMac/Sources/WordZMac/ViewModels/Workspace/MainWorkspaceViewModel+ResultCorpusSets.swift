@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 @MainActor
 extension MainWorkspaceViewModel {
     func saveCompareCorpusSet(preferredWindowRoute: NativeWindowRoute? = nil) async {

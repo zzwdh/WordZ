@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 struct NativeHostPreferencesSnapshot: Codable, Equatable {
     var languageMode: AppLanguageMode
     var autoUpdateEnabled: Bool

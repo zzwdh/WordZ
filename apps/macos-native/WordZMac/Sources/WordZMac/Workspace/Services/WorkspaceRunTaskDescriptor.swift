@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct WorkspaceRunTaskDescriptor {
     let titleZh: String

@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZShared
 extension NativeWindowRoute {
     func title(in mode: AppLanguageMode) -> String {
         switch self {

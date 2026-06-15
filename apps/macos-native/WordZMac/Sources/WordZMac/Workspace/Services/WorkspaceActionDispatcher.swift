@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 @MainActor
 final class WorkspaceActionDispatcher: ObservableObject {
     unowned let workspace: MainWorkspaceViewModel

@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+import WordZWindowing
+import WordZHost
 extension MenuBarStatusMenuView {
     @ViewBuilder
     var workspaceSummarySection: some View {

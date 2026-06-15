@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZShared
 extension LibraryManagementCoordinator {
     func importPaths(
         into library: LibraryManagementViewModel,

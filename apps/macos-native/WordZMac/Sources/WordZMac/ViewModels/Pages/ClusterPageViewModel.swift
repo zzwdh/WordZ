@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct ClusterReferenceCorpusOption: Identifiable, Equatable {
     let id: String

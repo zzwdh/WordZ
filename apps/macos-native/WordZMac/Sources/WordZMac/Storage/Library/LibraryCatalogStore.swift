@@ -1,4 +1,5 @@
 import Foundation
+import WordZStorage
 
 struct LibraryCatalogStore {
     struct StorageSummary: Equatable {

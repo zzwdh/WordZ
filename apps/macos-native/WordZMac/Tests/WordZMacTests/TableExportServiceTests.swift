@@ -1,5 +1,6 @@
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZExport
 
 final class TableExportServiceTests: XCTestCase {
     func testMakeTSVUsesTabsAndProtectsFormulaLikeTextCells() {

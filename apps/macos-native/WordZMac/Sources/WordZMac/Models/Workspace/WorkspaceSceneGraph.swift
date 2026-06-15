@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 struct WorkspaceResultSceneNode: Equatable {
     let sourceTab: WorkspaceDetailTab?

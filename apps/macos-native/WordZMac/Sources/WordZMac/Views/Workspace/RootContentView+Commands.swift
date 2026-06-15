@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 @MainActor
 struct RootContentCommandHandler {
     let workspace: MainWorkspaceViewModel

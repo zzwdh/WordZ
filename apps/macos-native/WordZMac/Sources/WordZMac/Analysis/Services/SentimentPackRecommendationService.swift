@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum SentimentPackRecommendationReason: String, Sendable {
     case manualSelection

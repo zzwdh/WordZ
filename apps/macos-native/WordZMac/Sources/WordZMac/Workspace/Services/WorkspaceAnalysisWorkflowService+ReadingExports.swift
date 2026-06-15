@@ -1,5 +1,8 @@
 import Foundation
 
+import WordZWindowing
+import WordZExport
+import WordZShared
 @MainActor
 extension WorkspaceAnalysisWorkflowService {
     func copyKWICReading(_ format: ReadingExportFormat, currentOnly: Bool, features: WorkspaceFeatureSet) async {

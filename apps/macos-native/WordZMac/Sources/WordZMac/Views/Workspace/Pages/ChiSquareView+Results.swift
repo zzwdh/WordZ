@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZWorkbenchUI
 
 extension ChiSquareView {
     func summarySection(_ scene: ChiSquareSceneModel) -> some View {

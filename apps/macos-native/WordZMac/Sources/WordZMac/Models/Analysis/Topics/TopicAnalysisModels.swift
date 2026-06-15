@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum TopicAnalysisGranularity: String, Codable, Sendable {
     case paragraph

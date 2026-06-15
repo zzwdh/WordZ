@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZShared
 @MainActor
 extension WorkspaceAnalysisWorkflowService {
     func saveKWICConcordanceSavedSet(

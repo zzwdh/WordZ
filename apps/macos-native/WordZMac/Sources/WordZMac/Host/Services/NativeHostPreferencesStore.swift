@@ -1,6 +1,7 @@
 import Foundation
 import WordZEngine
 
+import WordZHost
 @MainActor
 protocol NativeHostPreferencesStoring: AnyObject {
     func load() -> NativeHostPreferencesSnapshot

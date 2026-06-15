@@ -1,10 +1,13 @@
 import Foundation
 import WordZEngine
 
+import WordZWindowing
+import WordZHost
 @MainActor
 package final class NativeAppContainer {
     typealias RepositoryFactory = () -> any WorkspaceRepository
     package typealias FeaturePageBundleFactory = () -> WorkspaceFeaturePageBundle
+    package typealias LibraryPageBundleFactory = () -> WorkspaceLibraryPageBundle
     typealias WindowDocumentControllerFactory = () -> NativeWindowDocumentController
     typealias WorkspacePersistenceFactory = () -> WorkspacePersistenceService
     typealias WorkspacePresentationFactory = () -> WorkspacePresentationService
@@ -28,6 +31,7 @@ package final class NativeAppContainer {
 
     private let makeRepository: RepositoryFactory
     private let makeFeaturePages: FeaturePageBundleFactory
+    private let makeLibraryPages: LibraryPageBundleFactory
     private let makeWindowDocumentController: WindowDocumentControllerFactory
     private let makeWorkspacePersistence: WorkspacePersistenceFactory
     private let makeWorkspacePresentation: WorkspacePresentationFactory
@@ -53,11 +57,15 @@ package final class NativeAppContainer {
         composition: NativeAppLiveComposition,
         makeFeaturePages: @escaping FeaturePageBundleFactory = {
             WorkspaceFeatureSetDefaultPages.bundle()
+        },
+        makeLibraryPages: @escaping LibraryPageBundleFactory = {
+            WorkspaceLibraryPageBundle.makeDefault()
         }
     ) {
         self.init(
             makeRepository: composition.storage.makeRepository,
             makeFeaturePages: makeFeaturePages,
+            makeLibraryPages: makeLibraryPages,
             makeWindowDocumentController: composition.workspace.makeWindowDocumentController,
             makeWorkspacePersistence: composition.storage.makeWorkspacePersistence,
             makeWorkspacePresentation: composition.workspace.makeWorkspacePresentation,
@@ -85,6 +93,9 @@ package final class NativeAppContainer {
         makeRepository: @escaping RepositoryFactory = { NativeWorkspaceRepository() },
         makeFeaturePages: @escaping FeaturePageBundleFactory = {
             WorkspaceFeatureSetDefaultPages.bundle()
+        },
+        makeLibraryPages: @escaping LibraryPageBundleFactory = {
+            WorkspaceLibraryPageBundle.makeDefault()
         },
         makeWindowDocumentController: @escaping WindowDocumentControllerFactory = { NativeWindowDocumentController() },
         makeWorkspacePersistence: @escaping WorkspacePersistenceFactory = { WorkspacePersistenceService() },
@@ -125,6 +136,7 @@ package final class NativeAppContainer {
     ) {
         self.makeRepository = makeRepository
         self.makeFeaturePages = makeFeaturePages
+        self.makeLibraryPages = makeLibraryPages
         self.makeWindowDocumentController = makeWindowDocumentController
         self.makeWorkspacePersistence = makeWorkspacePersistence
         self.makeWorkspacePresentation = makeWorkspacePresentation
@@ -150,11 +162,15 @@ package final class NativeAppContainer {
     package static func live(
         makeFeaturePages: @escaping FeaturePageBundleFactory = {
             WorkspaceFeatureSetDefaultPages.bundle()
+        },
+        makeLibraryPages: @escaping LibraryPageBundleFactory = {
+            WorkspaceLibraryPageBundle.makeDefault()
         }
     ) -> NativeAppContainer {
         NativeAppContainer(
             composition: .live(),
-            makeFeaturePages: makeFeaturePages
+            makeFeaturePages: makeFeaturePages,
+            makeLibraryPages: makeLibraryPages
         )
     }
 
@@ -166,8 +182,12 @@ package final class NativeAppContainer {
 
     package func makeMainWorkspaceViewModel() -> MainWorkspaceViewModel {
         let featurePages = makeFeaturePages()
+        let libraryPages = makeLibraryPages()
         _ = WorkspaceFeaturePageHandles(bundle: featurePages)
-        let pageViewModels = WorkspacePageViewModelBundle(featurePages: featurePages)
+        let pageViewModels = WorkspacePageViewModelBundle(
+            featurePages: featurePages,
+            libraryPages: libraryPages
+        )
         let dialogService = makeDialogService()
         let sceneStore = makeSceneStore()
         let sessionStore = makeSessionStore()

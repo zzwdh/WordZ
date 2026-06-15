@@ -1,7 +1,10 @@
 import AppKit
 import Foundation
+import WordZExport
 import WordZHost
 
+import WordZWindowing
+import WordZShared
 @MainActor
 protocol NativeDialogServicing: AnyObject {
     func chooseImportPaths(preferredRoute: NativeWindowRoute?) async -> [String]?

@@ -1,5 +1,8 @@
 import Foundation
 
+import WordZWindowing
+import WordZExport
+import WordZShared
 @MainActor
 final class WorkspaceExportWorkflowService {
     private let sceneStore: WorkspaceSceneStore

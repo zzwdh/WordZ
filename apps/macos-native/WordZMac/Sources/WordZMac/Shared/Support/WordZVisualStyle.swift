@@ -1,5 +1,6 @@
 import SwiftUI
 
+import WordZWindowing
 struct WordZVisualStyle: Equatable {
     let route: NativeWindowRoute
     let chromeTier: WindowEnhancementTier

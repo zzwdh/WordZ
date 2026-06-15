@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct TokenizeView: View {
     @Environment(\.wordZLanguageMode) var languageMode

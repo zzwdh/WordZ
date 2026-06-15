@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 enum ChiSquareConclusionTone: Equatable {
     case strongEvidence

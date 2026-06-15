@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 @MainActor
 final class NativeHostActionService: NativeHostActionServicing {
     private let dialogService: NativeDialogServicing

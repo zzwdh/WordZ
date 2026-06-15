@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum WorkspaceAnnotationProfile: String, CaseIterable, Identifiable, Codable, Sendable {
     case surface

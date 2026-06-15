@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 extension RootContentView {
     private var noneSelectionID: String { "__wordz_none__" }

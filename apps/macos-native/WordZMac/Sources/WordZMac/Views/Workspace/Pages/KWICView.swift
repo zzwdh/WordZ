@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct KWICView: View {
     @Environment(\.wordZLanguageMode) var languageMode

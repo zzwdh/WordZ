@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 @MainActor
 protocol LibraryManagementCoordinating: AnyObject {
     func refreshLibraryState(into library: LibraryManagementViewModel, sidebar: LibrarySidebarViewModel) async throws

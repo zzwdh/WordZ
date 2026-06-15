@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum NgramSortMode: String, CaseIterable, Identifiable {
     case frequencyDescending

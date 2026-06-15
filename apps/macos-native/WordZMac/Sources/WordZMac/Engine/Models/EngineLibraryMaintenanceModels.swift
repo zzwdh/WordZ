@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum LibraryCorpusCleaningStatus: String, Codable, Equatable, Sendable {
     case pending

@@ -1,4 +1,5 @@
 import Foundation
+import WordZStorage
 
 final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, MergedCorpusImportingLibraryStore, CorpusCleaningProgressReportingLibraryStore, CorpusSetManagingLibraryStore, FullTextSearchingLibraryStore {
     let rootURL: URL
@@ -60,7 +61,7 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     init(
         rootURL: URL,
         fileManager: FileManager = .default,
-        seedBundledDefaultReferenceCorpora: Bool = !NativeCorpusStore.isRunningTests
+        seedBundledDefaultReferenceCorpora: Bool = false
     ) {
         self.rootURL = rootURL
         self.fileManager = fileManager
@@ -120,12 +121,6 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
             metadata: metadataProfile,
             cleaningSummary: cleaningSummary
         )
-    }
-}
-
-private extension NativeCorpusStore {
-    static var isRunningTests: Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }
 

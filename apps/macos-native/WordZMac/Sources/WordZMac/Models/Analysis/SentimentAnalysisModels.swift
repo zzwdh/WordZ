@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum SentimentLabel: String, CaseIterable, Identifiable, Codable, Sendable {
     case positive

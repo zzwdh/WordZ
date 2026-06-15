@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum SentimentCrossAnalysisSupport {
     static func buildCompareExplainer(

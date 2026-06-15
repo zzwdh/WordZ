@@ -1,6 +1,8 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZWindowing
+import WordZHost
 @MainActor
 final class NativeHostActionServiceTests: XCTestCase {
     func testOpenFileDelegatesToWorkspaceInteraction() async throws {

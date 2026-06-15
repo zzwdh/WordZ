@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 struct WorkspaceBootstrapApplier: WorkspaceBootstrapApplying {
     let sceneStore: WorkspaceSceneStore

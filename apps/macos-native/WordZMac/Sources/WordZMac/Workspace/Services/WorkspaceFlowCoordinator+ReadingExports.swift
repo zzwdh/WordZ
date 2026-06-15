@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 @MainActor
 extension WorkspaceFlowCoordinator {
     func copyKWICReading(_ format: ReadingExportFormat, currentOnly: Bool, features: WorkspaceFeatureSet) async {

@@ -2,6 +2,8 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
+import WordZWindowing
+import WordZShared
 private let importLogger = WordZTelemetry.logger(category: "Import")
 
 enum ImportedPathDropSupport {

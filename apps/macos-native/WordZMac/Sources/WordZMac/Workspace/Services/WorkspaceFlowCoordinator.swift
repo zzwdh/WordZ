@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 final class WorkspaceFlowCoordinator {
     let persistenceWorkflow: WorkspacePersistenceWorkflowService

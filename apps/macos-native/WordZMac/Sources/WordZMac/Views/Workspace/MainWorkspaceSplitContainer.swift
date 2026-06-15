@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 private let workspaceSplitLayoutAnimationDuration: TimeInterval = 0.18
 
 struct WorkspaceSplitLayout: Equatable {

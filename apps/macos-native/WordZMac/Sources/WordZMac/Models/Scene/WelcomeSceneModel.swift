@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 struct WelcomeSceneModel: Equatable {
     let title: String
     let subtitle: String

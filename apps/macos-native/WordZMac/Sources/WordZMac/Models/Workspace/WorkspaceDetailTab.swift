@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum WorkspaceDetailTab: String, CaseIterable, Identifiable {
     case library = "Library"

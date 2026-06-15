@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum KeywordSuiteTab: String, CaseIterable, Identifiable, Codable, Sendable {
     case words

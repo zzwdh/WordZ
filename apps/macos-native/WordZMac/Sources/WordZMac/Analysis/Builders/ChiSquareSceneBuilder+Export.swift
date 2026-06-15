@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 extension ChiSquareSceneBuilder {
     func makeExportTable(

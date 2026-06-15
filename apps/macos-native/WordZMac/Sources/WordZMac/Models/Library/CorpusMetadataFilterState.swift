@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct CorpusMetadataFilterState: Equatable, Sendable, Codable {
     var sourceQuery: String

@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct DerivedCompareRow: Equatable, Sendable {
     let row: CompareRow

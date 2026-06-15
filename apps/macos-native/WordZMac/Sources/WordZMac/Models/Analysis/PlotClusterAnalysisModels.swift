@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum PlotScopeResolution: String, Identifiable, Codable, Sendable {
     case singleCorpus

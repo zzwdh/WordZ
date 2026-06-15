@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 extension NativeBackgroundTaskState {
     func displayLabel(in mode: AppLanguageMode) -> String {
         switch self {

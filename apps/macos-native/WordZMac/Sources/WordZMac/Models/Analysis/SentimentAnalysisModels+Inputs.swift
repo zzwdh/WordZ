@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct SentimentInputText: Identifiable, Equatable, Codable, Sendable {
     let id: String

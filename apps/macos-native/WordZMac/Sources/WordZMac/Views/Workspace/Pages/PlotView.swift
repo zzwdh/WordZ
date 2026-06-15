@@ -1,4 +1,7 @@
 import SwiftUI
+import WordZExport
+import WordZShared
+import WordZWorkbenchUI
 
 struct PlotView: View {
     @Environment(\.wordZLanguageMode) var languageMode

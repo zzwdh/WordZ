@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 @MainActor
 extension MainWorkspaceViewModel {
@@ -21,7 +22,7 @@ extension MainWorkspaceViewModel {
 
     var windowTitle: String { sceneStore.context.appName }
     var canRestoreWorkspace: Bool { sessionStore.workspaceSnapshot != nil }
-    var canQuickLookCurrentCorpus: Bool { currentContentTarget != nil }
+    var canQuickLookCurrentCorpus: Bool { currentQuickLookTarget != nil }
     var canShareCurrentContent: Bool { currentContentTarget != nil }
     var canManageAnalysisPresets: Bool { analysisPresetRepository != nil }
     var canExportCurrentReportBundle: Bool {

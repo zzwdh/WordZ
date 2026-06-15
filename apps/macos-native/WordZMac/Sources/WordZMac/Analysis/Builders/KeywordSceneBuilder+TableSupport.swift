@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 extension KeywordSceneBuilder {
     func buildTable(

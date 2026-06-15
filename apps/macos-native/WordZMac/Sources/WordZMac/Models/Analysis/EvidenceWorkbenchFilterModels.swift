@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum EvidenceSourceFilter: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case all

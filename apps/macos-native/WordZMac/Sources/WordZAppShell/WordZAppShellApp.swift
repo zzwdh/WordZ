@@ -1,6 +1,8 @@
 import SwiftUI
+import WordZLibraryFeature
 import WordZWorkspaceCore
 import WordZWorkspaceFeature
+import WordZShared
 
 package struct WordZAppShell: App {
     @NSApplicationDelegateAdaptor(NativeApplicationDelegate.self) private var applicationDelegate
@@ -10,8 +12,10 @@ package struct WordZAppShell: App {
 
     package init() {
         _ = WordZWorkspaceFeatureModule.activationSummary
+        _ = WordZLibraryFeatureModule.activationSummary
         let container = NativeAppContainer.live(
-            makeFeaturePages: WordZWorkspaceFeaturePageFactory.makePageBundle
+            makeFeaturePages: WordZWorkspaceFeaturePageFactory.makePageBundle,
+            makeLibraryPages: WordZLibraryFeaturePageFactory.makePageBundle
         )
         let workspace = container.makeMainWorkspaceViewModel()
         _workspace = StateObject(wrappedValue: workspace)

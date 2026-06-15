@@ -21,10 +21,13 @@ struct WorkspacePageViewModelBundle {
     let sourceReader: SourceReaderViewModel
     let settings: WorkspaceSettingsViewModel
 
-    init(featurePages: WorkspaceFeaturePageBundle) {
-        self.sidebar = LibrarySidebarViewModel()
+    init(
+        featurePages: WorkspaceFeaturePageBundle,
+        libraryPages: WorkspaceLibraryPageBundle = .makeDefault()
+    ) {
+        self.sidebar = libraryPages.sidebar
         self.shell = WorkspaceShellViewModel()
-        self.library = LibraryManagementViewModel()
+        self.library = libraryPages.library
         self.stats = StatsPageViewModel()
         self.word = WordPageViewModel()
         self.tokenize = TokenizePageViewModel()

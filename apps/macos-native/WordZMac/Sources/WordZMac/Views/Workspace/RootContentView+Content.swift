@@ -1,5 +1,6 @@
 import SwiftUI
 
+import WordZWindowing
 extension RootContentView {
     var workspaceContent: some View {
         MainWorkspaceSplitContainer(

@@ -716,6 +716,49 @@ check_workspace_feature_module_activation() {
   fi
 }
 
+check_library_feature_module_activation() {
+  print_check "Checking WordZLibraryFeature activation markers..."
+
+  local feature_root="${REPO_ROOT}/Sources/WordZLibraryFeature"
+  local feature_module_file="${feature_root}/WordZLibraryFeatureModule.swift"
+  local feature_page_factory_file="${feature_root}/WordZLibraryFeaturePageFactory.swift"
+  local legacy_placeholder_file="${feature_root}/WordZLibraryFeaturePlaceholder.swift"
+  local app_shell_file="${REPO_ROOT}/Sources/WordZAppShell/WordZAppShellApp.swift"
+  local app_container_file="$ROOT_DIR/App/Composition/NativeAppContainer.swift"
+
+  if [[ ! -f "$feature_module_file" ]]; then
+    mark_failure "Expected activated library feature module file to exist: $feature_module_file"
+  fi
+
+  if [[ -f "$legacy_placeholder_file" ]]; then
+    mark_failure "Library feature placeholder should be removed after activation: $legacy_placeholder_file"
+  fi
+
+  if [[ ! -f "$feature_page_factory_file" ]]; then
+    mark_failure "Activated library feature module should provide a production page factory: $feature_page_factory_file"
+  fi
+
+  if ! rg -q '^import WordZLibraryFeature$' "$app_shell_file"; then
+    mark_failure "App shell should import WordZLibraryFeature once the module is activated."
+  fi
+
+  if ! rg -q 'WordZLibraryFeatureModule\.activationSummary' "$app_shell_file"; then
+    mark_failure "App shell should touch the library feature activation marker during bootstrap."
+  fi
+
+  if ! rg -q 'WordZLibraryFeaturePageFactory\.makePageBundle' "$app_shell_file"; then
+    mark_failure "App shell should inject library page construction through WordZLibraryFeaturePageFactory."
+  fi
+
+  if ! rg -q 'LibraryPageBundleFactory' "$app_container_file"; then
+    mark_failure "NativeAppContainer should accept injected library page construction."
+  fi
+
+  if rg -n 'LibrarySidebarViewModel\(\)|LibraryManagementViewModel\(\)' "$app_container_file" >/dev/null; then
+    mark_failure "NativeAppContainer should not directly construct Library feature page view models."
+  fi
+}
+
 check_migrated_feature_registry_companions() {
   print_check "Checking migrated feature registry and app window ownership..."
 
@@ -818,6 +861,7 @@ main() {
   check_platform_api_boundaries
   check_topics_feature_layout
   check_workspace_feature_module_activation
+  check_library_feature_module_activation
   check_migrated_feature_registry_companions
   check_feature_workflow_protocolization
   check_hotspot_file_sizes

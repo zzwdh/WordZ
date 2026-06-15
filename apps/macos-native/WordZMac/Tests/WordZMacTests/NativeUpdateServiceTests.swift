@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 final class NativeUpdateServiceTests: XCTestCase {
     override func tearDown() {
         MockUpdateURLProtocol.handler = nil

@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 final class NativeDiagnosticsBundleServiceTests: XCTestCase {
     func testBuildBundleWritesArchiveWithRuntimeAndPersistedState() throws {
         let fileManager = FileManager.default

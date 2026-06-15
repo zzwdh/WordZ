@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct KeywordRunConfiguration: Equatable {
     let configuration: KeywordSuiteConfiguration

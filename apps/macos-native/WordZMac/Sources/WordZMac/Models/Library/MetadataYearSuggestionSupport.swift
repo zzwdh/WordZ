@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct MetadataYearRangeShortcut: Identifiable, Equatable {
     enum Kind: String, Equatable {

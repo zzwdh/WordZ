@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension NgramPageViewModel {
     func handleInputChange(rebuildScene shouldRebuildScene: Bool) {

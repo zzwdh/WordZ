@@ -1,6 +1,7 @@
 import SQLite3
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZExport
 
 final class WorkspaceServicesTests: XCTestCase {
     func testWorkspacePersistenceBuildsDraftWithSelectedCorpusFallbacks() {

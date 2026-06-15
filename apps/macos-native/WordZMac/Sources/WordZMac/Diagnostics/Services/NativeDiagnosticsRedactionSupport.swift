@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 enum NativeDiagnosticsRedactionSupport {
     private static let redactedPrefix = "<redacted>"
 

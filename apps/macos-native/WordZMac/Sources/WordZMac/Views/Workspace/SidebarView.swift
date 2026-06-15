@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct SidebarView: View {
     @Environment(\.wordZLanguageMode) var languageMode

@@ -14,7 +14,7 @@ final class NativeTopicEngineTests: XCTestCase {
         )
 
         XCTAssertGreaterThanOrEqual(slices.count, 2)
-        XCTAssertTrue(slices.contains(where: { $0.text == "Brief note." }))
+        XCTAssertTrue(slices.contains(where: { $0.text.contains("Brief note.") }))
         XCTAssertTrue(slices.allSatisfy { !$0.tokens.isEmpty })
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZWorkbenchUI
 
 extension LocatorView {
     @ViewBuilder

@@ -1,6 +1,7 @@
 import CoreGraphics
 import SwiftUI
 
+import WordZWindowing
 extension NativePlatformCapabilities {
     @MainActor
     static func decorateWindowRoot<Content: View>(

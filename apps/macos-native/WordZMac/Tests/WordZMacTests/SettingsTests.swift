@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 @MainActor
 final class SettingsTests: XCTestCase {
     func testSettingsViewModelAppliesSnapshotAndExportsValues() {

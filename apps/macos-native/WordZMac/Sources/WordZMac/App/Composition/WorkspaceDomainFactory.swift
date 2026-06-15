@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 struct WorkspaceDomainFactory {
     func makeSceneStore() -> WorkspaceSceneStore {

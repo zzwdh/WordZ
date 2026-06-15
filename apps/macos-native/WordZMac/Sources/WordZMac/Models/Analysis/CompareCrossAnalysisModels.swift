@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct CompareSentimentDrilldownContext: Equatable, Sendable {
     let focusTerm: String

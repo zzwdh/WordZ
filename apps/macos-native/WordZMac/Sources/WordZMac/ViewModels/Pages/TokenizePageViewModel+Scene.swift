@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension TokenizePageViewModel {
     func handleInputChange(rebuildScene shouldRebuildScene: Bool) {

@@ -1,6 +1,7 @@
 import Foundation
 @testable import WordZWorkspaceCore
 
+import WordZHost
 @MainActor
 func makeWorkspaceFlowCoordinator(
     repository: any WorkspaceRepository,

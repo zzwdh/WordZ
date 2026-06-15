@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 @MainActor
 final class SourceReaderViewModel: ObservableObject {

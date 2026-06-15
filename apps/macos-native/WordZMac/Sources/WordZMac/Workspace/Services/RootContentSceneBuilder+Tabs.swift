@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension RootContentSceneBuilder {
     func makeTabs(languageMode: AppLanguageMode) -> [RootContentTabSceneItem] {

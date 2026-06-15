@@ -1,5 +1,7 @@
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct LibraryCorpusInfoSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.wordZLanguageMode) private var languageMode

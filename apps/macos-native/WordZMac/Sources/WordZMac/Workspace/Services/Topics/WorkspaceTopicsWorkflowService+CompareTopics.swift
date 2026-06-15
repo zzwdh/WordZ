@@ -1,5 +1,6 @@
 import Foundation
 import NaturalLanguage
+import WordZShared
 
 private struct CompareTopicsParagraphContext: Equatable, Sendable {
     let globalParagraphIndex: Int

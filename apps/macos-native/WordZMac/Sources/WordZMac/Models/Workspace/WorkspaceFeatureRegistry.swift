@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum WorkspaceFeatureKey: String, CaseIterable, Identifiable {
     case stats

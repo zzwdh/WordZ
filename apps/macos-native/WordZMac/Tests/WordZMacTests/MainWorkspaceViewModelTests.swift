@@ -1,6 +1,8 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
+import WordZShared
 @MainActor
 final class MainWorkspaceViewModelTests: XCTestCase {
     func testInitializeIfNeededBootstrapsSceneGraph() async {
@@ -1687,7 +1689,6 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertTrue(reportBundleService.lastPayload?.reportText.contains("WordZ Analysis Materials Bundle") == true)
         XCTAssertNotNil(reportBundleService.lastPayload?.tableSnapshot)
         XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/source-reader-current.txt" }) == true)
-        XCTAssertTrue(reportBundleService.lastPayload?.textDocuments.contains(where: { $0.relativePath == "reading/excerpts.txt" }) == true)
         XCTAssertEqual(hostActions.exportedArchivePath, "/tmp/WordZMac-report.zip")
         XCTAssertEqual(hostActions.exportedArchiveTitle, "导出分析材料包")
         XCTAssertEqual(hostActions.exportedArchivePreferredRoute, .mainWorkspace)
@@ -1710,7 +1711,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/demo.txt")
     }
 
-    func testQuickLookCurrentContentPrefersOpenedDatabasePathWhenCorpusIsOpen() async {
+    func testQuickLookCurrentContentBuildsTextPreviewWhenOpenedCorpusPathIsDatabase() async throws {
         let repository = FakeWorkspaceRepository(openedCorpus: OpenedCorpus(json: [
             "mode": "saved",
             "filePath": "/tmp/demo.db",
@@ -1719,10 +1720,13 @@ final class MainWorkspaceViewModelTests: XCTestCase {
             "sourceType": "txt"
         ]))
         let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-current-corpus-preview-\(UUID().uuidString)", isDirectory: true)
         let workspace = makeMainWorkspaceViewModel(
             repository: repository,
             hostPreferencesStore: InMemoryHostPreferencesStore(),
-            hostActionService: hostActions
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
         )
 
         await workspace.initializeIfNeeded()
@@ -1730,7 +1734,95 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         await workspace.quickLookCurrentCorpus()
 
         XCTAssertEqual(hostActions.quickLookCallCount, 1)
-        XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/demo.db")
+        let previewPath = try XCTUnwrap(hostActions.lastQuickLookPath)
+        XCTAssertNotEqual(previewPath, "/tmp/demo.db")
+        XCTAssertTrue(previewPath.hasSuffix(".txt"))
+        let previewText = try String(contentsOfFile: previewPath, encoding: .utf8)
+        XCTAssertTrue(previewText.contains("Corpus Text") || previewText.contains("语料文本"))
+        XCTAssertTrue(previewText.contains("Demo Corpus"))
+        XCTAssertTrue(previewText.contains("alpha beta gamma alpha beta"))
+    }
+
+    func testQuickLookSelectedCorpusKeepsReadableLibraryPathBeforeOpenedDatabasePreview() async throws {
+        let textCorpus = LibraryCorpusItem(json: [
+            "id": "corpus-text",
+            "name": "Readable Corpus",
+            "folderId": "folder-1",
+            "folderName": "Default",
+            "sourceType": "txt",
+            "representedPath": "/tmp/readable.txt",
+            "metadata": [:]
+        ])
+        let bootstrapState = makeBootstrapState(corpora: [textCorpus])
+        let repository = FakeWorkspaceRepository(bootstrapState: bootstrapState)
+        let hostActions = FakeHostActionService()
+        let sessionStore = WorkspaceSessionStore()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            sessionStore: sessionStore
+        )
+
+        await workspace.initializeIfNeeded()
+        sessionStore.setOpenedCorpus(OpenedCorpus(json: [
+            "mode": "saved",
+            "filePath": "/tmp/internal.db",
+            "displayName": "Readable Corpus",
+            "content": "opened database text",
+            "sourceType": "txt"
+        ]), sourceID: "corpus-text")
+
+        await workspace.quickLookSelectedCorpus()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        XCTAssertEqual(hostActions.lastQuickLookPath, "/tmp/readable.txt")
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 0)
+    }
+
+    func testQuickLookSelectedCorpusBuildsTextPreviewWhenLibraryPathIsDatabase() async throws {
+        let databaseCorpus = LibraryCorpusItem(json: [
+            "id": "corpus-db",
+            "name": "DB Backed Corpus",
+            "folderId": "folder-1",
+            "folderName": "Default",
+            "sourceType": "txt",
+            "representedPath": "/tmp/demo.db",
+            "metadata": [:]
+        ])
+        let bootstrapState = makeBootstrapState(corpora: [databaseCorpus])
+        let repository = FakeWorkspaceRepository(
+            bootstrapState: bootstrapState,
+            openedCorporaByID: [
+                "corpus-db": OpenedCorpus(json: [
+                    "mode": "saved",
+                    "filePath": "/tmp/demo.db",
+                    "displayName": "DB Backed Corpus",
+                    "content": "library quicklook text",
+                    "sourceType": "txt"
+                ])
+            ]
+        )
+        let hostActions = FakeHostActionService()
+        let previewDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("wordz-selected-corpus-preview-\(UUID().uuidString)", isDirectory: true)
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            quickLookPreviewFileService: QuickLookPreviewFileService(rootDirectory: previewDirectory)
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.quickLookSelectedCorpus()
+
+        XCTAssertEqual(hostActions.quickLookCallCount, 1)
+        let previewPath = try XCTUnwrap(hostActions.lastQuickLookPath)
+        XCTAssertNotEqual(previewPath, "/tmp/demo.db")
+        XCTAssertTrue(previewPath.hasSuffix(".txt"))
+        let previewText = try String(contentsOfFile: previewPath, encoding: .utf8)
+        XCTAssertTrue(previewText.contains("DB Backed Corpus"))
+        XCTAssertTrue(previewText.contains("library quicklook text"))
     }
 
     func testQuickLookCurrentContentBuildsTemporaryCSVForResultScene() async throws {

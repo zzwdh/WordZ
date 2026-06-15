@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import WordZShared
 
 struct SentimentView: View {
     @Environment(\.wordZLanguageMode) var languageMode

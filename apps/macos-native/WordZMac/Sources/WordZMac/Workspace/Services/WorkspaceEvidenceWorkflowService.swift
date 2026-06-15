@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 final class WorkspaceEvidenceWorkflowService {
     let repository: any WorkspaceRepository

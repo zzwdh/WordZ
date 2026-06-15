@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZWorkbenchUI
 
 extension CompareView {
     func compareSelectedRowSection(_ selectedRow: CompareSceneRow) -> some View {

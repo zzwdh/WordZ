@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct SentimentSelectableCorpusSceneItem: Identifiable, Equatable {
     let id: String

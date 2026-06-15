@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum SentimentThresholdPreset: String, CaseIterable, Identifiable, Codable, Sendable {
     case conservative

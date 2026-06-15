@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 @MainActor
 final class CompositionTests: XCTestCase {
     func testRuntimeDependencyFactoryUsesCoordinatorFactoryResult() {

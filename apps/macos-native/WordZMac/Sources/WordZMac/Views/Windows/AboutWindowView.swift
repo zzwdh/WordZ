@@ -1,5 +1,7 @@
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct AboutWindowView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @ObservedObject var workspace: MainWorkspaceViewModel

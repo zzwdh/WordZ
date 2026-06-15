@@ -1,5 +1,6 @@
 import SwiftUI
 
+import WordZWindowing
 struct WorkbenchIssueBanner<Actions: View>: View {
     @Environment(\.wordZVisualStyle) private var visualStyle
 

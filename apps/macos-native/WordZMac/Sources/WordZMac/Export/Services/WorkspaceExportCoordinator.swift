@@ -1,6 +1,8 @@
 import AppKit
 import Foundation
 
+import WordZWindowing
+import WordZExport
 @MainActor
 protocol WorkspaceExportCoordinating: AnyObject {
     func exportActiveScene(graph: WorkspaceSceneGraph, preferredRoute: NativeWindowRoute?) async throws -> String?

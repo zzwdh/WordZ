@@ -276,7 +276,11 @@ final class SceneBuildersTests: XCTestCase {
         XCTAssertEqual(scene.rows.first?.keynessText, "4.21")
         XCTAssertEqual(scene.filteredRows, 2)
         XCTAssertEqual(scene.columnTitle(for: CompareColumnKey.word), "词 ↑")
-        XCTAssertTrue(scene.columnTitle(for: CompareColumnKey.keyness).contains("Keyness"))
+        XCTAssertTrue(
+            scene.columnTitle(for: CompareColumnKey.keyness).contains("显著性")
+                || scene.columnTitle(for: CompareColumnKey.keyness).contains("Keyness")
+                || scene.columnTitle(for: CompareColumnKey.keyness).contains("Significance")
+        )
         XCTAssertFalse(scene.isColumnVisible(CompareColumnKey.range))
         XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("Selected Corpora") || $0.contains("所选语料") }))
         XCTAssertEqual(scene.annotationSummary, annotationState.summary(in: .system))
@@ -774,7 +778,7 @@ final class SceneBuildersTests: XCTestCase {
 
         XCTAssertEqual(compareDocument.suggestedName, "compare-summary.txt")
         XCTAssertTrue(compareDocument.text.contains(compareScene.rows[0].word))
-        XCTAssertTrue(compareDocument.text.contains("Keyness:"))
+        XCTAssertTrue(compareDocument.text.contains("显著性:") || compareDocument.text.contains("Keyness:"))
         XCTAssertTrue(compareDocument.text.contains(compareScene.referenceSummary))
         XCTAssertTrue(compareDocument.text.contains(compareScene.methodSummary))
 

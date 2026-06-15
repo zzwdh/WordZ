@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 extension AboutWindowView {
     var aboutWindowContent: some View {

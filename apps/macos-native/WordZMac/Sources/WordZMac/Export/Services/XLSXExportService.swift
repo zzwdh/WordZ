@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 struct XLSXExportService {
     func write(snapshot: NativeTableExportSnapshot, to path: String) async throws {

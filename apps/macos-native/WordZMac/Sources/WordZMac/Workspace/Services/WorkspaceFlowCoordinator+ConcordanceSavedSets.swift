@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 @MainActor
 extension WorkspaceFlowCoordinator {
     func refreshConcordanceSavedSets(features: WorkspaceFeatureSet) async {

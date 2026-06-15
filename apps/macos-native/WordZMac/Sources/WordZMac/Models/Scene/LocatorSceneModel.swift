@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 struct LocatorSource: Equatable {
     let keyword: String

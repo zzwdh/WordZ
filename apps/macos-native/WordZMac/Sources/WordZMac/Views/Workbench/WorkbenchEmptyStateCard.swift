@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZWorkbenchUI
 
 struct WorkbenchEmptyStateCard<Actions: View>: View {
     let title: String

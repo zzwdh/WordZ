@@ -1,6 +1,8 @@
 import AppKit
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZExport
+@testable import WordZWorkbenchUI
 
 @MainActor
 final class PerformanceBoundaryTests: XCTestCase {
@@ -275,9 +277,8 @@ final class PerformanceBoundaryTests: XCTestCase {
         )
         let tableView = NativeTableView.ActionTableView(frame: .zero)
         tableView.actionCoordinator = coordinator
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        defer { pasteboard.clearContents() }
+        let pasteboard = InMemoryNativeTablePasteboard()
+        tableView.copyPasteboard = pasteboard
 
         coordinator.attach(tableView: tableView)
         coordinator.apply(
@@ -295,7 +296,7 @@ final class PerformanceBoundaryTests: XCTestCase {
         tableView.keyDown(with: keyEvent(keyCode: 124, characters: "\u{F703}"))
         tableView.keyDown(with: keyEvent(keyCode: 123, characters: "\u{F702}"))
 
-        XCTAssertEqual(pasteboard.string(forType: .string), "Plot\n2 hits")
+        XCTAssertEqual(pasteboard.string, "Plot\n2 hits")
         XCTAssertEqual(activatedRows, ["row-0"])
         XCTAssertEqual(markerSelections.map(\.markerID), ["hit-2", "hit-1"])
     }

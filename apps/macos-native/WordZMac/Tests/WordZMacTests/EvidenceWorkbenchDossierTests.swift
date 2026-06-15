@@ -1,5 +1,6 @@
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZShared
 
 final class EvidenceWorkbenchDossierTests: XCTestCase {
     func testLegacyEvidenceItemDecodeDefaultsDossierFields() throws {

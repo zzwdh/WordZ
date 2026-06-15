@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 private struct SentimentGroupKey: Hashable {
     let id: String

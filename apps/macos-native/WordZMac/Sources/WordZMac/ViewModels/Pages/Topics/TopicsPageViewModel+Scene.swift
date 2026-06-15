@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension TopicsPageViewModel {
     func handleInputChange(rebuildScene shouldRebuildScene: Bool) {

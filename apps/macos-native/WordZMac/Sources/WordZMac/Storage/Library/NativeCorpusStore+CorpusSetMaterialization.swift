@@ -1,4 +1,5 @@
 import Foundation
+import WordZStorage
 
 extension NativeCorpusStore: CorpusSetOpeningLibraryStore {
     func openSavedCorpusSet(corpusSetID: String) throws -> OpenedCorpus {

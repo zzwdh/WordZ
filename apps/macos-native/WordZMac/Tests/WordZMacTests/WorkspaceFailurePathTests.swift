@@ -10,7 +10,7 @@ final class WorkspaceFailurePathTests: XCTestCase {
 
         await workspace.initializeIfNeeded()
 
-        XCTAssertEqual(workspace.issueBanner?.title, "本地引擎启动失败")
+        XCTAssertEqual(workspace.issueBanner?.title, "分析功能准备失败")
         XCTAssertEqual(workspace.issueBanner?.message, "boom")
         XCTAssertEqual(workspace.issueBanner?.recoveryAction, .refreshWorkspace)
     }

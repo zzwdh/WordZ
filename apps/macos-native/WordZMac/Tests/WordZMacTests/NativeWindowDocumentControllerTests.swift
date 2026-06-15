@@ -2,6 +2,7 @@ import AppKit
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 @MainActor
 final class NativeWindowDocumentControllerTests: XCTestCase {
     func testSyncAppliesTitleRepresentedURLAndEditedFlag() {

@@ -3,6 +3,7 @@ import SwiftUI
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZWindowing
 @MainActor
 final class RootContentSceneTests: XCTestCase {
     func testRootContentSceneBuilderBuildsWindowTitleAndTabs() {

@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct UpdateWindowView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @Environment(\.openWindow) var openWindow

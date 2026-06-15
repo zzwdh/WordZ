@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 @MainActor
 package final class TopicsPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisStateApplying, AnalysisSelectedRowControlling, AnalysisSceneBuildRevisionControlling {

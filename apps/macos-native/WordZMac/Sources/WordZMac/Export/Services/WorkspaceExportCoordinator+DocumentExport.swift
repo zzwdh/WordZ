@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZExport
 extension WorkspaceExportCoordinator {
     func export(
         snapshot: NativeTableExportSnapshot,

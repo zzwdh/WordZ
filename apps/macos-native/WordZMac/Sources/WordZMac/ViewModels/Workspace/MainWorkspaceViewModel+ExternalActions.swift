@@ -45,7 +45,7 @@ extension MainWorkspaceViewModel {
     }
 
     func quickLookCurrentCorpus() async {
-        guard let target = currentContentTarget else {
+        guard let target = currentQuickLookTarget else {
             presentQuickLookUnavailableIssue()
             return
         }
@@ -59,12 +59,12 @@ extension MainWorkspaceViewModel {
     }
 
     func quickLookSelectedCorpus() async {
-        guard let path = selectedCorpusPreviewablePath else {
-            presentQuickLookUnavailableIssue()
-            return
-        }
         do {
-            try await hostActionService.quickLook(path: path)
+            guard let target = try await quickLookTargetForSelectedCorpus() else {
+                presentQuickLookUnavailableIssue()
+                return
+            }
+            try await hostActionService.quickLook(path: try preparedPath(for: target))
             settings.setSupportStatus(t("已打开所选语料的 Quick Look 预览。", "Opened Quick Look for the selected corpus."))
             clearActiveIssue()
         } catch {

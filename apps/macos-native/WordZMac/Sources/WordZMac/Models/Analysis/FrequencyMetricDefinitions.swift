@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum FrequencyNormalizationUnit: String, CaseIterable, Identifiable, Codable, Sendable {
     case perThousand

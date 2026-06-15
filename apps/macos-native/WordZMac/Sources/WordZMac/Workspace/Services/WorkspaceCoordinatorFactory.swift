@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 struct WorkspaceCoordinatorFactory: WorkspaceCoordinatorBuilding {
     let featureWorkflowFactory: (any WorkspaceFeatureWorkflowBuilding)?

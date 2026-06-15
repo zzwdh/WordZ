@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 
+import WordZWindowing
 struct WorkspaceCommandContext: Equatable {
     let route: NativeWindowRoute
     let toolbar: WorkspaceToolbarSceneModel?
@@ -162,7 +163,7 @@ extension MainWorkspaceViewModel {
                 canOpenSelectedCorpus: library.selectedCorpusID != nil,
                 canOpenSourceView: false,
                 canConfigureAnnotation: false,
-                canQuickLookContent: selectedCorpusPreviewablePath != nil,
+                canQuickLookContent: canQuickLookSelectedCorpus,
                 canShareContent: selectedCorpusPreviewablePath != nil,
                 canExportCurrent: false,
                 canSaveAnalysisPreset: false,

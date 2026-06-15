@@ -1,7 +1,8 @@
 import Foundation
+import WordZShared
 
 @MainActor
-final class LibrarySidebarViewModel: ObservableObject {
+package final class LibrarySidebarViewModel: ObservableObject {
     @Published var librarySnapshot = LibrarySnapshot.empty {
         didSet {
             if let selectedCorpusSetID, !librarySnapshot.corpusSets.contains(where: { $0.id == selectedCorpusSetID }) {
@@ -66,6 +67,8 @@ final class LibrarySidebarViewModel: ObservableObject {
     var metadataSuggestionCalendar: Calendar = .current
     var metadataSuggestionDateProvider: () -> Date = Date.init
     private var suppressedSelectionChangeDepth = 0
+
+    package init() {}
 
     var selectedCorpus: LibraryCorpusItem? {
         guard let selectedCorpusID else { return nil }

@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 extension TopicsSceneBuilder {
     func presentation(for key: TopicsColumnKey) -> NativeTableColumnPresentation {

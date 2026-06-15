@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 extension RootContentView {
     var workspaceIssueSheetBinding: Binding<WorkspaceIssueBanner?> {

@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 enum SettingsSection: CaseIterable, Identifiable {
     case workspace

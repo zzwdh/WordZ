@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum ConcordanceSavedSetKind: String, CaseIterable, Identifiable, Codable, Sendable, Equatable {
     case kwic

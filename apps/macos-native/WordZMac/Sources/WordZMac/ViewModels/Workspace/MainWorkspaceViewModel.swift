@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 
+import WordZHost
 @MainActor
 package final class MainWorkspaceViewModel: ObservableObject {
     @Published var sidebar: LibrarySidebarViewModel
@@ -42,6 +43,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
     let dialogService: NativeDialogServicing
     let hostPreferencesStore: any NativeHostPreferencesStoring
     let hostActionService: any NativeHostActionServicing
+    let libraryCoordinator: any LibraryCoordinating
     let windowDocumentController: any WindowDocumentAttaching
     let analysisPresetRepository: (any AnalysisPresetManagingRepository)?
     let quickLookPreviewFileService: any QuickLookPreviewFilePreparing
@@ -129,6 +131,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.dialogService = dialogService
         self.hostPreferencesStore = hostPreferencesStore
         self.hostActionService = runtimeDependencies.hostActionService
+        self.libraryCoordinator = runtimeDependencies.libraryCoordinator
         self.windowDocumentController = runtimeDependencies.windowDocumentController
         self.analysisPresetRepository = repository as? any AnalysisPresetManagingRepository
         self.quickLookPreviewFileService = quickLookPreviewFileService

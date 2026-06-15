@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 @MainActor
 final class WorkspaceSettingsViewModel: ObservableObject {
     var onLanguageModeChange: (() -> Void)?

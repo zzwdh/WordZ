@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WordZShared
 
 struct LexicalAutocompleteTextField: NSViewRepresentable {
     let title: String

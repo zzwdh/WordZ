@@ -1,4 +1,5 @@
 import Foundation
+import WordZStorage
 
 extension NativeCorpusStore {
     func snapshotLibraryCatalogMutation(

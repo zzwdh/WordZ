@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension KWICPageViewModel {
     func handleInputChange(rebuildScene shouldRebuildScene: Bool) {

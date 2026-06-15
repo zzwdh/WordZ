@@ -1,4 +1,6 @@
 import SwiftUI
+import WordZExport
+import WordZWorkbenchUI
 
 struct AnalysisResultTableSection<
     ColumnKey: Identifiable & RawRepresentable,

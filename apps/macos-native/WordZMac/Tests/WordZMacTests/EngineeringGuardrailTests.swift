@@ -1,6 +1,8 @@
 import Foundation
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZExport
+import WordZWorkbenchUI
 
 @MainActor
 final class EngineeringGuardrailTests: XCTestCase {
@@ -210,6 +212,28 @@ final class EngineeringGuardrailTests: XCTestCase {
             FileManager.default.fileExists(atPath: featureRoot.appendingPathComponent("WordZWorkspaceFeaturePlaceholder.swift").path),
             "Workspace feature placeholder file should be removed once the module is activated."
         )
+
+        let sourcesRoot = sourceRoot.deletingLastPathComponent()
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZLibraryFeature/WordZLibraryFeatureModule.swift").path),
+            "Library feature target should have a real module marker."
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZLibraryFeature/WordZLibraryFeaturePageFactory.swift").path),
+            "Library feature target should provide its page factory."
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZLibraryFeature/WordZLibraryFeaturePlaceholder.swift").path),
+            "Library feature placeholder should be removed once the target is declared."
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZDiagnostics/WordZDiagnosticsModule.swift").path),
+            "Diagnostics target should have a real module marker."
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: sourcesRoot.appendingPathComponent("WordZDiagnostics/WordZDiagnosticsPlaceholder.swift").path),
+            "Diagnostics placeholder should be removed once the target is declared."
+        )
     }
 
     func testEngineeringGuardFocusesOnSplitRegressionSuites() throws {
@@ -402,7 +426,7 @@ final class EngineeringGuardrailTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let tableViewURL = root.appendingPathComponent(
-            "Sources/WordZMac/Views/Workbench/Table/NativeTableView.swift"
+            "Sources/WordZWorkbenchUI/Table/NativeTableView.swift"
         )
         let tableViewContents = try String(contentsOf: tableViewURL, encoding: .utf8)
         let analysisSectionURL = root.appendingPathComponent(

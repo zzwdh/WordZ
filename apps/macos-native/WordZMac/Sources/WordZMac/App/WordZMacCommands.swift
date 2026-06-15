@@ -2,6 +2,9 @@ import AppKit
 import OSLog
 import SwiftUI
 
+import WordZWindowing
+import WordZHost
+import WordZShared
 private let commandLogger = WordZTelemetry.logger(category: "Commands")
 
 struct WordZMacCommands: Commands {

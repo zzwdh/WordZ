@@ -1,4 +1,6 @@
 import SwiftUI
+import WordZExport
+import WordZWorkbenchUI
 
 extension TopicsView {
     func topicSegmentsPane(_ scene: TopicsSceneModel) -> some View {

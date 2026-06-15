@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 final class WorkspacePersistenceWorkflowService {
     let repository: any WorkspaceRepository

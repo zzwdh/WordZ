@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension ComparePageViewModel {
     func resolvedFilteredRows(for result: CompareResult) -> (rows: [CompareRow], error: String) {

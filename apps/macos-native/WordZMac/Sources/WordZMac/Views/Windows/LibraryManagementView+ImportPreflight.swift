@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct LibraryImportPreflightSheetView: View {
     @Environment(\.dismiss) private var dismiss

@@ -1,5 +1,6 @@
 import SwiftUI
 
+import WordZWindowing
 struct SettingsWindowView: View {
     @ObservedObject var workspace: MainWorkspaceViewModel
     @StateObject private var dispatcher: WorkspaceActionDispatcher

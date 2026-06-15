@@ -3,6 +3,7 @@ import XCTest
 import WordZHost
 @testable import WordZWorkspaceCore
 
+import WordZWindowing
 @MainActor
 final class NativeSheetDialogServiceTests: XCTestCase {
     func testChooseImportPathsBuildsHostOpenPanelRequestAndMapsPaths() async {

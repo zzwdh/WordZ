@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum CollocateAssociationMetric: String, CaseIterable, Identifiable {
     case logDice

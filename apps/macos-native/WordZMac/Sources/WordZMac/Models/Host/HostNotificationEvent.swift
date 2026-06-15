@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum HostNotificationEvent: Equatable {
     case taskCompleted(title: String, detail: String)

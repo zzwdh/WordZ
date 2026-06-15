@@ -1,6 +1,8 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
+import WordZShared
 @MainActor
 final class CoordinatorsTests: XCTestCase {
     func testLibraryCoordinatorCachesOpenedCorpusForSameSelection() async throws {

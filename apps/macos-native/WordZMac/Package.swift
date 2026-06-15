@@ -8,7 +8,8 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "WordZMac", targets: ["WordZMac"])
+        .executable(name: "WordZMac", targets: ["WordZMac"]),
+        .executable(name: "WordZReferenceCorpusTool", targets: ["WordZReferenceCorpusTool"])
     ],
     targets: [
         .executableTarget(
@@ -18,12 +19,22 @@ let package = Package(
             ],
             path: "Sources/WordZMacExecutable"
         ),
+        .executableTarget(
+            name: "WordZReferenceCorpusTool",
+            dependencies: [
+                "WordZWorkspaceCore"
+            ],
+            path: "Sources/WordZReferenceCorpusTool"
+        ),
         .target(
             name: "WordZWorkspaceCore",
             dependencies: [
                 "WordZAnalysis",
                 "WordZEngine",
+                "WordZExport",
                 "WordZHost",
+                "WordZStorage",
+                "WordZWorkbenchUI",
                 "WordZWindowing",
                 "WordZShared"
             ],
@@ -52,6 +63,8 @@ let package = Package(
             name: "WordZShared",
             path: "Sources/WordZShared",
             sources: [
+                "ArrayEqualitySupport.swift",
+                "LocalizationSupport.swift",
                 "WordZSharedResources.swift"
             ],
             resources: [
@@ -117,6 +130,7 @@ let package = Package(
         .target(
             name: "WordZWorkbenchUI",
             dependencies: [
+                "WordZExport",
                 "WordZShared"
             ],
             path: "Sources/WordZWorkbenchUI"
@@ -166,8 +180,14 @@ let package = Package(
         .testTarget(
             name: "WordZWorkspaceCoreTests",
             dependencies: [
+                "WordZExport",
+                "WordZHost",
+                "WordZStorage",
+                "WordZWorkbenchUI",
+                "WordZLibraryFeature",
                 "WordZWorkspaceCore",
-                "WordZWorkspaceFeature"
+                "WordZWorkspaceFeature",
+                "WordZWindowing"
             ],
             path: "Tests/WordZMacTests",
             resources: [

@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 struct WordSceneBuilder {
     func build(

@@ -1,6 +1,8 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZWindowing
+import WordZShared
 @MainActor
 final class LocalizationSupportTests: XCTestCase {
     func testLocalizedResourceLookupUsesStringsTables() {

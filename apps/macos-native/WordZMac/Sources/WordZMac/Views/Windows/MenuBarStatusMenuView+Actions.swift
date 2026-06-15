@@ -2,6 +2,7 @@ import AppKit
 import OSLog
 import SwiftUI
 
+import WordZWindowing
 private let menuBarLogger = WordZTelemetry.logger(category: "MenuBar")
 
 extension MenuBarStatusMenuView {

@@ -1,3 +1,5 @@
+import WordZWindowing
+import WordZHost
 extension NativeWindowRoute {
     package var hostPresentationHint: NativePresentationRouteHint {
         NativePresentationRouteHint(id: id)

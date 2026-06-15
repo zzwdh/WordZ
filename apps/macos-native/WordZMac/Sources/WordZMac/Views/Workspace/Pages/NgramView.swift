@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct NgramView: View {
     @Environment(\.wordZLanguageMode) var languageMode

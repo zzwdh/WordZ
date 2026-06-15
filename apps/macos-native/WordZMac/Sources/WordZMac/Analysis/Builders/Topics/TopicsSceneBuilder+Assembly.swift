@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 struct TopicsClusterContrastSummary: Equatable, Sendable {
     let text: String

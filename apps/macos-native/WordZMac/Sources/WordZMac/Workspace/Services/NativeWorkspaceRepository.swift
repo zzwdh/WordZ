@@ -5,8 +5,14 @@ import WordZEngine
 final class NativeWorkspaceRepository: WorkspaceRepository, TopicProgressReportingRepository, LibraryImportProgressReportingRepository, MergedCorpusImportingRepository, LibraryCorpusCleaningProgressReportingRepository, CorpusSetManagingRepository, CorpusSetOpeningRepository, AnalysisPresetManagingRepository, MetadataFilteringLibraryRepository, FullTextSearchingLibraryRepository, StoredTokenizedArtifactReadingRepository, StoredFrequencyArtifactReadingRepository, StoredTokenPositionIndexReadingRepository {
     let core: NativeWorkspaceRepositoryCore
 
-    init(rootURL: URL = EnginePaths.defaultUserDataURL()) {
-        self.core = NativeWorkspaceRepositoryCore(rootURL: rootURL)
+    init(
+        rootURL: URL = EnginePaths.defaultUserDataURL(),
+        seedBundledDefaultReferenceCorpora: Bool = true
+    ) {
+        self.core = NativeWorkspaceRepositoryCore(
+            rootURL: rootURL,
+            seedBundledDefaultReferenceCorpora: seedBundledDefaultReferenceCorpora
+        )
     }
 }
 
@@ -18,6 +24,7 @@ struct StoredSentenceSearchCacheKey: Hashable {
 actor NativeWorkspaceRepositoryCore {
     var rootURL: URL
     var storage: any WorkspaceStorage
+    let seedBundledDefaultReferenceCorpora: Bool
     let analysisRuntime: NativeAnalysisRuntime
     let topicEngine: NativeTopicEngine
     let analysisResultCache = NativeAnalysisResultCache(
@@ -43,9 +50,16 @@ actor NativeWorkspaceRepositoryCore {
     var storedCorpusIDsByTextDigest: [String: String] = [:]
     var storedSentenceSearchCandidateIDsByKey: [StoredSentenceSearchCacheKey: Set<Int>] = [:]
 
-    init(rootURL: URL) {
+    init(
+        rootURL: URL,
+        seedBundledDefaultReferenceCorpora: Bool
+    ) {
         self.rootURL = rootURL
-        self.storage = NativeCorpusStore(rootURL: rootURL)
+        self.seedBundledDefaultReferenceCorpora = seedBundledDefaultReferenceCorpora
+        self.storage = NativeCorpusStore(
+            rootURL: rootURL,
+            seedBundledDefaultReferenceCorpora: seedBundledDefaultReferenceCorpora
+        )
         self.analysisRuntime = NativeAnalysisRuntime()
         self.topicEngine = NativeTopicEngine()
     }

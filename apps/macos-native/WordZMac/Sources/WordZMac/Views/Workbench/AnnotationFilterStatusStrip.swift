@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct AnnotationFilterStatusStrip: View {
     @Environment(\.wordZLanguageMode) private var languageMode

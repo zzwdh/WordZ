@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 struct XLSXWorksheet {
     let name: String

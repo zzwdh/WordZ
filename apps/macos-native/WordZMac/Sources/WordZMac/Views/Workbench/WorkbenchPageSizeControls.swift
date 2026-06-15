@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct WorkbenchGuardedPageSizePicker<PageSize: InteractiveAllPageSizing & CaseIterable & Identifiable & Hashable>: View {
     @Environment(\.wordZLanguageMode) private var languageMode

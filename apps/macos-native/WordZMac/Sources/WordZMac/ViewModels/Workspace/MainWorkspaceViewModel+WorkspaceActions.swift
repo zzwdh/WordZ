@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 private let lifecycleLogger = WordZTelemetry.logger(category: "Lifecycle")
 
 @MainActor

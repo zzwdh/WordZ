@@ -1,6 +1,8 @@
 import Foundation
 import WordZEngine
 
+import WordZWindowing
+import WordZHost
 @MainActor
 struct MainWorkspaceRuntimeDependencyFactory: MainWorkspaceRuntimeDependencyBuilding {
     func make(

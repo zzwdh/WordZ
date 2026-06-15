@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum WorkspaceMainRoute: String, CaseIterable, Identifiable, Hashable {
     case stats = "Stats"

@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 @MainActor
 final class PlotPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisSelectedRowControlling {

@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension WorkspaceResultSceneNodeBuilder {
     func makeTopicsNode(from scene: TopicsSceneModel?) -> WorkspaceResultSceneNode {

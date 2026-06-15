@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+import WordZWindowing
 @MainActor
 final class NativeTaskCenterToolbarProgressCoordinator {
     private weak var window: NSWindow?

@@ -5,7 +5,10 @@ extension NativeWorkspaceRepositoryCore {
         let resolvedRoot = userDataURL ?? rootURL
         if resolvedRoot != rootURL {
             rootURL = resolvedRoot
-            storage = NativeCorpusStore(rootURL: resolvedRoot)
+            storage = NativeCorpusStore(
+                rootURL: resolvedRoot,
+                seedBundledDefaultReferenceCorpora: seedBundledDefaultReferenceCorpora
+            )
             openedCorpusCache = [:]
             corpusInfoCache = [:]
             invalidateStoredFrequencyArtifactCache()

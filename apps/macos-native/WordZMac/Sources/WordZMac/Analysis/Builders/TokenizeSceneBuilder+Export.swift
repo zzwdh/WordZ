@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 extension TokenizeSceneBuilder {
     func buildExportDocument(

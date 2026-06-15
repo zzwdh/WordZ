@@ -1,4 +1,5 @@
 import Foundation
+import WordZExport
 
 extension XLSXExportService {
     static func writeArchiveFiles(snapshot: NativeTableExportSnapshot, into root: URL) throws {

@@ -1,4 +1,6 @@
 import SwiftUI
+import WordZShared
+import WordZWorkbenchUI
 
 struct ChiSquareView: View {
     @Environment(\.wordZLanguageMode) var languageMode

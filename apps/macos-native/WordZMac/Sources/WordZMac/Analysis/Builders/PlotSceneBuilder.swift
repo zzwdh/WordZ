@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 struct PlotSceneBuilder {
     func sortedRows(from result: PlotResult) -> [PlotRow] {

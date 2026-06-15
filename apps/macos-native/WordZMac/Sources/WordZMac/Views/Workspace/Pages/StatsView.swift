@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct StatsView: View {
     @Environment(\.wordZLanguageMode) var languageMode

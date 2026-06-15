@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct CompareView: View {
     @Environment(\.wordZLanguageMode) var languageMode

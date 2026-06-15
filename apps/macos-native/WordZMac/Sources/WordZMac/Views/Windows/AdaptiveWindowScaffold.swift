@@ -1,5 +1,6 @@
 import SwiftUI
 
+import WordZWindowing
 struct AdaptiveWindowScaffold<Content: View>: View {
     let route: NativeWindowRoute
     let content: Content

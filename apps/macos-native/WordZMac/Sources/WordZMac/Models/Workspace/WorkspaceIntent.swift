@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 enum WorkspaceIntent: Equatable, Sendable {
     case importCorpora
     case newWorkspace

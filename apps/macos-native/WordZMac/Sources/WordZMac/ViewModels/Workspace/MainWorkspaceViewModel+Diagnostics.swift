@@ -1,6 +1,8 @@
 import Foundation
 import WordZEngine
 
+import WordZWindowing
+import WordZHost
 @MainActor
 extension MainWorkspaceViewModel {
     func exportDiagnostics(preferredWindowRoute: NativeWindowRoute? = nil) async {

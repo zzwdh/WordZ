@@ -4,7 +4,7 @@ import XCTest
 final class EngineIntegrationTests: XCTestCase {
     @MainActor
     func testNativeWorkspaceRepositoryBootstrapsAgainstNativeUserDataDirectory() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-test",
             isDirectory: true
@@ -28,7 +28,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryLoadsCorpusInfoFromStoredDatabaseMetadata() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-corpus-info-test",
             isDirectory: true
@@ -64,7 +64,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryLoadsStoredFrequencyArtifact() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-frequency-artifact-test",
             isDirectory: true
@@ -96,7 +96,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryPreparesStoredCompareCorporaOnlyWhenContentMatchesStoredDigest() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-compare-artifact-test",
             isDirectory: true
@@ -150,7 +150,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryPreparesStoredKeywordSuiteRequestOnlyWhenContentMatchesStoredDigest() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-keyword-artifact-test",
             isDirectory: true
@@ -225,7 +225,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunTokenizeUsesStoredTokenizedArtifactWithoutRuntimeParse() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-tokenize-artifact-test",
             isDirectory: true
@@ -263,7 +263,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunKeywordSuiteUsesStoredTokenizedArtifactsWithoutRuntimeParse() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-keyword-run-artifact-test",
             isDirectory: true
@@ -329,7 +329,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunKWICExactMatchLoadsStoredPositionIndex() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-kwic-position-index-test",
             isDirectory: true
@@ -374,7 +374,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunLocatorUsesStoredShardContextWithoutRuntimeParse() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-locator-shard-test",
             isDirectory: true
@@ -435,7 +435,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunPlotPhraseExactCachesSentenceCandidatesWithoutRuntimeParse() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-plot-sentence-candidates-test",
             isDirectory: true
@@ -499,7 +499,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunKWICPhraseExactCachesSentenceCandidates() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-kwic-sentence-candidates-test",
             isDirectory: true
@@ -554,7 +554,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testNativeWorkspaceRepositoryRunCollocatePhraseExactUsesStoredSentenceCandidates() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-collocate-sentence-candidates-test",
             isDirectory: true
@@ -606,7 +606,7 @@ final class EngineIntegrationTests: XCTestCase {
 
     @MainActor
     func testSourceReaderViewModelUsesStoredTokenizedArtifactForSavedCorpusWithoutReadingSourceFile() async throws {
-        let repository = NativeWorkspaceRepository()
+        let repository = makeRepository()
         let userDataURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             ".wordz-native-user-data-source-reader-artifact-test",
             isDirectory: true
@@ -667,5 +667,9 @@ final class EngineIntegrationTests: XCTestCase {
         }
 
         await repository.stop()
+    }
+    @MainActor
+    private func makeRepository() -> NativeWorkspaceRepository {
+        NativeWorkspaceRepository(seedBundledDefaultReferenceCorpora: false)
     }
 }

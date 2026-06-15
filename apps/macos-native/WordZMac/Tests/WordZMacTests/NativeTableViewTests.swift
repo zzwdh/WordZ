@@ -1,6 +1,27 @@
 import AppKit
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZExport
+@testable import WordZWorkbenchUI
+
+final class InMemoryNativeTablePasteboard: NativeTablePasteboardWriting {
+    private(set) var string: String?
+
+    func clearContents() -> Int {
+        string = nil
+        return 0
+    }
+
+    func declareTypes(_ newTypes: [NSPasteboard.PasteboardType], owner newOwner: Any?) -> Int {
+        newTypes.count
+    }
+
+    func setString(_ string: String, forType dataType: NSPasteboard.PasteboardType) -> Bool {
+        guard dataType == .string else { return false }
+        self.string = string
+        return true
+    }
+}
 
 final class NativeTableViewTests: XCTestCase {
     func testRowDescriptorKeepsTypedCellValuesBehindStringCompatibility() {
@@ -618,14 +639,12 @@ final class NativeTableViewTests: XCTestCase {
             onSelectionChange: nil,
             onDoubleClick: nil
         )
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        defer { pasteboard.clearContents() }
+        let pasteboard = InMemoryNativeTablePasteboard()
 
         XCTAssertTrue(coordinator.selectCellForCopy(rowID: "alpha", columnID: "year", extending: false))
         XCTAssertTrue(coordinator.copySelectedRowsToPasteboard(pasteboard))
 
-        XCTAssertEqual(pasteboard.string(forType: .string), "年份\n2024")
+        XCTAssertEqual(pasteboard.string, "年份\n2024")
     }
 
     @MainActor

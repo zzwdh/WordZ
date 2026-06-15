@@ -2,6 +2,9 @@ import AppKit
 import Combine
 import Foundation
 
+import WordZWindowing
+import WordZHost
+import WordZShared
 private let menuBarLogger = WordZTelemetry.logger(category: "MenuBar")
 
 @MainActor

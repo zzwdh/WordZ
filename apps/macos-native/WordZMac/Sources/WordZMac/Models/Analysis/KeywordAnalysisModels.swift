@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct Corpus: Equatable, Sendable {
     let id: String

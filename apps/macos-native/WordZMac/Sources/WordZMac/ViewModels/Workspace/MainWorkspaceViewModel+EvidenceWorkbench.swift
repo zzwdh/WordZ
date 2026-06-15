@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 extension MainWorkspaceViewModel {
     func refreshEvidenceItems() async {
         await flowCoordinator.refreshEvidenceItems(features: features)

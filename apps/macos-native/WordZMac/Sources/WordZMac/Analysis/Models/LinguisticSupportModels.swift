@@ -1,5 +1,6 @@
 import Foundation
 import WordZAnalysis
+import WordZShared
 
 typealias TokenScript = WordZAnalysis.TokenScript
 typealias TokenLexicalClass = WordZAnalysis.TokenLexicalClass

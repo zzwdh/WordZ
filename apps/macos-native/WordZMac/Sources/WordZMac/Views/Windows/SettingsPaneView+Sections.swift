@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 extension SettingsPaneView {
     var workspaceSection: some View {

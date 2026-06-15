@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct SentimentDriverCueSummary: Identifiable, Equatable, Codable, Sendable {
     let id: String

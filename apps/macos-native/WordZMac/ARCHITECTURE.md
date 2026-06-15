@@ -19,9 +19,15 @@ and most legacy source that has not yet moved into a narrower target.
 `WordZWorkspaceFeature` owns feature-module activation and page factories for
 workspace verticals that are being split out of core.
 
-`WordZLibraryFeature`, `WordZWorkbenchUI`, `WordZWindowing`, `WordZAnalysis`,
-`WordZStorage`, `WordZEngine`, `WordZHost`, `WordZExport`, `WordZDiagnostics`,
-and `WordZShared` are the target boundaries the app is moving toward.
+`WordZLibraryFeature` owns Library-module activation and the page factory for
+the Library window surface. `WordZAppShell` injects that factory into
+`NativeAppContainer`; `WordZWorkspaceCore` may host the remaining Library bridge
+code until those views and workflows can move without reversing the dependency
+direction.
+
+`WordZWorkbenchUI`, `WordZWindowing`, `WordZAnalysis`, `WordZStorage`,
+`WordZEngine`, `WordZHost`, `WordZExport`, `WordZDiagnostics`, and
+`WordZShared` are the target boundaries the app is moving toward.
 `WordZEngine` now owns native runtime path and JSON support, not a Node process
 transport. New code should move into the narrowest target or source domain that
 can own it without reaching back into the workspace shell.

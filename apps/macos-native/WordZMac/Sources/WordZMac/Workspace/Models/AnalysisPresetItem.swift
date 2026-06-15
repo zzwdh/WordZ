@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct AnalysisPresetItem: Equatable, Identifiable, Sendable {
     let id: String

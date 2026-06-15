@@ -1,4 +1,5 @@
 import Foundation
+import WordZStorage
 
 extension LibraryCatalogStore {
     func backupDatabase(to destinationURL: URL) throws {

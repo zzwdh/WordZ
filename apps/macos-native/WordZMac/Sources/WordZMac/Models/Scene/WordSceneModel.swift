@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum WordSortMode: String, CaseIterable, Identifiable {
     case frequencyDescending

@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct WordZMenuBarScene: Scene {
     @ObservedObject private var workspace: MainWorkspaceViewModel

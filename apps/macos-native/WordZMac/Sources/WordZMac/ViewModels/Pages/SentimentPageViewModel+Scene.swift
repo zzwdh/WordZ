@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension SentimentPageViewModel {
     var selectedSceneRow: SentimentSceneRow? {

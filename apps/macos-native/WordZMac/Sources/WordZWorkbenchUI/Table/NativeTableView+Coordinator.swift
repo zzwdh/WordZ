@@ -1,0 +1,91 @@
+import AppKit
+import WordZExport
+
+extension NativeTableView {
+    package final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+        struct CellSelectionKey: Hashable {
+            let rowID: String
+            let columnID: String
+        }
+
+        struct ReloadOutcome {
+            let mode: NativeTableTelemetry.TableReloadMode
+            let reloadedRowCount: Int
+
+            static let none = ReloadOutcome(mode: .none, reloadedRowCount: 0)
+        }
+
+        var descriptor: NativeTableDescriptor
+        var rows: [NativeTableRowDescriptor]
+        var snapshotVersion: Int?
+        var rowIndexByID: [String: Int]
+        var selectedRowID: String?
+        var onSelectionChange: ((String?) -> Void)?
+        var onDoubleClick: ((String) -> Void)?
+        var onSortByColumn: ((String) -> Void)?
+        var onToggleColumnFromHeader: ((String) -> Void)?
+        var selectedMarkerID: String?
+        var onMarkerSelectionChange: ((String, String?) -> Void)?
+        var allowsMultipleSelection: Bool
+        var isHeaderPinned: Bool
+        var emptyMessage: String
+        var accessibilityLabel: String?
+        var activationHint: String?
+        weak var tableView: NSTableView?
+        weak var containerView: IntrinsicTableContainerView?
+        var hasBuiltColumns = false
+        var selectedRowIDs: Set<String>
+        var selectedCellKeys: Set<CellSelectionKey> = []
+        var isApplyingCellSelection = false
+
+        init(
+            descriptor: NativeTableDescriptor,
+            rows: [NativeTableRowDescriptor],
+            snapshot: ResultTableSnapshot? = nil,
+            selectedRowID: String?,
+            onSelectionChange: ((String?) -> Void)?,
+            onDoubleClick: ((String) -> Void)?,
+            onSortByColumn: ((String) -> Void)? = nil,
+            onToggleColumnFromHeader: ((String) -> Void)? = nil,
+            selectedMarkerID: String? = nil,
+            onMarkerSelectionChange: ((String, String?) -> Void)? = nil,
+            allowsMultipleSelection: Bool = true,
+            isHeaderPinned: Bool = true,
+            emptyMessage: String = "当前没有可显示的数据。",
+            accessibilityLabel: String? = nil,
+            activationHint: String? = nil
+        ) {
+            self.descriptor = descriptor
+            let resolvedRows = snapshot?.rows ?? rows
+            self.rows = resolvedRows
+            self.snapshotVersion = snapshot?.version
+            self.rowIndexByID = snapshot?.rowIndexByID ?? NativeTableRowIndexing.firstIndexByID(resolvedRows)
+            self.selectedRowID = selectedRowID
+            self.onSelectionChange = onSelectionChange
+            self.onDoubleClick = onDoubleClick
+            self.onSortByColumn = onSortByColumn
+            self.onToggleColumnFromHeader = onToggleColumnFromHeader
+            self.selectedMarkerID = selectedMarkerID
+            self.onMarkerSelectionChange = onMarkerSelectionChange
+            self.allowsMultipleSelection = allowsMultipleSelection
+            self.isHeaderPinned = isHeaderPinned
+            self.emptyMessage = emptyMessage
+            self.accessibilityLabel = accessibilityLabel
+            self.activationHint = activationHint
+            if let selectedRowID {
+                self.selectedRowIDs = [selectedRowID]
+            } else {
+                self.selectedRowIDs = []
+            }
+        }
+
+        func attach(tableView: NSTableView) {
+            self.tableView = tableView
+        }
+
+        func attach(tableView: NSTableView, containerView: IntrinsicTableContainerView) {
+            self.tableView = tableView
+            self.containerView = containerView
+        }
+    }
+}

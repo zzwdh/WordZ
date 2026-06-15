@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 extension MainWorkspaceViewModel {
     func emitHostNotification(_ event: HostNotificationEvent) async {

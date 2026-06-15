@@ -1,5 +1,6 @@
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZExport
 
 @MainActor
 final class AnalysisReportBundleServiceTests: XCTestCase {

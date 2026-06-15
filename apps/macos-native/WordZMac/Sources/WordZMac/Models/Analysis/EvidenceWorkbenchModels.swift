@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum EvidenceSourceKind: String, CaseIterable, Identifiable, Codable, Sendable, Equatable {
     case kwic

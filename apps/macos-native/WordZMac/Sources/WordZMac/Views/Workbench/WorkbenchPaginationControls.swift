@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct WorkbenchPaginationControls: View {
     @Environment(\.wordZLanguageMode) private var languageMode

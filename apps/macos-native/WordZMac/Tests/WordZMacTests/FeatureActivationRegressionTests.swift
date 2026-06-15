@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+@testable import WordZLibraryFeature
 @testable import WordZWorkspaceCore
 @testable import WordZWorkspaceFeature
 
@@ -9,6 +10,7 @@ final class FeatureActivationRegressionTests: XCTestCase {
         let workspace = NativeAppContainer(
             makeRepository: { FakeWorkspaceRepository() },
             makeFeaturePages: WordZWorkspaceFeaturePageFactory.makePageBundle,
+            makeLibraryPages: WordZLibraryFeaturePageFactory.makePageBundle,
             makeDialogService: { FakeDialogService() },
             makeHostPreferencesStore: { InMemoryHostPreferencesStore() },
             makeHostActionService: { _ in FakeHostActionService() },
@@ -29,7 +31,9 @@ final class FeatureActivationRegressionTests: XCTestCase {
         XCTAssertEqual(ObjectIdentifier(type(of: workspace.topics)), ObjectIdentifier(TopicsPageViewModel.self))
         XCTAssertEqual(ObjectIdentifier(type(of: workspace.sentiment)), ObjectIdentifier(SentimentPageViewModel.self))
         XCTAssertEqual(ObjectIdentifier(type(of: workspace.evidenceWorkbench)), ObjectIdentifier(EvidenceWorkbenchViewModel.self))
+        XCTAssertEqual(ObjectIdentifier(type(of: workspace.library)), ObjectIdentifier(LibraryManagementViewModel.self))
         XCTAssertEqual(WordZWorkspaceFeatureModule.activationSummary, "topics,sentiment,evidence")
+        XCTAssertEqual(WordZLibraryFeatureModule.activationSummary, "library-management")
     }
 
     func testFeatureFactoryAndRegistryStayAlignedForMigratedVerticals() {
@@ -55,7 +59,9 @@ final class FeatureActivationRegressionTests: XCTestCase {
         let contents = try String(contentsOf: appShellURL, encoding: .utf8)
 
         XCTAssertTrue(contents.contains("WordZWorkspaceFeatureModule.activationSummary"))
+        XCTAssertTrue(contents.contains("WordZLibraryFeatureModule.activationSummary"))
         XCTAssertTrue(contents.contains("makeFeaturePages: WordZWorkspaceFeaturePageFactory.makePageBundle"))
+        XCTAssertTrue(contents.contains("makeLibraryPages: WordZLibraryFeaturePageFactory.makePageBundle"))
         XCTAssertTrue(contents.contains("NativeAppContainer.live("))
     }
 }

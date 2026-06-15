@@ -1,6 +1,7 @@
 import SQLite3
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZStorage
 
 private final class CancellationFlag: @unchecked Sendable {
     private let lock = NSLock()

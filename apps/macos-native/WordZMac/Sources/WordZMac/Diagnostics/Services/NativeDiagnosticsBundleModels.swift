@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 struct NativeDiagnosticsBundleArtifact: Equatable, Sendable {
     let archiveURL: URL
     let workingDirectoryURL: URL

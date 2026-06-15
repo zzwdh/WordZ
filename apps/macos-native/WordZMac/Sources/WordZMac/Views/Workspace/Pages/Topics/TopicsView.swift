@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct TopicsView: View {
     @Environment(\.wordZLanguageMode) var languageMode

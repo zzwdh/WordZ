@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 final class NativeBuildMetadataServiceTests: XCTestCase {
     func testCurrentPrefersPersistedBuildInfoWhenAvailable() throws {
         let tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)

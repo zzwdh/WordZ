@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct WindowAccessor: NSViewRepresentable {
     struct ResolutionKey: Equatable {
         let routeID: String?

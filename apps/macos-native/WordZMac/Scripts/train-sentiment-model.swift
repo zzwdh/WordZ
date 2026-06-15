@@ -561,7 +561,57 @@ enum TrainSentimentModelScript {
         if modelURL.pathExtension == "mlmodelc" {
             return modelURL
         }
-        return try MLModel.compileModel(at: modelURL)
+        do {
+            return try MLModel.compileModel(at: modelURL)
+        } catch {
+            return try compileModelWithCoreMLCompiler(modelURL)
+        }
+    }
+
+    private static func compileModelWithCoreMLCompiler(_ modelURL: URL) throws -> URL {
+        let outputDirectory = modelURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("CompiledModel", isDirectory: true)
+        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+
+        let process = Process()
+        let stderrPipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        process.arguments = ["coremlcompiler", "compile", modelURL.path, outputDirectory.path]
+        process.standardOutput = Pipe()
+        process.standardError = stderrPipe
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            throw NSError(
+                domain: "WordZMac.SentimentTraining.CoreMLCompiler",
+                code: Int(process.terminationStatus),
+                userInfo: [NSLocalizedDescriptionKey: stderr.isEmpty ? "coremlcompiler failed" : stderr]
+            )
+        }
+
+        let compiledName = modelURL.deletingPathExtension().lastPathComponent + ".mlmodelc"
+        let compiledURL = outputDirectory.appendingPathComponent(compiledName, isDirectory: true)
+        if FileManager.default.fileExists(atPath: compiledURL.path) {
+            return compiledURL
+        }
+
+        let compiledModels = try FileManager.default.contentsOfDirectory(
+            at: outputDirectory,
+            includingPropertiesForKeys: nil
+        )
+        if let firstCompiledModel = compiledModels.first(where: { $0.pathExtension == "mlmodelc" }) {
+            return firstCompiledModel
+        }
+
+        throw NSError(
+            domain: "WordZMac.SentimentTraining.CoreMLCompiler",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "coremlcompiler did not produce a compiled model."]
+        )
     }
 
     private static func requiredLoadableModelURL(_ url: URL?) throws -> URL {

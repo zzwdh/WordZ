@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct WorkspaceToolbarAvailabilityContext: Equatable, Sendable {
     let actionEnabled: Bool

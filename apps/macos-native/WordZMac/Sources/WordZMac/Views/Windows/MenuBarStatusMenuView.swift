@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WordZShared
 
 struct MenuBarStatusMenuView: View {
     @Environment(\.wordZLanguageMode) var languageMode

@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 extension CompareSceneBuilder {
     func presentation(for key: CompareColumnKey) -> NativeTableColumnPresentation {

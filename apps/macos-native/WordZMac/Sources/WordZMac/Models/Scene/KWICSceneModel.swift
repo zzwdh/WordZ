@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum KWICSortMode: String, CaseIterable, Identifiable {
     case original

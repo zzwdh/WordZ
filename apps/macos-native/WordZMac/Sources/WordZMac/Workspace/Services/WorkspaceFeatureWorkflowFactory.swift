@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 struct WorkspaceFeatureWorkflowFactory: WorkspaceFeatureWorkflowBuilding {
     func make(

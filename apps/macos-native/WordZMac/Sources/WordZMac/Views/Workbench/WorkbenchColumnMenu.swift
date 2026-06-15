@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 struct WorkbenchColumnMenu<Key: Identifiable>: View {
     @Environment(\.wordZLanguageMode) private var languageMode

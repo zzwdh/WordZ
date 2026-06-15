@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZExport
 struct AnalysisReportBundleTextDocument: Equatable, Sendable {
     let relativePath: String
     let description: String

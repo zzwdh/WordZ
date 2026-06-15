@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 struct SettingsPaneSceneModel: Equatable {
     let workspaceSummary: String
     let buildSummary: String

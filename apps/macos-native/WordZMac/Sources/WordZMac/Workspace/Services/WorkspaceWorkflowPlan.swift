@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 enum WorkspaceStateMutation: Equatable {
     case importCorpora
     case newWorkspace

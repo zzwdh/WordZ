@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum EvidenceWorkbenchMoveDirection: String, Identifiable, Sendable, Hashable {
     case up

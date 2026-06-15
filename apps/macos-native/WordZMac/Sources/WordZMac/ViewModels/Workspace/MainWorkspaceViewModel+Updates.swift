@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 enum NativeUpdateCheckTrigger {
     case manual
     case launch

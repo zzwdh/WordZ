@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 extension LibraryManagementView {
     var libraryReadinessButton: some View {

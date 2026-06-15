@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 private struct TopicSentimentCorpusContext: Equatable, Sendable {
     let corpusID: String?

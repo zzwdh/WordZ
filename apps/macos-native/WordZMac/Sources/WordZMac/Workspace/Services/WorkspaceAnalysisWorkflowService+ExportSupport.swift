@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZExport
 @MainActor
 extension WorkspaceAnalysisWorkflowService {
     func exportTextDocument(

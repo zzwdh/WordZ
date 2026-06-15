@@ -4,6 +4,7 @@ enum LibraryManagementAction: Equatable {
     case refresh
     case importPaths
     case confirmImportPreflight(paths: [String], corpusName: String)
+    case installEnglishReferenceCorpus(EnglishReferenceCorpusKind)
     case showCorpusBuilder
     case createFolder
     case saveCurrentCorpusSet

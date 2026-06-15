@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZHost
+import WordZShared
 struct RootSceneBuildRequest: Equatable {
     let windowTitle: String
     let selectedTab: WorkspaceDetailTab

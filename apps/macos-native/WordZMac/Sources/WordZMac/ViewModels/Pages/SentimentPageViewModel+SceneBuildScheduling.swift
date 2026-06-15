@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension SentimentPageViewModel {
     func rebuildScene(from presentationResult: SentimentPresentationResult) {

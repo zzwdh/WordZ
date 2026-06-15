@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 @MainActor
 extension MainWorkspaceViewModel {
@@ -17,6 +19,10 @@ extension MainWorkspaceViewModel {
         openedCorpusPreviewablePath ?? selectedCorpusPreviewablePath
     }
 
+    var currentQuickLookTarget: CurrentContentTarget? {
+        currentQuickLookTarget(in: sceneGraph, selectedTab: selectedTab)
+    }
+
     var openedCorpusPreviewablePath: String? {
         let trimmedOpenedPath = sessionStore.openedCorpus?.filePath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmedOpenedPath.isEmpty ? nil : trimmedOpenedPath
@@ -25,6 +31,10 @@ extension MainWorkspaceViewModel {
     var selectedCorpusPreviewablePath: String? {
         let trimmedSelectedPath = library.selectedCorpus?.representedPath.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmedSelectedPath.isEmpty ? nil : trimmedSelectedPath
+    }
+
+    var canQuickLookSelectedCorpus: Bool {
+        library.selectedCorpusID != nil || selectedCorpusPreviewablePath != nil
     }
 
     var currentContentTarget: CurrentContentTarget? {
@@ -42,6 +52,30 @@ extension MainWorkspaceViewModel {
 
         guard let path = currentPreviewablePath else { return nil }
         return .file(path)
+    }
+
+    func currentQuickLookTarget(
+        in graph: WorkspaceSceneGraph,
+        selectedTab: WorkspaceDetailTab
+    ) -> CurrentContentTarget? {
+        if let artifact = currentResultArtifact(in: graph, selectedTab: selectedTab),
+           artifact.supports(.preview) {
+            return .resultArtifact(artifact)
+        }
+
+        if let document = openedCorpusTextPreviewDocumentIfNeeded() {
+            return .textDocument(document)
+        }
+
+        if let path = readableCorpusPathForQuickLook() {
+            return .file(path)
+        }
+
+        if let path = currentPreviewablePath {
+            return .file(path)
+        }
+
+        return nil
     }
 
     func preparedPath(for target: CurrentContentTarget) throws -> String {
@@ -64,6 +98,86 @@ extension MainWorkspaceViewModel {
         case .textDocument(let document):
             return try quickLookPreviewFileService.prepare(textDocument: document)
         }
+    }
+
+    func quickLookTargetForSelectedCorpus() async throws -> CurrentContentTarget? {
+        if let path = selectedCorpusPreviewablePath,
+           !needsGeneratedTextPreview(path) {
+            return .file(path)
+        }
+
+        if let document = openedCorpusTextPreviewDocumentIfNeeded(),
+           sessionStore.matchesOpenedCorpusSource(library.selectedCorpusID ?? sidebar.selectedCorpusID) {
+            return .textDocument(document)
+        }
+
+        let selectedCorpusID = library.selectedCorpusID ?? sidebar.selectedCorpusID
+        if selectedCorpusID != nil {
+            let corpus = try await libraryCoordinator.ensureOpenedCorpus(selectedCorpusID: selectedCorpusID)
+            if let document = textPreviewDocument(for: corpus) {
+                return .textDocument(document)
+            }
+        }
+
+        if let path = selectedCorpusPreviewablePath {
+            return .file(path)
+        }
+
+        return nil
+    }
+
+    func openedCorpusTextPreviewDocumentIfNeeded() -> PlainTextExportDocument? {
+        guard let corpus = sessionStore.openedCorpus,
+              needsGeneratedTextPreview(corpus.filePath)
+        else {
+            return nil
+        }
+        return textPreviewDocument(for: corpus)
+    }
+
+    private func readableCorpusPathForQuickLook() -> String? {
+        if let openedPath = openedCorpusPreviewablePath,
+           !needsGeneratedTextPreview(openedPath) {
+            return openedPath
+        }
+
+        if let selectedPath = selectedCorpusPreviewablePath,
+           !needsGeneratedTextPreview(selectedPath) {
+            return selectedPath
+        }
+
+        return nil
+    }
+
+    private func textPreviewDocument(for corpus: OpenedCorpus) -> PlainTextExportDocument? {
+        let content = corpus.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return nil }
+
+        let title = corpus.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? t("语料文本", "Corpus Text")
+            : corpus.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = [
+            t("语料文本", "Corpus Text"),
+            "\(t("语料", "Corpus")): \(title)",
+            "",
+            corpus.content
+        ].joined(separator: "\n")
+
+        return PlainTextExportDocument(
+            suggestedName: "corpus-text-\(title).txt",
+            text: text
+        )
+    }
+
+    private func needsGeneratedTextPreview(_ path: String) -> Bool {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.hasPrefix("wordz://") {
+            return true
+        }
+
+        let pathExtension = URL(fileURLWithPath: trimmed).pathExtension.lowercased()
+        return ["db", "sqlite", "sqlite3"].contains(pathExtension)
     }
 
     func presentQuickLookUnavailableIssue() {

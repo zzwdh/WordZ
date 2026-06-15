@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension TopicsSceneBuilder {
     func clusterTitle(for cluster: TopicClusterSummary, mode: AppLanguageMode) -> String {

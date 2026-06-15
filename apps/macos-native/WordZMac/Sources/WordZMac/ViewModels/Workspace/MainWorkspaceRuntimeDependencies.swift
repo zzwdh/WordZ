@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZHost
 @MainActor
 struct MainWorkspaceRuntimeDependencies {
     let hostActionService: any NativeHostActionServicing

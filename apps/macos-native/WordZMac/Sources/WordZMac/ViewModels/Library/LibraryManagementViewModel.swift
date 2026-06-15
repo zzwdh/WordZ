@@ -1,7 +1,8 @@
 import Foundation
+import WordZShared
 
 @MainActor
-final class LibraryManagementViewModel: ObservableObject {
+package final class LibraryManagementViewModel: ObservableObject {
     @Published var selectedCorpusSetID: String? {
         didSet {
             guard oldValue != selectedCorpusSetID else { return }
@@ -112,6 +113,8 @@ final class LibraryManagementViewModel: ObservableObject {
             requestSceneSync()
         }
     }
+
+    package init() {}
 
     var selectedFolder: LibraryFolderItem? {
         guard let selectedFolderID else { return nil }

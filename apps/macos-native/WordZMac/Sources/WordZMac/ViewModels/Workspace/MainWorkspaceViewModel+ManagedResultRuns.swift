@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 private let resultRunLogger = WordZTelemetry.logger(category: "Analysis")
 

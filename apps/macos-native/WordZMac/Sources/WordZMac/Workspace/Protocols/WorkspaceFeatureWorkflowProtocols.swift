@@ -1,5 +1,7 @@
 import Foundation
 
+import WordZWindowing
+import WordZHost
 @MainActor
 protocol WorkspaceSentimentWorkflowServing {
     func runSentiment(

@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 extension KeywordPageViewModel {
     var selectedTargetCorpusLabel: String {

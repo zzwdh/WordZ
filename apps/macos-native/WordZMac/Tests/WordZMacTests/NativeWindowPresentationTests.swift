@@ -2,6 +2,7 @@ import AppKit
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZWindowing
 @MainActor
 final class NativeWindowPresentationTests: XCTestCase {
     func testNativePlatformCapabilitiesResolvedForMacOS14Baseline() {

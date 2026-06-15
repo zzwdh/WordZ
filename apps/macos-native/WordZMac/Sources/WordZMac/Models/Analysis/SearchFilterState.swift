@@ -1,5 +1,6 @@
 import Foundation
 import WordZAnalysis
+import WordZShared
 
 enum StopwordFilterMode: String, CaseIterable, Identifiable, Codable, Sendable, Hashable {
     case exclude

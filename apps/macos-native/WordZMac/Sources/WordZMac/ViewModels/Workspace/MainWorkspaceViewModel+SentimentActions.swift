@@ -1,5 +1,6 @@
 import Foundation
 
+import WordZWindowing
 @MainActor
 extension MainWorkspaceViewModel {
     func exportSentimentSummary(preferredWindowRoute: NativeWindowRoute? = nil) async {

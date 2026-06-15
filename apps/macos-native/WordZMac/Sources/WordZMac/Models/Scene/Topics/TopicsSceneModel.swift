@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum TopicsColumnKey: String, CaseIterable, Identifiable, Hashable {
     case paragraph

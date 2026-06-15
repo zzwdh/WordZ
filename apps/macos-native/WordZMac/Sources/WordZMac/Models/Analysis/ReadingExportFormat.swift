@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum ReadingExportFormat: String, CaseIterable, Equatable, Hashable, Sendable, Identifiable {
     case concordance

@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import WordZStorage
 
 extension LibraryCatalogStore {
     func loadCorpora(

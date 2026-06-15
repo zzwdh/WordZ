@@ -1,5 +1,7 @@
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct LibraryManagementView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @ObservedObject var viewModel: LibraryManagementViewModel

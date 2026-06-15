@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 final class NativeArchiveBundleExporterTests: XCTestCase {
     func testExportArchiveCopiesSourceIntoDestination() throws {
         let sourceDirectoryURL = makeTemporaryDirectory(prefix: "WordZArchiveExporterSource")

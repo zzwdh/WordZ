@@ -1,5 +1,7 @@
 import SwiftUI
 
+import WordZWindowing
+import WordZShared
 struct MainWorkspaceWindowToolbar: ToolbarContent {
     let toolbar: WorkspaceToolbarSceneModel
     let selectedRoute: WorkspaceMainRoute

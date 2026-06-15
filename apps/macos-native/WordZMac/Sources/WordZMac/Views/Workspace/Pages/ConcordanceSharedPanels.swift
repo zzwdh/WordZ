@@ -1,4 +1,6 @@
 import SwiftUI
+import WordZShared
+import WordZWorkbenchUI
 
 @MainActor
 protocol ConcordanceSavedSetsPanelState: ObservableObject {

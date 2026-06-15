@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 struct SentimentUserLexiconBundleImportOutcome: Equatable {
     let bundle: SentimentUserLexiconBundle

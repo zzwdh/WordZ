@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 typealias JSONObject = [String: Any]
 

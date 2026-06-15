@@ -1,6 +1,7 @@
 import Foundation
 import WordZEngine
 
+import WordZHost
 @MainActor
 extension MainWorkspaceViewModel {
     var currentVersionForUpdateChecks: String {

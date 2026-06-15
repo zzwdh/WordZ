@@ -1,4 +1,5 @@
 import SwiftUI
+import WordZShared
 
 extension LibraryManagementView {
     var libraryPrimaryContentPane: some View {
@@ -81,6 +82,44 @@ extension LibraryManagementView {
                 onBuild: { onAction(.importPaths) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            englishReferenceCorpusPanel
+        }
+    }
+
+    private var englishReferenceCorpusPanel: some View {
+        AdaptiveToolbarSurface {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "books.vertical")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("英文参照语料", "English Reference Corpora"))
+                            .font(.callout.weight(.semibold))
+                        Text(t("按需下载并添加到关键词分析的参照语料集", "Download on demand and add them as keyword reference sets"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                HStack(spacing: 10) {
+                    ForEach(EnglishReferenceCorpusCatalog.all) { item in
+                        Button {
+                            onAction(.installEnglishReferenceCorpus(item.kind))
+                        } label: {
+                            Label(item.shortName, systemImage: item.kind == .bnc1994 ? "text.book.closed" : "book")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .controlSize(.small)
+                        .adaptiveGlassButtonStyle()
+                        .help(item.summary)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
     }
 

@@ -1,6 +1,7 @@
 import AppKit
 import XCTest
 @testable import WordZWorkspaceCore
+import WordZShared
 
 @MainActor
 final class WordZMenuBarControllerTests: XCTestCase {

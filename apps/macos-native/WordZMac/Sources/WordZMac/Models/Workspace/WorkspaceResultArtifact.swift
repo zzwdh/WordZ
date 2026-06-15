@@ -1,4 +1,6 @@
 import Foundation
+import WordZExport
+import WordZShared
 
 enum WorkspaceResultArtifactCapability: String, Hashable, Sendable {
     case copy

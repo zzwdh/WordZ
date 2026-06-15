@@ -1,4 +1,5 @@
 import Foundation
+import WordZShared
 
 enum SentimentReviewFlag: String, CaseIterable, Codable, Sendable {
     case lowMargin

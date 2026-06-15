@@ -1,5 +1,6 @@
 import SwiftUI
 import WordZWindowing
+import WordZShared
 
 package enum WordZCoreAppScenes {
     @MainActor
