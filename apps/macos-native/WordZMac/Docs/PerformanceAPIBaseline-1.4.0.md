@@ -8,7 +8,7 @@ This file tracks the concrete 1.4.0 work that supports the roadmap theme: perfor
 
 ## API Foundation
 
-Status: first implementation landed.
+Status: first implementation landed and focused validation is green.
 
 Implemented:
 
@@ -62,25 +62,14 @@ Validated tests:
 Latest focused validation:
 
 ```sh
-swift test --filter NativeUpdateServiceTests
-swift test --filter NativeDiagnosticsBundleServiceTests
-swift test --filter SettingsTests --filter NativeHostPreferencesStoreTests --filter MainWorkspaceViewModelTests/testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled --filter MainWorkspaceViewModelTests/testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences
+swift test --filter NativeUpdateServiceTests --filter SettingsTests --filter NativeHostPreferencesStoreTests --filter MainWorkspaceViewModelTests/testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled --filter MainWorkspaceViewModelTests/testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences --filter MainWorkspaceViewModelTests/testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene --filter MainWorkspaceViewModelTests/testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled
 ```
 
-Result: 24 total focused tests across the three runs, 0 failures.
-
-Latest API connection validation:
-
-```sh
-swift test --filter NativeUpdateServiceTests
-swift test --filter MainWorkspaceViewModelTests/testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene --filter MainWorkspaceViewModelTests/testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled
-```
-
-Result: 14 API/update focused tests across the two runs, 0 failures.
+Result: 26 focused API/update/settings tests, 0 failures.
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, and first Library refresh optimization captured.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, and first Library refresh optimization captured. The aggregate debug baseline now runs end-to-end outside the managed sandbox.
 
 Existing foundation:
 
@@ -89,48 +78,49 @@ Existing foundation:
 - previous topic benchmark work established the expected before/after quality comparison pattern
 - `Scripts/run-1.4-performance-baseline.sh` now aggregates fixed topic, sentiment, fixed user fixture, bundled reference-corpus fixture, Library/import, and optional external user corpus reports
 
-Latest fixed run:
+Latest aggregate fixed run:
 
 - Date: 2026-06-16
+- Generated at: 2026-06-16T15:42:30Z
 - Output directory: `.build/reports/1.4.0`
 - Hardware summary: `appleSilicon`, Metal available, ANE available, 10 active processors, 24576 MB memory, low power off, thermal nominal.
-- Topic exact fixture: `three-theme-exact-300`, 4225.0 ms, purity 1.000, theme recall 1.000, 3 clusters.
-- Topic approximate fixture: `three-theme-approx-450`, 2765.2 ms, purity 1.000, theme recall 1.000, 3 clusters.
+- Topic exact fixture: `three-theme-exact-300`, 4217.0 ms, purity 1.000, theme recall 1.000, 3 clusters.
+- Topic approximate fixture: `three-theme-approx-450`, 2802.0 ms, purity 1.000, theme recall 1.000, 3 clusters.
 - Sentiment mixed baseline: `sentiment-gold-v2`, 72 examples, accuracy 0.833, macro F1 0.834, neutral false positive rate 0.229.
 - Sentiment news-focused baseline: `sentiment-gold-v3`, 18 examples, accuracy 0.944, macro F1 0.944, neutral false positive rate 0.000.
 - Large-result UI boundary suite: 19 tests passed, covering rapid paging, sorting, filtering, column visibility, visible-row reloads, and latest-scene application across major analysis pages.
 - Fixed user fixture repeat baseline: `user-benchmark-sample.txt`, 3/3 successful runs, 827 characters, 4 lines.
-- Fixed user fixture total duration: p50 43.8 ms, p95 73.4 ms, min 36.7 ms, max 76.7 ms.
+- Fixed user fixture total duration: p50 44.8 ms, p95 78.9 ms, min 42.8 ms, max 82.7 ms.
 - Fixed user fixture stage durations:
-  - Topics: p50 26.4 ms, p95 31.9 ms.
-  - Sentiment: p50 5.5 ms, p95 10.1 ms.
-  - KWIC smoke: p50 0.5 ms, p95 0.5 ms.
+  - Topics: p50 32.2 ms, p95 32.7 ms.
+  - Sentiment: p50 5.7 ms, p95 9.9 ms.
+  - KWIC smoke: p50 0.6 ms, p95 0.6 ms.
 - Bundled reference corpus repeat baseline: `reference-benchmark-corpus.txt`, generated from 12 bundled ToRCH2014 segmented files, 3/3 successful runs, 38,952 characters, 181 lines.
-- Bundled reference corpus total duration: p50 4377.6 ms, p95 4387.8 ms.
+- Bundled reference corpus total duration: p50 4229.1 ms, p95 4335.7 ms.
 - Bundled reference corpus stage durations:
-  - Topics: p50 3660.1 ms, p95 3675.5 ms, 345 segments, 238 clustered segments, 13 clusters, `approximateRefined`.
-  - Sentiment: p50 346.1 ms, p95 360.0 ms, 505 rows.
-  - Parse document: p50 305.7 ms, p95 320.8 ms.
-  - KWIC smoke: p50 15.3 ms, p95 15.4 ms, 178 rows.
+  - Topics: p50 3501.1 ms, p95 3630.5 ms, 345 segments, 238 clustered segments, 13 clusters, `approximateRefined`.
+  - Sentiment: p50 348.1 ms, p95 355.1 ms, 505 rows.
+  - Parse document: latest run 302.3 ms.
+  - KWIC smoke: p50 15.2 ms, p95 15.3 ms, 178 rows.
 - Library/import repeat baseline: `library-baseline.json`, 3/3 successful runs.
 - Library/import input:
   - Real import/index: 24 generated TXT files, 1,200 characters each, 28,800 generated characters total.
   - Synthetic Library scene: 1,200 corpora, 32 folders, 24 corpus sets.
 - Library/import stage durations:
-  - Store initialization: p50 16.0 ms, p95 28.6 ms.
-  - Import/index: p50 406.4 ms, p95 458.2 ms, 24 imported corpora per run, 0 skipped.
+  - Store initialization: p50 15.7 ms, p95 16.3 ms.
+  - Import/index: p50 418.7 ms, p95 446.8 ms, 24 imported corpora per run, 0 skipped.
   - `listLibrary`: p50 0.1 ms, p95 0.2 ms.
-  - `listLibrary` search: p50 0.8 ms, p95 1.2 ms.
-  - Library scene open: p50 112.9 ms, p95 144.1 ms.
-  - Library scene refresh after duplicate-snapshot guard: p50 0.002 ms, p95 0.003 ms.
-  - Library scene search: p50 28.8 ms, p95 30.4 ms.
-  - Library folder switch: p50 3.6 ms, p95 3.7 ms.
-  - Library selection update: p50 11.4 ms, p95 12.1 ms.
+  - `listLibrary` search: p50 1.0 ms, p95 1.2 ms.
+  - Library scene open: p50 123.3 ms, p95 153.1 ms.
+  - Library scene refresh after duplicate-snapshot guard: p50 0.001 ms, p95 0.003 ms.
+  - Library scene search: p50 28.9 ms, p95 29.5 ms.
+  - Library folder switch: p50 3.8 ms, p95 3.9 ms.
+  - Library selection update: p50 12.0 ms, p95 12.4 ms.
 - Current slowest measured paths from the bundled reference corpus:
-  1. Topics, p95 3675.5 ms.
-  2. Library import/index, p95 458.2 ms.
-  3. Sentiment, p95 360.0 ms.
-  4. Parse document, p95 320.8 ms.
+  1. Topics, p95 3630.5 ms.
+  2. Library import/index, p95 446.8 ms.
+  3. Sentiment, p95 355.1 ms.
+  4. Parse document, latest run 302.3 ms.
 
 Optimization notes:
 
@@ -145,6 +135,7 @@ Optimization notes:
 Validated baseline commands:
 
 ```sh
+zsh Scripts/run-1.4-performance-baseline.sh
 swift test --filter TopicBenchmarkTests
 swift test --filter SentimentBenchmarkTests
 swift test --filter SentimentBenchmarkReportTests
@@ -155,12 +146,12 @@ swift test --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBas
 swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishingUnchangedSceneSyncs --filter ViewModelsTests/testLibraryManagementViewModelAppliesInitialEmptyLibrarySnapshotOnce
 ```
 
-Note: in the current managed Codex sandbox, the aggregate shell entrypoint is blocked because nested `swift test` calls inside `zsh Scripts/run-1.4-performance-baseline.sh` attempt to write SwiftPM/clang cache state outside the writable workspace. The underlying benchmark commands above ran successfully and produced the JSON reports in `.build/reports/1.4.0`.
+Note: the aggregate shell entrypoint was run outside the managed sandbox because nested `swift test` calls write SwiftPM/clang cache state outside the writable workspace. The generated reports are ignored under `.build/reports/1.4.0`.
 
 Next required work:
 
 - compare quality-sensitive outputs before and after performance changes
-- run the aggregate baseline on a release machine outside the managed sandbox
+- run the aggregate performance report with release/build-package conditions before tagging
 - optimize Topics first, then compare Library import/index versus Sentiment before choosing the second optimization target
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 
@@ -184,8 +175,8 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next Performance Work
 
-1. Run the aggregate performance report on a release machine outside the managed sandbox.
+1. Run the aggregate performance report with release/build-package conditions before tagging.
 2. Optimize Topics with before/after quality comparison.
-3. Choose the next target between Library import/index and Sentiment using release-machine p95, because their debug p95 values are effectively tied.
-4. Keep Library scene open under watch; current debug p95 is about 144 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
+3. Choose the next target between Library import/index and Sentiment using release/build-package p95, because their debug p95 values remain close.
+4. Keep Library scene open under watch; current debug p95 is about 153 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
 5. Keep every performance change tied to a measurable baseline entry.
