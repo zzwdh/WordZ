@@ -11,6 +11,11 @@ struct SettingsPaneSceneModel: Equatable {
     let recentDocuments: [RecentDocumentItem]
     let userDataDirectory: String
     let updateSummary: String
+    let apiSummary: String
+    let apiCredentialStatus: String
+    let apiCredentialConfigured: Bool
+    let apiRequestTimeoutLabel: String
+    let apiMaxConcurrentRequestsLabel: String
     let supportStatus: String
     let latestVersionLabel: String
     let latestReleaseTitle: String
@@ -34,6 +39,11 @@ struct SettingsPaneSceneModel: Equatable {
         recentDocuments: [],
         userDataDirectory: "",
         updateSummary: l10n("尚未检查更新。", table: "Errors", mode: .system, fallback: "No update check has run yet."),
+        apiSummary: l10n("联网 API 可用。", table: "Errors", mode: .system, fallback: "Network API access is available."),
+        apiCredentialStatus: l10n("未保存 API 凭据。", table: "Errors", mode: .system, fallback: "No API credential saved."),
+        apiCredentialConfigured: false,
+        apiRequestTimeoutLabel: "10 秒",
+        apiMaxConcurrentRequestsLabel: "2",
         supportStatus: l10n("准备就绪", table: "Errors", mode: .system, fallback: "Ready"),
         latestVersionLabel: l10n("未知", mode: .system, fallback: "Unknown"),
         latestReleaseTitle: "",

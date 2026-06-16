@@ -311,22 +311,6 @@ extension NativeWorkspaceRepository {
         try await core.deleteConcordanceSavedSet(setID: setID)
     }
 
-    func listEvidenceItems() async throws -> [EvidenceItem] {
-        try await core.listEvidenceItems()
-    }
-
-    func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem {
-        try await core.saveEvidenceItem(item)
-    }
-
-    func deleteEvidenceItem(itemID: String) async throws {
-        try await core.deleteEvidenceItem(itemID: itemID)
-    }
-
-    func replaceEvidenceItems(_ items: [EvidenceItem]) async throws {
-        try await core.replaceEvidenceItems(items)
-    }
-
     func listSentimentReviewSamples() async throws -> [SentimentReviewSample] {
         try await core.listSentimentReviewSamples()
     }

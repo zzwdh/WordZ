@@ -18,7 +18,7 @@ extension WorkspaceAnalysisWorkflowService {
             features.sidebar.setError(wordZText("当前没有可保存的 KWIC 命中行。", "There are no KWIC hit rows available to save.", mode: .system))
             return
         }
-        guard let corpus = currentOpenedScopeCorpus(features: features) else {
+        guard let source = currentOpenedConcordanceSource(features: features) else {
             features.sidebar.setError(wordZText("当前 KWIC 没有关联语料。", "The current KWIC result is not attached to a corpus.", mode: .system))
             return
         }
@@ -39,8 +39,8 @@ extension WorkspaceAnalysisWorkflowService {
             id: UUID().uuidString,
             name: name,
             kind: .kwic,
-            corpusID: corpus.id,
-            corpusName: corpus.name,
+            corpusID: source.id,
+            corpusName: source.name,
             query: scene.query,
             sourceSentenceId: nil,
             leftWindow: scene.leftWindow,

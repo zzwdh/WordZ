@@ -87,6 +87,25 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
             taskHistory: [persistedTaskItem],
             workspaceDraft: WorkspaceStateDraft.empty,
             uiSettings: UISettingsSnapshot(showWelcomeScreen: true, restoreWorkspace: true, debugLogging: true),
+            apiRequests: [
+                NativeDiagnosticsAPIRequestMetadata(
+                    requestID: "api-request-1",
+                    method: "GET",
+                    host: "api.example.com",
+                    path: "/v1/search?query=full-user-corpus&token=query-token",
+                    statusCode: 429,
+                    durationMilliseconds: 184,
+                    attemptCount: 2,
+                    headers: [
+                        "Authorization": "Bearer secret-token",
+                        "X-Api-Key": "secret-key",
+                        "X-Trace-Token": "trace-token",
+                        "Content-Type": "application/json"
+                    ],
+                    cacheState: "miss",
+                    outcome: "rateLimited"
+                )
+            ],
             generatedFiles: [
                 NativeDiagnosticsBundleGeneratedFile(
                     data: Data("{\"downloadedUpdatePath\":\"<redacted>/WordZ.dmg\"}".utf8),
@@ -129,6 +148,7 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("ui-settings.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("host-preferences.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("task-history.json").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("api-requests.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("runtime-context.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("persisted/workspace-snapshot.json").path))
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("persisted/native-host-preferences.json").path))
@@ -136,11 +156,27 @@ final class NativeDiagnosticsBundleServiceTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: bundleDirectoryURL.appendingPathComponent("logs/startup-crash.log").path))
         let persistedHostPreferencesData = try Data(contentsOf: bundleDirectoryURL.appendingPathComponent("persisted/native-host-preferences.json"))
         XCTAssertTrue(String(decoding: persistedHostPreferencesData, as: UTF8.self).contains("<redacted>/WordZ.dmg"))
+        let apiRequestsData = try Data(contentsOf: bundleDirectoryURL.appendingPathComponent("api-requests.json"))
+        let apiRequestsText = String(decoding: apiRequestsData, as: UTF8.self)
+        let apiRequests = try JSONDecoder().decode([NativeDiagnosticsAPIRequestMetadata].self, from: apiRequestsData)
+        let apiRequest = try XCTUnwrap(apiRequests.first)
+        XCTAssertEqual(apiRequest.host, "api.example.com")
+        XCTAssertEqual(apiRequest.path, "/v1/search")
+        XCTAssertEqual(apiRequest.headers["Authorization"], "[redacted]")
+        XCTAssertEqual(apiRequest.headers["X-Api-Key"], "[redacted]")
+        XCTAssertEqual(apiRequest.headers["X-Trace-Token"], "[redacted]")
+        XCTAssertEqual(apiRequest.headers["Content-Type"], "application/json")
+        XCTAssertFalse(apiRequestsText.contains("Bearer secret-token"))
+        XCTAssertFalse(apiRequestsText.contains("secret-key"))
+        XCTAssertFalse(apiRequestsText.contains("trace-token"))
+        XCTAssertFalse(apiRequestsText.contains("full-user-corpus"))
+        XCTAssertFalse(apiRequestsText.contains("query-token"))
 
         let manifestData = try Data(contentsOf: bundleDirectoryURL.appendingPathComponent("manifest.json"))
         let manifestObject = try XCTUnwrap(JSONSerialization.jsonObject(with: manifestData) as? [String: Any])
         let includedFiles = try XCTUnwrap(manifestObject["includedFiles"] as? [[String: Any]])
         let includedPaths = includedFiles.compactMap { $0["path"] as? String }
+        XCTAssertTrue(includedPaths.contains("api-requests.json"))
         XCTAssertTrue(includedPaths.contains("diagnostics.txt"))
         XCTAssertTrue(includedPaths.contains("persisted/native-host-preferences.json"))
         XCTAssertTrue(includedPaths.contains("persisted/workspace-snapshot.json"))

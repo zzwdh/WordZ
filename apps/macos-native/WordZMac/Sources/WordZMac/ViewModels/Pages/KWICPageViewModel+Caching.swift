@@ -3,15 +3,18 @@ import Foundation
 extension KWICPageViewModel {
     func resolvedFilteredRows(for result: KWICResult) -> [KWICRow] {
         if let cachedFilteredRows,
-           cachedStopwordFilter == stopwordFilter {
+           cachedStopwordFilter == stopwordFilter,
+           cachedSourceFilterQuery == sourceFilterQuery {
             return cachedFilteredRows
         }
         let filteredRows = sceneBuilder.filterRows(
             from: result.rows,
-            stopwordFilter: stopwordFilter
+            stopwordFilter: stopwordFilter,
+            sourceFilterQuery: sourceFilterQuery
         )
         cachedFilteredRows = filteredRows
         cachedStopwordFilter = stopwordFilter
+        cachedSourceFilterQuery = sourceFilterQuery
         invalidateSortedRowsCache()
         return filteredRows
     }
@@ -30,6 +33,7 @@ extension KWICPageViewModel {
     func invalidateCaches() {
         cachedFilteredRows = nil
         cachedStopwordFilter = .default
+        cachedSourceFilterQuery = ""
         invalidateSortedRowsCache()
     }
 

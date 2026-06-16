@@ -14,7 +14,7 @@ extension MainWorkspaceViewModel {
         hasScheduledLaunchUpdateWorkflow = true
 
         let shouldPresentDownloadedUpdate = settings.scene.canInstallDownloadedUpdate
-        let shouldCheckOnLaunch = settings.autoUpdateEnabled && settings.checkForUpdatesOnLaunch
+        let shouldCheckOnLaunch = settings.apiAccessEnabled && settings.autoUpdateEnabled && settings.checkForUpdatesOnLaunch
         guard shouldPresentDownloadedUpdate || shouldCheckOnLaunch else { return }
 
         launchUpdateCheckTask?.cancel()
@@ -34,6 +34,7 @@ extension MainWorkspaceViewModel {
         trigger: NativeUpdateCheckTrigger = .manual
     ) async {
         guard !isRunningUpdateCheck else { return }
+        guard canRunNetworkAPIAction() else { return }
         if cancelPendingLaunchTask {
             launchUpdateCheckTask?.cancel()
         }
@@ -99,6 +100,7 @@ extension MainWorkspaceViewModel {
     }
 
     func downloadLatestUpdate() async {
+        guard canRunNetworkAPIAction() else { return }
         if let latestCheckedUpdate {
             await downloadLatestUpdate(using: latestCheckedUpdate)
             return

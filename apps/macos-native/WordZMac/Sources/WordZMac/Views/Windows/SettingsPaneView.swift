@@ -59,6 +59,8 @@ struct SettingsPaneView: View {
             appearanceSection
         case .updates:
             updatesSection
+        case .api:
+            apiSection
         case .recent:
             recentSection
         case .support:

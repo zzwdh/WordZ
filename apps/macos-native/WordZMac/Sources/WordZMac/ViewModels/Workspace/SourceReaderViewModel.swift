@@ -8,9 +8,6 @@ final class SourceReaderViewModel: ObservableObject {
     @Published private(set) var launchContext: SourceReaderLaunchContext?
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
-    @Published var captureCitationFormat: EvidenceCitationFormat = .citationLine
-    @Published var captureCitationStyle: EvidenceCitationStyle = .plain
-    @Published var captureNote = ""
 
     private var tokenizedSentences: [TokenizedSentence] = []
     private var tokenizedSentencesByID: [Int: TokenizedSentence] = [:]
@@ -21,11 +18,6 @@ final class SourceReaderViewModel: ObservableObject {
     private var cachedSentenceItems: [SourceReaderSentenceSceneItem] = []
     private var selectedHitID: String?
     private var annotationState = WorkspaceAnnotationState.default
-
-    var canAddEvidence: Bool {
-        guard let origin = launchContext?.origin else { return false }
-        return origin == .kwic || origin == .locator || origin == .plot || origin == .sentiment || origin == .topics
-    }
 
     var canSelectPreviousHit: Bool {
         guard let selectedHitID,
@@ -84,14 +76,6 @@ final class SourceReaderViewModel: ObservableObject {
         return PlainTextExportDocument(
             suggestedName: "source-reader-current.txt",
             text: text
-        )
-    }
-
-    var currentEvidenceCaptureDraft: EvidenceCaptureDraft {
-        EvidenceCaptureDraft(
-            citationFormat: captureCitationFormat,
-            citationStyle: captureCitationStyle,
-            note: captureNote
         )
     }
 

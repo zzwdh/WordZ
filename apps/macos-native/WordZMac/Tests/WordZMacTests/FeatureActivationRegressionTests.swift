@@ -30,9 +30,8 @@ final class FeatureActivationRegressionTests: XCTestCase {
 
         XCTAssertEqual(ObjectIdentifier(type(of: workspace.topics)), ObjectIdentifier(TopicsPageViewModel.self))
         XCTAssertEqual(ObjectIdentifier(type(of: workspace.sentiment)), ObjectIdentifier(SentimentPageViewModel.self))
-        XCTAssertEqual(ObjectIdentifier(type(of: workspace.evidenceWorkbench)), ObjectIdentifier(EvidenceWorkbenchViewModel.self))
         XCTAssertEqual(ObjectIdentifier(type(of: workspace.library)), ObjectIdentifier(LibraryManagementViewModel.self))
-        XCTAssertEqual(WordZWorkspaceFeatureModule.activationSummary, "topics,sentiment,evidence")
+        XCTAssertEqual(WordZWorkspaceFeatureModule.activationSummary, "topics,sentiment")
         XCTAssertEqual(WordZLibraryFeatureModule.activationSummary, "library-management")
     }
 
@@ -40,10 +39,9 @@ final class FeatureActivationRegressionTests: XCTestCase {
         let bundle = WordZWorkspaceFeaturePageFactory.makePageBundle()
         let handles = WorkspaceFeaturePageHandles(bundle: bundle)
 
-        XCTAssertEqual(WordZWorkspaceFeatureModule.activatedVerticals, [.topics, .sentiment, .evidence])
+        XCTAssertEqual(WordZWorkspaceFeatureModule.activatedVerticals, [.topics, .sentiment])
         XCTAssertTrue(handles.topics === bundle.topics)
         XCTAssertTrue(handles.sentiment === bundle.sentiment)
-        XCTAssertTrue(handles.evidenceWorkbench === bundle.evidenceWorkbench)
         XCTAssertEqual(
             WorkspaceFeatureRegistry.descriptors.filter { [.topics, .sentiment].contains($0.route) }.map(\.route),
             [.topics, .sentiment]

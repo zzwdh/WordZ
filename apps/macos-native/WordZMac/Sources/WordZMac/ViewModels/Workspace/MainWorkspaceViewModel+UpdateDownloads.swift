@@ -10,6 +10,8 @@ extension MainWorkspaceViewModel {
             return
         }
 
+        guard canRunNetworkAPIAction() else { return }
+
         if let latestCheckedUpdate {
             await downloadLatestUpdate(using: latestCheckedUpdate, installAfterDownload: true)
             return
@@ -95,6 +97,7 @@ extension MainWorkspaceViewModel {
         installAfterDownload: Bool = false
     ) async {
         guard !isRunningUpdateDownload else { return }
+        guard canRunNetworkAPIAction() else { return }
         guard checkedResult.updateAvailable else {
             settings.setSupportStatus(checkedResult.statusMessage)
             return

@@ -181,7 +181,6 @@ final class WorkspaceSessionWorkflowService {
         features.topics.apply(workspaceSnapshot)
         features.compare.apply(workspaceSnapshot)
         features.sentiment.apply(workspaceSnapshot)
-        features.evidenceWorkbench.apply(workspaceSnapshot)
         features.keyword.apply(workspaceSnapshot)
         features.chiSquare.apply(workspaceSnapshot)
         features.plot.apply(workspaceSnapshot)

@@ -17,6 +17,9 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
                 checkForUpdatesOnLaunch: false,
                 autoDownloadUpdates: true,
                 autoInstallDownloadedUpdates: true,
+                apiAccessEnabled: false,
+                apiRequestTimeoutSeconds: 30,
+                apiMaxConcurrentRequests: 3,
                 showMenuBarIcon: false,
                 recentDocuments: [],
                 lastUpdateCheckAt: "",
@@ -51,6 +54,9 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
         XCTAssertEqual(recentSnapshot.recentDocuments.count, 1)
         XCTAssertEqual(store.load().recentDocuments.first?.corpusID, "corpus-1")
         XCTAssertFalse(store.load().autoUpdateEnabled)
+        XCTAssertFalse(store.load().apiAccessEnabled)
+        XCTAssertEqual(store.load().apiRequestTimeoutSeconds, 30)
+        XCTAssertEqual(store.load().apiMaxConcurrentRequests, 3)
         XCTAssertTrue(store.load().autoInstallDownloadedUpdates)
         XCTAssertFalse(store.load().showMenuBarIcon)
         XCTAssertEqual(store.load().languageMode, .system)
@@ -84,6 +90,9 @@ final class NativeHostPreferencesStoreTests: XCTestCase {
 
         XCTAssertEqual(store.load().languageMode, .system)
         XCTAssertTrue(store.load().showMenuBarIcon)
+        XCTAssertTrue(store.load().apiAccessEnabled)
+        XCTAssertEqual(store.load().apiRequestTimeoutSeconds, 10)
+        XCTAssertEqual(store.load().apiMaxConcurrentRequests, 2)
     }
 
     func testLoadFillsDefaultUpdateStatusWhenLegacyPayloadOmitsField() throws {

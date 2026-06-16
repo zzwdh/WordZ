@@ -27,6 +27,35 @@ enum NativeDiagnosticsRedactionSupport {
         }
         return "\(redactedPrefix)/\(lastComponent)"
     }
+
+    static func redactAPIHeaders(_ headers: [String: String]) -> [String: String] {
+        NativeAPIClient.redactedHeaders(headers)
+    }
+
+    static func redactAPIPath(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "/" }
+        let pathOnly = trimmed.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).first
+            .map(String.init) ?? trimmed
+        return pathOnly.isEmpty ? "/" : pathOnly
+    }
+}
+
+extension NativeDiagnosticsAPIRequestMetadata {
+    func redactedForDiagnostics() -> NativeDiagnosticsAPIRequestMetadata {
+        NativeDiagnosticsAPIRequestMetadata(
+            requestID: requestID,
+            method: method,
+            host: host,
+            path: NativeDiagnosticsRedactionSupport.redactAPIPath(path),
+            statusCode: statusCode,
+            durationMilliseconds: durationMilliseconds,
+            attemptCount: attemptCount,
+            headers: NativeDiagnosticsRedactionSupport.redactAPIHeaders(headers),
+            cacheState: cacheState,
+            outcome: outcome
+        )
+    }
 }
 
 extension RecentDocumentItem {
@@ -78,6 +107,10 @@ extension NativeHostPreferencesSnapshot {
             checkForUpdatesOnLaunch: checkForUpdatesOnLaunch,
             autoDownloadUpdates: autoDownloadUpdates,
             autoInstallDownloadedUpdates: autoInstallDownloadedUpdates,
+            apiAccessEnabled: apiAccessEnabled,
+            apiRequestTimeoutSeconds: apiRequestTimeoutSeconds,
+            apiMaxConcurrentRequests: apiMaxConcurrentRequests,
+            showMenuBarIcon: showMenuBarIcon,
             recentDocuments: recentDocuments.map { $0.redactedForDiagnostics() },
             lastUpdateCheckAt: lastUpdateCheckAt,
             lastUpdateStatus: lastUpdateStatus,
@@ -149,7 +182,6 @@ extension NativeDiagnosticsStorageSnapshot {
             analysisPresetCount: analysisPresetCount,
             keywordSavedListCount: keywordSavedListCount,
             concordanceSavedSetCount: concordanceSavedSetCount,
-            evidenceItemCount: evidenceItemCount,
             sentimentReviewSampleCount: sentimentReviewSampleCount,
             corpusShardFileCount: corpusShardFileCount,
             recycleFileCount: recycleFileCount,

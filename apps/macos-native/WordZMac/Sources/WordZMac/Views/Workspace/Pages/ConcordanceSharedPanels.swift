@@ -270,6 +270,12 @@ struct ConcordanceSavedSetsSection<ViewModel: ConcordanceSavedSetsPanelState>: V
             )
             switch kind {
             case .kwic:
+                if let sourceSummary = savedSetRowSourceSummary(row) {
+                    Text(sourceSummary)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
                 Text(row.citationText)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -286,6 +292,21 @@ struct ConcordanceSavedSetsSection<ViewModel: ConcordanceSavedSetsPanelState>: V
                     .textSelection(.enabled)
             }
         }
+    }
+
+    private func savedSetRowSourceSummary(_ row: ConcordanceSavedSetRow) -> String? {
+        let source = [row.sourceTitle, row.sourceFileName, row.sourceID]
+            .compactMap { value -> String? in
+                guard let value else { return nil }
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            }
+            .first
+        guard let source else { return nil }
+        if let sourceSentenceId = row.sourceSentenceId {
+            return "\(t("来源", "Source")) \(source) · \(t("位置", "Position")) \(sourceSentenceId + 1)"
+        }
+        return "\(t("来源", "Source")) \(source)"
     }
 
     @ViewBuilder

@@ -5,8 +5,7 @@ enum WorkspaceFeatureSetDefaultPages {
     static func bundle() -> WorkspaceFeaturePageBundle {
         WorkspaceFeaturePageBundle(
             topics: TopicsPageViewModel.makeFeaturePage(),
-            sentiment: SentimentPageViewModel.makeFeaturePage(),
-            evidenceWorkbench: EvidenceWorkbenchViewModel.makeFeaturePage()
+            sentiment: SentimentPageViewModel.makeFeaturePage()
         )
     }
 
@@ -20,8 +19,4 @@ enum WorkspaceFeatureSetDefaultPages {
         SentimentPageViewModel.makeFeaturePage()
     }
 
-    @MainActor
-    static func evidenceWorkbench() -> any WorkspaceEvidenceWorkbenchState {
-        EvidenceWorkbenchViewModel.makeFeaturePage()
-    }
 }

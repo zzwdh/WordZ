@@ -89,8 +89,6 @@ if [[ "$REPORT_OUTPUT_PATH" != /* ]]; then
 fi
 
 mkdir -p "$(dirname "$REPORT_OUTPUT_PATH")"
-mkdir -p "${ROOT_DIR}/.build/clang-module-cache"
-export CLANG_MODULE_CACHE_PATH="${ROOT_DIR}/.build/clang-module-cache"
 cd "$ROOT_DIR"
 
 SWIFT_CONFIGURATION_ARGS=()

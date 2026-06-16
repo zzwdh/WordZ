@@ -72,10 +72,6 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var listConcordanceSavedSetsCallCount = 0
     var saveConcordanceSavedSetCallCount = 0
     var deleteConcordanceSavedSetCallCount = 0
-    var listEvidenceItemsCallCount = 0
-    var saveEvidenceItemCallCount = 0
-    var deleteEvidenceItemCallCount = 0
-    var replaceEvidenceItemsCallCount = 0
     var listSentimentReviewSamplesCallCount = 0
     var saveSentimentReviewSampleCallCount = 0
     var deleteSentimentReviewSampleCallCount = 0
@@ -85,7 +81,6 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var analysisPresetItems: [AnalysisPresetItem] = []
     var keywordSavedLists: [KeywordSavedList] = []
     var concordanceSavedSets: [ConcordanceSavedSet] = []
-    var evidenceItems: [EvidenceItem] = []
     var sentimentReviewSamples: [SentimentReviewSample] = []
 
     var bootstrapState: WorkspaceBootstrapState
@@ -143,10 +138,6 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var listConcordanceSavedSetsError: Error?
     var saveConcordanceSavedSetError: Error?
     var deleteConcordanceSavedSetError: Error?
-    var listEvidenceItemsError: Error?
-    var saveEvidenceItemError: Error?
-    var deleteEvidenceItemError: Error?
-    var replaceEvidenceItemsError: Error?
     var listSentimentReviewSamplesError: Error?
     var saveSentimentReviewSampleError: Error?
     var deleteSentimentReviewSampleError: Error?
@@ -766,35 +757,6 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
         concordanceSavedSets.removeAll { $0.id == setID }
     }
 
-    func listEvidenceItems() async throws -> [EvidenceItem] {
-        listEvidenceItemsCallCount += 1
-        if let listEvidenceItemsError { throw listEvidenceItemsError }
-        return evidenceItems
-    }
-
-    func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem {
-        saveEvidenceItemCallCount += 1
-        if let saveEvidenceItemError { throw saveEvidenceItemError }
-        if let existingIndex = evidenceItems.firstIndex(where: { $0.id == item.id }) {
-            evidenceItems[existingIndex] = item
-        } else {
-            evidenceItems.insert(item, at: 0)
-        }
-        return item
-    }
-
-    func deleteEvidenceItem(itemID: String) async throws {
-        deleteEvidenceItemCallCount += 1
-        if let deleteEvidenceItemError { throw deleteEvidenceItemError }
-        evidenceItems.removeAll { $0.id == itemID }
-    }
-
-    func replaceEvidenceItems(_ items: [EvidenceItem]) async throws {
-        replaceEvidenceItemsCallCount += 1
-        if let replaceEvidenceItemsError { throw replaceEvidenceItemsError }
-        evidenceItems = items
-    }
-
     func listSentimentReviewSamples() async throws -> [SentimentReviewSample] {
         listSentimentReviewSamplesCallCount += 1
         if let listSentimentReviewSamplesError { throw listSentimentReviewSamplesError }
@@ -1196,13 +1158,6 @@ final class SpyWorkspaceFeatureWorkflowFactory: WorkspaceFeatureWorkflowBuilding
                 sessionStore: sessionStore,
                 taskCenter: taskCenter,
                 analysisWorkflow: analysisWorkflow
-            ),
-            evidence: WorkspaceEvidenceWorkflowService(
-                repository: repository,
-                sessionStore: sessionStore,
-                dialogService: dialogService,
-                hostActionService: hostActionService,
-                exportCoordinator: exportCoordinator
             )
         )
     }
@@ -1336,11 +1291,6 @@ func makeWorkspaceSnapshot(
     sentimentImportedLexiconBundles: [SentimentUserLexiconBundle] = [],
     sentimentSelectedCorpusIDs: [String] = [],
     sentimentReferenceCorpusID: String = "",
-    evidenceReviewFilter: EvidenceReviewFilter = .all,
-    evidenceSourceFilter: EvidenceSourceFilter = .all,
-    evidenceSentimentFilter: EvidenceSentimentFilter = .all,
-    evidenceTagFilterQuery: String = "",
-    evidenceCorpusFilterQuery: String = "",
     keywordActiveTab: KeywordSuiteTab = .words,
     keywordSuiteConfiguration: KeywordSuiteConfiguration? = nil,
     keywordTargetCorpusID: String = "",
@@ -1436,13 +1386,6 @@ func makeWorkspaceSnapshot(
             "userLexiconBundles": sentimentImportedLexiconBundles.compactMap(sentimentLexiconBundleJSONObject),
             "selectedCorpusIDs": sentimentSelectedCorpusIDs,
             "referenceCorpusID": sentimentReferenceCorpusID
-        ],
-        "evidence": [
-            "reviewFilter": evidenceReviewFilter.rawValue,
-            "sourceFilter": evidenceSourceFilter.rawValue,
-            "sentimentFilter": evidenceSentimentFilter.rawValue,
-            "tagFilterQuery": evidenceTagFilterQuery,
-            "corpusFilterQuery": evidenceCorpusFilterQuery
         ],
         "keyword": keyword,
         "frequencyMetrics": [
@@ -2458,131 +2401,6 @@ func makeConcordanceSavedSet(
         createdAt: "2026-04-12T00:00:00Z",
         updatedAt: "2026-04-12T00:00:00Z",
         rows: rows
-    )
-}
-
-func makeEvidenceItem(
-    id: String? = nil,
-    sourceKind: EvidenceSourceKind = .kwic,
-    reviewStatus: EvidenceReviewStatus = .pending,
-    sectionTitle: String? = nil,
-    claim: String? = nil,
-    tags: [String] = [],
-    citationFormat: EvidenceCitationFormat = .citationLine,
-    citationStyle: EvidenceCitationStyle = .plain,
-    corpusMetadata: CorpusMetadataProfile? = nil,
-    note: String? = nil
-) -> EvidenceItem {
-    let savedSetID: String?
-    let savedSetName: String?
-    let keyword: String
-    let query: String
-    let searchOptionsSnapshot: SearchOptionsState?
-    let stopwordFilterSnapshot: StopwordFilterState?
-
-    switch sourceKind {
-    case .kwic:
-        savedSetID = "saved-kwic-3"
-        savedSetName = "KWIC Set"
-        keyword = "node"
-        query = "node"
-        searchOptionsSnapshot = .default
-        stopwordFilterSnapshot = .default
-    case .locator:
-        savedSetID = nil
-        savedSetName = nil
-        keyword = "locator-node"
-        query = "locator-node"
-        searchOptionsSnapshot = nil
-        stopwordFilterSnapshot = nil
-    case .plot:
-        savedSetID = nil
-        savedSetName = nil
-        keyword = "plot-hit"
-        query = "plot-hit"
-        searchOptionsSnapshot = nil
-        stopwordFilterSnapshot = nil
-    case .sentiment:
-        savedSetID = nil
-        savedSetName = nil
-        keyword = "sentiment-hit"
-        query = "sentiment-hit"
-        searchOptionsSnapshot = nil
-        stopwordFilterSnapshot = nil
-    case .topics:
-        savedSetID = nil
-        savedSetName = nil
-        keyword = "topic-hit"
-        query = "topic-hit"
-        searchOptionsSnapshot = nil
-        stopwordFilterSnapshot = nil
-    }
-
-    return EvidenceItem(
-        id: id ?? "evidence-\(sourceKind.rawValue)-\(reviewStatus.rawValue)",
-        sourceKind: sourceKind,
-        savedSetID: savedSetID,
-        savedSetName: savedSetName,
-        corpusID: "corpus-1",
-        corpusName: "Demo Corpus",
-        corpusMetadata: corpusMetadata,
-        sentenceId: 2,
-        sentenceTokenIndex: 3,
-        leftContext: "left context",
-        keyword: keyword,
-        rightContext: "right context",
-        fullSentenceText: "left context node right context",
-        citationText: "Sentence 3: left context node right context",
-        citationFormat: citationFormat,
-        citationStyle: citationStyle,
-        query: query,
-        leftWindow: 5,
-        rightWindow: 5,
-        searchOptionsSnapshot: searchOptionsSnapshot,
-        stopwordFilterSnapshot: stopwordFilterSnapshot,
-        reviewStatus: reviewStatus,
-        sectionTitle: sectionTitle,
-        claim: claim,
-        tags: tags,
-        note: note,
-        createdAt: "2026-04-13T00:00:00Z",
-        updatedAt: "2026-04-13T00:00:00Z"
-    )
-}
-
-func makeEvidenceSentimentMetadata(
-    label: SentimentLabel = .positive
-) -> EvidenceSentimentMetadata {
-    EvidenceSentimentMetadata(
-        source: .openedCorpus,
-        unit: .sentence,
-        contextBasis: .fullSentenceWhenAvailable,
-        backendKind: .lexicon,
-        backendRevision: "lexicon-test",
-        resourceRevision: "resource-test",
-        providerID: nil,
-        providerFamily: nil,
-        domainPackID: .general,
-        ruleProfileID: "default",
-        calibrationProfileRevision: "calibration-test",
-        activePackIDs: [.general],
-        rawLabel: label,
-        rawScores: .oneHot(for: label),
-        effectiveLabel: label,
-        effectiveScores: .oneHot(for: label),
-        reviewDecision: .confirmRaw,
-        reviewStatus: .confirmed,
-        reviewNote: nil,
-        reviewSampleID: nil,
-        reviewedAt: nil,
-        rowID: "row-\(label.rawValue)",
-        sourceID: "corpus-1",
-        sentenceID: 2,
-        tokenIndex: 3,
-        ruleSummary: nil,
-        topRuleTraceSteps: [],
-        inferencePath: .lexicon,
-        modelInputKind: nil
     )
 }
 

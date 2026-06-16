@@ -1,6 +1,6 @@
 import Foundation
 
-enum LexicalSuggestionSource: String, Codable, Sendable {
+enum LexicalSuggestionSource: String, Codable, Sendable, Hashable {
     case prefix
     case collocate
 }
@@ -31,6 +31,23 @@ struct LexicalSuggestion: Equatable, Sendable {
 }
 
 typealias LexicalAutocompleteSuggestion = LexicalSuggestion
+
+enum LexicalSuggestionStatus: Equatable, Sendable {
+    case ready
+    case noCorpus
+    case loading
+    case unavailable
+    case queryTooShort(minimumLength: Int)
+    case unsupportedMode
+    case noMatches
+    case relatedLoading
+    case noRelatedMatches
+}
+
+struct LexicalSuggestionSnapshot: Equatable, Sendable {
+    let suggestions: [LexicalSuggestion]
+    let status: LexicalSuggestionStatus
+}
 
 enum LexicalSuggestionScope: Equatable, Sendable {
     case none

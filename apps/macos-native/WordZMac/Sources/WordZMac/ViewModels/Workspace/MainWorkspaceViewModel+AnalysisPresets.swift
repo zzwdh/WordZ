@@ -109,7 +109,7 @@ extension MainWorkspaceViewModel {
 
         let taskID = taskCenter.beginTask(
             title: t("导出分析材料包", "Export Analysis Materials Bundle"),
-            detail: t("正在整理当前结果、方法说明、保留证据素材和工作区状态…", "Collecting the current result, method notes, kept evidence material, and workspace state…"),
+            detail: t("正在整理当前结果、方法说明和工作区状态…", "Collecting the current result, method notes, and workspace state…"),
             progress: 0
         )
 

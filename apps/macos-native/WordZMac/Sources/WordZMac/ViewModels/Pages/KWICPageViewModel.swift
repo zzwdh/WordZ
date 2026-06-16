@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class KWICPageViewModel: ObservableObject, AnalysisInputStateControlling, AnalysisColumnVisibilityControlling, AnalysisPagingControlling, AnalysisSortingControlling, AnalysisStateApplying, AnalysisSelectedRowControlling, AnalysisSceneBuildRevisionControlling {
-    static let defaultVisibleColumns: Set<KWICColumnKey> = [.leftContext, .keyword, .rightContext]
+    static let defaultVisibleColumns: Set<KWICColumnKey> = [.rowNumber, .source, .position, .leftContext, .keyword, .rightContext]
     var isApplyingState = false
     var isApplyingInputState: Bool { isApplyingState }
     var isApplyingStateFlag: Bool {
@@ -40,6 +40,14 @@ final class KWICPageViewModel: ObservableObject, AnalysisInputStateControlling, 
             handleInputChange(rebuildScene: true)
         }
     }
+    @Published var sourceFilterQuery = "" {
+        didSet {
+            guard oldValue != sourceFilterQuery else { return }
+            currentPage = 1
+            invalidateCaches()
+            rebuildScene()
+        }
+    }
     @Published var isEditingStopwords = false
     @Published var scene: KWICSceneModel?
     @Published var selectedRowID: String?
@@ -65,6 +73,7 @@ final class KWICPageViewModel: ObservableObject, AnalysisInputStateControlling, 
     var annotationState = WorkspaceAnnotationState.default
     var cachedFilteredRows: [KWICRow]?
     var cachedStopwordFilter = StopwordFilterState.default
+    var cachedSourceFilterQuery = ""
     var cachedSortedRows: [KWICRow]?
     var cachedSortMode: KWICSortMode?
 

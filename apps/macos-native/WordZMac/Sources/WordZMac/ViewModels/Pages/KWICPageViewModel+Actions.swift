@@ -22,6 +22,8 @@ extension KWICPageViewModel {
             applyTablePageSizeChange(nextPageSize)
         case .toggleColumn(let column):
             toggleTableColumnAndRebuild(column)
+        case .resetTableLayout:
+            resetKWICTableLayout()
         case .selectRow(let rowID):
             selectRow(rowID)
         case .activateRow(let rowID):
@@ -45,15 +47,28 @@ extension KWICPageViewModel {
         currentSortMode: KWICSortMode
     ) -> KWICSortMode? {
         switch column {
+        case .rowNumber:
+            return .original
+        case .source:
+            return currentSortMode == .sourceAscending ? .original : .sourceAscending
+        case .position:
+            return currentSortMode == .sentenceAscending ? .original : .sentenceAscending
         case .sentenceIndex:
             return currentSortMode == .sentenceAscending ? .original : .sentenceAscending
         case .leftContext:
-            return currentSortMode == .leftContextAscending ? .original : .leftContextAscending
+            return currentSortMode == .leftOneAscending ? .original : .leftOneAscending
         case .keyword:
             return currentSortMode == .keywordAscending ? .original : .keywordAscending
         case .rightContext:
-            return currentSortMode == .rightContextAscending ? .original : .rightContextAscending
+            return currentSortMode == .rightOneAscending ? .original : .rightOneAscending
+        case .metadata:
+            return currentSortMode == .metadataAscending ? .original : .metadataAscending
         }
+    }
+
+    func resetKWICTableLayout() {
+        tablePresentation.visibleColumns = Self.defaultVisibleColumns
+        rebuildScene()
     }
 
     func selectRow(_ rowID: String?) {

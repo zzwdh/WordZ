@@ -247,28 +247,50 @@ struct LexicalSuggestionService: Sendable {
     }
 
     func combinedSuggestions(
+        for request: LexicalSuggestionRequest,
         prefixSuggestions: [LexicalSuggestion],
         collocateSuggestions: [LexicalSuggestion],
-        configuration: LexicalSuggestionConfiguration
+        configuration: LexicalSuggestionConfiguration,
+        prioritizeRelatedSuggestions: Bool = false
     ) -> [LexicalSuggestion] {
         let prefixLimit = min(configuration.maxPrefixSuggestions, configuration.maxSuggestions)
-        var combined = Array(prefixSuggestions.prefix(prefixLimit))
-        var seen = Set(combined.map { AnalysisTextNormalizationSupport.normalizeToken($0.term) })
-        let remaining = max(0, configuration.maxSuggestions - combined.count)
-        guard remaining > 0 else {
-            return Array(combined.prefix(configuration.maxSuggestions))
-        }
+        let normalizedQuery = AnalysisTextNormalizationSupport.normalizeToken(
+            normalizedSingleTokenQuery(for: request)
+        )
+        let shouldPrioritizeCollocates = prioritizeRelatedSuggestions && normalizedQuery.isEmpty == false
+        var combined: [LexicalSuggestion] = []
+        var seen = Set<String>()
 
-        for suggestion in collocateSuggestions.prefix(min(configuration.maxCollocateSuggestions, remaining)) {
+        func appendIfNeeded(_ suggestion: LexicalSuggestion, skipExactQuery: Bool = false) {
+            guard combined.count < configuration.maxSuggestions else { return }
             let normalized = AnalysisTextNormalizationSupport.normalizeToken(suggestion.term)
-            guard !normalized.isEmpty, !seen.contains(normalized) else { continue }
+            guard !normalized.isEmpty, !seen.contains(normalized) else { return }
+            if skipExactQuery, normalized == normalizedQuery {
+                return
+            }
             seen.insert(normalized)
             combined.append(suggestion)
-            if combined.count >= configuration.maxSuggestions {
-                break
-            }
         }
 
+        if shouldPrioritizeCollocates {
+            for suggestion in collocateSuggestions.prefix(configuration.maxCollocateSuggestions) {
+                appendIfNeeded(suggestion)
+            }
+            for suggestion in prefixSuggestions.prefix(prefixLimit) {
+                appendIfNeeded(suggestion, skipExactQuery: true)
+            }
+            return combined
+        }
+
+        for suggestion in prefixSuggestions.prefix(prefixLimit) {
+            appendIfNeeded(suggestion)
+        }
+        let remaining = max(0, configuration.maxSuggestions - combined.count)
+        guard remaining > 0 else { return combined }
+
+        for suggestion in collocateSuggestions.prefix(min(configuration.maxCollocateSuggestions, remaining)) {
+            appendIfNeeded(suggestion)
+        }
         return combined
     }
 }

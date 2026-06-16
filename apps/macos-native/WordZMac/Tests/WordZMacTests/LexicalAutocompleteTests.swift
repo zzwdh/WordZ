@@ -164,8 +164,10 @@ final class LexicalAutocompleteTests: XCTestCase {
             options: .default,
             configuration: configuration
         )
-        XCTAssertTrue(suggestions.contains { $0.term == "alpha" && $0.source == .prefix })
+        XCTAssertEqual(suggestions.first?.term, "beta")
+        XCTAssertEqual(suggestions.first?.source, .collocate)
         XCTAssertTrue(suggestions.contains { $0.term == "beta" && $0.source == .collocate && $0.cooccurrence == 4 })
+        XCTAssertFalse(suggestions.contains { $0.term == "alpha" && $0.source == .prefix })
         XCTAssertFalse(suggestions.contains { $0.term == "alpha" && $0.source == .collocate })
     }
 
@@ -186,6 +188,91 @@ final class LexicalAutocompleteTests: XCTestCase {
         XCTAssertEqual(suggestions.map(\.term), ["alpha"])
     }
 
+    func testLexicalAutocompleteControllerReportsUnavailableShortAndUnsupportedStates() async {
+        let controllerWithoutRepository = LexicalAutocompleteController()
+
+        XCTAssertEqual(
+            controllerWithoutRepository.suggestionSnapshot(for: "he", options: .default).status,
+            .noCorpus
+        )
+
+        controllerWithoutRepository.updateSelectedCorpusID("corpus-1")
+        XCTAssertEqual(
+            controllerWithoutRepository.suggestionSnapshot(for: "he", options: .default).status,
+            .unavailable
+        )
+
+        let repository = FakeWorkspaceRepository()
+        repository.storedFrequencyArtifactsByCorpusID["corpus-1"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "history", count: 12, rank: 1)
+        ])
+
+        let controller = LexicalAutocompleteController(repository: repository)
+        controller.updateSelectedCorpusID("corpus-1")
+        await waitForAutocompleteLoad(controller, corpusID: "corpus-1")
+
+        XCTAssertEqual(
+            controller.suggestionSnapshot(for: "h", options: .default).status,
+            .queryTooShort(minimumLength: 2)
+        )
+        XCTAssertEqual(
+            controller.suggestionSnapshot(for: "hist", options: SearchOptionsState(regex: true)).status,
+            .unsupportedMode
+        )
+        XCTAssertEqual(
+            controller.suggestionSnapshot(for: "two words", options: .default).status,
+            .unsupportedMode
+        )
+    }
+
+    func testLexicalAutocompleteControllerReportsRelatedLoadingAndNoRelatedMatches() async {
+        let repository = FakeWorkspaceRepository()
+        repository.storedFrequencyArtifactsByCorpusID["corpus-1"] = makeFrequencyArtifact(rows: [
+            FrequencyRow(word: "alpha", count: 3, rank: 1),
+            FrequencyRow(word: "beta", count: 4, rank: 2)
+        ])
+        repository.storedTokenizedArtifactsByCorpusID["corpus-1"] = makeTokenizedArtifact()
+        repository.storedTokenPositionIndexesByCorpusID["corpus-1"] = makeTokenPositionIndex()
+
+        let controller = LexicalAutocompleteController(repository: repository)
+        controller.updateSelectedCorpusID("corpus-1")
+        await waitForAutocompleteLoad(controller, corpusID: "corpus-1")
+
+        let configuration = LexicalSuggestionConfiguration(
+            maxSuggestions: 5,
+            maxPrefixSuggestions: 2,
+            maxCollocateSuggestions: 3,
+            collocateLeftWindow: 1,
+            collocateRightWindow: 1,
+            collocateMinFrequency: 99,
+            collocateDebounceNanoseconds: 1_000_000
+        )
+
+        let loadingSnapshot = controller.suggestionSnapshot(
+            for: "alpha",
+            options: .default,
+            configuration: configuration
+        )
+        XCTAssertEqual(loadingSnapshot.status, .relatedLoading)
+        XCTAssertFalse(loadingSnapshot.suggestions.contains { $0.term == "alpha" })
+
+        await waitForAutocompleteSuggestion(controller) {
+            controller.suggestionSnapshot(
+                for: "alpha",
+                options: .default,
+                configuration: configuration
+            ).status == .noRelatedMatches
+        }
+
+        let emptyRelatedSnapshot = controller.suggestionSnapshot(
+            for: "alpha",
+            options: .default,
+            configuration: configuration
+        )
+        XCTAssertEqual(emptyRelatedSnapshot.status, .noRelatedMatches)
+        XCTAssertTrue(emptyRelatedSnapshot.suggestions.isEmpty)
+    }
+
     func testLexicalAutocompleteInteractionStateSupportsMoveAcceptAndDismiss() {
         let suggestions = [
             LexicalAutocompleteSuggestion(term: "hesitation", count: 12, rank: 1),
@@ -196,11 +283,12 @@ final class LexicalAutocompleteTests: XCTestCase {
 
         state.updateSuggestions(suggestions, for: "hesi")
         XCTAssertTrue(state.isPresented)
-        XCTAssertEqual(state.highlightedIndex, 0)
+        XCTAssertNil(state.highlightedIndex)
+        XCTAssertNil(state.acceptHighlightedSuggestion(from: suggestions))
 
         XCTAssertTrue(state.moveSelection(by: 1, suggestionCount: suggestions.count))
-        XCTAssertEqual(state.highlightedIndex, 1)
-        XCTAssertEqual(state.acceptHighlightedSuggestion(from: suggestions)?.term, "hesitate")
+        XCTAssertEqual(state.highlightedIndex, 0)
+        XCTAssertEqual(state.acceptHighlightedSuggestion(from: suggestions)?.term, "hesitation")
 
         XCTAssertTrue(state.moveSelection(by: -1, suggestionCount: suggestions.count))
         XCTAssertEqual(state.highlightedIndex, 0)
@@ -235,7 +323,7 @@ final class LexicalAutocompleteTests: XCTestCase {
 
         state.updateSuggestions(suggestions, for: "hesitationx")
         XCTAssertTrue(state.isPresented)
-        XCTAssertEqual(state.highlightedIndex, 0)
+        XCTAssertNil(state.highlightedIndex)
     }
 
     func testLexicalAutocompleteInteractionStateCanForcePresentationAfterAcceptedText() {
@@ -251,7 +339,44 @@ final class LexicalAutocompleteTests: XCTestCase {
 
         state.updateSuggestions(suggestions, for: "hesitatio", forcePresentation: true)
         XCTAssertTrue(state.isPresented)
+        XCTAssertNil(state.highlightedIndex)
+
+        XCTAssertTrue(state.moveSelection(by: 1, suggestionCount: suggestions.count))
         XCTAssertEqual(state.highlightedIndex, 0)
+    }
+
+    func testLexicalAutocompleteInteractionStateSkipsHeadersAndStatusRows() {
+        let prefixSuggestion = LexicalAutocompleteSuggestion(term: "history", count: 12, rank: 1)
+        let relatedSuggestion = LexicalAutocompleteSuggestion(
+            term: "archive",
+            count: 8,
+            source: .collocate,
+            score: 7,
+            cooccurrence: 3
+        )
+        let displayItems: [LexicalAutocompleteDisplayItem] = [
+            .header(.prefix),
+            .suggestion(prefixSuggestion),
+            .header(.collocate),
+            .suggestion(relatedSuggestion),
+            .status(.relatedLoading)
+        ]
+        var state = LexicalAutocompleteInteractionState()
+
+        state.updatePresentation(displayItemCount: displayItems.count, for: "hist")
+        XCTAssertTrue(state.isPresented)
+        XCTAssertNil(state.highlightedIndex)
+
+        XCTAssertTrue(state.moveSelection(by: 1, displayItems: displayItems))
+        XCTAssertEqual(state.highlightedIndex, 1)
+        XCTAssertEqual(state.acceptHighlightedSuggestion(from: displayItems), prefixSuggestion)
+
+        XCTAssertTrue(state.moveSelection(by: 1, displayItems: displayItems))
+        XCTAssertEqual(state.highlightedIndex, 3)
+        XCTAssertEqual(state.acceptHighlightedSuggestion(from: displayItems), relatedSuggestion)
+
+        XCTAssertTrue(state.moveSelection(by: -1, displayItems: displayItems))
+        XCTAssertEqual(state.highlightedIndex, 1)
     }
 
     func testMainWorkspaceLexicalAutocompleteTracksSidebarSelectionAndMetadataFilterFallback() async {

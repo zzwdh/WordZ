@@ -19,9 +19,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 mkdir -p "$(dirname "$REPORT_OUTPUT_PATH")"
+cd "$ROOT_DIR"
 
-swift test --package-path "$ROOT_DIR" --filter SentimentBenchmarkTests
-swift test --package-path "$ROOT_DIR" --filter SentimentBenchmarkReportTests
+swift test --filter SentimentBenchmarkTests
+swift test --filter SentimentBenchmarkReportTests
 cp "$GENERATED_REPORT_PATH" "$REPORT_OUTPUT_PATH"
 
 echo "Wrote sentiment benchmark report to $REPORT_OUTPUT_PATH"

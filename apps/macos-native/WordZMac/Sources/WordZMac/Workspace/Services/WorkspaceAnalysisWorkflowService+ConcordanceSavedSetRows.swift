@@ -29,7 +29,15 @@ extension WorkspaceAnalysisWorkflowService {
                     left: $0.leftContext,
                     keyword: $0.keyword,
                     right: $0.rightContext
-                )
+                ),
+                sourceID: normalizedConcordanceValue($0.sourceID),
+                sourceTitle: normalizedConcordanceValue($0.sourceTitle),
+                sourceFilePath: normalizedConcordanceValue($0.sourceFilePath),
+                sourceFileName: normalizedConcordanceValue($0.sourceFileName),
+                sourceType: normalizedConcordanceValue($0.sourceType),
+                sourceIndex: $0.sourceIndex > 0 ? $0.sourceIndex : nil,
+                sourceSentenceId: $0.sourceSentenceId,
+                sourceMetadata: $0.sourceMetadata.hasContent ? $0.sourceMetadata : nil
             )
         }
     }
@@ -67,6 +75,14 @@ extension WorkspaceAnalysisWorkflowService {
         return features.sidebar.librarySnapshot.corpora.first(where: { $0.id == corpusID })
     }
 
+    func currentOpenedConcordanceSource(features: WorkspaceFeatureSet) -> (id: String, name: String)? {
+        if let corpusSet = features.sidebar.selectedCorpusSet {
+            return (CorpusSetSourceID.sourceID(for: corpusSet.id), corpusSet.name)
+        }
+        guard let corpus = currentOpenedScopeCorpus(features: features) else { return nil }
+        return (corpus.id, corpus.name)
+    }
+
     func defaultKWICSavedSetName(query: String, scope: ConcordanceSavedSetScope) -> String {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let suffix = scope == .current
@@ -94,6 +110,12 @@ extension WorkspaceAnalysisWorkflowService {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
+    }
+
+    func normalizedConcordanceValue(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     func preferredLocatorSourceRow(in set: ConcordanceSavedSet) -> ConcordanceSavedSetRow? {

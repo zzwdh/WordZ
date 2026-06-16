@@ -53,6 +53,7 @@ extension LexicalAutocompleteTextField {
         private let tableView = NSTableView(frame: .zero)
         private let scrollView = NSScrollView(frame: .zero)
         private var suggestions: [LexicalAutocompleteSuggestion] = []
+        private var displayItems: [LexicalAutocompleteDisplayItem] = []
         private var interactionState = LexicalAutocompleteInteractionState()
 
         init(parent: LexicalAutocompleteTextField) {
@@ -91,14 +92,14 @@ extension LexicalAutocompleteTextField {
 
         func refreshSuggestions(forcePresentation: Bool = false) {
             let query = parent.text
-            let nextSuggestions = parent.controller.suggestions(
+            let snapshot = parent.controller.suggestionSnapshot(
                 for: query,
                 options: parent.searchOptions,
                 stopwordFilter: parent.stopwordFilter,
                 scope: parent.suggestionScope,
                 limit: parent.maxSuggestions
             )
-            applySuggestions(nextSuggestions, for: query, forcePresentation: forcePresentation)
+            applySnapshot(snapshot, for: query, forcePresentation: forcePresentation)
         }
 
         func controlTextDidBeginEditing(_ notification: Notification) {
@@ -154,7 +155,7 @@ extension LexicalAutocompleteTextField {
         }
 
         func numberOfRows(in tableView: NSTableView) -> Int {
-            suggestions.count
+            displayItems.count
         }
 
         func tableView(
@@ -162,12 +163,12 @@ extension LexicalAutocompleteTextField {
             viewFor tableColumn: NSTableColumn?,
             row: Int
         ) -> NSView? {
-            guard suggestions.indices.contains(row) else { return nil }
-            let suggestion = suggestions[row]
+            guard displayItems.indices.contains(row) else { return nil }
+            let item = displayItems[row]
             let identifier = NSUserInterfaceItemIdentifier(rawValue: tableColumn?.identifier.rawValue ?? "term")
 
             if let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTableCellView {
-                configure(cell: cell, for: suggestion, columnID: identifier.rawValue)
+                configure(cell: cell, for: item, columnID: identifier.rawValue)
                 return cell
             }
 
@@ -187,24 +188,32 @@ extension LexicalAutocompleteTextField {
                 label.bottomAnchor.constraint(equalTo: cell.bottomAnchor, constant: -2)
             ])
 
-            configure(cell: cell, for: suggestion, columnID: identifier.rawValue)
+            configure(cell: cell, for: item, columnID: identifier.rawValue)
             return cell
         }
 
         func tableViewSelectionDidChange(_ notification: Notification) {
             let selectedRow = tableView.selectedRow
-            guard selectedRow >= 0 else {
+            guard selectedRow >= 0,
+                  displayItems.indices.contains(selectedRow),
+                  displayItems[selectedRow].suggestion != nil else {
                 interactionState.highlightedIndex = nil
                 return
             }
             interactionState.highlightedIndex = selectedRow
         }
 
+        func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+            guard displayItems.indices.contains(row) else { return false }
+            return displayItems[row].suggestion != nil
+        }
+
         @objc
         func handleSuggestionTableAction(_ sender: Any?) {
             let clickedRow = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
-            guard suggestions.indices.contains(clickedRow) else { return }
-            accept(suggestions[clickedRow])
+            guard displayItems.indices.contains(clickedRow),
+                  let suggestion = displayItems[clickedRow].suggestion else { return }
+            accept(suggestion)
         }
 
         func popoverDidClose(_ notification: Notification) {
@@ -233,7 +242,7 @@ extension LexicalAutocompleteTextField {
             tableView.dataSource = self
             tableView.target = self
             tableView.action = #selector(handleSuggestionTableAction(_:))
-            tableView.allowsEmptySelection = false
+            tableView.allowsEmptySelection = true
             tableView.allowsMultipleSelection = false
             tableView.focusRingType = .none
             tableView.intercellSpacing = NSSize(width: 4, height: 2)
@@ -252,54 +261,80 @@ extension LexicalAutocompleteTextField {
 
         private func configure(
             cell: NSTableCellView,
-            for suggestion: LexicalAutocompleteSuggestion,
+            for item: LexicalAutocompleteDisplayItem,
             columnID: String
         ) {
             guard let label = cell.textField else { return }
 
             switch columnID {
             case "count":
-                label.stringValue = Self.detailText(for: suggestion)
+                label.stringValue = detailText(for: item)
                 label.alignment = .right
                 label.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
                 label.textColor = .secondaryLabelColor
             default:
-                label.stringValue = Self.termText(for: suggestion)
+                label.stringValue = termText(for: item)
                 label.alignment = .left
-                label.font = .systemFont(ofSize: NSFont.systemFontSize)
-                label.textColor = .labelColor
+                label.font = termFont(for: item)
+                label.textColor = termColor(for: item)
             }
         }
 
-        private static func termText(for suggestion: LexicalSuggestion) -> String {
-            switch suggestion.source {
-            case .prefix:
+        private func termText(for item: LexicalAutocompleteDisplayItem) -> String {
+            switch item {
+            case .header(let source):
+                return headerText(for: source)
+            case .suggestion(let suggestion):
                 return suggestion.term
-            case .collocate:
-                let label = wordZText("搭配", "Collocate", mode: WordZLocalization.shared.effectiveMode)
-                return "\(label)  \(suggestion.term)"
+            case .status(let status):
+                return statusText(for: status, query: parent.text) ?? ""
             }
         }
 
-        private static func detailText(for suggestion: LexicalSuggestion) -> String {
+        private func detailText(for item: LexicalAutocompleteDisplayItem) -> String {
+            guard case .suggestion(let suggestion) = item else { return "" }
+
             switch suggestion.source {
             case .prefix:
-                return "\(suggestion.count)"
+                return wordZText("\(suggestion.count) 次", "\(suggestion.count) hits", mode: WordZLocalization.shared.effectiveMode)
             case .collocate:
-                let score = suggestion.score.map { String(format: "%.2f", $0) } ?? "0.00"
-                let cooccurrence = suggestion.cooccurrence ?? 0
-                return "LD \(score) / \(cooccurrence)"
+                return relatedDetailText(for: suggestion)
             }
         }
 
-        private func applySuggestions(
-            _ nextSuggestions: [LexicalAutocompleteSuggestion],
+        private func termFont(for item: LexicalAutocompleteDisplayItem) -> NSFont {
+            switch item {
+            case .header:
+                return .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
+            case .status:
+                return .systemFont(ofSize: NSFont.smallSystemFontSize)
+            case .suggestion:
+                return .systemFont(ofSize: NSFont.systemFontSize)
+            }
+        }
+
+        private func termColor(for item: LexicalAutocompleteDisplayItem) -> NSColor {
+            switch item {
+            case .header, .status:
+                return .secondaryLabelColor
+            case .suggestion:
+                return .labelColor
+            }
+        }
+
+        private func applySnapshot(
+            _ snapshot: LexicalSuggestionSnapshot,
             for query: String,
             forcePresentation: Bool = false
         ) {
-            suggestions = nextSuggestions
-            interactionState.updateSuggestions(
-                nextSuggestions,
+            suggestions = snapshot.suggestions
+            displayItems = makeDisplayItems(
+                suggestions: snapshot.suggestions,
+                status: snapshot.status,
+                query: query
+            )
+            interactionState.updatePresentation(
+                displayItemCount: displayItems.count,
                 for: query,
                 forcePresentation: forcePresentation
             )
@@ -341,7 +376,7 @@ extension LexicalAutocompleteTextField {
                 refreshSuggestions(forcePresentation: true)
             }
 
-            guard interactionState.moveSelection(by: delta, suggestionCount: suggestions.count) else {
+            guard interactionState.moveSelection(by: delta, displayItems: displayItems) else {
                 return false
             }
 
@@ -351,7 +386,7 @@ extension LexicalAutocompleteTextField {
         }
 
         private func acceptHighlightedSuggestion(in textView: NSTextView?) -> Bool {
-            guard let suggestion = interactionState.acceptHighlightedSuggestion(from: suggestions) else {
+            guard let suggestion = interactionState.acceptHighlightedSuggestion(from: displayItems) else {
                 return false
             }
 
@@ -380,8 +415,7 @@ extension LexicalAutocompleteTextField {
                 return true
             }
 
-            applyEditorTextChange(textView, refreshSuggestions: false)
-            dismissSuggestions()
+            applyEditorTextChange(textView, refreshSuggestions: true)
             return true
         }
 
@@ -391,8 +425,7 @@ extension LexicalAutocompleteTextField {
                 return true
             }
 
-            applyEditorTextChange(textView, refreshSuggestions: false)
-            dismissSuggestions()
+            applyEditorTextChange(textView, refreshSuggestions: true)
             return true
         }
 
@@ -465,7 +498,8 @@ extension LexicalAutocompleteTextField {
             }
 
             guard let index = interactionState.highlightedIndex,
-                  suggestions.indices.contains(index) else {
+                  displayItems.indices.contains(index),
+                  displayItems[index].suggestion != nil else {
                 tableView.deselectAll(nil)
                 return
             }
@@ -480,9 +514,9 @@ extension LexicalAutocompleteTextField {
             guard field.window != nil else { return }
             guard field.bounds.width > 0, field.bounds.height > 0 else { return }
 
-            let safeMaxSuggestions = min(max(1, parent.maxSuggestions), 6)
+            let safeMaxSuggestions = min(max(1, parent.maxSuggestions + 2), 8)
             let width = min(max(field.bounds.width, 300), 420)
-            let visibleRowCount = min(max(1, suggestions.count), safeMaxSuggestions)
+            let visibleRowCount = min(max(1, displayItems.count), safeMaxSuggestions)
             let countColumnWidth: CGFloat = 116
             let height = CGFloat(visibleRowCount) * tableView.rowHeight + 8
 
@@ -491,7 +525,7 @@ extension LexicalAutocompleteTextField {
                 countColumn.width = countColumnWidth
                 termColumn.width = max(140, width - countColumnWidth - 16)
             }
-            scrollView.hasVerticalScroller = suggestions.count > visibleRowCount
+            scrollView.hasVerticalScroller = displayItems.count > visibleRowCount
             popover.contentSize = NSSize(width: width, height: height)
 
             if popover.isShown {
@@ -508,6 +542,97 @@ extension LexicalAutocompleteTextField {
             }
             tableView.deselectAll(nil)
         }
+
+        private func makeDisplayItems(
+            suggestions: [LexicalAutocompleteSuggestion],
+            status: LexicalSuggestionStatus,
+            query: String
+        ) -> [LexicalAutocompleteDisplayItem] {
+            var items: [LexicalAutocompleteDisplayItem] = []
+            var displayedSources = Set<LexicalSuggestionSource>()
+
+            for suggestion in suggestions {
+                if !displayedSources.contains(suggestion.source) {
+                    displayedSources.insert(suggestion.source)
+                    items.append(.header(suggestion.source))
+                }
+                items.append(.suggestion(suggestion))
+            }
+
+            if statusText(for: status, query: query) != nil {
+                items.append(.status(status))
+            }
+
+            return items
+        }
+
+        private func headerText(for source: LexicalSuggestionSource) -> String {
+            switch source {
+            case .prefix:
+                return wordZText("补全", "Matches", mode: WordZLocalization.shared.effectiveMode)
+            case .collocate:
+                return wordZText("相关词", "Related words", mode: WordZLocalization.shared.effectiveMode)
+            }
+        }
+
+        private func statusText(for status: LexicalSuggestionStatus, query: String) -> String? {
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            let mode = WordZLocalization.shared.effectiveMode
+
+            switch status {
+            case .ready:
+                return nil
+            case .noCorpus:
+                guard !trimmed.isEmpty else { return nil }
+                return wordZText("先选择一条语料。", "Select a corpus first.", mode: mode)
+            case .loading:
+                guard !trimmed.isEmpty else { return nil }
+                return wordZText("正在准备词表…", "Preparing word list...", mode: mode)
+            case .unavailable:
+                guard !trimmed.isEmpty else { return nil }
+                return wordZText("当前语料还没有可用词表。", "No word list is available for this corpus.", mode: mode)
+            case .queryTooShort(let minimumLength):
+                guard !trimmed.isEmpty else { return nil }
+                let remaining = max(1, minimumLength - trimmed.count)
+                return wordZText("再输入 \(remaining) 个字即可联想。", "Type \(remaining) more character(s) for suggestions.", mode: mode)
+            case .unsupportedMode:
+                guard !trimmed.isEmpty else { return nil }
+                return wordZText("当前匹配方式不使用联想。", "Suggestions are off for the current match mode.", mode: mode)
+            case .noMatches:
+                guard !trimmed.isEmpty else { return nil }
+                return wordZText("没有找到匹配词。", "No matching words found.", mode: mode)
+            case .relatedLoading:
+                return wordZText("正在查找相关词…", "Looking up related words...", mode: mode)
+            case .noRelatedMatches:
+                return wordZText("没有找到相关词。", "No related words found.", mode: mode)
+            }
+        }
+
+        private func relatedDetailText(for suggestion: LexicalSuggestion) -> String {
+            let mode = WordZLocalization.shared.effectiveMode
+            let strength: String
+            switch suggestion.score ?? 0 {
+            case 8...:
+                strength = wordZText("关联强", "Strong", mode: mode)
+            case 5..<8:
+                strength = wordZText("关联中", "Medium", mode: mode)
+            default:
+                strength = wordZText("关联弱", "Light", mode: mode)
+            }
+            let cooccurrence = suggestion.cooccurrence ?? 0
+            return wordZText("\(strength) · 共现 \(cooccurrence)", "\(strength) · \(cooccurrence)x", mode: mode)
+        }
+    }
+}
+
+enum LexicalAutocompleteDisplayItem: Equatable {
+    case header(LexicalSuggestionSource)
+    case suggestion(LexicalAutocompleteSuggestion)
+    case status(LexicalSuggestionStatus)
+
+    var suggestion: LexicalAutocompleteSuggestion? {
+        guard case .suggestion(let suggestion) = self else { return nil }
+        return suggestion
     }
 }
 
@@ -521,6 +646,18 @@ struct LexicalAutocompleteInteractionState: Equatable {
         for query: String,
         forcePresentation: Bool = false
     ) {
+        updatePresentation(
+            displayItemCount: suggestions.count,
+            for: query,
+            forcePresentation: forcePresentation
+        )
+    }
+
+    mutating func updatePresentation(
+        displayItemCount: Int,
+        for query: String,
+        forcePresentation: Bool = false
+    ) {
         if forcePresentation {
             acceptedSuggestionText = nil
         } else if let acceptedSuggestionText,
@@ -530,16 +667,16 @@ struct LexicalAutocompleteInteractionState: Equatable {
         }
 
         acceptedSuggestionText = nil
-        guard suggestions.isEmpty == false else {
+        guard displayItemCount > 0 else {
             dismiss()
             return
         }
 
         isPresented = true
         if let highlightedIndex {
-            self.highlightedIndex = min(max(0, highlightedIndex), suggestions.count - 1)
+            self.highlightedIndex = min(max(0, highlightedIndex), displayItemCount - 1)
         } else {
-            highlightedIndex = 0
+            highlightedIndex = nil
         }
     }
 
@@ -564,6 +701,35 @@ struct LexicalAutocompleteInteractionState: Equatable {
         return true
     }
 
+    mutating func moveSelection(
+        by delta: Int,
+        displayItems: [LexicalAutocompleteDisplayItem]
+    ) -> Bool {
+        let selectableIndexes = displayItems.indices.filter { displayItems[$0].suggestion != nil }
+        guard selectableIndexes.isEmpty == false else {
+            highlightedIndex = nil
+            return false
+        }
+
+        if isPresented == false {
+            isPresented = true
+        }
+
+        let nextIndex: Int
+        if let highlightedIndex {
+            if delta >= 0 {
+                nextIndex = selectableIndexes.first(where: { $0 > highlightedIndex }) ?? selectableIndexes.last!
+            } else {
+                nextIndex = selectableIndexes.reversed().first(where: { $0 < highlightedIndex }) ?? selectableIndexes.first!
+            }
+        } else {
+            nextIndex = delta >= 0 ? selectableIndexes.first! : selectableIndexes.last!
+        }
+
+        highlightedIndex = nextIndex
+        return true
+    }
+
     func acceptHighlightedSuggestion(
         from suggestions: [LexicalAutocompleteSuggestion]
     ) -> LexicalAutocompleteSuggestion? {
@@ -571,6 +737,15 @@ struct LexicalAutocompleteInteractionState: Equatable {
             return nil
         }
         return suggestions[highlightedIndex]
+    }
+
+    func acceptHighlightedSuggestion(
+        from displayItems: [LexicalAutocompleteDisplayItem]
+    ) -> LexicalAutocompleteSuggestion? {
+        guard isPresented, let highlightedIndex, displayItems.indices.contains(highlightedIndex) else {
+            return nil
+        }
+        return displayItems[highlightedIndex].suggestion
     }
 
     mutating func markAcceptedSuggestion(_ text: String) {

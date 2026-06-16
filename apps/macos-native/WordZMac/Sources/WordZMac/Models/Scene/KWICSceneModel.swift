@@ -4,10 +4,18 @@ import WordZShared
 
 enum KWICSortMode: String, CaseIterable, Identifiable {
     case original
+    case rightOneAscending
+    case rightTwoAscending
+    case rightThreeAscending
+    case leftOneAscending
+    case leftTwoAscending
+    case leftThreeAscending
+    case keywordAscending
     case sentenceAscending
     case leftContextAscending
-    case keywordAscending
     case rightContextAscending
+    case sourceAscending
+    case metadataAscending
 
     var id: String { rawValue }
 
@@ -16,13 +24,29 @@ enum KWICSortMode: String, CaseIterable, Identifiable {
         case .original:
             return "原始顺序"
         case .sentenceAscending:
-            return "按句号"
+            return "按位置"
+        case .leftOneAscending:
+            return "按左侧 1 词"
+        case .leftTwoAscending:
+            return "按左侧 2 词"
+        case .leftThreeAscending:
+            return "按左侧 3 词"
         case .leftContextAscending:
             return "按左上下文"
         case .keywordAscending:
             return "按节点词"
+        case .rightOneAscending:
+            return "按右侧 1 词"
+        case .rightTwoAscending:
+            return "按右侧 2 词"
+        case .rightThreeAscending:
+            return "按右侧 3 词"
         case .rightContextAscending:
             return "按右上下文"
+        case .sourceAscending:
+            return "按来源"
+        case .metadataAscending:
+            return "按元数据"
         }
     }
 
@@ -31,13 +55,29 @@ enum KWICSortMode: String, CaseIterable, Identifiable {
         case .original:
             return wordZText("原始顺序", "Original Order", mode: mode)
         case .sentenceAscending:
-            return wordZText("按句号", "Sentence Order", mode: mode)
+            return wordZText("按位置", "Position", mode: mode)
+        case .leftOneAscending:
+            return wordZText("按左侧 1 词", "Left 1", mode: mode)
+        case .leftTwoAscending:
+            return wordZText("按左侧 2 词", "Left 2", mode: mode)
+        case .leftThreeAscending:
+            return wordZText("按左侧 3 词", "Left 3", mode: mode)
         case .leftContextAscending:
-            return wordZText("按左上下文", "Left Context", mode: mode)
+            return wordZText("按完整左文", "Full Left Context", mode: mode)
         case .keywordAscending:
             return wordZText("按节点词", "Keyword", mode: mode)
+        case .rightOneAscending:
+            return wordZText("按右侧 1 词", "Right 1", mode: mode)
+        case .rightTwoAscending:
+            return wordZText("按右侧 2 词", "Right 2", mode: mode)
+        case .rightThreeAscending:
+            return wordZText("按右侧 3 词", "Right 3", mode: mode)
         case .rightContextAscending:
-            return wordZText("按右上下文", "Right Context", mode: mode)
+            return wordZText("按完整右文", "Full Right Context", mode: mode)
+        case .sourceAscending:
+            return wordZText("按来源", "Source", mode: mode)
+        case .metadataAscending:
+            return wordZText("按元数据", "Metadata", mode: mode)
         }
     }
 }
@@ -82,21 +122,33 @@ enum KWICPageSize: Int, CaseIterable, Identifiable {
 }
 
 enum KWICColumnKey: String, CaseIterable, Identifiable, Hashable {
+    case rowNumber
+    case source
+    case position
     case leftContext
     case keyword
     case rightContext
+    case metadata
     case sentenceIndex
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .rowNumber:
+            return "#"
+        case .source:
+            return "来源"
+        case .position:
+            return "位置"
         case .leftContext:
             return "左侧上下文"
         case .keyword:
             return "节点词"
         case .rightContext:
             return "右侧上下文"
+        case .metadata:
+            return "元数据"
         case .sentenceIndex:
             return "句号"
         }
@@ -104,12 +156,20 @@ enum KWICColumnKey: String, CaseIterable, Identifiable, Hashable {
 
     func title(in mode: AppLanguageMode) -> String {
         switch self {
+        case .rowNumber:
+            return "#"
+        case .source:
+            return wordZText("来源", "Source", mode: mode)
+        case .position:
+            return wordZText("位置", "Position", mode: mode)
         case .leftContext:
             return wordZText("左侧上下文", "Left Context", mode: mode)
         case .keyword:
             return wordZText("节点词", "Keyword", mode: mode)
         case .rightContext:
             return wordZText("右侧上下文", "Right Context", mode: mode)
+        case .metadata:
+            return wordZText("元数据", "Metadata", mode: mode)
         case .sentenceIndex:
             return wordZText("句号", "Sentence", mode: mode)
         }
@@ -118,6 +178,17 @@ enum KWICColumnKey: String, CaseIterable, Identifiable, Hashable {
 
 struct KWICSceneRow: Identifiable, Equatable {
     let id: String
+    let rowNumberText: String
+    let sourceID: String
+    let sourceTitle: String
+    let sourceFilePath: String
+    let sourceFileName: String
+    let sourceType: String
+    let sourceIndex: Int
+    let sourceMetadata: CorpusMetadataProfile
+    let sourceDisplayText: String
+    let sourceMetadataText: String
+    let positionText: String
     let leftContext: String
     let keyword: String
     let rightContext: String
@@ -125,6 +196,7 @@ struct KWICSceneRow: Identifiable, Equatable {
     let citationText: String
     let sentenceIndexText: String
     let sentenceId: Int
+    let sourceSentenceId: Int?
     let sentenceTokenIndex: Int
 }
 
@@ -137,6 +209,7 @@ struct KWICSceneModel: Equatable {
     let query: String
     let searchOptions: SearchOptionsState
     let stopwordFilter: StopwordFilterState
+    let sourceFilterQuery: String
     let annotationSummary: String
     let leftWindow: Int
     let rightWindow: Int

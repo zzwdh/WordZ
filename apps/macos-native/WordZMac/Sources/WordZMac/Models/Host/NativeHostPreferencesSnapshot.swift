@@ -8,6 +8,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
     var checkForUpdatesOnLaunch: Bool
     var autoDownloadUpdates: Bool
     var autoInstallDownloadedUpdates: Bool
+    var apiAccessEnabled: Bool
+    var apiRequestTimeoutSeconds: Int
+    var apiMaxConcurrentRequests: Int
     var showMenuBarIcon: Bool
     var recentDocuments: [RecentDocumentItem]
     var lastUpdateCheckAt: String
@@ -24,6 +27,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         checkForUpdatesOnLaunch: true,
         autoDownloadUpdates: false,
         autoInstallDownloadedUpdates: false,
+        apiAccessEnabled: true,
+        apiRequestTimeoutSeconds: 10,
+        apiMaxConcurrentRequests: 2,
         showMenuBarIcon: true,
         recentDocuments: [],
         lastUpdateCheckAt: "",
@@ -41,6 +47,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         case checkForUpdatesOnLaunch
         case autoDownloadUpdates
         case autoInstallDownloadedUpdates
+        case apiAccessEnabled
+        case apiRequestTimeoutSeconds
+        case apiMaxConcurrentRequests
         case showMenuBarIcon
         case recentDocuments
         case lastUpdateCheckAt
@@ -58,6 +67,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         checkForUpdatesOnLaunch: Bool,
         autoDownloadUpdates: Bool,
         autoInstallDownloadedUpdates: Bool,
+        apiAccessEnabled: Bool = true,
+        apiRequestTimeoutSeconds: Int = 10,
+        apiMaxConcurrentRequests: Int = 2,
         showMenuBarIcon: Bool = true,
         recentDocuments: [RecentDocumentItem],
         lastUpdateCheckAt: String,
@@ -73,6 +85,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         self.checkForUpdatesOnLaunch = checkForUpdatesOnLaunch
         self.autoDownloadUpdates = autoDownloadUpdates
         self.autoInstallDownloadedUpdates = autoInstallDownloadedUpdates
+        self.apiAccessEnabled = apiAccessEnabled
+        self.apiRequestTimeoutSeconds = Self.clampedAPIRequestTimeoutSeconds(apiRequestTimeoutSeconds)
+        self.apiMaxConcurrentRequests = Self.clampedAPIMaxConcurrentRequests(apiMaxConcurrentRequests)
         self.showMenuBarIcon = showMenuBarIcon
         self.recentDocuments = recentDocuments
         self.lastUpdateCheckAt = lastUpdateCheckAt
@@ -90,6 +105,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         self.checkForUpdatesOnLaunch = record.checkForUpdatesOnLaunch
         self.autoDownloadUpdates = record.autoDownloadUpdates
         self.autoInstallDownloadedUpdates = record.autoInstallDownloadedUpdates
+        self.apiAccessEnabled = record.apiAccessEnabled
+        self.apiRequestTimeoutSeconds = Self.clampedAPIRequestTimeoutSeconds(record.apiRequestTimeoutSeconds)
+        self.apiMaxConcurrentRequests = Self.clampedAPIMaxConcurrentRequests(record.apiMaxConcurrentRequests)
         self.showMenuBarIcon = record.showMenuBarIcon
         self.recentDocuments = record.recentDocuments
         self.lastUpdateCheckAt = record.lastUpdateCheckAt
@@ -109,6 +127,13 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
         self.checkForUpdatesOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesOnLaunch) ?? true
         self.autoDownloadUpdates = try container.decodeIfPresent(Bool.self, forKey: .autoDownloadUpdates) ?? false
         self.autoInstallDownloadedUpdates = try container.decodeIfPresent(Bool.self, forKey: .autoInstallDownloadedUpdates) ?? false
+        self.apiAccessEnabled = try container.decodeIfPresent(Bool.self, forKey: .apiAccessEnabled) ?? true
+        self.apiRequestTimeoutSeconds = Self.clampedAPIRequestTimeoutSeconds(
+            try container.decodeIfPresent(Int.self, forKey: .apiRequestTimeoutSeconds) ?? 10
+        )
+        self.apiMaxConcurrentRequests = Self.clampedAPIMaxConcurrentRequests(
+            try container.decodeIfPresent(Int.self, forKey: .apiMaxConcurrentRequests) ?? 2
+        )
         self.showMenuBarIcon = try container.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? true
         self.recentDocuments = try container.decodeIfPresent([RecentDocumentItem].self, forKey: .recentDocuments) ?? []
         self.lastUpdateCheckAt = try container.decodeIfPresent(String.self, forKey: .lastUpdateCheckAt) ?? ""
@@ -129,6 +154,9 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
             checkForUpdatesOnLaunch: checkForUpdatesOnLaunch,
             autoDownloadUpdates: autoDownloadUpdates,
             autoInstallDownloadedUpdates: autoInstallDownloadedUpdates,
+            apiAccessEnabled: apiAccessEnabled,
+            apiRequestTimeoutSeconds: apiRequestTimeoutSeconds,
+            apiMaxConcurrentRequests: apiMaxConcurrentRequests,
             showMenuBarIcon: showMenuBarIcon,
             recentDocuments: recentDocuments,
             lastUpdateCheckAt: lastUpdateCheckAt,
@@ -147,5 +175,13 @@ struct NativeHostPreferencesSnapshot: Codable, Equatable {
 
     private static func resolveLastUpdateStatus(_ status: String?) -> String {
         status ?? defaultLastUpdateStatus
+    }
+
+    static func clampedAPIRequestTimeoutSeconds(_ value: Int) -> Int {
+        min(max(value, 5), 60)
+    }
+
+    static func clampedAPIMaxConcurrentRequests(_ value: Int) -> Int {
+        min(max(value, 1), 4)
     }
 }

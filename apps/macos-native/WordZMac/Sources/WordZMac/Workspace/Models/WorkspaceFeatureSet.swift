@@ -18,7 +18,6 @@ struct WorkspaceFeatureSet: @unchecked Sendable {
     let kwic: KWICPageViewModel
     let collocate: CollocatePageViewModel
     let locator: LocatorPageViewModel
-    let evidenceWorkbench: any WorkspaceEvidenceWorkbenchState
     let settings: WorkspaceSettingsViewModel
 
     @MainActor
@@ -40,7 +39,6 @@ struct WorkspaceFeatureSet: @unchecked Sendable {
         kwic: KWICPageViewModel,
         collocate: CollocatePageViewModel,
         locator: LocatorPageViewModel,
-        evidenceWorkbench: any WorkspaceEvidenceWorkbenchState = WorkspaceFeatureSetDefaultPages.evidenceWorkbench(),
         settings: WorkspaceSettingsViewModel
     ) {
         self.sidebar = sidebar
@@ -60,7 +58,6 @@ struct WorkspaceFeatureSet: @unchecked Sendable {
         self.kwic = kwic
         self.collocate = collocate
         self.locator = locator
-        self.evidenceWorkbench = evidenceWorkbench
         self.settings = settings
     }
 }

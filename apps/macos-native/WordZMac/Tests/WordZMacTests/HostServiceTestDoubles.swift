@@ -180,6 +180,59 @@ final class InMemoryHostPreferencesStore: NativeHostPreferencesStoring {
     }
 }
 
+final class InMemoryAPICredentialStore: NativeAPICredentialStoring {
+    var credential: String?
+    var saveCallCount = 0
+    var clearCallCount = 0
+
+    func hasCredential() -> Bool {
+        credential?.isEmpty == false
+    }
+
+    func loadCredential() throws -> String? {
+        credential
+    }
+
+    func saveCredential(_ credential: String) throws {
+        saveCallCount += 1
+        self.credential = credential
+    }
+
+    func clearCredential() throws {
+        clearCallCount += 1
+        credential = nil
+    }
+}
+
+final class FakeAPIConnectionTester: NativeAPIConnectionTesting, @unchecked Sendable {
+    var result = NativeAPIConnectionTestResult(
+        statusCode: 200,
+        durationMilliseconds: 42,
+        attemptCount: 1,
+        endpointHost: "api.example.test"
+    )
+    var error: Error?
+    var testCallCount = 0
+    var lastCredential: String?
+    var lastTimeoutSeconds: Int?
+    var lastMaxConcurrentRequests: Int?
+
+    func testConnection(
+        credential: String?,
+        timeoutSeconds: Int,
+        maxConcurrentRequests: Int
+    ) async throws -> NativeAPIConnectionTestResult {
+        testCallCount += 1
+        lastCredential = credential
+        lastTimeoutSeconds = timeoutSeconds
+        lastMaxConcurrentRequests = maxConcurrentRequests
+        if let error {
+            throw error
+        }
+        return result
+    }
+}
+
 @MainActor
 final class FakeHostActionService: NativeHostActionServicing {
     var openedFilePaths: [String] = []

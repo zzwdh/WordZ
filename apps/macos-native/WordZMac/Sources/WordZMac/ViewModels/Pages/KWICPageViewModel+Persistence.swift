@@ -46,6 +46,7 @@ extension KWICPageViewModel {
             rightWindow = "5"
             searchOptions = .default
             stopwordFilter = .default
+            sourceFilterQuery = ""
             isEditingStopwords = false
             result = nil
             tablePresentation.reset(

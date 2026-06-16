@@ -6,6 +6,9 @@ enum SettingsPaneAction {
     case downloadUpdate
     case installDownloadedUpdate
     case revealDownloadedUpdate
+    case saveAPICredential
+    case clearAPICredential
+    case testAPIConnection
     case showUpdateWindow
     case showHelpWindow
     case showAboutWindow

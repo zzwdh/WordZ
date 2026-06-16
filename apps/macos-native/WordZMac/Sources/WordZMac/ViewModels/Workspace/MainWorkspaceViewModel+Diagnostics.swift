@@ -247,7 +247,6 @@ extension MainWorkspaceViewModel {
             analysisPresetCount: workspaceSummary?.analysisPresetCount ?? 0,
             keywordSavedListCount: workspaceSummary?.keywordSavedListCount ?? 0,
             concordanceSavedSetCount: workspaceSummary?.concordanceSavedSetCount ?? 0,
-            evidenceItemCount: workspaceSummary?.evidenceItemCount ?? 0,
             sentimentReviewSampleCount: workspaceSummary?.sentimentReviewSampleCount ?? 0,
             corpusShardFileCount: regularFileCount(in: corporaDirectoryURL),
             recycleFileCount: regularFileCount(in: recycleDirectoryURL),

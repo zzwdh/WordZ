@@ -9,7 +9,6 @@ final class WorkspaceFlowCoordinator {
     let analysisWorkflow: WorkspaceAnalysisWorkflowService
     let sentimentWorkflow: any WorkspaceSentimentWorkflowServing
     let topicsWorkflow: any WorkspaceTopicsWorkflowServing
-    let evidenceWorkflow: any WorkspaceEvidenceWorkflowServing
     let sentimentReviewWorkflow: WorkspaceSentimentReviewWorkflowService
     let exportWorkflow: WorkspaceExportWorkflowService
 
@@ -76,7 +75,6 @@ final class WorkspaceFlowCoordinator {
         )
         self.sentimentWorkflow = featureWorkflows.sentiment
         self.topicsWorkflow = featureWorkflows.topics
-        self.evidenceWorkflow = featureWorkflows.evidence
         self.sentimentReviewWorkflow = WorkspaceSentimentReviewWorkflowService(
             repository: repository
         )

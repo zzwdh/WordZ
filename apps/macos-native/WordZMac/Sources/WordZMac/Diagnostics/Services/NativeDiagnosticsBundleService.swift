@@ -78,6 +78,15 @@ struct NativeDiagnosticsBundleService: NativeDiagnosticsBundleServicing {
                 description: "Current UI settings snapshot.",
                 manifestEntries: &manifestEntries
             )
+            if !payload.apiRequests.isEmpty {
+                try writeEncodable(
+                    payload.apiRequests.map { $0.redactedForDiagnostics() },
+                    to: bundleDirectoryURL.appendingPathComponent("api-requests.json"),
+                    relativeTo: bundleDirectoryURL,
+                    description: "Redacted API request metadata without credentials, request bodies, or full query strings.",
+                    manifestEntries: &manifestEntries
+                )
+            }
             for generatedFile in payload.generatedFiles {
                 try writeData(
                     generatedFile.data,

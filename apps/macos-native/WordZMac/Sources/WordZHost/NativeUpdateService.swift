@@ -2,12 +2,13 @@ import Foundation
 
 @MainActor
 package final class GitHubReleaseUpdateService: NativeUpdateServicing {
-    private let session: URLSession
+    private let apiClient: NativeAPIClient
     private let latestReleaseURL: URL
     private let downloadsDirectoryProvider: @Sendable () -> URL
     private let downloaderFactory: @Sendable (_ destinationURL: URL, _ onProgress: @escaping @MainActor (Double) -> Void) -> NativeUpdateDownloading
 
     package init(
+        apiClient: NativeAPIClient? = nil,
         session: URLSession? = nil,
         latestReleaseURL: URL = URL(string: "https://api.github.com/repos/zzwdh/WordZ/releases/latest")!,
         downloadsDirectoryProvider: @escaping @Sendable () -> URL = {
@@ -23,35 +24,28 @@ package final class GitHubReleaseUpdateService: NativeUpdateServicing {
             UpdateDownloadBridge(destinationURL: destinationURL, onProgress: onProgress)
         }
     ) {
-        if let session {
-            self.session = session
-        } else {
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.timeoutIntervalForRequest = 5
-            configuration.timeoutIntervalForResource = 10
-            self.session = URLSession(configuration: configuration)
-        }
+        self.apiClient = apiClient ?? Self.makeDefaultAPIClient(session: session)
         self.latestReleaseURL = latestReleaseURL
         self.downloadsDirectoryProvider = downloadsDirectoryProvider
         self.downloaderFactory = downloaderFactory
     }
 
     package func checkForUpdates(currentVersion: String) async throws -> NativeUpdateCheckResult {
-        let (data, response) = try await session.data(from: latestReleaseURL)
-        if let httpResponse = response as? HTTPURLResponse,
-           !(200..<300).contains(httpResponse.statusCode) {
-            let apiMessage = GitHubReleasePayloadParser.errorMessage(from: data)
-            let description = apiMessage?.isEmpty == false
-                ? apiMessage!
-                : "检查更新失败（HTTP \(httpResponse.statusCode)）。"
-            throw NSError(
-                domain: "WordZMac.GitHubReleaseUpdateService",
-                code: httpResponse.statusCode,
-                userInfo: [NSLocalizedDescriptionKey: description]
-            )
+        let response: NativeAPIResponse
+        do {
+            response = try await apiClient.send(NativeAPIRequest(
+                url: latestReleaseURL,
+                headers: [
+                    "Accept": "application/vnd.github+json"
+                ],
+                timeoutInterval: 5
+            ))
+        } catch let error as NativeAPIClientError {
+            throw Self.updateCheckError(from: error)
         }
+
         guard
-            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let object = try JSONSerialization.jsonObject(with: response.data) as? [String: Any]
         else {
             throw NSError(domain: "WordZMac.GitHubReleaseUpdateService", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "无法解析更新响应。"
@@ -86,5 +80,49 @@ package final class GitHubReleaseUpdateService: NativeUpdateServicing {
             localPath: localURL.path,
             releaseURL: update.releaseURL
         )
+    }
+}
+
+private extension GitHubReleaseUpdateService {
+    static func makeDefaultAPIClient(session: URLSession?) -> NativeAPIClient {
+        if let session {
+            return NativeAPIClient(
+                session: session,
+                retryPolicy: NativeAPIRetryPolicy(maxRetries: 1, baseDelayNanoseconds: 150_000_000),
+                maxConcurrentRequests: 2,
+                defaultUserAgent: "WordZMac Update Checker"
+            )
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 5
+        configuration.timeoutIntervalForResource = 10
+        return NativeAPIClient(
+            session: URLSession(configuration: configuration),
+            retryPolicy: NativeAPIRetryPolicy(maxRetries: 1, baseDelayNanoseconds: 150_000_000),
+            maxConcurrentRequests: 2,
+            defaultUserAgent: "WordZMac Update Checker"
+        )
+    }
+
+    static func updateCheckError(from error: NativeAPIClientError) -> Error {
+        switch error {
+        case .httpStatus(let code, let data, _, _):
+            let apiMessage = GitHubReleasePayloadParser.errorMessage(from: data)
+            let description = apiMessage?.isEmpty == false
+                ? apiMessage!
+                : "检查更新失败（HTTP \(code)）。"
+            return NSError(
+                domain: "WordZMac.GitHubReleaseUpdateService",
+                code: code,
+                userInfo: [NSLocalizedDescriptionKey: description]
+            )
+        case .invalidResponse:
+            return NSError(domain: "WordZMac.GitHubReleaseUpdateService", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "无法解析更新响应。"
+            ])
+        case .transport:
+            return error
+        }
     }
 }

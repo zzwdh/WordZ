@@ -52,12 +52,71 @@ struct NativeDiagnosticsStorageSnapshot: Codable, Equatable, Sendable {
     let analysisPresetCount: Int
     let keywordSavedListCount: Int
     let concordanceSavedSetCount: Int
-    let evidenceItemCount: Int
     let sentimentReviewSampleCount: Int
     let corpusShardFileCount: Int
     let recycleFileCount: Int
     let libraryWALSidecarExists: Bool
     let workspaceWALSidecarExists: Bool
+}
+
+struct NativeDiagnosticsAPIRequestMetadata: Codable, Equatable, Sendable {
+    let requestID: String
+    let method: String
+    let host: String
+    let path: String
+    let statusCode: Int?
+    let durationMilliseconds: Int?
+    let attemptCount: Int
+    let headers: [String: String]
+    let cacheState: String?
+    let outcome: String
+
+    init(
+        requestID: String,
+        method: String,
+        url: URL,
+        statusCode: Int? = nil,
+        durationMilliseconds: Int? = nil,
+        attemptCount: Int = 1,
+        headers: [String: String] = [:],
+        cacheState: String? = nil,
+        outcome: String
+    ) {
+        self.requestID = requestID
+        self.method = method
+        self.host = url.host ?? ""
+        self.path = url.path.isEmpty ? "/" : url.path
+        self.statusCode = statusCode
+        self.durationMilliseconds = durationMilliseconds
+        self.attemptCount = attemptCount
+        self.headers = headers
+        self.cacheState = cacheState
+        self.outcome = outcome
+    }
+
+    init(
+        requestID: String,
+        method: String,
+        host: String,
+        path: String,
+        statusCode: Int? = nil,
+        durationMilliseconds: Int? = nil,
+        attemptCount: Int = 1,
+        headers: [String: String] = [:],
+        cacheState: String? = nil,
+        outcome: String
+    ) {
+        self.requestID = requestID
+        self.method = method
+        self.host = host
+        self.path = path.isEmpty ? "/" : path
+        self.statusCode = statusCode
+        self.durationMilliseconds = durationMilliseconds
+        self.attemptCount = attemptCount
+        self.headers = headers
+        self.cacheState = cacheState
+        self.outcome = outcome
+    }
 }
 
 struct NativeDiagnosticsBundlePayload: Sendable {
@@ -69,6 +128,7 @@ struct NativeDiagnosticsBundlePayload: Sendable {
     let taskHistory: [PersistedNativeBackgroundTaskItem]
     let workspaceDraft: WorkspaceStateDraft
     let uiSettings: UISettingsSnapshot
+    let apiRequests: [NativeDiagnosticsAPIRequestMetadata]
     let generatedFiles: [NativeDiagnosticsBundleGeneratedFile]
     let extraFiles: [NativeDiagnosticsBundleSourceFile]
 
@@ -81,6 +141,7 @@ struct NativeDiagnosticsBundlePayload: Sendable {
         taskHistory: [PersistedNativeBackgroundTaskItem],
         workspaceDraft: WorkspaceStateDraft,
         uiSettings: UISettingsSnapshot,
+        apiRequests: [NativeDiagnosticsAPIRequestMetadata] = [],
         generatedFiles: [NativeDiagnosticsBundleGeneratedFile] = [],
         extraFiles: [NativeDiagnosticsBundleSourceFile]
     ) {
@@ -92,6 +153,7 @@ struct NativeDiagnosticsBundlePayload: Sendable {
         self.taskHistory = taskHistory
         self.workspaceDraft = workspaceDraft
         self.uiSettings = uiSettings
+        self.apiRequests = apiRequests
         self.generatedFiles = generatedFiles
         self.extraFiles = extraFiles
     }

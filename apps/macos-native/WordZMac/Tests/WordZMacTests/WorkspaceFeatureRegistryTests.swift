@@ -6,10 +6,10 @@ import XCTest
 
 @MainActor
 final class WorkspaceFeatureRegistryTests: XCTestCase {
-    func testWorkspaceFeatureModuleActivatesVerticalsForTopicsSentimentAndEvidence() {
+    func testWorkspaceFeatureModuleActivatesVerticalsForTopicsAndSentiment() {
         XCTAssertEqual(
             WordZWorkspaceFeatureModule.activatedVerticals.map(\.rawValue),
-            ["topics", "sentiment", "evidence"]
+            ["topics", "sentiment"]
         )
     }
 
@@ -18,7 +18,6 @@ final class WorkspaceFeatureRegistryTests: XCTestCase {
 
         XCTAssertEqual(ObjectIdentifier(type(of: bundle.topics)), ObjectIdentifier(TopicsPageViewModel.self))
         XCTAssertEqual(ObjectIdentifier(type(of: bundle.sentiment)), ObjectIdentifier(SentimentPageViewModel.self))
-        XCTAssertEqual(ObjectIdentifier(type(of: bundle.evidenceWorkbench)), ObjectIdentifier(EvidenceWorkbenchViewModel.self))
     }
 
     func testRegistryMaintainsStableMainRouteOrderAndIdentifiers() {

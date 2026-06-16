@@ -46,10 +46,6 @@ protocol WorkspaceRepository: AnyObject {
     func listConcordanceSavedSets() async throws -> [ConcordanceSavedSet]
     func saveConcordanceSavedSet(_ set: ConcordanceSavedSet) async throws -> ConcordanceSavedSet
     func deleteConcordanceSavedSet(setID: String) async throws
-    func listEvidenceItems() async throws -> [EvidenceItem]
-    func saveEvidenceItem(_ item: EvidenceItem) async throws -> EvidenceItem
-    func deleteEvidenceItem(itemID: String) async throws
-    func replaceEvidenceItems(_ items: [EvidenceItem]) async throws
     func listSentimentReviewSamples() async throws -> [SentimentReviewSample]
     func saveSentimentReviewSample(_ sample: SentimentReviewSample) async throws -> SentimentReviewSample
     func deleteSentimentReviewSample(sampleID: String) async throws

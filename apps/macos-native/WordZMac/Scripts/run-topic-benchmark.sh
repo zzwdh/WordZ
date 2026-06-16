@@ -19,8 +19,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 mkdir -p "$(dirname "$REPORT_OUTPUT_PATH")"
+cd "$ROOT_DIR"
 
-swift test --package-path "$ROOT_DIR" --filter TopicBenchmarkTests
+swift test --filter TopicBenchmarkTests
 cp "$GENERATED_REPORT_PATH" "$REPORT_OUTPUT_PATH"
 
 HARDWARE_SUMMARY="$(grep -m 1 '"summaryLine"' "$REPORT_OUTPUT_PATH" | sed -E 's/^[[:space:]]*"summaryLine" : "([^"]+)".*/\1/')"

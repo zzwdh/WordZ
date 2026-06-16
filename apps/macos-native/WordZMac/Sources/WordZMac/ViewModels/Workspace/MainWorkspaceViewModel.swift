@@ -49,6 +49,8 @@ package final class MainWorkspaceViewModel: ObservableObject {
     let quickLookPreviewFileService: any QuickLookPreviewFilePreparing
     let reportBundleService: any AnalysisReportBundleServicing
     let updateService: any NativeUpdateServicing
+    let apiCredentialStore: any NativeAPICredentialStoring
+    let apiConnectionTester: any NativeAPIConnectionTesting
     let notificationService: any NativeNotificationServicing
     let applicationActivityInspector: any ApplicationActivityInspecting
     let buildMetadataProvider: any NativeBuildMetadataProviding
@@ -65,6 +67,9 @@ package final class MainWorkspaceViewModel: ObservableObject {
     )
     var initialized = false
     var inputChangeSyncTask: Task<Void, Never>?
+    var sharedLexicalSearchQuery: String?
+    var sharedLexicalSearchBaselineValues: [String] = []
+    var isSynchronizingSharedLexicalSearch = false
     var updateState = NativeUpdateStateSnapshot.empty
     var isRunningUpdateCheck = false
     var isRunningUpdateDownload = false
@@ -87,7 +92,6 @@ package final class MainWorkspaceViewModel: ObservableObject {
 
     var topics: TopicsPageViewModel { projectedFeaturePage(featurePages.topics) }
     var sentiment: SentimentPageViewModel { projectedFeaturePage(featurePages.sentiment) }
-    var evidenceWorkbench: EvidenceWorkbenchViewModel { projectedFeaturePage(featurePages.evidenceWorkbench) }
 
     init(
         repository: any WorkspaceRepository,
@@ -101,6 +105,8 @@ package final class MainWorkspaceViewModel: ObservableObject {
         reportBundleService: any AnalysisReportBundleServicing,
         buildMetadataProvider: any NativeBuildMetadataProviding,
         diagnosticsBundleService: any NativeDiagnosticsBundleServicing,
+        apiCredentialStore: any NativeAPICredentialStoring = NativeKeychainAPICredentialStore(),
+        apiConnectionTester: any NativeAPIConnectionTesting = NativeAPIConnectionTestService(),
         taskCenter: NativeTaskCenter,
         sessionStore: WorkspaceSessionStore,
         sidebar: LibrarySidebarViewModel,
@@ -120,7 +126,6 @@ package final class MainWorkspaceViewModel: ObservableObject {
         kwic: KWICPageViewModel,
         collocate: CollocatePageViewModel,
         locator: LocatorPageViewModel,
-        evidenceWorkbench: EvidenceWorkbenchViewModel = EvidenceWorkbenchViewModel.makeFeaturePage(),
         sourceReader: SourceReaderViewModel = SourceReaderViewModel(),
         settings: WorkspaceSettingsViewModel
     ) {
@@ -137,6 +142,8 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.quickLookPreviewFileService = quickLookPreviewFileService
         self.reportBundleService = reportBundleService
         self.updateService = runtimeDependencies.updateService
+        self.apiCredentialStore = apiCredentialStore
+        self.apiConnectionTester = apiConnectionTester
         self.notificationService = runtimeDependencies.notificationService
         self.applicationActivityInspector = runtimeDependencies.applicationActivityInspector
         self.buildMetadataProvider = buildMetadataProvider
@@ -165,8 +172,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.settings = settings
         self.featurePages = WorkspaceFeaturePageHandles(
             topics: topics,
-            sentiment: sentiment,
-            evidenceWorkbench: evidenceWorkbench
+            sentiment: sentiment
         )
         self.flowCoordinator = runtimeDependencies.flowCoordinator
         self.appCoordinator = runtimeDependencies.appCoordinator

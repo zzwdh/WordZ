@@ -44,13 +44,6 @@ protocol ConcordanceSavedSetManagingStorage: AnyObject {
     func deleteConcordanceSavedSet(setID: String) throws
 }
 
-protocol EvidenceItemManagingStorage: AnyObject {
-    func listEvidenceItems() throws -> [EvidenceItem]
-    func saveEvidenceItem(_ item: EvidenceItem) throws -> EvidenceItem
-    func deleteEvidenceItem(itemID: String) throws
-    func replaceEvidenceItems(_ items: [EvidenceItem]) throws
-}
-
 protocol SentimentReviewSampleManagingStorage: AnyObject {
     func listSentimentReviewSamples() throws -> [SentimentReviewSample]
     func saveSentimentReviewSample(_ sample: SentimentReviewSample) throws -> SentimentReviewSample

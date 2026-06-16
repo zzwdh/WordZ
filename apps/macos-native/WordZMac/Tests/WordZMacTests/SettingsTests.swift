@@ -40,6 +40,9 @@ final class SettingsTests: XCTestCase {
                 checkForUpdatesOnLaunch: true,
                 autoDownloadUpdates: false,
                 autoInstallDownloadedUpdates: false,
+                apiAccessEnabled: false,
+                apiRequestTimeoutSeconds: 25,
+                apiMaxConcurrentRequests: 3,
                 showMenuBarIcon: false,
                 recentDocuments: [
                     RecentDocumentItem(
@@ -57,6 +60,7 @@ final class SettingsTests: XCTestCase {
                 downloadedUpdatePath: ""
             )
         )
+        viewModel.applyAPICredentialState(isConfigured: true, status: "API 凭据已保存。")
         viewModel.applyUpdateState(
             NativeUpdateStateSnapshot(
                 currentVersion: "1.1.0",
@@ -86,6 +90,13 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(viewModel.scene.latestAssetName, "WordZ-1.1.1-mac-arm64.dmg")
         XCTAssertEqual(viewModel.scene.recentDocuments.count, 1)
         XCTAssertEqual(viewModel.scene.userDataDirectory, "/tmp/wordzmac")
+        XCTAssertFalse(viewModel.apiAccessEnabled)
+        XCTAssertEqual(viewModel.apiRequestTimeoutSeconds, 25)
+        XCTAssertEqual(viewModel.apiMaxConcurrentRequests, 3)
+        XCTAssertEqual(viewModel.scene.apiRequestTimeoutLabel, "25 秒")
+        XCTAssertEqual(viewModel.scene.apiMaxConcurrentRequestsLabel, "3")
+        XCTAssertTrue(viewModel.scene.apiCredentialConfigured)
+        XCTAssertEqual(viewModel.scene.apiCredentialStatus, "API 凭据已保存。")
         XCTAssertFalse(viewModel.showMenuBarIcon)
 
         let exported = viewModel.exportSnapshot()
@@ -97,6 +108,9 @@ final class SettingsTests: XCTestCase {
 
         let exportedHost = viewModel.exportHostPreferences()
         XCTAssertTrue(exportedHost.autoUpdateEnabled)
+        XCTAssertFalse(exportedHost.apiAccessEnabled)
+        XCTAssertEqual(exportedHost.apiRequestTimeoutSeconds, 25)
+        XCTAssertEqual(exportedHost.apiMaxConcurrentRequests, 3)
         XCTAssertFalse(exportedHost.autoInstallDownloadedUpdates)
         XCTAssertEqual(exportedHost.languageMode, .system)
         XCTAssertEqual(exportedHost.recentDocuments.count, 1)
@@ -117,6 +131,9 @@ final class SettingsTests: XCTestCase {
         viewModel.checkForUpdatesOnLaunch = false
         viewModel.autoDownloadUpdates = true
         viewModel.autoInstallDownloadedUpdates = true
+        viewModel.apiAccessEnabled = false
+        viewModel.apiRequestTimeoutSeconds = 20
+        viewModel.apiMaxConcurrentRequests = 4
 
         viewModel.applyHostPreferences(
             NativeHostPreferencesSnapshot(
@@ -125,6 +142,9 @@ final class SettingsTests: XCTestCase {
                 checkForUpdatesOnLaunch: true,
                 autoDownloadUpdates: false,
                 autoInstallDownloadedUpdates: false,
+                apiAccessEnabled: true,
+                apiRequestTimeoutSeconds: 45,
+                apiMaxConcurrentRequests: 1,
                 showMenuBarIcon: false,
                 recentDocuments: [
                     RecentDocumentItem(
@@ -149,9 +169,28 @@ final class SettingsTests: XCTestCase {
         XCTAssertFalse(viewModel.checkForUpdatesOnLaunch)
         XCTAssertTrue(viewModel.autoDownloadUpdates)
         XCTAssertTrue(viewModel.autoInstallDownloadedUpdates)
+        XCTAssertFalse(viewModel.apiAccessEnabled)
+        XCTAssertEqual(viewModel.apiRequestTimeoutSeconds, 20)
+        XCTAssertEqual(viewModel.apiMaxConcurrentRequests, 4)
         XCTAssertFalse(viewModel.showMenuBarIcon)
         XCTAssertEqual(viewModel.scene.recentDocuments.count, 1)
         XCTAssertEqual(viewModel.scene.downloadedUpdateName, "WordZ-1.1.1-mac-arm64.dmg")
+    }
+
+    func testAPIRequestPolicyClampsToConservativeBounds() {
+        let viewModel = WorkspaceSettingsViewModel()
+
+        viewModel.apiRequestTimeoutSeconds = 1
+        viewModel.apiMaxConcurrentRequests = 10
+
+        XCTAssertEqual(viewModel.apiRequestTimeoutSeconds, 5)
+        XCTAssertEqual(viewModel.apiMaxConcurrentRequests, 4)
+
+        viewModel.apiRequestTimeoutSeconds = 120
+        viewModel.apiMaxConcurrentRequests = 0
+
+        XCTAssertEqual(viewModel.apiRequestTimeoutSeconds, 60)
+        XCTAssertEqual(viewModel.apiMaxConcurrentRequests, 1)
     }
 
     func testUISettingsSnapshotRoundTripsRecentMetadataSources() {

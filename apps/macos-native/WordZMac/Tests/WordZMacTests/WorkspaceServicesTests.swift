@@ -191,63 +191,6 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertEqual(draft.sentimentReferenceCorpusID, "set:set-1")
     }
 
-    func testWorkspacePersistenceRoundTripsEvidenceFilterState() {
-        let draft = WorkspacePersistenceService().buildDraft(
-            selectedTab: .kwic,
-            selectedFolderID: "folder-1",
-            selectedCorpusSetID: "",
-            selectedCorpus: nil,
-            openedCorpus: nil,
-            searchQuery: "",
-            searchOptions: .default,
-            stopwordFilter: .default,
-            evidenceReviewFilter: .keep,
-            evidenceSourceFilter: .sentiment,
-            evidenceSentimentFilter: .positive,
-            evidenceTagFilterQuery: "teaching, alpha",
-            evidenceCorpusFilterQuery: "archive",
-            ngramSize: "2",
-            ngramPageSize: "10",
-            kwicLeftWindow: "5",
-            kwicRightWindow: "5",
-            collocateLeftWindow: "5",
-            collocateRightWindow: "5",
-            collocateMinFreq: "1",
-            topicsMinTopicSize: "2",
-            topicsIncludeOutliers: true,
-            topicsPageSize: "50",
-            topicsActiveTopicID: "",
-            chiSquareA: "",
-            chiSquareB: "",
-            chiSquareC: "",
-            chiSquareD: "",
-            chiSquareUseYates: false
-        )
-
-        let evidence = draft.asJSONObject()["evidence"] as? [String: Any]
-        let snapshot = WorkspaceSnapshotSummary(json: draft.asJSONObject())
-        let persistedSnapshot = NativePersistedWorkspaceSnapshot(draft: draft).workspaceSnapshot
-
-        XCTAssertEqual(draft.evidenceReviewFilter, .keep)
-        XCTAssertEqual(draft.evidenceSourceFilter, .sentiment)
-        XCTAssertEqual(draft.evidenceSentimentFilter, .positive)
-        XCTAssertEqual(draft.evidenceTagFilterQuery, "teaching, alpha")
-        XCTAssertEqual(draft.evidenceCorpusFilterQuery, "archive")
-        XCTAssertEqual(evidence?["reviewFilter"] as? String, "keep")
-        XCTAssertEqual(evidence?["sourceFilter"] as? String, "sentiment")
-        XCTAssertEqual(evidence?["sentimentFilter"] as? String, "positive")
-        XCTAssertEqual(snapshot.evidenceReviewFilter, .keep)
-        XCTAssertEqual(snapshot.evidenceSourceFilter, .sentiment)
-        XCTAssertEqual(snapshot.evidenceSentimentFilter, .positive)
-        XCTAssertEqual(snapshot.evidenceTagFilterQuery, "teaching, alpha")
-        XCTAssertEqual(snapshot.evidenceCorpusFilterQuery, "archive")
-        XCTAssertEqual(persistedSnapshot.evidenceReviewFilter, .keep)
-        XCTAssertEqual(persistedSnapshot.evidenceSourceFilter, .sentiment)
-        XCTAssertEqual(persistedSnapshot.evidenceSentimentFilter, .positive)
-        XCTAssertEqual(persistedSnapshot.evidenceTagFilterQuery, "teaching, alpha")
-        XCTAssertEqual(persistedSnapshot.evidenceCorpusFilterQuery, "archive")
-    }
-
     func testWorkspaceSnapshotRoundTripsSentimentImportedLexiconBundlesFromDraftJSON() {
         let importedBundle = makeSentimentUserLexiconBundle(id: "roundtrip-bundle")
         var calibration = SentimentCalibrationProfile.workspaceDefault
@@ -1012,68 +955,6 @@ final class WorkspaceServicesTests: XCTestCase {
 
         sets = try store.listConcordanceSavedSets()
         XCTAssertTrue(sets.isEmpty)
-    }
-
-    func testNativeCorpusStorePersistsEvidenceItemRoundTrip() throws {
-        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("wordz-native-evidence-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-
-        let store = NativeCorpusStore(rootURL: rootURL)
-        try store.ensureInitialized()
-
-        let first = makeEvidenceItem(sourceKind: .kwic, reviewStatus: .pending)
-        let second = EvidenceItem(
-            id: "evidence-locator-keep-2",
-            sourceKind: .locator,
-            savedSetID: nil,
-            savedSetName: nil,
-            corpusID: "corpus-2",
-            corpusName: "Locator Corpus",
-            sentenceId: 4,
-            sentenceTokenIndex: 5,
-            leftContext: "left",
-            keyword: "node",
-            rightContext: "right",
-            fullSentenceText: "left node right",
-            citationText: "Sentence 5: left node right",
-            query: "node",
-            leftWindow: 5,
-            rightWindow: 5,
-            searchOptionsSnapshot: nil,
-            stopwordFilterSnapshot: nil,
-            reviewStatus: .keep,
-            sectionTitle: "Section B",
-            claim: "Claim Beta",
-            tags: ["review", "keep", "review"],
-            note: "keep this",
-            createdAt: "2026-04-13T00:00:00Z",
-            updatedAt: "2026-04-13T00:00:00Z"
-        )
-
-        _ = try store.saveEvidenceItem(first)
-        var savedSecond = try store.saveEvidenceItem(second)
-
-        var items = try store.listEvidenceItems()
-        XCTAssertEqual(items.map(\.id), [second.id, first.id])
-
-        savedSecond.reviewStatus = .exclude
-        savedSecond.note = "updated"
-        _ = try store.saveEvidenceItem(savedSecond)
-
-        try store.replaceEvidenceItems([first, savedSecond])
-
-        items = try store.listEvidenceItems()
-        XCTAssertEqual(items.map(\.id), [first.id, savedSecond.id])
-        XCTAssertEqual(items.last?.reviewStatus, .exclude)
-        XCTAssertEqual(items.last?.note, "updated")
-        XCTAssertEqual(items.last?.sectionTitle, "Section B")
-        XCTAssertEqual(items.last?.claim, "Claim Beta")
-        XCTAssertEqual(items.last?.tags, ["review", "keep"])
-
-        try store.deleteEvidenceItem(itemID: first.id)
-        items = try store.listEvidenceItems()
-        XCTAssertEqual(items.map(\.id), [savedSecond.id])
     }
 
     func testNativeCorpusStorePersistsSentimentReviewSampleRoundTrip() throws {

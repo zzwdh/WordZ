@@ -4,6 +4,63 @@ import XCTest
 @testable import WordZWorkspaceCore
 
 final class UserBenchmarkTests: XCTestCase {
+    func testRunFixedFixtureBenchmarkForRoadmapBaseline() async throws {
+        let runner = UserBenchmarkRunner()
+        let report = try await runner.runRepeated(
+            inputURL: fixedFixtureBenchmarkURL,
+            options: UserBenchmarkOptions(
+                buildConfiguration: "debug",
+                minTopicSize: 2,
+                runTopics: true,
+                runSentiment: true,
+                runKWIC: true,
+                sentimentUnit: .sentence,
+                sentimentBackend: .lexicon,
+                repeatCount: 3
+            ),
+            checkpointURL: fixedFixtureBenchmarkOutputURL
+        )
+        try report.write(to: fixedFixtureBenchmarkOutputURL)
+
+        XCTAssertEqual(report.status, "ok")
+        XCTAssertEqual(report.summary?.runCount, 3)
+        XCTAssertEqual(report.summary?.successfulRunCount, 3)
+        XCTAssertNotNil(report.summary?.totalDurationMs?.p50)
+        XCTAssertNotNil(report.summary?.totalDurationMs?.p95)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fixedFixtureBenchmarkOutputURL.path))
+    }
+
+    func testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline() async throws {
+        let inputURL = try prepareReferenceCorpusBenchmarkInput(maxFileCount: 12)
+        let runner = UserBenchmarkRunner()
+        let report = try await runner.runRepeated(
+            inputURL: inputURL,
+            options: UserBenchmarkOptions(
+                buildConfiguration: "debug",
+                minTopicSize: 2,
+                runTopics: true,
+                runSentiment: true,
+                runKWIC: true,
+                sentimentUnit: .sentence,
+                sentimentBackend: .lexicon,
+                repeatCount: 3
+            ),
+            checkpointURL: referenceCorpusBenchmarkOutputURL
+        )
+        try report.write(to: referenceCorpusBenchmarkOutputURL)
+
+        XCTAssertEqual(report.status, "ok")
+        XCTAssertEqual(report.summary?.runCount, 3)
+        XCTAssertEqual(report.summary?.successfulRunCount, 3)
+        XCTAssertGreaterThan(report.input.characterCount, 30_000)
+        XCTAssertNotNil(report.summary?.totalDurationMs?.p50)
+        XCTAssertNotNil(report.summary?.totalDurationMs?.p95)
+        XCTAssertNotNil(report.summary?.topicsDurationMs?.p95)
+        XCTAssertNotNil(report.summary?.sentimentDurationMs?.p95)
+        XCTAssertNotNil(report.summary?.kwicDurationMs?.p95)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: referenceCorpusBenchmarkOutputURL.path))
+    }
+
     func testRunUserProvidedBenchmark() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let filePath = environment["WORDZ_USER_BENCHMARK_FILE"],
@@ -57,6 +114,92 @@ final class UserBenchmarkTests: XCTestCase {
             .appendingPathComponent("reports", isDirectory: true)
             .appendingPathComponent("user-benchmark.json")
             .path
+    }
+
+    private var repositoryRootURL: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private var roadmapBaselineOutputDirectoryURL: URL {
+        let environment = ProcessInfo.processInfo.environment
+        if let outputPath = environment["WORDZ_1_4_BASELINE_OUTPUT_DIR"],
+           !outputPath.isEmpty {
+            return URL(fileURLWithPath: outputPath, isDirectory: true)
+        }
+        return repositoryRootURL
+            .appendingPathComponent(".build", isDirectory: true)
+            .appendingPathComponent("reports", isDirectory: true)
+            .appendingPathComponent("1.4.0", isDirectory: true)
+    }
+
+    private var fixedFixtureBenchmarkURL: URL {
+        repositoryRootURL
+            .appendingPathComponent("Tests", isDirectory: true)
+            .appendingPathComponent("WordZMacTests", isDirectory: true)
+            .appendingPathComponent("Fixtures", isDirectory: true)
+            .appendingPathComponent("UserBenchmark", isDirectory: true)
+            .appendingPathComponent("user-benchmark-sample.txt")
+    }
+
+    private var fixedFixtureBenchmarkOutputURL: URL {
+        roadmapBaselineOutputDirectoryURL
+            .appendingPathComponent("user-benchmark.json")
+    }
+
+    private var bundledReferenceCorpusDirectoryURL: URL {
+        repositoryRootURL
+            .appendingPathComponent("Sources", isDirectory: true)
+            .appendingPathComponent("WordZAnalysis", isDirectory: true)
+            .appendingPathComponent("Resources", isDirectory: true)
+            .appendingPathComponent("ReferenceCorpora", isDirectory: true)
+            .appendingPathComponent("ToRCH2014_SEG_UTF-8", isDirectory: true)
+    }
+
+    private var referenceCorpusBenchmarkInputURL: URL {
+        roadmapBaselineOutputDirectoryURL
+            .appendingPathComponent("reference-benchmark-corpus.txt")
+    }
+
+    private var referenceCorpusBenchmarkOutputURL: URL {
+        roadmapBaselineOutputDirectoryURL
+            .appendingPathComponent("user-benchmark-reference.json")
+    }
+
+    private func prepareReferenceCorpusBenchmarkInput(maxFileCount: Int) throws -> URL {
+        let fileManager = FileManager.default
+        let fileURLs = try fileManager.contentsOfDirectory(
+            at: bundledReferenceCorpusDirectoryURL,
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.pathExtension == "txt" }
+        .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        .prefix(maxFileCount)
+
+        guard !fileURLs.isEmpty else {
+            throw NSError(
+                domain: "UserBenchmarkTests",
+                code: 4,
+                userInfo: [NSLocalizedDescriptionKey: "No bundled reference corpus files were found."]
+            )
+        }
+
+        let text = try fileURLs
+            .map { try String(contentsOf: $0, encoding: .utf8) }
+            .enumerated()
+            .map { index, content in
+                "# Reference segment \(index + 1)\n\(content.trimmingCharacters(in: .whitespacesAndNewlines))"
+            }
+            .joined(separator: "\n\n")
+
+        try fileManager.createDirectory(
+            at: referenceCorpusBenchmarkInputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try text.write(to: referenceCorpusBenchmarkInputURL, atomically: true, encoding: .utf8)
+        return referenceCorpusBenchmarkInputURL
     }
 
     private static func sentimentUnit(rawValue: String?) throws -> SentimentAnalysisUnit {
@@ -149,6 +292,8 @@ private struct UserBenchmarkSummaryReport: Codable {
 
 private struct UserBenchmarkDurationSummary: Codable {
     let median: Double
+    let p50: Double
+    let p95: Double
     let min: Double
     let max: Double
 }
@@ -965,9 +1110,27 @@ private final class UserBenchmarkRunner {
         }
         return UserBenchmarkDurationSummary(
             median: median,
+            p50: percentile(sorted, 0.50),
+            p95: percentile(sorted, 0.95),
             min: sorted.first ?? median,
             max: sorted.last ?? median
         )
+    }
+
+    private func percentile(_ sortedValues: [Double], _ percentile: Double) -> Double {
+        guard let first = sortedValues.first else { return 0 }
+        guard sortedValues.count > 1 else { return first }
+        let clamped = min(max(percentile, 0), 1)
+        let position = clamped * Double(sortedValues.count - 1)
+        let lowerIndex = Int(floor(position))
+        let upperIndex = Int(ceil(position))
+        guard lowerIndex != upperIndex else {
+            return sortedValues[lowerIndex]
+        }
+        let lower = sortedValues[lowerIndex]
+        let upper = sortedValues[upperIndex]
+        let weight = position - Double(lowerIndex)
+        return lower + ((upper - lower) * weight)
     }
 
     private func writeCheckpoint(

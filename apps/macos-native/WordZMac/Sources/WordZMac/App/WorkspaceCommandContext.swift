@@ -18,8 +18,6 @@ package struct WorkspaceCommandContext: Equatable {
     let canQuickLookContent: Bool
     let canShareContent: Bool
     let canExportCurrent: Bool
-    let canExportEvidenceDossier: Bool
-    let canExportEvidenceJSON: Bool
     let canSaveAnalysisPreset: Bool
     let canManageAnalysisPresets: Bool
     let canExportReportBundle: Bool
@@ -40,8 +38,6 @@ package struct WorkspaceCommandContext: Equatable {
         canQuickLookContent: Bool = false,
         canShareContent: Bool = false,
         canExportCurrent: Bool = false,
-        canExportEvidenceDossier: Bool = false,
-        canExportEvidenceJSON: Bool = false,
         canSaveAnalysisPreset: Bool = false,
         canManageAnalysisPresets: Bool = false,
         canExportReportBundle: Bool = false
@@ -61,8 +57,6 @@ package struct WorkspaceCommandContext: Equatable {
         self.canQuickLookContent = canQuickLookContent
         self.canShareContent = canShareContent
         self.canExportCurrent = canExportCurrent
-        self.canExportEvidenceDossier = canExportEvidenceDossier
-        self.canExportEvidenceJSON = canExportEvidenceJSON
         self.canSaveAnalysisPreset = canSaveAnalysisPreset
         self.canManageAnalysisPresets = canManageAnalysisPresets
         self.canExportReportBundle = canExportReportBundle
@@ -88,8 +82,6 @@ package struct WorkspaceCommandContext: Equatable {
             lhs.canQuickLookContent == rhs.canQuickLookContent &&
             lhs.canShareContent == rhs.canShareContent &&
             lhs.canExportCurrent == rhs.canExportCurrent &&
-            lhs.canExportEvidenceDossier == rhs.canExportEvidenceDossier &&
-            lhs.canExportEvidenceJSON == rhs.canExportEvidenceJSON &&
             lhs.canSaveAnalysisPreset == rhs.canSaveAnalysisPreset &&
             lhs.canManageAnalysisPresets == rhs.canManageAnalysisPresets &&
             lhs.canExportReportBundle == rhs.canExportReportBundle
@@ -115,8 +107,6 @@ package struct WorkspaceCommandContext: Equatable {
             canQuickLookContent: canQuickLookContent,
             canShareContent: canShareContent,
             canExportCurrent: canExportCurrent,
-            canExportEvidenceDossier: canExportEvidenceDossier,
-            canExportEvidenceJSON: canExportEvidenceJSON,
             canSaveAnalysisPreset: canSaveAnalysisPreset,
             canManageAnalysisPresets: canManageAnalysisPresets,
             canExportReportBundle: canExportReportBundle

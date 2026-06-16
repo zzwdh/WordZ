@@ -4,6 +4,67 @@ import WordZShared
 
 @MainActor
 final class WorkspaceWorkflowChainTests: XCTestCase {
+    func testRunKWICOnCorpusSetAnnotatesMemberSources() async throws {
+        let corpusSet = LibraryCorpusSetItem(json: [
+            "id": "set-kwic",
+            "name": "KWIC Set",
+            "corpusIds": ["corpus-1", "corpus-2"],
+            "corpusNames": ["Demo Corpus", "Compare Corpus"],
+            "metadataFilter": [:],
+            "createdAt": "today",
+            "updatedAt": "today"
+        ])
+        let repository = FakeWorkspaceRepository(
+            bootstrapState: makeBootstrapState(corpusSets: [corpusSet]),
+            openedCorporaByID: [
+                "corpus-1": OpenedCorpus(json: [
+                    "mode": "saved",
+                    "filePath": "/tmp/demo.txt",
+                    "displayName": "Demo Corpus",
+                    "content": "target appears here.",
+                    "sourceType": "txt"
+                ]),
+                "corpus-2": OpenedCorpus(json: [
+                    "mode": "saved",
+                    "filePath": "/tmp/compare.txt",
+                    "displayName": "Compare Corpus",
+                    "content": "target appears there.",
+                    "sourceType": "txt"
+                ])
+            ],
+            kwicResult: KWICResult(rows: [
+                KWICRow(
+                    id: "",
+                    left: "",
+                    node: "target",
+                    right: "appears",
+                    sentenceId: 0,
+                    sentenceTokenIndex: 0
+                )
+            ])
+        )
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        workspace.sidebar.applyCorpusSet(corpusSet)
+        workspace.library.selectCorpusSet(corpusSet.id)
+        workspace.sidebar.selectedCorpusID = workspace.library.selectedCorpusID
+        workspace.kwic.keyword = "target"
+
+        await workspace.runKWIC()
+
+        let rows = try XCTUnwrap(workspace.kwic.result?.rows)
+        XCTAssertEqual(repository.openSavedCorpusSetCallCount, 1)
+        XCTAssertEqual(repository.openSavedCorpusCallCount, 2)
+        XCTAssertEqual(repository.runKWICCallCount, 2)
+        XCTAssertEqual(rows.map(\.sourceID), ["corpus-1", "corpus-2"])
+        XCTAssertEqual(rows.map(\.sourceTitle), ["Demo Corpus", "Compare Corpus"])
+        XCTAssertEqual(rows.map(\.sourceSentenceId), [0, 0])
+        XCTAssertEqual(rows.map(\.sentenceId), [0, 6])
+        XCTAssertEqual(workspace.kwic.scene?.rows.map(\.sourceDisplayText), ["Demo Corpus", "Compare Corpus"])
+        XCTAssertEqual(workspace.kwic.scene?.rows.map(\.positionText), ["1:1", "1:1"])
+        XCTAssertEqual(workspace.kwic.scene?.rows.map(\.sentenceIndexText), ["1", "7"])
+    }
+
     func testOpenCompareSentimentSeedsCorpusCompareScopeAndRunsSentiment() async throws {
         let referenceSet = LibraryCorpusSetItem(json: [
             "id": "set-1",
@@ -434,196 +495,4 @@ final class WorkspaceWorkflowChainTests: XCTestCase {
         XCTAssertEqual(workspace.sourceReader.scene?.selection?.hit.fullSentenceText, fixture.openedCorpus.content.components(separatedBy: "\n\n").first)
     }
 
-    func testCaptureCurrentSentimentEvidenceItemAddsWorkbenchEntry() async {
-        let sentimentResult = SentimentRunResult(
-            request: SentimentRunRequest(
-                source: .openedCorpus,
-                unit: .sourceSentence,
-                contextBasis: .fullSentenceWhenAvailable,
-                thresholds: .default,
-                texts: [
-                    SentimentInputText(
-                        id: "sentiment-1",
-                        sourceID: "corpus-1",
-                        sourceTitle: "Demo Corpus",
-                        text: "Delta alpha.",
-                        sentenceID: 1,
-                        tokenIndex: 1,
-                        documentText: "Gamma beta.\n\nDelta alpha."
-                    )
-                ],
-                backend: .lexicon
-            ),
-            backendKind: .lexicon,
-            backendRevision: "lexicon-v1",
-            resourceRevision: "resource-v1",
-            supportsEvidenceHits: true,
-            rows: [
-                SentimentRowResult(
-                    id: "sentiment-1",
-                    sourceID: "corpus-1",
-                    sourceTitle: "Demo Corpus",
-                    groupID: "target",
-                    groupTitle: "Target",
-                    text: "Delta alpha.",
-                    positivityScore: 0.74,
-                    negativityScore: 0.06,
-                    neutralityScore: 0.20,
-                    finalLabel: .positive,
-                    netScore: 1.25,
-                    evidence: [
-                        SentimentEvidenceHit(
-                            id: "alpha-hit",
-                            surface: "alpha",
-                            lemma: "alpha",
-                            baseScore: 1.1,
-                            adjustedScore: 1.1,
-                            ruleTags: ["lexicon"],
-                            tokenIndex: 1,
-                            tokenLength: 1
-                        )
-                    ],
-                    evidenceCount: 1,
-                    mixedEvidence: false,
-                    diagnostics: .empty,
-                    sentenceID: 1,
-                    tokenIndex: 1
-                )
-            ],
-            overallSummary: makeSentimentResult().overallSummary,
-            groupSummaries: makeSentimentResult().groupSummaries,
-            lexiconVersion: "test-v1"
-        )
-        let repository = FakeWorkspaceRepository(
-            tokenizeResult: makeTokenizeResult(),
-            sentimentResult: sentimentResult
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.sentiment.apply(sentimentResult)
-        workspace.sentiment.selectedRowID = "sentiment-1"
-        workspace.selectedTab = .sentiment
-        workspace.syncSceneGraph()
-
-        await workspace.captureCurrentSentimentEvidenceItem()
-
-        XCTAssertEqual(repository.saveEvidenceItemCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .sentiment)
-        XCTAssertEqual(repository.evidenceItems.first?.sentenceId, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.keyword, "alpha")
-        XCTAssertEqual(repository.evidenceItems.first?.sentimentMetadata?.effectiveLabel, .positive)
-        XCTAssertEqual(repository.evidenceItems.first?.crossAnalysisMetadata?.originKind, .sentimentDirect)
-    }
-
-    func testCaptureCurrentCompareSentimentEvidenceItemCarriesCrossAnalysisMetadata() async {
-        let repository = FakeWorkspaceRepository(
-            bootstrapState: makeBootstrapState(),
-            tokenizeResult: makeTokenizeResult(),
-            sentimentResult: makeCompareSentimentResult()
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.sentiment.syncLibrarySnapshot(repository.bootstrapState.librarySnapshot)
-        workspace.sentiment.selectedCorpusIDs = ["corpus-1"]
-        workspace.sentiment.selectedReferenceSelection = .corpus("corpus-2")
-        workspace.sentiment.apply(makeCompareSentimentResult())
-        workspace.sentiment.rowFilterQuery = "alpha"
-        workspace.sentiment.selectedRowID = "target::corpus-1::sentence::0"
-        workspace.selectedTab = .sentiment
-        workspace.syncSceneGraph()
-
-        await workspace.captureCurrentSentimentEvidenceItem()
-
-        XCTAssertEqual(repository.saveEvidenceItemCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.sentimentMetadata?.rawLabel, .positive)
-        XCTAssertEqual(repository.evidenceItems.first?.crossAnalysisMetadata?.originKind, .compareSentiment)
-        XCTAssertEqual(repository.evidenceItems.first?.crossAnalysisMetadata?.focusTerm, "alpha")
-    }
-
-    func testCaptureCurrentSourceReaderEvidenceItemFromSentimentPersistsSentimentSource() async {
-        let repository = FakeWorkspaceRepository(
-            tokenizeResult: makeTokenizeResult(),
-            sentimentResult: makeSentimentResult()
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.sentiment.apply(makeSentimentResult())
-        workspace.sentiment.selectedRowID = "sentiment-negative"
-        workspace.selectedTab = .sentiment
-        workspace.syncSceneGraph()
-        _ = await workspace.openCurrentSourceReader()
-
-        await workspace.captureCurrentSourceReaderEvidenceItem()
-
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .sentiment)
-        XCTAssertEqual(repository.evidenceItems.first?.sentenceId, 1)
-        XCTAssertNil(repository.evidenceItems.first?.claim)
-        XCTAssertEqual(repository.evidenceItems.first?.keyword, "bad")
-    }
-
-    func testCaptureCurrentSourceReaderEvidenceItemFromTopicsPersistsTopicsSource() async {
-        let fixture = makeTopicsSourceReaderFixture()
-        let repository = FakeWorkspaceRepository(
-            openedCorpus: fixture.openedCorpus,
-            tokenizeResult: fixture.tokenizeResult,
-            topicsResult: fixture.topicsResult
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.topics.query = "hacker"
-        await workspace.runTopics()
-        workspace.topics.selectedRowID = "paragraph-2"
-        _ = await workspace.openCurrentSourceReader()
-
-        await workspace.captureCurrentSourceReaderEvidenceItem()
-
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .topics)
-        XCTAssertEqual(repository.evidenceItems.first?.sentenceId, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.keyword, "hacker")
-        XCTAssertEqual(
-            repository.evidenceItems.first?.fullSentenceText,
-            "Hackers shared exploit mitigation strategies and coordinated fixes."
-        )
-        XCTAssertEqual(repository.evidenceItems.first?.tags, [])
-    }
-
-    func testTopicsSentimentSourceReaderCapturePreservesTopicsCrossAnalysisMetadata() async {
-        let fixture = makeTopicsSourceReaderFixture()
-        let repository = FakeWorkspaceRepository(
-            openedCorpus: fixture.openedCorpus,
-            tokenizeResult: fixture.tokenizeResult,
-            topicsResult: fixture.topicsResult,
-            sentimentResult: makeTopicsSentimentResult(
-                corpusID: "corpus-1",
-                sourceTitle: fixture.openedCorpus.displayName,
-                documentText: fixture.openedCorpus.content
-            )
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.topics.query = ""
-        workspace.topics.apply(fixture.topicsResult)
-        workspace.selectedTab = .topics
-        workspace.syncSceneGraph()
-        XCTAssertNotNil(workspace.topics.scene)
-        XCTAssertTrue(workspace.topics.canAnalyzeVisibleTopicsInSentiment)
-
-        await workspace.openTopicsSentiment(scope: .visibleTopics)
-        workspace.sentiment.selectedRowID = "paragraph-1::sentence::0"
-        workspace.selectedTab = .sentiment
-        workspace.syncSceneGraph()
-        let opened = await workspace.openCurrentSourceReader()
-        await workspace.captureCurrentSourceReaderEvidenceItem()
-
-        XCTAssertTrue(opened)
-        XCTAssertEqual(workspace.sourceReader.launchContext?.origin, .sentiment)
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .sentiment)
-        XCTAssertEqual(repository.evidenceItems.first?.crossAnalysisMetadata?.originKind, .topicsSentiment)
-        XCTAssertEqual(repository.evidenceItems.first?.crossAnalysisMetadata?.topicTitle, "Topic 1")
-    }
 }

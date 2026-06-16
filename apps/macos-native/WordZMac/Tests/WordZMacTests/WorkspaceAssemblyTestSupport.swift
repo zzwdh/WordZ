@@ -87,6 +87,8 @@ func makeMainWorkspaceViewModel(
     applicationActivityInspector: (any ApplicationActivityInspecting)? = nil,
     buildMetadataProvider: any NativeBuildMetadataProviding = NativeBuildMetadataService(),
     diagnosticsBundleService: any NativeDiagnosticsBundleServicing = NativeDiagnosticsBundleService(),
+    apiCredentialStore: any NativeAPICredentialStoring = InMemoryAPICredentialStore(),
+    apiConnectionTester: any NativeAPIConnectionTesting = FakeAPIConnectionTester(),
     taskCenter: NativeTaskCenter = NativeTaskCenter(),
     sessionStore: WorkspaceSessionStore = WorkspaceSessionStore(),
     libraryCoordinator: (any LibraryCoordinating)? = nil,
@@ -109,7 +111,6 @@ func makeMainWorkspaceViewModel(
     kwic: KWICPageViewModel = KWICPageViewModel(),
     collocate: CollocatePageViewModel = CollocatePageViewModel(),
     locator: LocatorPageViewModel = LocatorPageViewModel(),
-    evidenceWorkbench: EvidenceWorkbenchViewModel = EvidenceWorkbenchViewModel(),
     settings: WorkspaceSettingsViewModel = WorkspaceSettingsViewModel()
 ) -> MainWorkspaceViewModel {
     let resolvedRuntimeDependencyFactory = runtimeDependencyFactory ?? MainWorkspaceRuntimeDependencyFactory()
@@ -144,6 +145,8 @@ func makeMainWorkspaceViewModel(
         reportBundleService: reportBundleService,
         buildMetadataProvider: buildMetadataProvider,
         diagnosticsBundleService: diagnosticsBundleService,
+        apiCredentialStore: apiCredentialStore,
+        apiConnectionTester: apiConnectionTester,
         taskCenter: taskCenter,
         sessionStore: sessionStore,
         sidebar: sidebar,
@@ -163,7 +166,6 @@ func makeMainWorkspaceViewModel(
         kwic: kwic,
         collocate: collocate,
         locator: locator,
-        evidenceWorkbench: evidenceWorkbench,
         settings: settings
     )
 }

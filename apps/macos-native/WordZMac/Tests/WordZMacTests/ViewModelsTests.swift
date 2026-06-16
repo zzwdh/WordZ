@@ -900,10 +900,19 @@ final class ViewModelsTests: XCTestCase {
         viewModel.apply(makeKWICResult(rowCount: 40))
         viewModel.handle(.changeSort(.sentenceAscending))
         XCTAssertEqual(viewModel.scene?.rows.first?.sentenceIndexText, "2")
+        XCTAssertEqual(viewModel.scene?.rows.first?.positionText, "2:40")
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.rowNumber) ?? false)
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.position) ?? false)
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.sentenceIndex) ?? true)
 
         viewModel.handle(.toggleColumn(.leftContext))
         XCTAssertFalse(viewModel.scene?.isColumnVisible(.leftContext) ?? true)
+        viewModel.handle(.sortByColumn(.rightContext))
+        XCTAssertEqual(viewModel.scene?.sorting.selectedSort, .rightOneAscending)
+        viewModel.handle(.resetTableLayout)
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.rowNumber) ?? false)
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.position) ?? false)
+        XCTAssertTrue(viewModel.scene?.isColumnVisible(.leftContext) ?? false)
         XCTAssertNotNil(viewModel.primaryLocatorSource)
     }
 
@@ -920,6 +929,58 @@ final class ViewModelsTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedRowID, "1-2")
         XCTAssertEqual(viewModel.primaryLocatorSource?.sentenceId, 1)
         XCTAssertEqual(viewModel.primaryLocatorSource?.nodeIndex, 2)
+    }
+
+    func testKWICPageViewModelFiltersAndSortsSourceColumns() {
+        let viewModel = KWICPageViewModel()
+        viewModel.keyword = "target"
+        viewModel.apply(
+            KWICResult(rows: [
+                KWICRow(
+                    id: "",
+                    left: "a",
+                    node: "target",
+                    right: "b",
+                    sentenceId: 0,
+                    sentenceTokenIndex: 0,
+                    sourceID: "corpus-a",
+                    sourceTitle: "Alpha Source",
+                    sourceFilePath: "/tmp/alpha.txt",
+                    sourceFileName: "alpha.txt",
+                    sourceType: "txt",
+                    sourceIndex: 1,
+                    sourceSentenceId: 0,
+                    metadata: CorpusMetadataProfile(sourceLabel: "policy", yearLabel: "2024")
+                ),
+                KWICRow(
+                    id: "",
+                    left: "c",
+                    node: "target",
+                    right: "d",
+                    sentenceId: 1,
+                    sentenceTokenIndex: 0,
+                    sourceID: "corpus-b",
+                    sourceTitle: "Beta Source",
+                    sourceFilePath: "/tmp/beta.txt",
+                    sourceFileName: "beta.txt",
+                    sourceType: "txt",
+                    sourceIndex: 2,
+                    sourceSentenceId: 0,
+                    metadata: CorpusMetadataProfile(sourceLabel: "market", yearLabel: "2023")
+                )
+            ])
+        )
+
+        viewModel.sourceFilterQuery = "policy"
+
+        XCTAssertEqual(viewModel.currentPage, 1)
+        XCTAssertEqual(viewModel.scene?.filteredRows, 1)
+        XCTAssertEqual(viewModel.scene?.rows.first?.sourceDisplayText, "Alpha Source")
+        XCTAssertEqual(viewModel.scene?.tableSnapshot.rows.first?.value(for: KWICColumnKey.metadata.rawValue), "policy · 2024")
+
+        viewModel.handle(.sortByColumn(.source))
+        XCTAssertEqual(viewModel.scene?.sorting.selectedSort, .sourceAscending)
+        XCTAssertEqual(viewModel.scene?.table.column(for: KWICColumnKey.source)?.sortDirection, .ascending)
     }
 
     func testKWICPageViewModelFallsBackFromAllPageSizeForLargeResults() {
@@ -1646,139 +1707,6 @@ final class ViewModelsTests: XCTestCase {
         }
 
         wait(for: [expectation], timeout: 1.0)
-    }
-
-    func testEvidenceWorkbenchViewModelReordersVisibleSelectionForManualSorting() {
-        let first = makeEvidenceItem(id: "evidence-keep-1", sourceKind: .kwic, reviewStatus: .keep, sectionTitle: "Section A")
-        let hidden = makeEvidenceItem(id: "evidence-pending-1", sourceKind: .locator, reviewStatus: .pending, sectionTitle: "Section Hidden")
-        let second = makeEvidenceItem(id: "evidence-keep-2", sourceKind: .topics, reviewStatus: .keep, sectionTitle: "Section B")
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([first, hidden, second])
-        viewModel.reviewFilter = .keep
-        viewModel.selectedItemID = first.id
-
-        XCTAssertFalse(viewModel.canMoveSelectedItemUp)
-        XCTAssertTrue(viewModel.canMoveSelectedItemDown)
-        XCTAssertEqual(
-            viewModel.reorderedItemsMovingSelected(.down)?.map(\.id),
-            [second.id, hidden.id, first.id]
-        )
-    }
-
-    func testEvidenceWorkbenchViewModelUsesReviewFilterOnly() {
-        let kept = makeEvidenceItem(
-            id: "evidence-keep",
-            sourceKind: .sentiment,
-            reviewStatus: .keep,
-            tags: ["teaching", "alpha"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
-        )
-        let hiddenPending = makeEvidenceItem(
-            id: "evidence-pending",
-            sourceKind: .sentiment,
-            reviewStatus: .pending,
-            tags: ["teaching", "alpha"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
-        )
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([kept, hiddenPending])
-        viewModel.reviewFilter = .keep
-
-        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-keep"])
-        XCTAssertTrue(viewModel.hasActiveNarrowingFilters)
-
-        viewModel.clearFilters()
-
-        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-keep", "evidence-pending"])
-        XCTAssertFalse(viewModel.hasActiveNarrowingFilters)
-    }
-
-    func testEvidenceWorkbenchViewModelAppliesSnapshotReviewFilter() {
-        var positiveSentiment = makeEvidenceItem(
-            id: "evidence-positive",
-            sourceKind: .sentiment,
-            reviewStatus: .keep,
-            tags: ["teaching", "alpha"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
-        )
-        positiveSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .positive)
-        var negativeSentiment = makeEvidenceItem(
-            id: "evidence-negative",
-            sourceKind: .sentiment,
-            reviewStatus: .keep,
-            tags: ["teaching", "beta"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive", yearLabel: "2026")
-        )
-        negativeSentiment.sentimentMetadata = makeEvidenceSentimentMetadata(label: .negative)
-        let snapshot = makeWorkspaceSnapshot(
-            evidenceReviewFilter: .keep
-        )
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([positiveSentiment, negativeSentiment])
-        viewModel.apply(snapshot)
-
-        let expectedScope = [
-            wordZText("审阅", "Review", mode: .system) + ": " + EvidenceReviewFilter.keep.title(in: .system)
-        ].joined(separator: " · ")
-
-        XCTAssertEqual(viewModel.reviewFilter, .keep)
-        XCTAssertEqual(viewModel.filteredItems.map(\.id), ["evidence-positive", "evidence-negative"])
-        XCTAssertEqual(viewModel.exportScopeSummary(in: .system), expectedScope)
-    }
-
-    func testEvidenceWorkbenchViewModelBuildsDossierStatusSummaries() {
-        let completeMetadata = CorpusMetadataProfile(
-            sourceLabel: "Research Archive",
-            yearLabel: "2026",
-            genreLabel: "Interview"
-        )
-        let complete = makeEvidenceItem(
-            id: "evidence-complete",
-            reviewStatus: .keep,
-            citationFormat: .fullSentence,
-            citationStyle: .apa,
-            corpusMetadata: completeMetadata
-        )
-        let missing = makeEvidenceItem(
-            id: "evidence-missing",
-            sourceKind: .sentiment,
-            reviewStatus: .keep,
-            citationFormat: .citationLine,
-            citationStyle: .mla,
-            corpusMetadata: nil
-        )
-        let pending = makeEvidenceItem(
-            id: "evidence-pending",
-            reviewStatus: .pending,
-            citationFormat: .concordance,
-            citationStyle: .plain,
-            corpusMetadata: nil
-        )
-        let viewModel = EvidenceWorkbenchViewModel()
-
-        viewModel.applyItems([complete, missing, pending])
-
-        let citationSummary = viewModel.citationReadinessSummary(in: .system)
-        let metadataSummary = viewModel.metadataReadinessSummary(in: .system)
-
-        XCTAssertEqual(viewModel.visibleKeptItems.map(\.id), ["evidence-complete", "evidence-missing"])
-        XCTAssertTrue(citationSummary.contains(EvidenceCitationFormat.citationLine.title(in: .system) + " 1"))
-        XCTAssertTrue(citationSummary.contains(EvidenceCitationFormat.fullSentence.title(in: .system) + " 1"))
-        XCTAssertTrue(citationSummary.contains(EvidenceCitationStyle.mla.title(in: .system) + " 1"))
-        XCTAssertTrue(citationSummary.contains(EvidenceCitationStyle.apa.title(in: .system) + " 1"))
-        XCTAssertTrue(viewModel.hasMetadataGapsInVisibleKeptItems)
-        XCTAssertTrue(metadataSummary.contains("1"))
-        XCTAssertTrue(metadataSummary.contains(wordZText("来源标签", "Source Label", mode: .system)))
-        XCTAssertTrue(metadataSummary.contains(wordZText("年份", "Year", mode: .system)))
-        XCTAssertTrue(metadataSummary.contains(wordZText("体裁", "Genre", mode: .system)))
-
-        viewModel.applyItems([complete])
-
-        XCTAssertEqual(viewModel.metadataReadinessSummary(in: .system), wordZText("元数据完整", "Metadata complete", mode: .system))
-        XCTAssertFalse(viewModel.hasMetadataGapsInVisibleKeptItems)
     }
 
     @MainActor

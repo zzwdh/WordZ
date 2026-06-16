@@ -3,7 +3,6 @@ import Foundation
 package enum WorkspaceFeatureVertical: String, CaseIterable, Sendable {
     case topics
     case sentiment
-    case evidence
 }
 
 package enum WordZWorkspaceFeatureModule {

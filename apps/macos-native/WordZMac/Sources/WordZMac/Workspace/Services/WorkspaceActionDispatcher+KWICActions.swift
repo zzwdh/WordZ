@@ -26,7 +26,7 @@ extension WorkspaceActionDispatcher {
             launch { await self.workspace.deleteKWICSavedSet(setID) }
         case .exportSelectedSavedSetJSON:
             launch { await self.workspace.exportSelectedKWICSavedSetJSON(preferredWindowRoute: self.preferredWindowRoute) }
-        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .previousPage, .nextPage, .selectRow:
+        case .changeSort, .sortByColumn, .changePageSize, .toggleColumn, .resetTableLayout, .previousPage, .nextPage, .selectRow:
             syncResult(.kwic) {
                 workspace.kwic.handle(action)
                 workspace.syncLocatorSourceFromKWIC()

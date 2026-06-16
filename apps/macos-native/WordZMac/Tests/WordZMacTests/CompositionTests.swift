@@ -153,7 +153,6 @@ final class CompositionTests: XCTestCase {
         let reportBundleService = AnalysisReportBundleService()
         let topics = TopicsPageViewModel()
         let sentiment = SentimentPageViewModel()
-        let evidenceWorkbench = EvidenceWorkbenchViewModel()
 
         let libraryCoordinator = FakeLibraryCoordinator()
         let flowCoordinator = WorkspaceFlowCoordinator(
@@ -198,8 +197,7 @@ final class CompositionTests: XCTestCase {
             makeFeaturePages: {
                 WorkspaceFeaturePageBundle(
                     topics: topics,
-                    sentiment: sentiment,
-                    evidenceWorkbench: evidenceWorkbench
+                    sentiment: sentiment
                 )
             },
             makeWindowDocumentController: { windowDocumentController },
@@ -244,7 +242,6 @@ final class CompositionTests: XCTestCase {
         XCTAssertTrue(workspace.taskCenter === taskCenter)
         XCTAssertTrue(workspace.topics === topics)
         XCTAssertTrue(workspace.sentiment === sentiment)
-        XCTAssertTrue(workspace.evidenceWorkbench === evidenceWorkbench)
     }
 
     func testMainWorkspaceAssemblyHelperUsesProvidedRuntimeDependencyFactory() {
@@ -309,23 +306,18 @@ final class CompositionTests: XCTestCase {
         let repository = FakeWorkspaceRepository()
         let topics = TopicsPageViewModel()
         let sentiment = SentimentPageViewModel()
-        let evidenceWorkbench = EvidenceWorkbenchViewModel()
 
         let workspace = makeMainWorkspaceViewModel(
             repository: repository,
             topics: topics,
-            sentiment: sentiment,
-            evidenceWorkbench: evidenceWorkbench
+            sentiment: sentiment
         )
 
         XCTAssertTrue(workspace.topics === topics)
         XCTAssertTrue(workspace.sentiment === sentiment)
-        XCTAssertTrue(workspace.evidenceWorkbench === evidenceWorkbench)
         XCTAssertTrue(workspace.featurePages.topics === topics)
         XCTAssertTrue(workspace.featurePages.sentiment === sentiment)
-        XCTAssertTrue(workspace.featurePages.evidenceWorkbench === evidenceWorkbench)
         XCTAssertTrue(workspace.features.topics as AnyObject === topics)
         XCTAssertTrue(workspace.features.sentiment as AnyObject === sentiment)
-        XCTAssertTrue(workspace.features.evidenceWorkbench as AnyObject === evidenceWorkbench)
     }
 }

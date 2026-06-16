@@ -6,6 +6,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
     package var checkForUpdatesOnLaunch: Bool
     package var autoDownloadUpdates: Bool
     package var autoInstallDownloadedUpdates: Bool
+    package var apiAccessEnabled: Bool
+    package var apiRequestTimeoutSeconds: Int
+    package var apiMaxConcurrentRequests: Int
     package var showMenuBarIcon: Bool
     package var recentDocuments: [RecentDocumentItem]
     package var lastUpdateCheckAt: String
@@ -22,6 +25,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
         checkForUpdatesOnLaunch: true,
         autoDownloadUpdates: false,
         autoInstallDownloadedUpdates: false,
+        apiAccessEnabled: true,
+        apiRequestTimeoutSeconds: 10,
+        apiMaxConcurrentRequests: 2,
         showMenuBarIcon: true,
         recentDocuments: [],
         lastUpdateCheckAt: "",
@@ -39,6 +45,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
         case checkForUpdatesOnLaunch
         case autoDownloadUpdates
         case autoInstallDownloadedUpdates
+        case apiAccessEnabled
+        case apiRequestTimeoutSeconds
+        case apiMaxConcurrentRequests
         case showMenuBarIcon
         case recentDocuments
         case lastUpdateCheckAt
@@ -56,6 +65,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
         checkForUpdatesOnLaunch: Bool,
         autoDownloadUpdates: Bool,
         autoInstallDownloadedUpdates: Bool,
+        apiAccessEnabled: Bool = true,
+        apiRequestTimeoutSeconds: Int = 10,
+        apiMaxConcurrentRequests: Int = 2,
         showMenuBarIcon: Bool = true,
         recentDocuments: [RecentDocumentItem],
         lastUpdateCheckAt: String,
@@ -71,6 +83,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
         self.checkForUpdatesOnLaunch = checkForUpdatesOnLaunch
         self.autoDownloadUpdates = autoDownloadUpdates
         self.autoInstallDownloadedUpdates = autoInstallDownloadedUpdates
+        self.apiAccessEnabled = apiAccessEnabled
+        self.apiRequestTimeoutSeconds = apiRequestTimeoutSeconds
+        self.apiMaxConcurrentRequests = apiMaxConcurrentRequests
         self.showMenuBarIcon = showMenuBarIcon
         self.recentDocuments = recentDocuments
         self.lastUpdateCheckAt = lastUpdateCheckAt
@@ -90,6 +105,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
             checkForUpdatesOnLaunch: try container.decodeIfPresent(Bool.self, forKey: .checkForUpdatesOnLaunch) ?? true,
             autoDownloadUpdates: try container.decodeIfPresent(Bool.self, forKey: .autoDownloadUpdates) ?? false,
             autoInstallDownloadedUpdates: try container.decodeIfPresent(Bool.self, forKey: .autoInstallDownloadedUpdates) ?? false,
+            apiAccessEnabled: try container.decodeIfPresent(Bool.self, forKey: .apiAccessEnabled) ?? true,
+            apiRequestTimeoutSeconds: try container.decodeIfPresent(Int.self, forKey: .apiRequestTimeoutSeconds) ?? 10,
+            apiMaxConcurrentRequests: try container.decodeIfPresent(Int.self, forKey: .apiMaxConcurrentRequests) ?? 2,
             showMenuBarIcon: try container.decodeIfPresent(Bool.self, forKey: .showMenuBarIcon) ?? true,
             recentDocuments: try container.decodeIfPresent([RecentDocumentItem].self, forKey: .recentDocuments) ?? [],
             lastUpdateCheckAt: try container.decodeIfPresent(String.self, forKey: .lastUpdateCheckAt) ?? "",
@@ -109,6 +127,9 @@ package struct NativeHostPreferencesRecord: Codable, Equatable {
         try container.encode(checkForUpdatesOnLaunch, forKey: .checkForUpdatesOnLaunch)
         try container.encode(autoDownloadUpdates, forKey: .autoDownloadUpdates)
         try container.encode(autoInstallDownloadedUpdates, forKey: .autoInstallDownloadedUpdates)
+        try container.encode(apiAccessEnabled, forKey: .apiAccessEnabled)
+        try container.encode(apiRequestTimeoutSeconds, forKey: .apiRequestTimeoutSeconds)
+        try container.encode(apiMaxConcurrentRequests, forKey: .apiMaxConcurrentRequests)
         try container.encode(showMenuBarIcon, forKey: .showMenuBarIcon)
         try container.encode(recentDocuments, forKey: .recentDocuments)
         try container.encode(lastUpdateCheckAt, forKey: .lastUpdateCheckAt)

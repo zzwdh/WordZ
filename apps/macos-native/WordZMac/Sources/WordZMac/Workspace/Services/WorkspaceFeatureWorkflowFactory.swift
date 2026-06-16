@@ -21,13 +21,6 @@ struct WorkspaceFeatureWorkflowFactory: WorkspaceFeatureWorkflowBuilding {
                 sessionStore: sessionStore,
                 taskCenter: taskCenter,
                 analysisWorkflow: analysisWorkflow
-            ),
-            evidence: WorkspaceEvidenceWorkflowService(
-                repository: repository,
-                sessionStore: sessionStore,
-                dialogService: dialogService,
-                hostActionService: hostActionService,
-                exportCoordinator: exportCoordinator
             )
         )
     }

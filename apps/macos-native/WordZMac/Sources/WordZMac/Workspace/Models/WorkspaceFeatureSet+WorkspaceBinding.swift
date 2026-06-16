@@ -21,7 +21,6 @@ extension WorkspaceFeatureSet {
             kwic: workspace.kwic,
             collocate: workspace.collocate,
             locator: workspace.locator,
-            evidenceWorkbench: workspace.featurePages.evidenceWorkbench,
             settings: workspace.settings
         )
     }

@@ -21,13 +21,13 @@ extension WorkspaceAnalysisWorkflowService {
             return
         }
 
-        guard features.sidebar.librarySnapshot.corpora.contains(where: { $0.id == selectedSet.corpusID }) else {
+        guard concordanceSavedSetSourceExists(selectedSet, features: features) else {
             features.sidebar.setError(
                 l10nFormat(
-                    "命中集“%@”关联的语料已不存在，无法载入。",
+                    "命中集“%@”关联的语料或语料集已不存在，无法载入。",
                     table: "Errors",
                     mode: .system,
-                    fallback: "The corpus linked to hit set \"%@\" is no longer available.",
+                    fallback: "The corpus or corpus set linked to hit set \"%@\" is no longer available.",
                     selectedSet.name
                 )
             )
@@ -76,7 +76,15 @@ extension WorkspaceAnalysisWorkflowService {
                     node: row.keyword,
                     right: row.rightContext,
                     sentenceId: row.sentenceId,
-                    sentenceTokenIndex: row.sentenceTokenIndex ?? 0
+                    sentenceTokenIndex: row.sentenceTokenIndex ?? 0,
+                    sourceID: row.sourceID ?? "",
+                    sourceTitle: row.sourceTitle ?? "",
+                    sourceFilePath: row.sourceFilePath ?? "",
+                    sourceFileName: row.sourceFileName ?? "",
+                    sourceType: row.sourceType ?? "",
+                    sourceIndex: row.sourceIndex ?? 0,
+                    sourceSentenceId: row.sourceSentenceId,
+                    metadata: row.sourceMetadata ?? .empty
                 )
             }
         )
@@ -146,6 +154,19 @@ extension WorkspaceAnalysisWorkflowService {
         prepareCorpusSelectionChange: @escaping @MainActor (WorkspaceFeatureSet) -> Void,
         syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
     ) async throws {
+        if let corpusSetID = CorpusSetSourceID.corpusSetID(from: corpusID) {
+            let selectedSet = features.sidebar.librarySnapshot.corpusSets.first(where: { $0.id == corpusSetID })
+            features.sidebar.applyCorpusSet(selectedSet)
+            features.library.selectCorpusSet(corpusSetID)
+            features.sidebar.selectedCorpusID = features.library.selectedCorpusID
+            prepareCorpusSelectionChange(features)
+            _ = try await ensureOpenedCorpus(
+                features: features,
+                syncFeatureContexts: syncFeatureContexts
+            )
+            features.sidebar.clearError()
+            return
+        }
         try await prepareDrilldownCorpusSelection(
             corpusID,
             features: features,

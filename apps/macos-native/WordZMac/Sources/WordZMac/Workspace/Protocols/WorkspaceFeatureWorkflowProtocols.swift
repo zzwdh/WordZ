@@ -57,67 +57,9 @@ protocol WorkspaceTopicsWorkflowServing {
     ) async
 }
 
-@MainActor
-protocol WorkspaceEvidenceWorkflowServing {
-    func refreshEvidenceItems(features: WorkspaceEvidenceWorkflowContext) async
-
-    func captureCurrentKWICEvidenceItem(
-        features: WorkspaceEvidenceWorkflowContext,
-        draft: EvidenceCaptureDraft?
-    ) async
-
-    func captureCurrentLocatorEvidenceItem(
-        features: WorkspaceEvidenceWorkflowContext,
-        draft: EvidenceCaptureDraft?
-    ) async
-
-    func updateEvidenceReviewStatus(
-        itemID: String,
-        reviewStatus: EvidenceReviewStatus,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func saveSelectedEvidenceDetails(features: WorkspaceEvidenceWorkflowContext) async
-
-    func moveSelectedEvidenceItem(
-        direction: EvidenceWorkbenchMoveDirection,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func deleteEvidenceItem(
-        itemID: String,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func captureSourceReaderEvidenceItem(
-        sourceKind: EvidenceSourceKind,
-        context: SourceReaderLaunchContext,
-        anchor: SourceReaderHitAnchor,
-        selection: SourceReaderSelection,
-        features: WorkspaceEvidenceWorkflowContext,
-        draft: EvidenceCaptureDraft?
-    ) async
-
-    func copyEvidenceCitation(
-        itemID: String,
-        features: WorkspaceEvidenceWorkflowContext
-    ) async
-
-    func exportEvidencePacketMarkdown(
-        features: WorkspaceEvidenceWorkflowContext,
-        preferredRoute: NativeWindowRoute?
-    ) async
-
-    func exportEvidenceJSON(
-        features: WorkspaceEvidenceWorkflowContext,
-        preferredRoute: NativeWindowRoute?
-    ) async
-}
-
 struct WorkspaceFeatureWorkflowSet {
     let sentiment: any WorkspaceSentimentWorkflowServing
     let topics: any WorkspaceTopicsWorkflowServing
-    let evidence: any WorkspaceEvidenceWorkflowServing
 }
 
 @MainActor

@@ -368,27 +368,6 @@ final class WorkspaceSnapshotRegressionTests: XCTestCase {
         XCTAssertEqual(workspace.kwic.result?.rows.map(\.id), ["row-2"])
     }
 
-    func testCaptureCurrentKWICEvidenceItemPersistsSavedSetProvenance() async {
-        let repository = FakeWorkspaceRepository()
-        let savedSet = makeConcordanceSavedSet(kind: .kwic, rowCount: 3)
-        repository.concordanceSavedSets = [savedSet]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.kwic.selectedSavedSetID = savedSet.id
-        await workspace.loadSelectedKWICSavedSet()
-        workspace.kwic.selectedRowID = "row-1"
-
-        await workspace.captureCurrentKWICEvidenceItem()
-
-        XCTAssertEqual(repository.evidenceItems.count, 1)
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .kwic)
-        XCTAssertEqual(repository.evidenceItems.first?.savedSetID, savedSet.id)
-        XCTAssertEqual(repository.evidenceItems.first?.savedSetName, savedSet.name)
-        XCTAssertEqual(repository.evidenceItems.first?.fullSentenceText, "sentence-1")
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.savedSetID, savedSet.id)
-    }
-
     func testRestoreSavedWorkspaceReappliesSavedQueryState() async {
         let repository = FakeWorkspaceRepository(
             bootstrapState: makeBootstrapState(

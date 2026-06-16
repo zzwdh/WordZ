@@ -72,23 +72,5 @@ protocol WorkspaceSentimentPageState: AnyObject {
     func reset()
 }
 
-@MainActor
-protocol WorkspaceEvidenceWorkbenchState: AnyObject {
-    var items: [EvidenceItem] { get }
-    var selectedItemID: String? { get set }
-    var reviewFilter: EvidenceReviewFilter { get }
-    var citationFormatDraft: EvidenceCitationFormat { get }
-    var citationStyleDraft: EvidenceCitationStyle { get }
-    var noteDraft: String { get }
-    var filteredItems: [EvidenceItem] { get }
-    var selectedItem: EvidenceItem? { get }
-    func applyItems(_ items: [EvidenceItem])
-    func apply(_ snapshot: WorkspaceSnapshotSummary)
-    func exportScopeSummary(in mode: AppLanguageMode) -> String
-    func normalizeSelection()
-    func normalizedText(_ value: String?) -> String?
-    func reorderedItemsMovingSelected(_ direction: EvidenceWorkbenchMoveDirection) -> [EvidenceItem]?
-}
 extension TopicsPageViewModel: WorkspaceTopicsPageState {}
 extension SentimentPageViewModel: WorkspaceSentimentPageState {}
-extension EvidenceWorkbenchViewModel: WorkspaceEvidenceWorkbenchState {}

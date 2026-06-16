@@ -504,11 +504,6 @@ struct WordZMacCommands: Commands {
         await workspace.performResultArtifactAction(.export, preferredWindowRoute: context.route)
     }
 
-    private func exportEvidenceJSON(using context: WorkspaceCommandContext) async {
-        guard context.canExportEvidenceJSON else { return }
-        await workspace.exportEvidenceJSON(preferredWindowRoute: context.route)
-    }
-
     private func saveAnalysisPreset(using context: WorkspaceCommandContext) async {
         guard context.canSaveAnalysisPreset else { return }
         await workspace.saveCurrentAnalysisPreset(preferredWindowRoute: context.route)

@@ -232,6 +232,8 @@ package final class NativeAppContainer {
             reportBundleService: makeReportBundleService(),
             buildMetadataProvider: buildMetadataProvider,
             diagnosticsBundleService: makeDiagnosticsBundleService(),
+            apiCredentialStore: NativeKeychainAPICredentialStore(),
+            apiConnectionTester: NativeAPIConnectionTestService(),
             taskCenter: taskCenter,
             sessionStore: sessionStore,
             sidebar: pageViewModels.sidebar,
@@ -251,7 +253,6 @@ package final class NativeAppContainer {
             kwic: pageViewModels.kwic,
             collocate: pageViewModels.collocate,
             locator: pageViewModels.locator,
-            evidenceWorkbench: pageViewModels.featurePages.evidenceWorkbench,
             sourceReader: pageViewModels.sourceReader,
             settings: pageViewModels.settings
         )

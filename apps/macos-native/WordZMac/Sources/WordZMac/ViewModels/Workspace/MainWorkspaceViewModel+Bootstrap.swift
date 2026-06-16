@@ -5,6 +5,7 @@ extension MainWorkspaceViewModel {
     func applyInitialHostState() {
         let initialHostPreferences = hostPreferencesStore.load()
         settings.applyHostPreferences(initialHostPreferences)
+        settings.applyAPICredentialState(isConfigured: apiCredentialStore.hasCredential())
         lastPersistedTaskHistory = initialHostPreferences.taskHistory
         updateState = NativeUpdateStateSnapshot(
             currentVersion: "",
@@ -58,6 +59,7 @@ extension MainWorkspaceViewModel {
         shell.onTabChange = { [weak self] in
             guard let self else { return }
             guard !self.isNavigationSceneSyncSuppressed else { return }
+            self.syncSharedLexicalSearchQueryToSelectedTab()
             self.flowCoordinator.markWorkspaceEdited(features: self.features)
             let rebuiltSelectedScene = self.ensureSelectedResultSceneIsReady()
             if rebuiltSelectedScene {
@@ -84,37 +86,37 @@ extension MainWorkspaceViewModel {
             self.setAnnotationProfile(profile)
         }
         compare.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .compare)
         }
         sentiment.onInputChange = { [weak self] in
             self?.scheduleInputStateSync()
         }
         plot.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .plot)
         }
         keyword.onInputChange = { [weak self] in
             self?.scheduleInputStateSync()
         }
         kwic.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .kwic)
         }
         ngram.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .ngram)
         }
         cluster.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .cluster)
         }
         word.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .word)
         }
         tokenize.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .tokenize)
         }
         topics.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .topics)
         }
         collocate.onInputChange = { [weak self] in
-            self?.scheduleInputStateSync()
+            self?.handleSharedLexicalSearchInputChange(from: .collocate)
         }
     }
 }

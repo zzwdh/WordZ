@@ -463,11 +463,8 @@ check_hotspot_file_sizes() {
   check_file_line_limit "$ROOT_DIR/App/WordZMacApp.swift" 90
   check_file_line_limit "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry.swift" 400
   check_file_line_limit "$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift" 80
-  check_file_line_limit "$ROOT_DIR/ViewModels/Workspace/EvidenceWorkbenchViewModel+Mutation.swift" 80
   check_file_line_limit "$ROOT_DIR/Workspace/Services/Topics/WorkspaceTopicsWorkflowService.swift" 220
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceFlowCoordinator.swift" 100
-  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService.swift" 40
-  check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+Support.swift" 280
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService.swift" 60
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+RunTasks.swift" 150
   check_file_line_limit "$ROOT_DIR/Workspace/Services/WorkspaceAnalysisWorkflowService+LexicalRuns.swift" 170
@@ -512,9 +509,6 @@ check_hotspot_file_sizes() {
     "$ROOT_DIR/Views/Workspace/Pages/Topics/TopicsView+CrossAnalysisPane.swift"
     "$ROOT_DIR/Views/Workspace/Pages/Topics/TopicsView+PaneSupport.swift"
     "$ROOT_DIR/Views/Workspace/Pages/SentimentView+Support.swift"
-    "$ROOT_DIR/Models/Analysis/EvidenceWorkbenchDossierDraftSupport.swift"
-    "$ROOT_DIR/Models/Analysis/EvidenceMarkdownDossierSupport.swift"
-    "$ROOT_DIR/ViewModels/Workspace/EvidenceWorkbenchViewModel+Selection.swift"
     "$ROOT_DIR/Workspace/Models/WorkspaceFeaturePageBundle.swift"
     "$ROOT_DIR/Workspace/Models/WorkspaceFeaturePageHandles.swift"
     "$ROOT_DIR/Workspace/Models/WorkspaceFeatureSet+Defaults.swift"
@@ -525,10 +519,6 @@ check_hotspot_file_sizes() {
     "$ROOT_DIR/Workspace/Services/WorkspaceFeatureWorkflowFactory.swift"
     "$ROOT_DIR/Workspace/Services/Topics/WorkspaceTopicsWorkflowService+CompareTopics.swift"
     "$ROOT_DIR/Workspace/Services/Topics/WorkspaceTopicsWorkflowService+TopicsSentiment.swift"
-    "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+Capture.swift"
-    "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+ItemMutations.swift"
-    "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+Export.swift"
-    "$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService+Support.swift"
     "$ROOT_DIR/Workspace/Services/WorkspaceSentimentWorkflowService+Exports.swift"
     "$ROOT_DIR/Workspace/Services/WorkspaceSentimentWorkflowService+LexiconBundles.swift"
   )
@@ -560,13 +550,11 @@ check_feature_workflow_protocolization() {
   local main_workspace_file="$ROOT_DIR/ViewModels/Workspace/MainWorkspaceViewModel.swift"
   local sentiment_runs_file="$ROOT_DIR/Workspace/Services/WorkspaceFlowCoordinator+SentimentRuns.swift"
   local cross_analysis_file="$ROOT_DIR/Workspace/Services/WorkspaceFlowCoordinator+CrossAnalysisDrilldown.swift"
-  local evidence_file="$ROOT_DIR/Workspace/Services/WorkspaceFlowCoordinator+EvidenceWorkbench.swift"
   local topic_runs_file="$ROOT_DIR/Workspace/Services/Topics/WorkspaceFlowCoordinator+TopicRuns.swift"
   local topics_service_glob="$ROOT_DIR/Workspace/Services/Topics/WorkspaceTopicsWorkflowService"
   local sentiment_service_glob="$ROOT_DIR/Workspace/Services/WorkspaceSentimentWorkflowService"
-  local evidence_service_glob="$ROOT_DIR/Workspace/Services/WorkspaceEvidenceWorkflowService"
-  local concrete_pattern='WorkspaceSentimentWorkflowService\(|WorkspaceTopicsWorkflowService\(|WorkspaceEvidenceWorkflowService\('
-  local concrete_page_pattern='TopicsPageViewModel|SentimentPageViewModel|EvidenceWorkbenchViewModel'
+  local concrete_pattern='WorkspaceSentimentWorkflowService\(|WorkspaceTopicsWorkflowService\('
+  local concrete_page_pattern='TopicsPageViewModel|SentimentPageViewModel'
 
   if [[ ! -f "$protocol_file" ]]; then
     mark_failure "Expected feature workflow protocol file to exist: $protocol_file"
@@ -596,35 +584,35 @@ check_feature_workflow_protocolization() {
     mark_failure "Expected feature workflow factory file to exist: $factory_file"
   fi
 
-  if ! rg -q 'WorkspaceSentimentWorkflowContext|WorkspaceTopicsWorkflowContext|WorkspaceEvidenceWorkflowContext' "$protocol_file"; then
+  if ! rg -q 'WorkspaceSentimentWorkflowContext|WorkspaceTopicsWorkflowContext' "$protocol_file"; then
     mark_failure "Feature workflow protocols should depend on feature-specific workflow contexts."
   fi
 
-  if ! rg -q 'WorkspaceTopicsPageState|WorkspaceSentimentPageState|WorkspaceEvidenceWorkbenchState' "$page_protocol_file"; then
+  if ! rg -q 'WorkspaceTopicsPageState|WorkspaceSentimentPageState' "$page_protocol_file"; then
     mark_failure "Feature page protocols should define the workflow-facing page state abstractions."
   fi
 
-  if ! rg -q 'WorkspaceTopicsPageState|WorkspaceSentimentPageState|WorkspaceEvidenceWorkbenchState' "$feature_handles_file"; then
+  if ! rg -q 'WorkspaceTopicsPageState|WorkspaceSentimentPageState' "$feature_handles_file"; then
     mark_failure "WorkspaceFeaturePageHandles should store protocol-backed page handles for migrated features."
   fi
 
-  if ! rg -q 'WorkspaceTopicsPageState|WorkspaceSentimentPageState|WorkspaceEvidenceWorkbenchState' "$feature_set_file"; then
+  if ! rg -q 'WorkspaceTopicsPageState|WorkspaceSentimentPageState' "$feature_set_file"; then
     mark_failure "WorkspaceFeatureSet should store feature page abstractions instead of concrete page view models."
   fi
 
   if rg -n "$concrete_page_pattern" "$feature_set_file" >/dev/null; then
-    mark_failure "WorkspaceFeatureSet should not directly depend on concrete Topics/Sentiment/Evidence page view models."
+    mark_failure "WorkspaceFeatureSet should not directly depend on concrete Topics/Sentiment page view models."
   fi
 
   if ! rg -q 'WorkspaceFeaturePageHandles' "$main_workspace_file"; then
     mark_failure "MainWorkspaceViewModel should route migrated feature pages through WorkspaceFeaturePageHandles."
   fi
 
-  if rg -n '@Published var (topics|sentiment|evidenceWorkbench): (TopicsPageViewModel|SentimentPageViewModel|EvidenceWorkbenchViewModel)' "$main_workspace_file" >/dev/null; then
-    mark_failure "MainWorkspaceViewModel should not directly store published concrete Topics/Sentiment/Evidence page view models."
+  if rg -n '@Published var (topics|sentiment): (TopicsPageViewModel|SentimentPageViewModel)' "$main_workspace_file" >/dev/null; then
+    mark_failure "MainWorkspaceViewModel should not directly store published concrete Topics/Sentiment page view models."
   fi
 
-  if ! rg -q 'workspace\.featurePages\.(topics|sentiment|evidenceWorkbench)' "$feature_binding_file"; then
+  if ! rg -q 'workspace\.featurePages\.(topics|sentiment)' "$feature_binding_file"; then
     mark_failure "WorkspaceFeatureSet binding should read migrated feature pages from MainWorkspaceViewModel.featurePages."
   fi
 
@@ -632,7 +620,7 @@ check_feature_workflow_protocolization() {
     mark_failure "WorkspaceFlowCoordinator should resolve workflows through WorkspaceFeatureWorkflowFactory."
   fi
 
-  if ! rg -q 'WorkspaceSentimentWorkflowServing|WorkspaceTopicsWorkflowServing|WorkspaceEvidenceWorkflowServing' "$flow_coordinator_file"; then
+  if ! rg -q 'WorkspaceSentimentWorkflowServing|WorkspaceTopicsWorkflowServing' "$flow_coordinator_file"; then
     mark_failure "WorkspaceFlowCoordinator should depend on feature workflow protocols."
   fi
 
@@ -651,14 +639,9 @@ check_feature_workflow_protocolization() {
     mark_failure "Topics flow coordinator routes should project WorkspaceFeatureSet into WorkspaceTopicsWorkflowContext."
   fi
 
-  if ! rg -q 'evidenceWorkflowContext' "$evidence_file"; then
-    mark_failure "Evidence flow coordinator should project WorkspaceFeatureSet into WorkspaceEvidenceWorkflowContext."
-  fi
-
   result=$(rg -n "$concrete_page_pattern" \
     "${topics_service_glob}"*.swift \
-    "${sentiment_service_glob}"*.swift \
-    "${evidence_service_glob}"*.swift || true)
+    "${sentiment_service_glob}"*.swift || true)
   if [[ -n "$result" ]]; then
     mark_failure "Feature workflow services should depend on feature page protocols instead of concrete page view models."
     echo "$result"
@@ -699,8 +682,8 @@ check_workspace_feature_module_activation() {
     mark_failure "App shell should inject feature page construction through WordZWorkspaceFeaturePageFactory."
   fi
 
-  if rg -n 'TopicsPageViewModel\(|SentimentPageViewModel\(|EvidenceWorkbenchViewModel\(' "$app_container_file" >/dev/null; then
-    mark_failure "NativeAppContainer should not directly construct migrated Topics/Sentiment/Evidence feature pages."
+  if rg -n 'TopicsPageViewModel\(|SentimentPageViewModel\(' "$app_container_file" >/dev/null; then
+    mark_failure "NativeAppContainer should not directly construct migrated Topics/Sentiment feature pages."
   fi
 
   if ! rg -q 'WorkspaceFeaturePageHandles\(bundle: featurePages\)' "$app_container_file"; then
@@ -787,7 +770,6 @@ check_migrated_feature_registry_companions() {
   local registry_file="$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry.swift"
   local registry_companion_file="$ROOT_DIR/Models/Workspace/WorkspaceFeatureRegistry+MigratedVerticals.swift"
   local feature_factory_file="$ROOT_DIR/Views/Workspace/WorkspaceFeatureFactory.swift"
-  local app_file="$ROOT_DIR/App/WordZMacApp.swift"
 
   if [[ ! -f "$registry_companion_file" ]]; then
     mark_failure "Expected migrated workspace feature registry companion file to exist: $registry_companion_file"
@@ -809,9 +791,6 @@ check_migrated_feature_registry_companions() {
     mark_failure "WorkspaceFeatureFactory should own Topics/Sentiment SwiftUI view assembly."
   fi
 
-  if rg -q 'evidenceWorkbenchWindow\(|EvidenceWorkbenchWindowView' "$app_file"; then
-    mark_failure "WordZCoreAppScenes should not reference the removed evidence workbench standalone window."
-  fi
 }
 
 check_topics_feature_layout() {

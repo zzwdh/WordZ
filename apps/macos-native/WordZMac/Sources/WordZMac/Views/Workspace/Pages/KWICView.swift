@@ -5,6 +5,7 @@ struct KWICView: View {
     @Environment(\.wordZLanguageMode) var languageMode
     @EnvironmentObject var lexicalAutocompleteController: LexicalAutocompleteController
     @ObservedObject var viewModel: KWICPageViewModel
+    @State var isSelectedRowContextExpanded = false
     let isBusy: Bool
     let onAction: (KWICPageAction) -> Void
 

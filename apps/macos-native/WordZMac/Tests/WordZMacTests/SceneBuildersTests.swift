@@ -158,13 +158,129 @@ final class SceneBuildersTests: XCTestCase {
         )
 
         XCTAssertEqual(scene.rows.map(\.sentenceIndexText), ["1", "2", "3"])
+        XCTAssertEqual(scene.rows.map(\.rowNumberText), ["1", "2", "3"])
+        XCTAssertEqual(scene.rows.map(\.positionText), ["1:1", "2:1", "3:1"])
         XCTAssertEqual(scene.filteredRows, 3)
         XCTAssertFalse(scene.isColumnVisible(.leftContext))
         XCTAssertTrue(scene.isColumnVisible(.keyword))
+        XCTAssertEqual(scene.tableSnapshot.rows.first?.value(for: KWICColumnKey.position.rawValue), "1:1")
+        XCTAssertEqual(
+            scene.table.columns.filter(\.isVisible).map(\.id),
+            [KWICColumnKey.keyword.rawValue, KWICColumnKey.sentenceIndex.rawValue]
+        )
+        XCTAssertFalse(scene.table.columns.first { $0.id == KWICColumnKey.keyword.rawValue }?.isPinned ?? true)
         XCTAssertEqual(scene.columnTitle(for: .sentenceIndex), "句号 ↑")
         XCTAssertEqual(scene.rows.first?.concordanceText, "a [alpha] r0")
         XCTAssertTrue(scene.rows.first?.citationText.contains("Sentence 1") ?? false)
         XCTAssertTrue(scene.exportMetadataLines.contains(where: { $0.contains("节点词") || $0.contains("Keyword") }))
+
+        let readableScene = KWICSceneBuilder().build(
+            from: result,
+            query: "alpha",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            leftWindow: 5,
+            rightWindow: 5,
+            sortMode: .sentenceAscending,
+            pageSize: .twentyFive,
+            currentPage: 1,
+            visibleColumns: [.leftContext, .keyword, .rightContext]
+        )
+        XCTAssertEqual(
+            readableScene.table.columns.filter(\.isVisible).map(\.id),
+            [
+                KWICColumnKey.leftContext.rawValue,
+                KWICColumnKey.keyword.rawValue,
+                KWICColumnKey.rightContext.rawValue
+            ]
+        )
+    }
+
+    func testKWICSceneBuilderSortsByContextOffsets() {
+        let result = KWICResult(json: [
+            "rows": [
+                ["sentenceId": 0, "sentenceTokenIndex": 2, "left": "old bright", "node": "first", "right": "zeta alpha"],
+                ["sentenceId": 1, "sentenceTokenIndex": 2, "left": "new amber", "node": "second", "right": "alpha zeta"],
+                ["sentenceId": 2, "sentenceTokenIndex": 2, "left": "amber blue", "node": "third", "right": "beta beta"]
+            ]
+        ])
+
+        let builder = KWICSceneBuilder()
+
+        XCTAssertEqual(builder.sortRows(result.rows, mode: .rightOneAscending).map(\.node), ["second", "third", "first"])
+        XCTAssertEqual(builder.sortRows(result.rows, mode: .rightTwoAscending).map(\.node), ["first", "third", "second"])
+        XCTAssertEqual(builder.sortRows(result.rows, mode: .leftOneAscending).map(\.node), ["second", "third", "first"])
+        XCTAssertEqual(builder.sortRows(result.rows, mode: .leftTwoAscending).map(\.node), ["third", "second", "first"])
+    }
+
+    func testKWICSceneBuilderDisplaysAndFiltersSourceMetadata() {
+        let result = KWICResult(rows: [
+            KWICRow(
+                id: "",
+                left: "left",
+                node: "target",
+                right: "right",
+                sentenceId: 10,
+                sentenceTokenIndex: 1,
+                sourceID: "corpus-a",
+                sourceTitle: "Japan Daily Report",
+                sourceFilePath: "/tmp/japan-daily.txt",
+                sourceFileName: "japan-daily.txt",
+                sourceType: "txt",
+                sourceIndex: 1,
+                sourceSentenceId: 2,
+                metadata: CorpusMetadataProfile(
+                    sourceLabel: "policy",
+                    yearLabel: "2024",
+                    genreLabel: "briefing",
+                    tags: ["asia", "trade"]
+                )
+            ),
+            KWICRow(
+                id: "",
+                left: "left",
+                node: "target",
+                right: "other",
+                sentenceId: 20,
+                sentenceTokenIndex: 0,
+                sourceID: "corpus-b",
+                sourceTitle: "Ticker",
+                sourceFilePath: "/tmp/ticker.txt",
+                sourceFileName: "ticker.txt",
+                sourceType: "txt",
+                sourceIndex: 2,
+                sourceSentenceId: 7,
+                metadata: CorpusMetadataProfile(sourceLabel: "market", yearLabel: "2023")
+            )
+        ])
+
+        let scene = KWICSceneBuilder().build(
+            from: result,
+            query: "target",
+            searchOptions: .default,
+            stopwordFilter: .default,
+            sourceFilterQuery: "2024 policy",
+            leftWindow: 5,
+            rightWindow: 5,
+            sortMode: .sourceAscending,
+            pageSize: .twentyFive,
+            currentPage: 1,
+            visibleColumns: Set(KWICColumnKey.allCases)
+        )
+
+        XCTAssertEqual(scene.totalRows, 2)
+        XCTAssertEqual(scene.filteredRows, 1)
+        XCTAssertEqual(scene.rows.first?.sourceDisplayText, "Japan Daily Report")
+        XCTAssertEqual(scene.rows.first?.positionText, "3:2")
+        XCTAssertEqual(scene.rows.first?.sentenceIndexText, "11")
+        XCTAssertEqual(scene.rows.first?.sourceMetadataText, "policy · 2024 · briefing · asia · trade")
+        XCTAssertEqual(scene.tableSnapshot.rows.first?.value(for: KWICColumnKey.source.rawValue), "Japan Daily Report")
+        XCTAssertEqual(scene.tableSnapshot.rows.first?.value(for: KWICColumnKey.metadata.rawValue), "policy · 2024 · briefing · asia · trade")
+        XCTAssertTrue(scene.rows.first?.citationText.contains("Japan Daily Report") ?? false)
+        XCTAssertEqual(scene.columnTitle(for: .source), "来源 ↑")
+
+        let builder = KWICSceneBuilder()
+        XCTAssertEqual(builder.sortRows(result.rows, mode: .metadataAscending).map(\.sourceTitle), ["Ticker", "Japan Daily Report"])
     }
 
     func testCollocateSceneBuilderBuildsRankAndColumnIndicators() {

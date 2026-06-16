@@ -119,20 +119,6 @@ extension NativeCorpusStore {
         try workspaceDatabaseStore.saveConcordanceSavedSets(sets)
     }
 
-    func loadEvidenceItems() throws -> [EvidenceItem] {
-        if let cachedEvidenceItems {
-            return cachedEvidenceItems
-        }
-        let items = try workspaceDatabaseStore.loadEvidenceItems()
-        cachedEvidenceItems = items
-        return items
-    }
-
-    func saveEvidenceItems(_ items: [EvidenceItem]) throws {
-        cachedEvidenceItems = items
-        try workspaceDatabaseStore.saveEvidenceItems(items)
-    }
-
     func loadSentimentReviewSamples() throws -> [SentimentReviewSample] {
         if let cachedSentimentReviewSamples {
             return cachedSentimentReviewSamples
@@ -173,7 +159,6 @@ extension NativeCorpusStore {
         cachedAnalysisPresets = nil
         cachedKeywordSavedLists = nil
         cachedConcordanceSavedSets = nil
-        cachedEvidenceItems = nil
         cachedSentimentReviewSamples = nil
         cachedRecycleEntries = nil
         cachedWorkspaceSnapshot = nil

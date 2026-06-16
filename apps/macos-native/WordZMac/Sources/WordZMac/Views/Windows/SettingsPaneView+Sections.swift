@@ -136,6 +136,57 @@ extension SettingsPaneView {
         }
     }
 
+    var apiSection: some View {
+        NativeWindowSection(title: t("API 与隐私", "API & Privacy"), subtitle: settings.scene.apiSummary) {
+            Toggle(t("允许联网 API", "Allow network API access"), isOn: $settings.apiAccessEnabled)
+
+            Text(
+                t(
+                    "关闭后，本地语料分析照常可用；检查更新、下载更新和后续手动 API 动作会暂停。WordZ 不会自动上传完整语料库。",
+                    "When off, local corpus analysis still works; update checks, update downloads, and future manual API actions pause. WordZ does not automatically upload full corpora."
+                )
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            LabeledContent(t("凭据状态", "Credential Status")) {
+                Text(settings.scene.apiCredentialStatus)
+                    .foregroundStyle(settings.scene.apiCredentialConfigured ? .primary : .secondary)
+            }
+
+            Stepper(value: $settings.apiRequestTimeoutSeconds, in: 5...60, step: 5) {
+                LabeledContent(t("请求超时", "Request Timeout")) {
+                    Text(settings.scene.apiRequestTimeoutLabel)
+                        .font(.body.monospacedDigit())
+                }
+            }
+            .disabled(!settings.apiAccessEnabled)
+
+            Stepper(value: $settings.apiMaxConcurrentRequests, in: 1...4, step: 1) {
+                LabeledContent(t("最大并发请求", "Max Concurrent Requests")) {
+                    Text(settings.scene.apiMaxConcurrentRequestsLabel)
+                        .font(.body.monospacedDigit())
+                }
+            }
+            .disabled(!settings.apiAccessEnabled)
+
+            SecureField(t("API Key 或 Token", "API key or token"), text: $settings.apiCredentialDraft)
+                .textFieldStyle(.roundedBorder)
+                .disabled(!settings.apiAccessEnabled)
+
+            HStack {
+                Button(t("保存凭据", "Save Credential")) { onAction(.saveAPICredential) }
+                    .disabled(!settings.apiAccessEnabled || settings.apiCredentialDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button(t("清除凭据", "Clear Credential")) { onAction(.clearAPICredential) }
+                    .disabled(!settings.scene.apiCredentialConfigured)
+
+                Button(t("检查 API 设置", "Check API Settings")) { onAction(.testAPIConnection) }
+            }
+        }
+    }
+
     var recentSection: some View {
         NativeWindowSection(title: t("最近打开", "Recent Documents"), subtitle: "\(settings.scene.recentDocuments.count) \(t("条记录", "items"))") {
             if settings.scene.recentDocuments.isEmpty {

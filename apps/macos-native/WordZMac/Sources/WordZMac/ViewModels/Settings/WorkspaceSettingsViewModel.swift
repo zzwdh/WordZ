@@ -89,6 +89,35 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             syncScene()
         }
     }
+    @Published var apiAccessEnabled: Bool = true {
+        didSet {
+            guard oldValue != apiAccessEnabled else { return }
+            syncScene()
+        }
+    }
+    @Published var apiRequestTimeoutSeconds: Int = NativeHostPreferencesSnapshot.default.apiRequestTimeoutSeconds {
+        didSet {
+            let clampedValue = NativeHostPreferencesSnapshot.clampedAPIRequestTimeoutSeconds(apiRequestTimeoutSeconds)
+            guard apiRequestTimeoutSeconds == clampedValue else {
+                apiRequestTimeoutSeconds = clampedValue
+                return
+            }
+            guard oldValue != apiRequestTimeoutSeconds else { return }
+            syncScene()
+        }
+    }
+    @Published var apiMaxConcurrentRequests: Int = NativeHostPreferencesSnapshot.default.apiMaxConcurrentRequests {
+        didSet {
+            let clampedValue = NativeHostPreferencesSnapshot.clampedAPIMaxConcurrentRequests(apiMaxConcurrentRequests)
+            guard apiMaxConcurrentRequests == clampedValue else {
+                apiMaxConcurrentRequests = clampedValue
+                return
+            }
+            guard oldValue != apiMaxConcurrentRequests else { return }
+            syncScene()
+        }
+    }
+    @Published var apiCredentialDraft: String = ""
     @Published var showMenuBarIcon: Bool = true {
         didSet {
             guard oldValue != showMenuBarIcon else { return }
@@ -105,6 +134,8 @@ final class WorkspaceSettingsViewModel: ObservableObject {
     private var userDataDirectory = ""
     private var lastUpdateCheckAt = ""
     private var lastUpdateStatus = NativeHostPreferencesSnapshot.default.lastUpdateStatus
+    private var apiCredentialConfigured = false
+    private var apiCredentialStatus = SettingsPaneSceneModel.empty.apiCredentialStatus
     private var supportStatus = SettingsPaneSceneModel.empty.supportStatus
     private var taskCenterSummary = SettingsPaneSceneModel.empty.taskCenterSummary
     private var currentVersion = ""
@@ -153,6 +184,9 @@ final class WorkspaceSettingsViewModel: ObservableObject {
                 checkForUpdatesOnLaunch: checkForUpdatesOnLaunch,
                 autoDownloadUpdates: autoDownloadUpdates,
                 autoInstallDownloadedUpdates: autoInstallDownloadedUpdates,
+                apiAccessEnabled: apiAccessEnabled,
+                apiRequestTimeoutSeconds: apiRequestTimeoutSeconds,
+                apiMaxConcurrentRequests: apiMaxConcurrentRequests,
                 showMenuBarIcon: snapshot.showMenuBarIcon,
                 recentDocuments: snapshot.recentDocuments,
                 lastUpdateCheckAt: snapshot.lastUpdateCheckAt,
@@ -170,6 +204,9 @@ final class WorkspaceSettingsViewModel: ObservableObject {
         checkForUpdatesOnLaunch = resolvedSnapshot.checkForUpdatesOnLaunch
         autoDownloadUpdates = resolvedSnapshot.autoDownloadUpdates
         autoInstallDownloadedUpdates = resolvedSnapshot.autoInstallDownloadedUpdates
+        apiAccessEnabled = resolvedSnapshot.apiAccessEnabled
+        apiRequestTimeoutSeconds = resolvedSnapshot.apiRequestTimeoutSeconds
+        apiMaxConcurrentRequests = resolvedSnapshot.apiMaxConcurrentRequests
         showMenuBarIcon = resolvedSnapshot.showMenuBarIcon
         recentDocuments = resolvedSnapshot.recentDocuments
         lastUpdateCheckAt = resolvedSnapshot.lastUpdateCheckAt
@@ -223,6 +260,25 @@ final class WorkspaceSettingsViewModel: ObservableObject {
         syncScene()
     }
 
+    func applyAPICredentialState(isConfigured: Bool, status: String? = nil) {
+        apiCredentialConfigured = isConfigured
+        apiCredentialStatus = status ?? (
+            isConfigured
+            ? wordZText("API 凭据已保存。", "API credential is saved.", mode: .system)
+            : SettingsPaneSceneModel.empty.apiCredentialStatus
+        )
+        syncScene()
+    }
+
+    func clearAPICredentialDraft() {
+        apiCredentialDraft = ""
+    }
+
+    func setAPICredentialStatus(_ status: String) {
+        apiCredentialStatus = status
+        syncScene()
+    }
+
     func exportSnapshot() -> UISettingsSnapshot {
         UISettingsSnapshot(
             showWelcomeScreen: showWelcomeScreen,
@@ -248,6 +304,9 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             checkForUpdatesOnLaunch: checkForUpdatesOnLaunch,
             autoDownloadUpdates: autoDownloadUpdates,
             autoInstallDownloadedUpdates: autoInstallDownloadedUpdates,
+            apiAccessEnabled: apiAccessEnabled,
+            apiRequestTimeoutSeconds: apiRequestTimeoutSeconds,
+            apiMaxConcurrentRequests: apiMaxConcurrentRequests,
             showMenuBarIcon: showMenuBarIcon,
             recentDocuments: recentDocuments,
             lastUpdateCheckAt: lastUpdateCheckAt,
@@ -280,6 +339,11 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             recentDocuments: recentDocuments,
             userDataDirectory: userDataDirectory,
             updateSummary: makeUpdateSummary(),
+            apiSummary: makeAPISummary(),
+            apiCredentialStatus: apiCredentialStatus,
+            apiCredentialConfigured: apiCredentialConfigured,
+            apiRequestTimeoutLabel: wordZText("\(apiRequestTimeoutSeconds) 秒", "\(apiRequestTimeoutSeconds) seconds", mode: mode),
+            apiMaxConcurrentRequestsLabel: "\(apiMaxConcurrentRequests)",
             supportStatus: supportStatus,
             latestVersionLabel: latestVersion.isEmpty ? currentVersion : latestVersion,
             latestReleaseTitle: latestReleaseTitle.isEmpty ? (latestVersion.isEmpty ? currentVersion : latestVersion) : latestReleaseTitle,
@@ -338,6 +402,28 @@ final class WorkspaceSettingsViewModel: ObservableObject {
             return "\(policy)\n\(launchCheck)\n\(downloadLine)"
         }
         return "\(policy)\n\(launchCheck)\n\(wordZText("上次检查", "Last checked", mode: mode))：\(lastUpdateCheckAt)\n\(downloadLine)"
+    }
+
+    private func makeAPISummary() -> String {
+        let mode: AppLanguageMode = .system
+        if apiAccessEnabled {
+            let policy = wordZText(
+                "请求超时 \(apiRequestTimeoutSeconds) 秒，并发上限 \(apiMaxConcurrentRequests)。",
+                "Request timeout \(apiRequestTimeoutSeconds)s, max concurrency \(apiMaxConcurrentRequests).",
+                mode: mode
+            )
+            let accessLine = wordZText(
+                "联网 API 已开启。WordZ 仍会优先使用本地分析，只有更新检查或你手动触发的 API 动作会联网。",
+                "Network API access is on. WordZ still uses local analysis first; only update checks or API actions you trigger will use the network.",
+                mode: mode
+            )
+            return "\(accessLine)\n\(policy)"
+        }
+        return wordZText(
+            "联网 API 已关闭。本地语料分析不受影响，检查更新和 API 动作会暂停。",
+            "Network API access is off. Local corpus analysis still works; update checks and API actions are paused.",
+            mode: mode
+        )
     }
 
     private func formattedPublishedAtLabel() -> String {

@@ -28,6 +28,7 @@ extension KWICPageViewModel {
                     query: normalizedKeyword,
                     searchOptions: searchOptions,
                     stopwordFilter: stopwordFilter,
+                    sourceFilterQuery: sourceFilterQuery,
                     annotationState: annotationState,
                     leftWindow: leftWindowValue,
                     rightWindow: rightWindowValue,
@@ -49,6 +50,7 @@ extension KWICPageViewModel {
         let keywordSnapshot = normalizedKeyword
         let searchOptionsSnapshot = searchOptions
         let stopwordSnapshot = stopwordFilter
+        let sourceFilterSnapshot = sourceFilterQuery
         let annotationStateSnapshot = annotationState
         let leftWindowSnapshot = leftWindowValue
         let rightWindowSnapshot = rightWindowValue
@@ -64,7 +66,8 @@ extension KWICPageViewModel {
                 try Task.checkCancellation()
                 let filteredRows = sceneBuilder.filterRows(
                     from: resultSnapshot.rows,
-                    stopwordFilter: stopwordSnapshot
+                    stopwordFilter: stopwordSnapshot,
+                    sourceFilterQuery: sourceFilterSnapshot
                 )
                 try Task.checkCancellation()
                 let sortedRows = sceneBuilder.sortRows(filteredRows, mode: sortSnapshot)
@@ -74,6 +77,7 @@ extension KWICPageViewModel {
                     query: keywordSnapshot,
                     searchOptions: searchOptionsSnapshot,
                     stopwordFilter: stopwordSnapshot,
+                    sourceFilterQuery: sourceFilterSnapshot,
                     annotationState: annotationStateSnapshot,
                     leftWindow: leftWindowSnapshot,
                     rightWindow: rightWindowSnapshot,
@@ -92,6 +96,7 @@ extension KWICPageViewModel {
                 guard self.isCurrentSceneBuild(revision) else { return false }
                 self.cachedFilteredRows = filteredRows
                 self.cachedStopwordFilter = stopwordSnapshot
+                self.cachedSourceFilterQuery = sourceFilterSnapshot
                 self.cachedSortedRows = sortedRows
                 self.cachedSortMode = sortSnapshot
                 self.scene = nextScene

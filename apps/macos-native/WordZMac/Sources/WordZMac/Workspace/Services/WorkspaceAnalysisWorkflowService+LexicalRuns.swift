@@ -60,20 +60,27 @@ extension WorkspaceAnalysisWorkflowService {
             return
         }
 
-        await performOpenedCorpusRunTask(
+        await performResultRunTask(
             .kwic,
             selecting: .kwic,
             features: features,
             syncFeatureContexts: syncFeatureContexts
-        ) { corpus in
-            let result = try await self.repository.runKWIC(
-                text: corpus.content,
+        ) {
+            let result = try await self.runSourceAwareKWIC(
+                features: features,
                 keyword: keyword,
                 leftWindow: features.kwic.leftWindowValue,
                 rightWindow: features.kwic.rightWindowValue,
-                searchOptions: features.kwic.searchOptions
+                searchOptions: features.kwic.searchOptions,
+                ensureOpenedCorpus: {
+                    try await self.ensureOpenedCorpus(
+                        features: features,
+                        syncFeatureContexts: syncFeatureContexts
+                    )
+                }
             )
             features.kwic.apply(result)
+            features.locator.updateSource(features.kwic.primaryLocatorSource)
         }
     }
 

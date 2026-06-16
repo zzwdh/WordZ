@@ -82,6 +82,24 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.sceneGraph.activeTab, .locator)
     }
 
+    func testSharedLexicalSearchSyncsBetweenKWICAndWordOnTabSwitch() async {
+        let repository = FakeWorkspaceRepository()
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+
+        await workspace.initializeIfNeeded()
+
+        workspace.selectedTab = .kwic
+        workspace.kwic.keyword = "abstract"
+        workspace.selectedTab = .word
+
+        XCTAssertEqual(workspace.word.query, "abstract")
+
+        workspace.word.query = "method"
+        workspace.selectedTab = .kwic
+
+        XCTAssertEqual(workspace.kwic.keyword, "method")
+    }
+
     func testAnalyzeCompareSelectionInKeywordSuiteExcludesFixedReferenceCorpusFromFocus() async {
         let repository = FakeWorkspaceRepository()
         let workspace = makeMainWorkspaceViewModel(repository: repository)
@@ -519,36 +537,7 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.settings.scene.supportStatus, "已打开来源文本预览。")
     }
 
-    func testCaptureCurrentSourceReaderEvidenceItemPersistsExcerptDraft() async {
-        let repository = FakeWorkspaceRepository(
-            tokenizeResult: makeTokenizeResult(),
-            kwicResult: KWICResult(rows: [
-                KWICRow(id: "1-1", left: "Delta", node: "alpha", right: "", sentenceId: 1, sentenceTokenIndex: 1)
-            ])
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.kwic.keyword = "alpha"
-        await workspace.runKWIC()
-        workspace.kwic.selectedRowID = "1-1"
-        _ = await workspace.openCurrentSourceReader()
-
-        workspace.sourceReader.captureCitationFormat = .fullSentence
-        workspace.sourceReader.captureCitationStyle = .mla
-        workspace.sourceReader.captureNote = "Use for the introduction."
-
-        await workspace.captureCurrentSourceReaderEvidenceItem()
-
-        XCTAssertNil(repository.evidenceItems.first?.sectionTitle)
-        XCTAssertNil(repository.evidenceItems.first?.claim)
-        XCTAssertEqual(repository.evidenceItems.first?.tags, [])
-        XCTAssertEqual(repository.evidenceItems.first?.citationFormat, .fullSentence)
-        XCTAssertEqual(repository.evidenceItems.first?.citationStyle, .mla)
-        XCTAssertEqual(repository.evidenceItems.first?.note, "Use for the introduction.")
-    }
-
-    func testCopySourceReaderCitationUsesPreparedCitationDraft() async {
+    func testCopySourceReaderCitationUsesCurrentCitation() async {
         let repository = FakeWorkspaceRepository(
             tokenizeResult: makeTokenizeResult(),
             kwicResult: KWICResult(rows: [
@@ -567,303 +556,9 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         workspace.kwic.selectedRowID = "1-1"
         _ = await workspace.openCurrentSourceReader()
 
-        workspace.sourceReader.captureCitationFormat = .fullSentence
-        workspace.sourceReader.captureCitationStyle = .apa
-
         workspace.copySourceReaderCitation()
 
-        XCTAssertEqual(
-            hostActions.copiedClipboardTexts.last,
-            "Demo Corpus. (n.d.). Delta alpha. [Sentence 2]. WordZ evidence export."
-        )
-    }
-
-    func testCaptureCurrentSourceReaderEvidenceItemFromPlotPersistsPlotSource() async {
-        let repository = FakeWorkspaceRepository(
-            tokenizeResult: makeTokenizeResult(),
-            plotResult: makePlotResult(
-                rows: [
-                    PlotRow(
-                        id: "corpus-1",
-                        corpusId: "corpus-1",
-                        fileID: 0,
-                        filePath: "/tmp/demo.txt",
-                        displayName: "Demo Corpus",
-                        fileTokens: 5,
-                        frequency: 2,
-                        normalizedFrequency: 400,
-                        hitMarkers: [
-                            PlotHitMarker(id: "0-0", sentenceId: 0, tokenIndex: 0, normalizedPosition: 0),
-                            PlotHitMarker(id: "1-1", sentenceId: 1, tokenIndex: 1, normalizedPosition: 1)
-                        ]
-                    )
-                ]
-            )
-        )
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.plot.query = "alpha"
-        await workspace.runPlot()
-        workspace.plot.handle(PlotPageAction.selectMarker(rowID: "corpus-1", markerID: "1-1"))
-        _ = await workspace.openCurrentSourceReader()
-
-        await workspace.captureCurrentSourceReaderEvidenceItem()
-
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .plot)
-        XCTAssertEqual(repository.evidenceItems.first?.sentenceId, 1)
-        XCTAssertNil(repository.evidenceItems.first?.sectionTitle)
-        XCTAssertEqual(repository.evidenceItems.first?.keyword, "alpha")
-    }
-
-    func testCaptureLocatorEvidenceItemCanUpdateReviewStatusAndNote() async {
-        let repository = FakeWorkspaceRepository()
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        let source = LocatorSource(keyword: "node", sentenceId: 1, nodeIndex: 2)
-        workspace.locator.apply(makeLocatorResult(rowCount: 2), source: source)
-        workspace.locator.selectedRowID = "1"
-
-        await workspace.captureCurrentLocatorEvidenceItem()
-        let itemID = try? XCTUnwrap(repository.evidenceItems.first?.id)
-        XCTAssertEqual(repository.evidenceItems.first?.sourceKind, .locator)
-
-        if let itemID {
-            await workspace.updateEvidenceReviewStatus(itemID: itemID, reviewStatus: .keep)
-            workspace.evidenceWorkbench.citationFormatDraft = .fullSentence
-            workspace.evidenceWorkbench.citationStyleDraft = .apa
-            workspace.evidenceWorkbench.noteDraft = "reviewed sentence"
-            await workspace.saveSelectedEvidenceNote()
-        }
-
-        XCTAssertEqual(repository.evidenceItems.first?.reviewStatus, .keep)
-        XCTAssertEqual(repository.evidenceItems.first?.citationFormat, .fullSentence)
-        XCTAssertEqual(repository.evidenceItems.first?.citationStyle, .apa)
-        XCTAssertEqual(repository.evidenceItems.first?.note, "reviewed sentence")
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.citationFormat, .fullSentence)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.citationStyle, .apa)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.note, "reviewed sentence")
-    }
-
-    func testEvidenceWorkbenchSelectionFallsBackToVisibleItemWhenFilterExcludesUpdatedRow() async {
-        let repository = FakeWorkspaceRepository()
-        let first = makeEvidenceItem(sourceKind: .kwic, reviewStatus: .pending)
-        let second = EvidenceItem(
-            id: "evidence-pending-2",
-            sourceKind: .locator,
-            savedSetID: nil,
-            savedSetName: nil,
-            corpusID: "corpus-2",
-            corpusName: "Locator Corpus",
-            sentenceId: 3,
-            sentenceTokenIndex: 4,
-            leftContext: "left",
-            keyword: "second",
-            rightContext: "right",
-            fullSentenceText: "left second right",
-            citationText: "Sentence 4: left second right",
-            query: "second",
-            leftWindow: 5,
-            rightWindow: 5,
-            searchOptionsSnapshot: nil,
-            stopwordFilterSnapshot: nil,
-            reviewStatus: .pending,
-            note: nil,
-            createdAt: "2026-04-14T00:00:00Z",
-            updatedAt: "2026-04-14T00:00:00Z"
-        )
-        repository.evidenceItems = [first, second]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .pending
-        workspace.evidenceWorkbench.selectedItemID = first.id
-
-        await workspace.updateEvidenceReviewStatus(itemID: first.id, reviewStatus: .keep)
-
-        XCTAssertEqual(repository.evidenceItems.first?.reviewStatus, .keep)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, second.id)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.id, second.id)
-    }
-
-    func testMoveSelectedEvidenceItemPersistsManualDossierOrder() async {
-        let repository = FakeWorkspaceRepository()
-        let first = makeEvidenceItem(
-            id: "evidence-keep-1",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            sectionTitle: "Section A"
-        )
-        let hidden = makeEvidenceItem(
-            id: "evidence-pending-1",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            sectionTitle: "Section Hidden"
-        )
-        let second = makeEvidenceItem(
-            id: "evidence-keep-2",
-            sourceKind: .topics,
-            reviewStatus: .keep,
-            sectionTitle: "Section B"
-        )
-        repository.evidenceItems = [first, hidden, second]
-        let workspace = makeMainWorkspaceViewModel(repository: repository)
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-        workspace.evidenceWorkbench.selectedItemID = first.id
-
-        await workspace.moveSelectedEvidenceItem(.down)
-
-        XCTAssertEqual(repository.replaceEvidenceItemsCallCount, 1)
-        XCTAssertEqual(repository.evidenceItems.map(\.id), [second.id, hidden.id, first.id])
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItemID, first.id)
-        XCTAssertEqual(workspace.evidenceWorkbench.selectedItem?.id, first.id)
-    }
-
-    func testExportEvidenceArtifactsWriteMarkdownAndJSON() async throws {
-        let dialogService = FakeDialogService()
-        let textURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("excerpts-\(UUID().uuidString).txt")
-        let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("excerpt-bundle-\(UUID().uuidString).json")
-        defer {
-            try? FileManager.default.removeItem(at: textURL)
-            try? FileManager.default.removeItem(at: jsonURL)
-        }
-
-        let repository = FakeWorkspaceRepository()
-        repository.evidenceItems = [
-            EvidenceItem(
-                id: "keep-item",
-                sourceKind: .kwic,
-                savedSetID: "saved-kwic-3",
-                savedSetName: "KWIC Set",
-                corpusID: "corpus-1",
-                corpusName: "Demo Corpus",
-                sentenceId: 1,
-                sentenceTokenIndex: 2,
-                leftContext: "left",
-                keyword: "keep-only",
-                rightContext: "right",
-                fullSentenceText: "left keep-only right",
-                citationText: "Sentence 2: left keep-only right",
-                query: "keep-only",
-                leftWindow: 5,
-                rightWindow: 5,
-                searchOptionsSnapshot: .default,
-                stopwordFilterSnapshot: .default,
-                reviewStatus: .keep,
-                note: nil,
-                createdAt: "2026-04-13T00:00:00Z",
-                updatedAt: "2026-04-13T00:00:00Z"
-            ),
-            EvidenceItem(
-                id: "pending-item",
-                sourceKind: .locator,
-                savedSetID: nil,
-                savedSetName: nil,
-                corpusID: "corpus-2",
-                corpusName: "Locator Corpus",
-                sentenceId: 3,
-                sentenceTokenIndex: 4,
-                leftContext: "left",
-                keyword: "pending-only",
-                rightContext: "right",
-                fullSentenceText: "left pending-only right",
-                citationText: "Sentence 4: left pending-only right",
-                query: "pending-only",
-                leftWindow: 5,
-                rightWindow: 5,
-                searchOptionsSnapshot: nil,
-                stopwordFilterSnapshot: nil,
-                reviewStatus: .pending,
-                note: nil,
-                createdAt: "2026-04-13T00:00:00Z",
-                updatedAt: "2026-04-13T00:00:00Z"
-            )
-        ]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-
-        dialogService.savePathResult = textURL.path
-        await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .mainWorkspace)
-
-        let text = try String(contentsOf: textURL, encoding: .utf8)
-        XCTAssertTrue(text.contains("keep-only"))
-        XCTAssertFalse(text.contains("pending-only"))
-
-        dialogService.savePathResult = jsonURL.path
-        await workspace.exportEvidenceJSON(preferredWindowRoute: .mainWorkspace)
-
-        let jsonData = try Data(contentsOf: jsonURL)
-        let bundle = try JSONDecoder().decode(EvidenceTransferBundle.self, from: jsonData)
-        XCTAssertEqual(bundle.version, 1)
-        XCTAssertEqual(bundle.items.count, 2)
-        XCTAssertEqual(dialogService.savePathPreferredRoute, .mainWorkspace)
-    }
-
-    func testExportEvidenceArtifactsRespectCurrentWorkbenchFilters() async throws {
-        let dialogService = FakeDialogService()
-        let textURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("filtered-excerpts-\(UUID().uuidString).txt")
-        let jsonURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("filtered-excerpt-bundle-\(UUID().uuidString).json")
-        defer {
-            try? FileManager.default.removeItem(at: textURL)
-            try? FileManager.default.removeItem(at: jsonURL)
-        }
-
-        let matching = makeEvidenceItem(
-            id: "matching-keep",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            tags: ["export", "alpha"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive")
-        )
-        let hiddenByTag = makeEvidenceItem(
-            id: "hidden-by-tag",
-            sourceKind: .kwic,
-            reviewStatus: .keep,
-            tags: ["beta"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive")
-        )
-        let hiddenByReview = makeEvidenceItem(
-            id: "hidden-by-review",
-            sourceKind: .locator,
-            reviewStatus: .pending,
-            tags: ["export", "alpha"],
-            corpusMetadata: CorpusMetadataProfile(sourceLabel: "Research Archive")
-        )
-        let repository = FakeWorkspaceRepository()
-        repository.evidenceItems = [matching, hiddenByTag, hiddenByReview]
-        let workspace = makeMainWorkspaceViewModel(
-            repository: repository,
-            dialogService: dialogService
-        )
-
-        await workspace.initializeIfNeeded()
-        workspace.evidenceWorkbench.reviewFilter = .keep
-
-        dialogService.savePathResult = textURL.path
-        await workspace.exportEvidencePacketMarkdown(preferredWindowRoute: .mainWorkspace)
-
-        let text = try String(contentsOf: textURL, encoding: .utf8)
-        XCTAssertTrue(text.contains("node"))
-        XCTAssertTrue(text.contains(wordZText("保留摘录", "Kept Excerpts", mode: .system) + ": 2"))
-        XCTAssertFalse(text.contains("locator-node"))
-
-        dialogService.savePathResult = jsonURL.path
-        await workspace.exportEvidenceJSON(preferredWindowRoute: .mainWorkspace)
-
-        let jsonData = try Data(contentsOf: jsonURL)
-        let bundle = try JSONDecoder().decode(EvidenceTransferBundle.self, from: jsonData)
-        XCTAssertEqual(bundle.items.map(\.id), ["matching-keep", "hidden-by-tag"])
+        XCTAssertEqual(hostActions.copiedClipboardTexts.last, workspace.sourceReader.currentCitationText)
     }
 
     func testExportSelectedKeywordSavedListJSONWritesTransferBundle() async throws {
@@ -1366,6 +1061,103 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.settings.scene.latestReleaseNotes, ["Native table layout persistence"])
     }
 
+    func testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled() async {
+        let repository = FakeWorkspaceRepository()
+        let hostPreferences = InMemoryHostPreferencesStore()
+        hostPreferences.snapshot.apiAccessEnabled = false
+        let updateService = FakeUpdateService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: hostPreferences,
+            updateService: updateService
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.checkForUpdatesNow()
+
+        XCTAssertEqual(updateService.checkCallCount, 0)
+        XCTAssertEqual(hostPreferences.recordUpdateCheckCallCount, 0)
+        XCTAssertTrue(workspace.settings.scene.updateSummary.contains("联网 API 已关闭"))
+        XCTAssertNil(workspace.issueBanner)
+    }
+
+    func testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences() async {
+        let repository = FakeWorkspaceRepository()
+        let credentialStore = InMemoryAPICredentialStore()
+        let hostPreferences = InMemoryHostPreferencesStore()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: hostPreferences,
+            apiCredentialStore: credentialStore
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.settings.apiCredentialDraft = "  token-123  "
+        await workspace.saveAPICredential()
+
+        XCTAssertEqual(credentialStore.saveCallCount, 1)
+        XCTAssertEqual(credentialStore.credential, "token-123")
+        XCTAssertTrue(workspace.settings.scene.apiCredentialConfigured)
+        XCTAssertTrue(workspace.settings.apiCredentialDraft.isEmpty)
+        XCTAssertNil(hostPreferences.snapshot.lastUpdateStatus.range(of: "token-123"))
+
+        await workspace.clearAPICredential()
+
+        XCTAssertEqual(credentialStore.clearCallCount, 1)
+        XCTAssertFalse(workspace.settings.scene.apiCredentialConfigured)
+    }
+
+    func testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene() async {
+        let repository = FakeWorkspaceRepository()
+        let credentialStore = InMemoryAPICredentialStore()
+        credentialStore.credential = "token-abc"
+        let connectionTester = FakeAPIConnectionTester()
+        connectionTester.result = NativeAPIConnectionTestResult(
+            statusCode: 200,
+            durationMilliseconds: 64,
+            attemptCount: 1,
+            endpointHost: "api.example.test"
+        )
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            apiCredentialStore: credentialStore,
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.settings.apiRequestTimeoutSeconds = 15
+        workspace.settings.apiMaxConcurrentRequests = 3
+        await workspace.testAPIConnection()
+
+        XCTAssertEqual(connectionTester.testCallCount, 1)
+        XCTAssertEqual(connectionTester.lastCredential, "token-abc")
+        XCTAssertEqual(connectionTester.lastTimeoutSeconds, 15)
+        XCTAssertEqual(connectionTester.lastMaxConcurrentRequests, 3)
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("API 连接正常"))
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("api.example.test"))
+        XCTAssertFalse(workspace.settings.scene.apiCredentialStatus.contains("token-abc"))
+        XCTAssertNil(workspace.issueBanner)
+    }
+
+    func testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled() async {
+        let repository = FakeWorkspaceRepository()
+        let hostPreferences = InMemoryHostPreferencesStore()
+        hostPreferences.snapshot.apiAccessEnabled = false
+        let connectionTester = FakeAPIConnectionTester()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: hostPreferences,
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.testAPIConnection()
+
+        XCTAssertEqual(connectionTester.testCallCount, 0)
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("联网 API 已关闭"))
+        XCTAssertNil(workspace.issueBanner)
+    }
+
     func testCheckForUpdatesEmitsCompletionNotification() async {
         let repository = FakeWorkspaceRepository()
         let notificationService = FakeNotificationService()
@@ -1662,15 +1454,6 @@ final class MainWorkspaceViewModelTests: XCTestCase {
 
     func testExportCurrentReportBundleUsesArchiveExportAndTaskCenter() async {
         let repository = FakeWorkspaceRepository()
-        repository.evidenceItems = [
-            makeEvidenceItem(
-                sourceKind: .kwic,
-                reviewStatus: .keep,
-                sectionTitle: "Section A",
-                claim: "Claim Alpha",
-                tags: ["bundle"]
-            )
-        ]
         let hostActions = FakeHostActionService()
         let reportBundleService = FakeAnalysisReportBundleService()
         let workspace = makeMainWorkspaceViewModel(

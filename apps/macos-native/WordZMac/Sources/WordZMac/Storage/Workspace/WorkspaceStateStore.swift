@@ -10,7 +10,6 @@ struct WorkspaceStateStore {
         let analysisPresetCount: Int
         let keywordSavedListCount: Int
         let concordanceSavedSetCount: Int
-        let evidenceItemCount: Int
         let sentimentReviewSampleCount: Int
     }
 
@@ -133,23 +132,6 @@ struct WorkspaceStateStore {
         }
     }
 
-    func loadEvidenceItems() throws -> [EvidenceItem] {
-        try loadRecords(
-            sql: """
-            SELECT payload_json
-            FROM evidence_item
-            ORDER BY position ASC, updated_at DESC;
-            """,
-            type: EvidenceItem.self
-        )
-    }
-
-    func saveEvidenceItems(_ items: [EvidenceItem]) throws {
-        try withDatabase { db in
-            try replaceEvidenceItems(items, on: db)
-        }
-    }
-
     func loadSentimentReviewSamples() throws -> [SentimentReviewSample] {
         try loadRecords(
             sql: """
@@ -185,7 +167,6 @@ struct WorkspaceStateStore {
                 analysisPresetCount: try db.scalarInt("SELECT COUNT(*) FROM analysis_preset;"),
                 keywordSavedListCount: try db.scalarInt("SELECT COUNT(*) FROM keyword_saved_list;"),
                 concordanceSavedSetCount: try db.scalarInt("SELECT COUNT(*) FROM concordance_saved_set;"),
-                evidenceItemCount: try db.scalarInt("SELECT COUNT(*) FROM evidence_item;"),
                 sentimentReviewSampleCount: try db.scalarInt("SELECT COUNT(*) FROM sentiment_review_sample;")
             )
         }
@@ -296,18 +277,6 @@ struct WorkspaceStateStore {
             )
             try db.execute(
                 """
-                CREATE TABLE IF NOT EXISTS evidence_item (
-                    id TEXT PRIMARY KEY,
-                    corpus_id TEXT NOT NULL,
-                    sentence_id INTEGER NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    position INTEGER NOT NULL DEFAULT 0,
-                    payload_json TEXT NOT NULL
-                );
-                """
-            )
-            try db.execute(
-                """
                 CREATE TABLE IF NOT EXISTS sentiment_review_sample (
                     id TEXT PRIMARY KEY,
                     match_key TEXT NOT NULL,
@@ -323,7 +292,6 @@ struct WorkspaceStateStore {
             try db.execute("CREATE INDEX IF NOT EXISTS idx_analysis_preset_updated_at ON analysis_preset(updated_at DESC);")
             try db.execute("CREATE INDEX IF NOT EXISTS idx_keyword_saved_list_updated_at ON keyword_saved_list(updated_at DESC);")
             try db.execute("CREATE INDEX IF NOT EXISTS idx_concordance_saved_set_updated_at ON concordance_saved_set(updated_at DESC);")
-            try db.execute("CREATE INDEX IF NOT EXISTS idx_evidence_item_corpus ON evidence_item(corpus_id, sentence_id);")
             try db.execute("CREATE INDEX IF NOT EXISTS idx_sentiment_review_updated_at ON sentiment_review_sample(updated_at DESC);")
             try db.execute(
                 """
@@ -424,27 +392,6 @@ struct WorkspaceStateStore {
             },
             sql: """
             INSERT INTO concordance_saved_set(id, name, kind, updated_at, position, payload_json)
-            VALUES (?, ?, ?, ?, ?, ?);
-            """,
-            on: db
-        )
-    }
-
-    private func replaceEvidenceItems(_ items: [EvidenceItem], on db: SQLiteDatabase) throws {
-        try replaceOrderedPayloadTable(
-            name: "evidence_item",
-            rows: items.enumerated().map { index, item in
-                [
-                    item.id,
-                    item.corpusID,
-                    "\(item.sentenceId)",
-                    item.updatedAt,
-                    "\(index)",
-                    encodeJSON(item)
-                ]
-            },
-            sql: """
-            INSERT INTO evidence_item(id, corpus_id, sentence_id, updated_at, position, payload_json)
             VALUES (?, ?, ?, ?, ?, ?);
             """,
             on: db

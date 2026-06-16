@@ -13,7 +13,6 @@ final class NativeCorpusStore: WorkspaceStorage, ProgressReportingLibraryStore, 
     var cachedAnalysisPresets: [NativeAnalysisPresetRecord]?
     var cachedKeywordSavedLists: [KeywordSavedList]?
     var cachedConcordanceSavedSets: [ConcordanceSavedSet]?
-    var cachedEvidenceItems: [EvidenceItem]?
     var cachedSentimentReviewSamples: [SentimentReviewSample]?
     var cachedRecycleEntries: [NativeRecycleRecord]?
     var cachedWorkspaceSnapshot: NativePersistedWorkspaceSnapshot?

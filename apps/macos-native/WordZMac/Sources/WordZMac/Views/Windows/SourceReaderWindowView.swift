@@ -78,7 +78,7 @@ struct SourceReaderWindowView: View {
                         Button(t("复制引文", "Copy Citation")) {
                             workspace.copySourceReaderCitation()
                         }
-                        .disabled(sourceReader.currentPreparedCitationText == nil)
+                        .disabled(sourceReader.currentCitationText == nil)
 
                         Button(t("打开来源文件", "Open Source File")) {
                             Task { await workspace.openSourceReaderOriginalFile() }

@@ -133,15 +133,17 @@ extension MainWorkspaceViewModel {
             descriptor: .kwic,
             selecting: .kwic
         ) {
-            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
-                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
-            }
-            return try await self.flowCoordinator.analysisWorkflow.repository.runKWIC(
-                text: corpus.content,
+            return try await self.flowCoordinator.analysisWorkflow.runSourceAwareKWIC(
+                features: self.features,
                 keyword: keyword,
                 leftWindow: self.kwic.leftWindowValue,
                 rightWindow: self.kwic.rightWindowValue,
-                searchOptions: self.kwic.searchOptions
+                searchOptions: self.kwic.searchOptions,
+                ensureOpenedCorpus: {
+                    try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                        try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
+                    }
+                }
             )
         } apply: { result in
             self.kwic.apply(result)

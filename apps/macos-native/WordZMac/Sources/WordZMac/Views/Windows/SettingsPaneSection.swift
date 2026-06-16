@@ -5,6 +5,7 @@ enum SettingsSection: CaseIterable, Identifiable {
     case workspace
     case appearance
     case updates
+    case api
     case recent
     case support
     case about
@@ -17,6 +18,8 @@ enum SettingsSection: CaseIterable, Identifiable {
             return "appearance"
         case .updates:
             return "updates"
+        case .api:
+            return "api"
         case .recent:
             return "recent"
         case .support:
@@ -34,6 +37,8 @@ enum SettingsSection: CaseIterable, Identifiable {
             return wordZText("外观", "Appearance", mode: mode)
         case .updates:
             return wordZText("更新", "Updates", mode: mode)
+        case .api:
+            return wordZText("API", "API", mode: mode)
         case .recent:
             return wordZText("最近打开", "Recent", mode: mode)
         case .support:
@@ -51,6 +56,8 @@ enum SettingsSection: CaseIterable, Identifiable {
             return "paintbrush"
         case .updates:
             return "arrow.triangle.2.circlepath"
+        case .api:
+            return "network"
         case .recent:
             return "clock.arrow.circlepath"
         case .support:

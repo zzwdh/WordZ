@@ -17,6 +17,7 @@ enum KWICPageAction {
     case sortByColumn(KWICColumnKey)
     case changePageSize(KWICPageSize)
     case toggleColumn(KWICColumnKey)
+    case resetTableLayout
     case selectRow(String?)
     case activateRow(String)
     case openSourceReader

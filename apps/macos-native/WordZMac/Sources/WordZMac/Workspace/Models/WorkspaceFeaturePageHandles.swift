@@ -4,23 +4,19 @@ import Foundation
 struct WorkspaceFeaturePageHandles {
     let topics: any WorkspaceTopicsPageState
     let sentiment: any WorkspaceSentimentPageState
-    let evidenceWorkbench: any WorkspaceEvidenceWorkbenchState
 
     init(
         topics: any WorkspaceTopicsPageState,
-        sentiment: any WorkspaceSentimentPageState,
-        evidenceWorkbench: any WorkspaceEvidenceWorkbenchState
+        sentiment: any WorkspaceSentimentPageState
     ) {
         self.topics = topics
         self.sentiment = sentiment
-        self.evidenceWorkbench = evidenceWorkbench
     }
 
     init(bundle: WorkspaceFeaturePageBundle) {
         self.init(
             topics: bundle.topics,
-            sentiment: bundle.sentiment,
-            evidenceWorkbench: bundle.evidenceWorkbench
+            sentiment: bundle.sentiment
         )
     }
 }

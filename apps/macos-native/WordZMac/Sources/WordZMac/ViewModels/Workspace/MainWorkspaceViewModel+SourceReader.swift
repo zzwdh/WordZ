@@ -76,78 +76,10 @@ extension MainWorkspaceViewModel {
     }
 
     func copySourceReaderCitation() {
-        guard let citationText = sourceReader.currentPreparedCitationText else { return }
+        guard let citationText = sourceReader.currentCitationText else { return }
         hostActionService.copyTextToClipboard(citationText)
         settings.setSupportStatus(t("已复制当前引文。", "Copied the current citation."))
         clearActiveIssue()
-    }
-
-    func captureCurrentSourceReaderEvidenceItem(
-        draft overrideDraft: EvidenceCaptureDraft? = nil
-    ) async {
-        guard let origin = sourceReader.launchContext?.origin,
-              let context = sourceReader.launchContext,
-              let scene = sourceReader.scene,
-              let selectedHitID = scene.selectedHitID
-        else { return }
-
-        let sourceDraft = sourceReader.currentEvidenceCaptureDraft
-        let draft = mergedEvidenceCaptureDraft(base: overrideDraft, fallback: sourceDraft)
-        switch origin {
-        case .kwic:
-            kwic.selectedRowID = selectedHitID
-            await captureCurrentKWICEvidenceItem(draft: draft)
-        case .locator:
-            locator.selectedRowID = selectedHitID
-            await captureCurrentLocatorEvidenceItem(draft: draft)
-        case .plot:
-            guard let anchor = context.hitAnchors.first(where: { $0.id == selectedHitID }),
-                  let selection = scene.selection
-            else { return }
-            await captureSourceReaderEvidenceItem(
-                sourceKind: .plot,
-                context: context,
-                anchor: anchor,
-                selection: selection,
-                draft: draft
-            )
-        case .sentiment:
-            guard let anchor = context.hitAnchors.first(where: { $0.id == selectedHitID }),
-                  let selection = scene.selection
-            else { return }
-            await captureSourceReaderEvidenceItem(
-                sourceKind: .sentiment,
-                context: context,
-                anchor: anchor,
-                selection: selection,
-                draft: draft
-            )
-        case .topics:
-            guard let anchor = context.hitAnchors.first(where: { $0.id == selectedHitID }),
-                  let selection = scene.selection
-            else { return }
-            await captureSourceReaderEvidenceItem(
-                sourceKind: .topics,
-                context: context,
-                anchor: anchor,
-                selection: selection,
-                draft: draft
-            )
-        }
-    }
-
-    private func mergedEvidenceCaptureDraft(
-        base: EvidenceCaptureDraft?,
-        fallback: EvidenceCaptureDraft
-    ) -> EvidenceCaptureDraft {
-        guard let base else { return fallback }
-        return EvidenceCaptureDraft(
-            citationFormat: base.citationFormat == .citationLine ? fallback.citationFormat : base.citationFormat,
-            citationStyle: base.citationStyle == .plain ? fallback.citationStyle : base.citationStyle,
-            note: [base.note, fallback.note]
-                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                .joined(separator: " | ")
-        )
     }
 
     var canOpenSourceReaderCurrentContent: Bool {
@@ -157,7 +89,8 @@ extension MainWorkspaceViewModel {
     func canOpenSourceReaderContent(for tab: WorkspaceDetailTab) -> Bool {
         switch tab {
         case .kwic:
-            return kwic.selectedSceneRow != nil && sidebar.selectedCorpusID != nil
+            return kwic.selectedSceneRow != nil &&
+                (normalizedValue(kwic.selectedSceneRow?.sourceID) != nil || sidebar.selectedCorpusID != nil)
         case .locator:
             return locator.selectedSceneRow != nil && sidebar.selectedCorpusID != nil
         case .plot:
@@ -216,15 +149,37 @@ extension MainWorkspaceViewModel {
               let selectedRow = kwic.selectedSceneRow
         else { return nil }
 
+        let selectedSourceID = normalizedValue(selectedRow.sourceID)
+        let resolvedCorpusID = selectedSourceID ?? sidebar.selectedCorpusID
         let resolved = await resolveSourceReaderDocumentContext(
-            corpusID: sidebar.selectedCorpusID,
-            fallbackFilePath: sessionStore.openedCorpus?.filePath,
-            fallbackDisplayName: sessionStore.openedCorpus?.displayName ?? library.selectedCorpus?.name
+            corpusID: resolvedCorpusID,
+            fallbackFilePath: normalizedValue(selectedRow.sourceFilePath) ?? sessionStore.openedCorpus?.filePath,
+            fallbackDisplayName: normalizedValue(selectedRow.sourceDisplayText) ?? sessionStore.openedCorpus?.displayName ?? library.selectedCorpus?.name
         )
+        let anchors = scene.rows.compactMap { row -> SourceReaderHitAnchor? in
+            if let selectedSourceID,
+               normalizedValue(row.sourceID) != selectedSourceID {
+                return nil
+            }
+            return SourceReaderHitAnchor(
+                id: row.id,
+                sentenceId: selectedSourceID == nil ? row.sentenceId : (row.sourceSentenceId ?? row.sentenceId),
+                tokenIndex: row.sentenceTokenIndex,
+                keyword: row.keyword,
+                leftContext: row.leftContext,
+                rightContext: row.rightContext,
+                concordanceText: row.concordanceText,
+                citationText: row.citationText,
+                fullSentenceText: [row.leftContext, row.keyword, row.rightContext]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+            )
+        }
+        guard !anchors.isEmpty else { return nil }
 
         return SourceReaderLaunchContext(
             origin: .kwic,
-            corpusID: sidebar.selectedCorpusID,
+            corpusID: resolvedCorpusID,
             corpusName: resolved.corpusName,
             displayName: resolved.displayName,
             filePath: resolved.filePath,
@@ -232,21 +187,7 @@ extension MainWorkspaceViewModel {
             leftWindow: scene.leftWindow,
             rightWindow: scene.rightWindow,
             searchOptionsSummary: scene.searchOptions.summaryText,
-            hitAnchors: scene.rows.map { row in
-                SourceReaderHitAnchor(
-                    id: row.id,
-                    sentenceId: row.sentenceId,
-                    tokenIndex: row.sentenceTokenIndex,
-                    keyword: row.keyword,
-                    leftContext: row.leftContext,
-                    rightContext: row.rightContext,
-                    concordanceText: row.concordanceText,
-                    citationText: row.citationText,
-                    fullSentenceText: [row.leftContext, row.keyword, row.rightContext]
-                        .filter { !$0.isEmpty }
-                        .joined(separator: " ")
-                )
-            },
+            hitAnchors: anchors,
             selectedHitID: selectedRow.id,
             fallbackText: resolved.fallbackText
         )

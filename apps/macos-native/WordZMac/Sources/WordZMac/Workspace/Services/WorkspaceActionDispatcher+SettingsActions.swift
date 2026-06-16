@@ -14,6 +14,12 @@ extension WorkspaceActionDispatcher {
             launch { await self.workspace.installDownloadedUpdate() }
         case .revealDownloadedUpdate:
             launch { await self.workspace.revealDownloadedUpdate() }
+        case .saveAPICredential:
+            launch { await self.workspace.saveAPICredential() }
+        case .clearAPICredential:
+            launch { await self.workspace.clearAPICredential() }
+        case .testAPIConnection:
+            launch { await self.workspace.testAPIConnection() }
         case .showUpdateWindow:
             NativeAppCommandCenter.post(.showUpdateWindow)
         case .showHelpWindow:

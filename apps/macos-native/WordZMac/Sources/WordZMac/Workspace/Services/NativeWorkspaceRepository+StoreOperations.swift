@@ -528,54 +528,6 @@ extension NativeWorkspaceRepositoryCore {
         try store.deleteConcordanceSavedSet(setID: setID)
     }
 
-    func listEvidenceItems() throws -> [EvidenceItem] {
-        try ensureReady()
-        guard let store = storage as? any EvidenceItemManagingStorage else {
-            throw NSError(
-                domain: "WordZMac.NativeWorkspaceRepository",
-                code: 32,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
-            )
-        }
-        return try store.listEvidenceItems()
-    }
-
-    func saveEvidenceItem(_ item: EvidenceItem) throws -> EvidenceItem {
-        try ensureReady()
-        guard let store = storage as? any EvidenceItemManagingStorage else {
-            throw NSError(
-                domain: "WordZMac.NativeWorkspaceRepository",
-                code: 33,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
-            )
-        }
-        return try store.saveEvidenceItem(item)
-    }
-
-    func deleteEvidenceItem(itemID: String) throws {
-        try ensureReady()
-        guard let store = storage as? any EvidenceItemManagingStorage else {
-            throw NSError(
-                domain: "WordZMac.NativeWorkspaceRepository",
-                code: 34,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
-            )
-        }
-        try store.deleteEvidenceItem(itemID: itemID)
-    }
-
-    func replaceEvidenceItems(_ items: [EvidenceItem]) throws {
-        try ensureReady()
-        guard let store = storage as? any EvidenceItemManagingStorage else {
-            throw NSError(
-                domain: "WordZMac.NativeWorkspaceRepository",
-                code: 35,
-                userInfo: [NSLocalizedDescriptionKey: "当前仓储尚不支持摘录功能。"]
-            )
-        }
-        try store.replaceEvidenceItems(items)
-    }
-
     func listSentimentReviewSamples() throws -> [SentimentReviewSample] {
         try ensureReady()
         guard let store = storage as? any SentimentReviewSampleManagingStorage else {

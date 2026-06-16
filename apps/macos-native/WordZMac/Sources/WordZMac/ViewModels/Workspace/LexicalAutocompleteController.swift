@@ -42,13 +42,34 @@ final class LexicalAutocompleteController: ObservableObject {
         configuration: LexicalSuggestionConfiguration = .default,
         limit: Int = 8
     ) -> [LexicalSuggestion] {
+        suggestionSnapshot(
+            for: query,
+            options: options,
+            stopwordFilter: stopwordFilter,
+            scope: scope,
+            configuration: configuration,
+            limit: limit
+        ).suggestions
+    }
+
+    func suggestionSnapshot(
+        for query: String,
+        options: SearchOptionsState,
+        stopwordFilter: StopwordFilterState = .default,
+        scope: LexicalSuggestionScope? = nil,
+        configuration: LexicalSuggestionConfiguration = .default,
+        limit: Int = 8
+    ) -> LexicalSuggestionSnapshot {
         let resolvedConfiguration = configuration.limitingSuggestions(to: limit)
         let resolvedScope = scope ?? activeScope
         guard loadedScope == resolvedScope else {
             if loadingScope != resolvedScope {
                 scheduleLoad(for: resolvedScope)
             }
-            return []
+            return LexicalSuggestionSnapshot(
+                suggestions: [],
+                status: resolvedScope.corpusIDs.isEmpty ? .noCorpus : .loading
+            )
         }
         let request = LexicalSuggestionRequest(
             query: query,
@@ -57,14 +78,32 @@ final class LexicalAutocompleteController: ObservableObject {
             scope: resolvedScope,
             configuration: resolvedConfiguration
         )
+        if let status = preflightStatus(for: request) {
+            return LexicalSuggestionSnapshot(suggestions: [], status: status)
+        }
+        guard service.isEmpty == false else {
+            return LexicalSuggestionSnapshot(suggestions: [], status: .unavailable)
+        }
+
         let prefixSuggestions = service.prefixSuggestions(for: request)
         let cacheKey = CollocateCacheKey(request: request, loadedScope: loadedScope)
-        let cachedCollocates = collocateSuggestionsByKey[cacheKey] ?? []
+        let canSuggestCollocates = service.canSuggestCollocates(for: request)
+        let cachedCollocates = collocateSuggestionsByKey[cacheKey]
         scheduleCollocateSuggestionsIfNeeded(request: request, cacheKey: cacheKey)
-        return service.combinedSuggestions(
+        let combined = service.combinedSuggestions(
+            for: request,
             prefixSuggestions: prefixSuggestions,
-            collocateSuggestions: cachedCollocates,
-            configuration: resolvedConfiguration
+            collocateSuggestions: cachedCollocates ?? [],
+            configuration: resolvedConfiguration,
+            prioritizeRelatedSuggestions: canSuggestCollocates
+        )
+        return LexicalSuggestionSnapshot(
+            suggestions: combined,
+            status: status(
+                forCombinedSuggestions: combined,
+                canSuggestCollocates: canSuggestCollocates,
+                cachedCollocates: cachedCollocates
+            )
         )
     }
 
@@ -148,6 +187,46 @@ final class LexicalAutocompleteController: ObservableObject {
         collocateSuggestionsByKey.removeAll()
         inFlightCollocateKey = nil
         revision += 1
+    }
+
+    private func preflightStatus(for request: LexicalSuggestionRequest) -> LexicalSuggestionStatus? {
+        if request.scope.corpusIDs.isEmpty {
+            return .noCorpus
+        }
+
+        let trimmed = request.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count < request.configuration.minimumQueryLength {
+            return .queryTooShort(minimumLength: request.configuration.minimumQueryLength)
+        }
+
+        if request.options.regex || request.options.matchMode != .token {
+            return .unsupportedMode
+        }
+
+        if service.normalizedSingleTokenQuery(for: request).isEmpty {
+            return .unsupportedMode
+        }
+
+        return nil
+    }
+
+    private func status(
+        forCombinedSuggestions suggestions: [LexicalSuggestion],
+        canSuggestCollocates: Bool,
+        cachedCollocates: [LexicalSuggestion]?
+    ) -> LexicalSuggestionStatus {
+        if canSuggestCollocates, cachedCollocates == nil {
+            return .relatedLoading
+        }
+
+        if suggestions.isEmpty {
+            if canSuggestCollocates, cachedCollocates?.isEmpty == true {
+                return .noRelatedMatches
+            }
+            return .noMatches
+        }
+
+        return .ready
     }
 
     private func scheduleCollocateSuggestionsIfNeeded(

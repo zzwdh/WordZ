@@ -21,6 +21,14 @@ struct ConcordanceSavedSetRow: Identifiable, Equatable, Codable, Sendable {
     let id: String
     let sentenceId: Int
     let sentenceTokenIndex: Int?
+    let sourceID: String?
+    let sourceTitle: String?
+    let sourceFilePath: String?
+    let sourceFileName: String?
+    let sourceType: String?
+    let sourceIndex: Int?
+    let sourceSentenceId: Int?
+    let sourceMetadata: CorpusMetadataProfile?
     let status: String
     let leftContext: String
     let keyword: String
@@ -28,6 +36,46 @@ struct ConcordanceSavedSetRow: Identifiable, Equatable, Codable, Sendable {
     let concordanceText: String
     let citationText: String
     let fullSentenceText: String
+
+    init(
+        id: String,
+        sentenceId: Int,
+        sentenceTokenIndex: Int?,
+        status: String,
+        leftContext: String,
+        keyword: String,
+        rightContext: String,
+        concordanceText: String,
+        citationText: String,
+        fullSentenceText: String,
+        sourceID: String? = nil,
+        sourceTitle: String? = nil,
+        sourceFilePath: String? = nil,
+        sourceFileName: String? = nil,
+        sourceType: String? = nil,
+        sourceIndex: Int? = nil,
+        sourceSentenceId: Int? = nil,
+        sourceMetadata: CorpusMetadataProfile? = nil
+    ) {
+        self.id = id
+        self.sentenceId = sentenceId
+        self.sentenceTokenIndex = sentenceTokenIndex
+        self.sourceID = sourceID
+        self.sourceTitle = sourceTitle
+        self.sourceFilePath = sourceFilePath
+        self.sourceFileName = sourceFileName
+        self.sourceType = sourceType
+        self.sourceIndex = sourceIndex
+        self.sourceSentenceId = sourceSentenceId
+        self.sourceMetadata = sourceMetadata
+        self.status = status
+        self.leftContext = leftContext
+        self.keyword = keyword
+        self.rightContext = rightContext
+        self.concordanceText = concordanceText
+        self.citationText = citationText
+        self.fullSentenceText = fullSentenceText
+    }
 }
 
 struct ConcordanceSavedSet: Identifiable, Equatable, Codable, Sendable {
@@ -238,7 +286,16 @@ extension ConcordanceSavedSetRow {
             concordanceText,
             citationText,
             fullSentenceText,
-            status
+            status,
+            sourceID ?? "",
+            sourceTitle ?? "",
+            sourceFilePath ?? "",
+            sourceFileName ?? "",
+            sourceType ?? "",
+            sourceMetadata?.sourceLabel ?? "",
+            sourceMetadata?.yearLabel ?? "",
+            sourceMetadata?.genreLabel ?? "",
+            sourceMetadata?.tagsText ?? ""
         ]
         .joined(separator: "\n")
         .lowercased()

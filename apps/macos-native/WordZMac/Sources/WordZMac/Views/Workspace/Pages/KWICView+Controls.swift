@@ -25,7 +25,10 @@ extension KWICView {
                         }
                     }
                 } actions: {
-                    kwicRunButton
+                    HStack(spacing: 8) {
+                        kwicRunButton
+                        kwicSaveVisibleButton
+                    }
                 }
 
                 Text(kwicControlSummary)
@@ -63,7 +66,13 @@ extension KWICView {
             .disabled(isBusy)
     }
 
+    var kwicSaveVisibleButton: some View {
+        Button(t("保存当前页", "Save Page")) { onAction(.saveVisibleHitSet) }
+            .disabled(viewModel.scene?.rows.isEmpty ?? true)
+            .help(t("保存当前页可见命中行，之后可在命中集中回看。", "Save the currently visible hit rows for later review."))
+    }
+
     var kwicControlSummary: String {
-        "\(viewModel.keyword.isEmpty ? t("未设置关键词", "No keyword") : viewModel.keyword) · L\(viewModel.leftWindow) / R\(viewModel.rightWindow)"
+        "\(viewModel.keyword.isEmpty ? t("未设置关键词", "No keyword") : viewModel.keyword) · \(t("窗口", "Window")) L\(viewModel.leftWindow) / R\(viewModel.rightWindow)"
     }
 }

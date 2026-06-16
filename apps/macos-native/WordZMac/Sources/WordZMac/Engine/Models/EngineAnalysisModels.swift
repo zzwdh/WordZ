@@ -1,5 +1,25 @@
 import Foundation
 
+struct KWICSourceContext: Hashable, Sendable {
+    let sourceID: String
+    let sourceTitle: String
+    let sourceFilePath: String
+    let sourceFileName: String
+    let sourceType: String
+    let sourceIndex: Int
+    let metadata: CorpusMetadataProfile
+
+    static let empty = KWICSourceContext(
+        sourceID: "",
+        sourceTitle: "",
+        sourceFilePath: "",
+        sourceFileName: "",
+        sourceType: "",
+        sourceIndex: 0,
+        metadata: .empty
+    )
+}
+
 struct KWICRow: Identifiable, Hashable, Sendable {
     let id: String
     let left: String
@@ -7,16 +27,42 @@ struct KWICRow: Identifiable, Hashable, Sendable {
     let right: String
     let sentenceId: Int
     let sentenceTokenIndex: Int
+    let sourceID: String
+    let sourceTitle: String
+    let sourceFilePath: String
+    let sourceFileName: String
+    let sourceType: String
+    let sourceIndex: Int
+    let sourceSentenceId: Int?
+    let metadata: CorpusMetadataProfile
 
     init(json: JSONObject) {
         let sentenceId = JSONFieldReader.int(json, key: "sentenceId")
         let nodeIndex = JSONFieldReader.int(json, key: "sentenceTokenIndex")
-        self.id = "\(sentenceId)-\(nodeIndex)"
+        let sourceID = JSONFieldReader.string(json, key: "sourceID")
+        let explicitID = JSONFieldReader.string(json, key: "id")
+        self.id = KWICRow.resolvedID(
+            explicitID: explicitID,
+            sourceID: sourceID,
+            sentenceId: sentenceId,
+            sentenceTokenIndex: nodeIndex
+        )
         self.left = JSONFieldReader.string(json, key: "left")
         self.node = JSONFieldReader.string(json, key: "node")
         self.right = JSONFieldReader.string(json, key: "right")
         self.sentenceId = sentenceId
         self.sentenceTokenIndex = nodeIndex
+        self.sourceID = sourceID
+        self.sourceTitle = JSONFieldReader.string(json, key: "sourceTitle")
+        self.sourceFilePath = JSONFieldReader.string(json, key: "sourceFilePath")
+        self.sourceFileName = JSONFieldReader.string(json, key: "sourceFileName")
+        self.sourceType = JSONFieldReader.string(json, key: "sourceType")
+        self.sourceIndex = JSONFieldReader.int(json, key: "sourceIndex")
+        self.sourceSentenceId = json["sourceSentenceId"] == nil
+            ? nil
+            : JSONFieldReader.int(json, key: "sourceSentenceId")
+        let metadataObject = JSONFieldReader.dictionary(json, key: "metadata")
+        self.metadata = CorpusMetadataProfile(json: metadataObject.isEmpty ? json : metadataObject)
     }
 
     init(
@@ -25,16 +71,77 @@ struct KWICRow: Identifiable, Hashable, Sendable {
         node: String,
         right: String,
         sentenceId: Int,
-        sentenceTokenIndex: Int
+        sentenceTokenIndex: Int,
+        sourceID: String = "",
+        sourceTitle: String = "",
+        sourceFilePath: String = "",
+        sourceFileName: String = "",
+        sourceType: String = "",
+        sourceIndex: Int = 0,
+        sourceSentenceId: Int? = nil,
+        metadata: CorpusMetadataProfile = .empty
     ) {
-        self.id = id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "\(sentenceId)-\(sentenceTokenIndex)"
-            : id
+        self.id = KWICRow.resolvedID(
+            explicitID: id,
+            sourceID: sourceID,
+            sentenceId: sentenceId,
+            sentenceTokenIndex: sentenceTokenIndex
+        )
         self.left = left
         self.node = node
         self.right = right
         self.sentenceId = sentenceId
         self.sentenceTokenIndex = sentenceTokenIndex
+        self.sourceID = sourceID
+        self.sourceTitle = sourceTitle
+        self.sourceFilePath = sourceFilePath
+        self.sourceFileName = sourceFileName
+        self.sourceType = sourceType
+        self.sourceIndex = sourceIndex
+        self.sourceSentenceId = sourceSentenceId
+        self.metadata = metadata
+    }
+
+    func withSourceContext(
+        _ context: KWICSourceContext,
+        globalSentenceOffset: Int,
+        preservingRowID: Bool = false
+    ) -> KWICRow {
+        let localSentenceId = sourceSentenceId ?? sentenceId
+        let globalSentenceId = localSentenceId + max(0, globalSentenceOffset)
+        return KWICRow(
+            id: preservingRowID ? id : "\(context.sourceID)-\(localSentenceId)-\(sentenceTokenIndex)",
+            left: left,
+            node: node,
+            right: right,
+            sentenceId: globalSentenceId,
+            sentenceTokenIndex: sentenceTokenIndex,
+            sourceID: context.sourceID,
+            sourceTitle: context.sourceTitle,
+            sourceFilePath: context.sourceFilePath,
+            sourceFileName: context.sourceFileName,
+            sourceType: context.sourceType,
+            sourceIndex: context.sourceIndex,
+            sourceSentenceId: localSentenceId,
+            metadata: context.metadata
+        )
+    }
+
+    private static func resolvedID(
+        explicitID: String,
+        sourceID: String,
+        sentenceId: Int,
+        sentenceTokenIndex: Int
+    ) -> String {
+        let trimmedID = explicitID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedID.isEmpty {
+            return trimmedID
+        }
+        let trimmedSourceID = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedSourceID.isEmpty {
+            return "\(trimmedSourceID)-\(sentenceId)-\(sentenceTokenIndex)"
+        }
+        return "\(sentenceId)-\(sentenceTokenIndex)"
     }
 }
 
