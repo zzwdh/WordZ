@@ -16,7 +16,9 @@ extension LibraryManagementViewModel {
     }
 
     func applyLibrarySnapshot(_ snapshot: LibrarySnapshot) {
+        guard !hasAppliedLibrarySnapshot || librarySnapshot != snapshot else { return }
         deferSceneSync {
+            hasAppliedLibrarySnapshot = true
             librarySnapshot = snapshot
             if let selectedFolderID, !snapshot.folders.contains(where: { $0.id == selectedFolderID }) {
                 self.selectedFolderID = nil

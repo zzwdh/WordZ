@@ -95,6 +95,7 @@ package final class LibraryManagementViewModel: ObservableObject {
     var isSyncingCorpusSelection = false
     var deferredSceneSyncDepth = 0
     var needsDeferredSceneSync = false
+    var hasAppliedLibrarySnapshot = false
     var showsRecycleBin = false {
         didSet {
             guard oldValue != showsRecycleBin else { return }

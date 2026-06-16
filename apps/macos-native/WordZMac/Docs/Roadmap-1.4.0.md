@@ -2,332 +2,287 @@
 
 ## 版本主题
 
-`1.4.0` 建议定为：
+**性能优化与 API 调用稳定化**
 
-**语言学增强与研究证据交付**
+`1.4.0` 不再定义成横向功能扩张版本。这个版本只解决两件事：
 
-`1.3.0` 已经把研究输入、参考语料、分析预设、报告 bundle、`Source Reader` 和 `Evidence Workbench` 串成了第一条可用闭环。
-`1.4.0` 不适合再继续横向铺新页面，而应该把已经存在但还偏“底层能力”的部分真正推到用户面前：
+1. 让现有分析、语料库和大结果页更快、更稳、更可测。
+2. 让所有联网 API 调用变成可配置、可取消、可重试、可观测、默认不打扰本地工作流的能力。
 
-- 让 `lemma / lexical class / sentiment / topics` 变成可组合、可解释的研究视角
-- 让 `Source Reader + Evidence Workbench` 从“可查看、可保存”升级成“可整理、可导出、可交付”的研究 dossier
-- 让 `Topics / Sentiment / Compare / KWIC` 不再各自孤立，而是能回答“差异是由什么语言现象驱动的”
-- 把当前已经暴露出来的热点模块降温，避免 `1.4.x` 开发周期被 `Keyword / Topic / Library` 大文件继续拖慢
+这意味着 `1.4.0` 的成功标准不是“又多几个页面”，而是：
+
+- 打开、导入、索引、分析、翻页、排序、筛选这些高频动作能用指标证明变快
+- API 请求失败、限流、超时、断网、取消时不会拖垮主界面
+- 用户没有配置 API 时，WordZ 仍然是完整可用的本地语料工具
+- 性能优化不能牺牲分析结果质量，关键路径必须有 before/after 对比
+
+## 范围清理
+
+旧版路线图中范围过大的内容不再作为 `1.4.0` 目标。
+
+| 方向 | 1.4.0 处理方式 | 原因 |
+| --- | --- | --- |
+| 大型新研究工作流 | 移出路线图 | 已偏离性能/API 主线，也会扩大测试面 |
+| 标注感知分析完整产品化 | 延后 | 需要跨多个分析页重做结果口径，不适合和性能专项混在同版 |
+| 主题、情感、对比的跨分析联动 | 延后 | 先把单页性能和结果复现稳定下来 |
+| 平行语料、OCR、多人协作、云同步 | 不进入 1.4.0 | 都是新产品线，不是当前版本该承担的风险 |
+| 复杂教学资源包和演示模板 | 延后 | 不是性能和 API 调用的阻塞项 |
+| 发布链路大改 | 只保留必要修复 | 1.4.0 不把打包/分发自动化作为主里程碑 |
 
 ## 顶层目标
 
-`1.4.0` 建议锁定 5 条主线：
+| 编号 | 主线 | 优先级 | 目标完成度 |
+| --- | --- | --- | --- |
+| 1 | 性能基线与回归门禁 | P0 | 必须完成 |
+| 2 | 高频路径性能优化 | P0 | 必须完成 |
+| 3 | 统一 API 调用底座 | P0 | 必须完成 |
+| 4 | API 设置、隐私和错误恢复 | P0 | 必须完成 |
+| 5 | 任务进度、取消和状态反馈 | P1 | 争取完成 |
+| 6 | 缓存、预取和离线降级增强 | P1 | 视 P0 进展决定 |
+| 7 | 后续算法和产品增强预留 | P2 | 只做不破坏当前架构的准备 |
 
-1. 标注感知分析与检索
-2. 证据工作台与原文阅读器 2.0
-3. 主题、情感与对比的跨分析联动
-4. 关键词、主题与语料库场景的热点降温
-5. 面向外部分发的原生发布链路成熟化
+## 当前完成度估算
 
-## 非目标
+以下完成度是基于当前代码状态的工程判断。当前已有第一轮 debug 固定机器基线，发布前还需要 release 机器复跑。
 
-以下内容不建议作为 `1.4.0` 的硬目标：
+| 模块 | 当前完成度 | 现状 | 1.4.0 要补齐的部分 |
+| --- | ---: | --- | --- |
+| 大结果页 UI 性能保护 | 65% | 大结果页快速翻页、排序、筛选、列显隐边界测试已复跑通过，参考语料 repeat 基线已记录 P50/P95 | 补 P95 交互预算和回归报告 |
+| 分析任务取消与并发保护 | 50% | 已有运行时 task supervisor 和“只应用最新结果”的测试基础 | 覆盖更多长任务，保证取消后不会继续写 UI 状态 |
+| Topics/Keyword 性能对比 | 72% | 已记录固定机器 topic/sentiment 基线、固定用户样本 repeat=3 p50/p95、内置参考语料 repeat=3 p50/p95 和最慢阶段排序 | 补 release 机器结果和优化后的质量对比 |
+| Library 打开和刷新性能 | 68% | 已做过场景同步和重复刷新收敛，已新增 Library/import repeat=3 基线；重复应用同一 Library 快照已跳过 scene rebuild，1200 条 Library 重复刷新 p95 从约 109ms 降到约 0.003ms | 补 release 机器结果，再决定是否优先优化 import/index 或 scene open |
+| API 调用底座 | 62% | 已有 `NativeAPIClient` 第一版，更新检查和 API 连接测试已迁移，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖 | 继续补一个窄 API 试点 |
+| API 设置与凭据保护 | 68% | 设置页已有 API 总开关、凭据状态、保存/清除凭据动作、真实连接测试、超时/并发上限设置，凭据走 Keychain 底座，诊断包会导出脱敏 API 元数据 | 补后续 API 试点的最小发送内容说明 |
+| API 错误恢复 | 52% | 更新检查和连接测试已走统一错误层，已覆盖 429 重试、HTTP 失败、API 关闭恢复文案、凭据错误提示和取消归一 | 扩展到后续 API 试点，给用户可理解的重试/离线提示 |
+| 性能/API 文档与发布门禁 | 72% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95 和第一条 Library before/after 优化记录已建立 | 发布前补 release 机器结果和 API 隐私检查 |
 
-- 云同步或多人协作
-- 在线大模型推理
-- 完整平行语料/对齐编辑器
-- OCR 扫描 PDF 工作流
-- iOS / iPadOS 适配
-- 复杂 BI 风格仪表盘系统
-
-## P0
-
-### 1. 标注感知分析与检索
-
-目标：
-
-- 把当前已经存在的 `lemma` 与 `lexical class` 底座，升级成真正可见、可控、可持久化的研究维度
-- 让 `Word / KWIC / Keyword / Collocate / Cluster` 不再只围绕表层 token 工作
-
-交付内容：
-
-- 统一的 annotation profile
-  - `surface`
-  - `lemma preferred`
-  - `surface + lemma fallback`
-- 统一的 lexical filter
-  - 名词 / 动词 / 形容词 / 副词
-  - `other / mixed / all lexical classes`
-- `Tokenize` 与 `Source Reader` 中增加轻量标注可视化
-  - 当前 token 的 lemma
-  - lexical class
-  - script 分类
-- `Keyword / Collocate / Cluster` 改为显式展示当前 annotation profile
-- 预设、方法摘要与报告 bundle 附带 annotation profile
-
-验收标准：
-
-- 同一份语料在 `surface` 与 `lemma preferred` 之间切换后，结果页与方法说明始终一致
-- `Keyword / Collocate / Cluster` 在 lexical filter 打开后能稳定复现同一组结果
-- 导出的报告 bundle 足以说明“当前分析是按 surface 还是 lemma 做的”
-
-涉及模块：
-
-- `Sources/WordZMac/Analysis/Support/LinguisticAnnotationSupport.swift`
-- `Sources/WordZMac/Analysis/Support/KeywordSuiteAnalysisSupport.swift`
-- `Sources/WordZMac/Analysis/Services/NativeAnalysisEngine+DocumentSupport.swift`
-- `Sources/WordZMac/ViewModels/Pages/TokenizePageViewModel.swift`
-- `Sources/WordZMac/ViewModels/Pages/KeywordPageViewModel.swift`
-- `Sources/WordZMac/Views/Windows/SourceReaderWindowView.swift`
-
-### 2. 证据工作台与原文阅读器 2.0
+## P0: 性能基线与回归门禁
 
 目标：
 
-- 把当前的 `Evidence Workbench` 从“证据列表”升级成“可审阅、可整理、可交付”的研究 dossier
-- 把 `Source Reader` 从“阅读入口”升级成“证据整理入口”
+- 先知道慢在哪里，再决定优化顺序。
+- 所有性能优化都要能回答“变快了多少，质量有没有变”。
+- 让 `1.4.x` 后续小版本不会重新把同一批热点拖慢。
 
 交付内容：
 
-- 证据分组与章节
-  - 按 claim / theme / corpus set 分组
-  - 支持手工排序与章节标题
-- 证据补充字段
-  - claim
-  - tags
-  - reviewer note
-  - citation format
-- `Source Reader` 内联整理动作
-  - 加入证据时直接附带 note / tag
-  - 从当前句直接复制规范化引文
-  - 从 `Plot / Sentiment / Topics` 衍生页面进入证据整理
-- 导出 `research dossier`
-  - Markdown 包
-  - JSON 包
-  - 引文与上下文并列导出
+- 建立固定 benchmark 场景：
+  - 冷启动和热启动
+  - 打开 Library 窗口
+  - 导入、索引、重新加载语料
+  - `Word / KWIC / Keyword / Collocate / Topics / Sentiment / Compare`
+  - 大结果页翻页、排序、筛选、列显隐
+- 每个场景记录：
+  - p50 / p95 耗时
+  - 峰值内存或近似内存压力
+  - 是否阻塞主界面
+  - 是否命中缓存
+  - 分析结果质量字段
+- 产出 release 前可复跑的 JSON 或 Markdown 报告。
+- 对 Topics、Sentiment 这类质量敏感路径，保存 before/after 结果摘要。
 
 验收标准：
 
-- 用户可以从 `KWIC / Locator / Plot / Sentiment` 至少四个入口收集证据
-- 证据工作台内可按主题或论点组织材料，而不是只有平铺列表
-- 导出的 dossier 能在不打开 WordZ 的情况下用于写作或审阅
+- 发布前能生成一份 `1.4.0` 性能基线报告。
+- 三个最慢的用户路径必须有明确优化结果，或者明确标记为后续版本风险。
+- 任一优化如果导致核心质量字段变化，必须在报告里解释原因，不能只报告速度。
+- 无 API、断网、低电量或低内存情况下，benchmark 仍能跑完本地路径。
 
-涉及模块：
+## P0: 高频路径性能优化
 
-- `Sources/WordZMac/Models/Analysis/EvidenceWorkbenchModels.swift`
-- `Sources/WordZMac/ViewModels/Workspace/EvidenceWorkbenchViewModel.swift`
-- `Sources/WordZMac/ViewModels/Workspace/SourceReaderViewModel.swift`
-- `Sources/WordZMac/Views/Windows/EvidenceWorkbenchWindowView.swift`
-- `Sources/WordZMac/Views/Windows/SourceReaderWindowView.swift`
-- `Sources/WordZMac/Workspace/Services/WorkspaceEvidenceWorkflowService.swift`
+优先优化顺序：
 
-### 3. 主题、情感与对比的跨分析联动
+| 顺序 | 路径 | 优化目标 |
+| --- | --- | --- |
+| 1 | Library 打开、刷新、搜索、维护 | 减少重复 scene sync 和主线程重建 |
+| 2 | 大语料导入与索引 | 分批处理、进度反馈、可取消 |
+| 3 | KWIC / Keyword / Collocate | 复用索引和缓存，减少重复解析 |
+| 4 | Topics / Sentiment | 稳住长任务调度，保留质量对比 |
+| 5 | 大结果页交互 | 翻页、排序、筛选不阻塞主界面 |
+
+交付内容：
+
+- 把长任务移出主界面关键路径。
+- 同一输入重复分析时优先复用缓存，缓存失效规则必须明确。
+- 快速连续操作只保留最新请求，旧请求取消或丢弃结果。
+- 大结果页只构建当前可见范围和必要摘要，避免一次性重建全部展示状态。
+- Library 窗口避免打开、切换、编辑时重复刷新同一份场景。
+- 长任务必须有进度、取消和失败恢复。
+
+验收标准：
+
+- 第一轮基线中最慢的三个用户路径至少完成一轮实际优化。
+- 优化后没有新增主界面卡死路径。
+- 重复点击、快速切换语料、连续运行分析时，只应用最后一次请求结果。
+- Topics/Sentiment 优化后需要保留质量对比记录。
+
+## P0: 统一 API 调用底座
 
 目标：
 
-- 让 `Topics / Sentiment / Compare / Keyword` 能共同回答“差异由哪些主题、情感或词汇现象驱动”
-- 避免这些页面继续作为平行但互不解释的分析岛
+- 以后所有 API 请求都走同一套规则，而不是每个功能单独处理。
+- API 能力是可选增强，不是 WordZ 本地分析的前置条件。
+- 所有请求都能被追踪、取消、限速、重试和脱敏记录。
 
 交付内容：
 
-- `Topics x Sentiment`
-  - 每个 topic 的情感分布
-  - 从 topic 直接打开对应 `Sentiment` 子集或 `KWIC`
-- `Compare x Topics`
-  - 哪些 topic 在 target / reference 中最分离
-  - topic 级代表句 drilldown
-- `Compare x Sentiment`
-  - 比较结果附带 polarity distribution 摘要
-  - 从 compare row 打开对应情感证据
-- 跨分析方法摘要
-  - 当前 target / reference
-  - 当前 topic/sentiment 聚合口径
-  - 当前 annotation profile
+- 新增统一 API 请求层：
+  - 请求 ID
+  - 超时
+  - 最大并发数
+  - 取消令牌
+  - 重试与退避
+  - 速率限制识别
+  - ETag 或等价缓存支持
+  - 统一错误类型
+- 迁移现有更新检查 API 到统一请求层。
+- 为未来供应商适配保留协议边界，但 `1.4.0` 不做多供应商大型功能。
+- 建立 API 测试夹具：
+  - 成功响应
+  - 401/403 鉴权失败
+  - 429 限流
+  - 5xx 服务端错误
+  - 超时
+  - 用户取消
+  - 断网
 
 验收标准：
 
-- 用户可以从 UI 直接回答“哪类主题或情感倾向驱动了当前 target/reference 差异”
-- 任一跨分析结果都必须能回到 `KWIC` 或 `Source Reader` 看原句证据
-- 导出文本至少包含一份 cross-analysis summary
+- API 请求失败不会影响本地语料分析。
+- 所有 API 请求都能在任务中心或等价状态层看到运行、完成、失败、取消。
+- API 错误不会直接暴露技术堆栈给普通用户。
+- 日志和诊断包不包含 API key、Authorization header 或完整用户语料原文。
 
-涉及模块：
-
-- `Sources/WordZMac/Analysis/Builders/TopicsSceneBuilder.swift`
-- `Sources/WordZMac/Analysis/Builders/SentimentSceneBuilder.swift`
-- `Sources/WordZMac/ViewModels/Pages/TopicsPageViewModel.swift`
-- `Sources/WordZMac/ViewModels/Pages/SentimentPageViewModel.swift`
-- `Sources/WordZMac/ViewModels/Pages/ComparePageViewModel.swift`
-- `Sources/WordZMac/Workspace/Services/WorkspaceFlowCoordinator+CrossAnalysisDrilldown.swift`
-
-### 4. 关键词、主题与语料库场景的热点降温
+## P0: API 设置、隐私和用户控制
 
 目标：
 
-- 把当前最明显的开发/编译热点先拆掉，避免 `1.4.x` 每次增强都继续叠加到超大文件
-- 优先处理已经在基线文档里暴露出来的几处热点
-
-当前热点参考：
-
-- `KeywordSuiteAnalysisSupport.swift`
-- `TopicModelManager.swift`
-- `LibraryManagementViewModel+Scene.swift`
-- `KeywordPageViewModel.swift`
+- 用户清楚知道什么时候会联网。
+- 用户可以完全关闭 API 能力。
+- WordZ 不自动上传完整语料。
 
 交付内容：
 
-- `Keyword` 逻辑拆分
-  - config assembly
-  - row derivation
-  - summary assembly
-  - export/report support
-- `TopicModelManager` 拆分
-  - manifest
-  - provider resolution
-  - benchmark/support helpers
-- `LibraryManagementViewModel+Scene` 拆分
-  - navigation scene
-  - detail scene
-  - maintenance scene
-- 新增热点专项 benchmark / guard
-  - keyword suite smoke benchmark
-  - topic benchmark budget
-  - library scene build baseline
+- 设置入口：
+  - API 功能总开关
+  - 凭据配置
+  - 连接测试
+  - 清除凭据
+  - 请求超时和并发上限的保守默认值
+- 隐私保护：
+  - 凭据使用 Keychain 或等价安全存储
+  - 日志和诊断包强制脱敏
+  - 请求前明确限定发送内容
+  - 默认不发送完整语料库
+- API 调用试点：
+  - 只选一个窄场景
+  - 必须由用户手动触发
+  - 结果不能改变本地统计分析的真值
+  - 离线或未配置 API 时界面不能出现阻塞状态
 
 验收标准：
 
-- 上述热点文件都不再继续单点膨胀
-- `swift test` 保持全绿
-- `Scripts/architecture-guard.sh` 与工程 guard 能覆盖新增边界
+- 新用户不配置 API 也能完整使用本地功能。
+- 配置错误、额度不足、网络失败时有明确恢复路径。
+- 取消请求后不会继续写入旧结果。
+- 诊断导出通过脱敏检查。
 
-涉及模块：
-
-- `Docs/ArchitectureBaseline-1.3.0.md`
-- `Scripts/architecture-guard.sh`
-- `Tests/WordZMacTests/EngineeringGuardrailTests.swift`
-- `Tests/WordZMacTests/TopicBenchmarkTests.swift`
-- `Tests/WordZMacTests/MainWorkspaceViewModelTests.swift`
-
-## P1
-
-### 5. 面向外部分发的原生发布链路成熟化
+## P1: 任务状态和体验收口
 
 目标：
 
-- 让 `1.4.0` 不只是“功能上更强”，也成为第一个真正适合持续外部分发的原生版本
+- 把“正在跑什么、能不能取消、失败后怎么办”说清楚。
+- 性能和 API 优化要让用户感受到，而不是只存在于内部日志。
 
 交付内容：
 
-- macOS notarization 流程收口
-- 签名、manifest、release notes、checksum 自动串联
-- `release checklist -> package -> notarize -> release upload` 的半自动或全自动脚本
-- 应用内更新文案与渠道说明统一
+- 统一长任务状态：
+  - 导入
+  - 索引
+  - 分析
+  - API 请求
+  - 更新检查
+- 用户可见状态：
+  - 等待中
+  - 运行中
+  - 可取消
+  - 已取消
+  - 可重试
+  - 离线可继续
+- 失败文案改成人能理解的恢复建议。
 
 验收标准：
 
-- release checklist 可以稳定生成对外发布包
-- 外部分发包通过 notarization
-- release notes 与产物版本号不再需要手工同步
+- 长任务不再只有无反馈等待。
+- API 限流、超时、断网至少有一种可恢复操作。
+- 重试不会重复污染结果状态。
 
-涉及模块：
-
-- `Scripts/package-app.sh`
-- `Scripts/notarize-app.sh`
-- `Scripts/release-checklist.sh`
-- `Docs/ReleaseEngineering.md`
-- `Sources/WordZHost/NativeUpdateService.swift`
-
-### 6. 资源包与教学场景优化
+## P1: 缓存、预取和离线降级
 
 目标：
 
-- 把当前已经零散存在的停用词、情感词典、topic 资源，升级成面向课程和研究项目的可选配置包
+- 让重复分析和重复 API 请求少做无用功。
+- 让离线状态不是错误状态，而是明确降级。
 
 交付内容：
 
-- 自定义 stopword / whitelist bundle
-- 自定义 sentiment lexicon bundle
-- 面向课程作业的 preset/template 包
-- “演示模式”输出收口
-  - 更清楚的空状态
-  - 更清楚的指标解释
-  - 更好的导出默认模板
+- 分析结果缓存失效规则：
+  - 语料内容变更
+  - 分析参数变更
+  - stopword / filter / profile 变更
+- API 响应缓存：
+  - 更新检查可缓存
+  - 可选 API 试点结果可缓存
+  - 失败缓存不能长期遮蔽真实状态
+- 预取只用于低风险、本地可解释路径。
 
 验收标准：
 
-- 一个项目组可以导入自己的 stopword / lexicon 资源而不改代码
-- 教学环境里可以直接分发 preset/template，而不是手工截图配置
+- 重复打开同一工作区不会重新计算所有摘要。
+- 重复 API 请求能合理复用缓存或明确说明重新请求原因。
+- 离线时界面明确显示本地模式可继续使用。
 
-## P2
+## P2: 后续增强预留
 
-### 7. 平行语料与对齐基础设施预研
+只做不会扩大 `1.4.0` 风险面的准备：
 
-目标：
+- 为未来标注视角保留配置位，但不重做所有分析页。
+- 为未来更多 API 供应商保留协议边界，但不实现复杂供应商管理。
+- 为未来跨分析解释保留结果引用 ID，但不新增大型联动页面。
 
-- 只做基础设施预研，不做完整产品化页面
-- 为后续 `1.5.x` 的双语/对齐研究留接口，而不在 `1.4.0` 硬做完整体验
+## 推荐里程碑
 
-交付内容：
-
-- 对齐单元模型
-- 双语文档引用与 provenance 预留
-- `Source Reader` 的多文档上下文接口预留
-
-验收标准：
-
-- 不破坏现有单语路径
-- 新接口可以在后续版本继续扩展，而不需要重写 `Source Reader` 与证据工作台
-
-## 里程碑建议
-
-### M1: 标注与热点基础
-
-- annotation profile
-- lexical filter
-- keyword/topic/library 热点拆分第一轮
-- benchmark guard 补齐
-
-### M2: 证据工作台 2.0
-
-- Evidence Workbench 分组与 dossier
-- Source Reader 内联整理
-- Plot / Sentiment -> 证据入口
-
-### M3: 跨分析联动
-
-- Topics x Sentiment
-- Compare x Topics
-- Compare x Sentiment
-- cross-analysis summary export
-
-### M4: 发布链路成熟化
-
-- notarization
-- release notes / manifest 串联
-- release automation 收口
-
-## Storage Baseline
-
-以下本地持久化基线已经落地，不再作为 `1.4.0` 的待定项：
-
-- 存储拓扑固定为 `library.db + workspace.db + corpora/<id>.db`
-- 运行时已移除旧 JSON 持久化层，目录域和 workspace 域都只读写数据库真源
-- `corpus_search_fts` 与 `sentence_fts` 已上线，库搜索和上下文召回优先走数据库索引路径
+| 里程碑 | 内容 | 可交付结果 |
+| --- | --- | --- |
+| M1 | 性能/API 基线 | 第一版 benchmark 报告、API 请求层设计、当前最慢路径排序 |
+| M2 | API 底座落地 | 更新检查迁移、请求取消/重试/限流测试、脱敏检查 |
+| M3 | 性能第一轮优化 | Topics、Library/import 或 Sentiment 中至少两个路径完成实测优化 |
+| M4 | API 试点和设置 | 设置入口、连接测试、手动触发的窄 API 场景 |
+| M5 | 发布前收口 | before/after 报告、质量对比、发布 checklist 更新 |
 
 ## Definition of Done
 
-`1.4.0` 至少应满足以下条件：
+`1.4.0` 只有满足以下条件才算完成：
 
-- `lemma / lexical class` 已经是用户可见、可持久化、可导出的分析维度
-- 证据工作台可以组织并导出跨页面证据 dossier
-- `Topics / Sentiment / Compare / KWIC` 之间至少形成一条稳定的跨分析解释链
-- `Keyword / Topic / Library` 的热点文件已经拆分，新增 guard 与 benchmark 全绿
-- macOS 外部分发流程具备可重复执行的发布链路
-- 历史 workspace snapshot 与本地 `.db` 继续保持 additive 兼容，不引入破坏性迁移
+- 有可复跑的性能基线报告。
+- 至少三个高频慢路径完成 before/after 对比。
+- Topics/Sentiment 等质量敏感优化有结果质量对比。
+- 所有 API 请求统一走同一套取消、超时、重试、限流和脱敏规则。
+- 未配置 API、API 失败、断网时，本地分析仍完整可用。
+- API key 和用户原文不会出现在日志、诊断包或测试快照里。
+- `swift build`、工程结构 guard、相关性能/API 测试通过。
 
-## 推荐的开工顺序
+## 开工顺序
 
-1. 先做 annotation profile 与热点拆分，否则后续所有增强都会继续堆到 `Keyword / Topic / Library` 热点上。
-2. 再做 `Evidence Workbench + Source Reader` 的 dossier 路径，把 `1.3.0` 的阅读闭环升级成交付闭环。
-3. 然后补 `Topics / Sentiment / Compare` 的跨分析联动，形成 `1.4.0` 的核心用户价值。
-4. 最后收 notarization 与 release automation，把发布链路一起补齐。
+1. 先补性能/API 基线，列出真实最慢路径。
+2. 抽统一 API 请求层，并迁移现有更新检查。
+3. 优化 Library、大结果页和一个分析长任务，验证 before/after。
+4. 做 API 设置、凭据保护和一个手动触发的窄场景。
+5. 发布前更新性能报告、API 错误恢复清单和质量对比记录。
 
 ## Assumptions
 
-- `1.4.0` 继续坚持 macOS-first、local-first，不引入在线依赖作为核心路径
-- 当前 `library.db`、`workspace.db` 与 shard `.db` 只能做 additive 扩展，不能做破坏性改写
-- 语言学增强以英文和中英混合语料的稳态工作流为主，不把完整中文高级 NLP 作为本版 P0
+- WordZ 继续保持 macOS-first、local-first。
+- API 是可选增强，不是核心分析依赖。
+- 本地数据库结构只能 additive 扩展，不能做破坏性迁移。
+- `1.4.0` 不追求功能数量，优先追求可测、可取消、可恢复、可解释。
