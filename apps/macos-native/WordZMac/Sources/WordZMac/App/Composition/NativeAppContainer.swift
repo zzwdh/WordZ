@@ -232,6 +232,15 @@ package final class NativeAppContainer {
             reportBundleService: makeReportBundleService(),
             buildMetadataProvider: buildMetadataProvider,
             diagnosticsBundleService: makeDiagnosticsBundleService(),
+            apiUpdateServiceFactory: { timeoutSeconds, maxConcurrentRequests in
+                GitHubReleaseUpdateService(
+                    requestTimeoutSeconds: timeoutSeconds,
+                    maxConcurrentRequests: maxConcurrentRequests,
+                    downloadsDirectoryProvider: {
+                        NativeAppContainer.defaultUpdateDownloadsDirectory()
+                    }
+                )
+            },
             apiCredentialStore: NativeKeychainAPICredentialStore(),
             apiConnectionTester: NativeAPIConnectionTestService(),
             taskCenter: taskCenter,

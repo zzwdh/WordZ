@@ -4,6 +4,8 @@ import SwiftUI
 import WordZHost
 @MainActor
 package final class MainWorkspaceViewModel: ObservableObject {
+    typealias APIUpdateServiceFactory = (_ timeoutSeconds: Int, _ maxConcurrentRequests: Int) -> any NativeUpdateServicing
+
     @Published package var sidebar: LibrarySidebarViewModel
     @Published var shell: WorkspaceShellViewModel
     @Published package var library: LibraryManagementViewModel
@@ -49,6 +51,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
     let quickLookPreviewFileService: any QuickLookPreviewFilePreparing
     let reportBundleService: any AnalysisReportBundleServicing
     let updateService: any NativeUpdateServicing
+    let apiUpdateServiceFactory: APIUpdateServiceFactory?
     let apiCredentialStore: any NativeAPICredentialStoring
     let apiConnectionTester: any NativeAPIConnectionTesting
     let notificationService: any NativeNotificationServicing
@@ -105,6 +108,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
         reportBundleService: any AnalysisReportBundleServicing,
         buildMetadataProvider: any NativeBuildMetadataProviding,
         diagnosticsBundleService: any NativeDiagnosticsBundleServicing,
+        apiUpdateServiceFactory: APIUpdateServiceFactory? = nil,
         apiCredentialStore: any NativeAPICredentialStoring = NativeKeychainAPICredentialStore(),
         apiConnectionTester: any NativeAPIConnectionTesting = NativeAPIConnectionTestService(),
         taskCenter: NativeTaskCenter,
@@ -142,6 +146,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
         self.quickLookPreviewFileService = quickLookPreviewFileService
         self.reportBundleService = reportBundleService
         self.updateService = runtimeDependencies.updateService
+        self.apiUpdateServiceFactory = apiUpdateServiceFactory
         self.apiCredentialStore = apiCredentialStore
         self.apiConnectionTester = apiConnectionTester
         self.notificationService = runtimeDependencies.notificationService

@@ -87,6 +87,7 @@ final class NativeUpdateServiceTests: XCTestCase {
         MockUpdateURLProtocol.handler = { request in
             XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "application/vnd.github+json")
             XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), "WordZMac Update Checker")
+            XCTAssertEqual(request.timeoutInterval, 25, accuracy: 0.1)
             let response = HTTPURLResponse(
                 url: try XCTUnwrap(request.url),
                 statusCode: 200,
@@ -107,6 +108,8 @@ final class NativeUpdateServiceTests: XCTestCase {
         configuration.protocolClasses = [MockUpdateURLProtocol.self]
         let service = GitHubReleaseUpdateService(
             session: URLSession(configuration: configuration),
+            requestTimeoutSeconds: 25,
+            maxConcurrentRequests: 4,
             latestReleaseURL: URL(string: "https://example.com/releases/latest")!
         )
 

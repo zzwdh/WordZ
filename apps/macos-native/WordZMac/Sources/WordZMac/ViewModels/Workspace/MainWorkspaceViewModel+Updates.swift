@@ -47,6 +47,7 @@ extension MainWorkspaceViewModel {
             progress: 0
         )
         applyUpdateStateSnapshot(makeUpdateStateSnapshot(isChecking: true))
+        let updateService = configuredUpdateService()
 
         defer {
             isRunningUpdateCheck = false
@@ -107,6 +108,7 @@ extension MainWorkspaceViewModel {
         }
 
         let result: NativeUpdateCheckResult
+        let updateService = configuredUpdateService()
         do {
             result = try await updateService.checkForUpdates(currentVersion: currentVersionForUpdateChecks)
             latestCheckedUpdate = result

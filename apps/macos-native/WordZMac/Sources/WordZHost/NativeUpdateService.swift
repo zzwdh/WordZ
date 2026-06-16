@@ -4,12 +4,15 @@ import Foundation
 package final class GitHubReleaseUpdateService: NativeUpdateServicing {
     private let apiClient: NativeAPIClient
     private let latestReleaseURL: URL
+    private let requestTimeoutSeconds: Int
     private let downloadsDirectoryProvider: @Sendable () -> URL
     private let downloaderFactory: @Sendable (_ destinationURL: URL, _ onProgress: @escaping @MainActor (Double) -> Void) -> NativeUpdateDownloading
 
     package init(
         apiClient: NativeAPIClient? = nil,
         session: URLSession? = nil,
+        requestTimeoutSeconds: Int = 5,
+        maxConcurrentRequests: Int = 2,
         latestReleaseURL: URL = URL(string: "https://api.github.com/repos/zzwdh/WordZ/releases/latest")!,
         downloadsDirectoryProvider: @escaping @Sendable () -> URL = {
             let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -24,8 +27,14 @@ package final class GitHubReleaseUpdateService: NativeUpdateServicing {
             UpdateDownloadBridge(destinationURL: destinationURL, onProgress: onProgress)
         }
     ) {
-        self.apiClient = apiClient ?? Self.makeDefaultAPIClient(session: session)
+        let resolvedTimeoutSeconds = Self.clampedTimeoutSeconds(requestTimeoutSeconds)
+        self.apiClient = apiClient ?? Self.makeDefaultAPIClient(
+            session: session,
+            requestTimeoutSeconds: resolvedTimeoutSeconds,
+            maxConcurrentRequests: Self.clampedMaxConcurrentRequests(maxConcurrentRequests)
+        )
         self.latestReleaseURL = latestReleaseURL
+        self.requestTimeoutSeconds = resolvedTimeoutSeconds
         self.downloadsDirectoryProvider = downloadsDirectoryProvider
         self.downloaderFactory = downloaderFactory
     }
@@ -38,7 +47,7 @@ package final class GitHubReleaseUpdateService: NativeUpdateServicing {
                 headers: [
                     "Accept": "application/vnd.github+json"
                 ],
-                timeoutInterval: 5
+                timeoutInterval: TimeInterval(requestTimeoutSeconds)
             ))
         } catch let error as NativeAPIClientError {
             throw Self.updateCheckError(from: error)
@@ -84,25 +93,37 @@ package final class GitHubReleaseUpdateService: NativeUpdateServicing {
 }
 
 private extension GitHubReleaseUpdateService {
-    static func makeDefaultAPIClient(session: URLSession?) -> NativeAPIClient {
+    static func makeDefaultAPIClient(
+        session: URLSession?,
+        requestTimeoutSeconds: Int,
+        maxConcurrentRequests: Int
+    ) -> NativeAPIClient {
         if let session {
             return NativeAPIClient(
                 session: session,
                 retryPolicy: NativeAPIRetryPolicy(maxRetries: 1, baseDelayNanoseconds: 150_000_000),
-                maxConcurrentRequests: 2,
+                maxConcurrentRequests: maxConcurrentRequests,
                 defaultUserAgent: "WordZMac Update Checker"
             )
         }
 
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 5
-        configuration.timeoutIntervalForResource = 10
+        configuration.timeoutIntervalForRequest = TimeInterval(requestTimeoutSeconds)
+        configuration.timeoutIntervalForResource = TimeInterval(max(requestTimeoutSeconds, requestTimeoutSeconds * 2))
         return NativeAPIClient(
             session: URLSession(configuration: configuration),
             retryPolicy: NativeAPIRetryPolicy(maxRetries: 1, baseDelayNanoseconds: 150_000_000),
-            maxConcurrentRequests: 2,
+            maxConcurrentRequests: maxConcurrentRequests,
             defaultUserAgent: "WordZMac Update Checker"
         )
+    }
+
+    static func clampedTimeoutSeconds(_ timeoutSeconds: Int) -> Int {
+        min(max(timeoutSeconds, 5), 60)
+    }
+
+    static func clampedMaxConcurrentRequests(_ maxConcurrentRequests: Int) -> Int {
+        min(max(maxConcurrentRequests, 1), 4)
     }
 
     static func updateCheckError(from error: NativeAPIClientError) -> Error {

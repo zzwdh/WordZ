@@ -32,6 +32,7 @@ Implemented:
 - saved API request timeout and max concurrency settings with conservative bounds
 - API credential status in Settings without persisting the secret in host preferences
 - update check and update download gating when API access is disabled
+- live update-check service factory receives the current saved API timeout and max concurrency settings
 
 Current API contract:
 
@@ -50,6 +51,7 @@ Validated tests:
 - `NativeUpdateServiceTests.testNativeAPIClientRedactsSensitiveHeaders`
 - `NativeUpdateServiceTests.testNativeAPIConnectionTestServiceUsesUnifiedClientAndCredentialHeader`
 - `MainWorkspaceViewModelTests.testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled`
+- `MainWorkspaceViewModelTests.testCheckForUpdatesUsesCurrentAPIRequestPolicyFactory`
 - `MainWorkspaceViewModelTests.testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences`
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene`
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled`
@@ -62,10 +64,10 @@ Validated tests:
 Latest focused validation:
 
 ```sh
-swift test --filter NativeUpdateServiceTests --filter SettingsTests --filter NativeHostPreferencesStoreTests --filter MainWorkspaceViewModelTests/testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled --filter MainWorkspaceViewModelTests/testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences --filter MainWorkspaceViewModelTests/testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene --filter MainWorkspaceViewModelTests/testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled
+swift test --filter NativeUpdateServiceTests --filter SettingsTests --filter NativeHostPreferencesStoreTests --filter MainWorkspaceViewModelTests/testCheckForUpdatesUsesCurrentAPIRequestPolicyFactory --filter MainWorkspaceViewModelTests/testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled --filter MainWorkspaceViewModelTests/testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences --filter MainWorkspaceViewModelTests/testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene --filter MainWorkspaceViewModelTests/testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled
 ```
 
-Result: 26 focused API/update/settings tests, 0 failures.
+Result: 27 focused API/update/settings tests, 0 failures.
 
 ## Performance Baseline
 
@@ -170,8 +172,7 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 ## Next API Work
 
 1. Decide the one narrow manual API pilot now that settings, credential controls, and connection testing exist.
-2. Thread saved timeout/concurrency preferences into live API service factories when the first manual API pilot is added.
-3. Add pilot-specific diagnostics that prove request metadata is redacted and corpus text is not logged.
+2. Add pilot-specific diagnostics that prove request metadata is redacted and corpus text is not logged.
 
 ## Next Performance Work
 

@@ -100,6 +100,14 @@ extension MainWorkspaceViewModel {
         return true
     }
 
+    func configuredUpdateService() -> any NativeUpdateServicing {
+        guard let apiUpdateServiceFactory else { return updateService }
+        return apiUpdateServiceFactory(
+            settings.apiRequestTimeoutSeconds,
+            settings.apiMaxConcurrentRequests
+        )
+    }
+
     func apiDisabledMessage() -> String {
         apiSettingsText(
             "联网 API 已关闭；本地分析仍可使用。若要检查或下载更新，请先在设置中开启联网 API。",

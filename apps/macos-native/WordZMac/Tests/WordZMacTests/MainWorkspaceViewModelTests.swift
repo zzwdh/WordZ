@@ -1061,6 +1061,32 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.settings.scene.latestReleaseNotes, ["Native table layout persistence"])
     }
 
+    func testCheckForUpdatesUsesCurrentAPIRequestPolicyFactory() async {
+        let repository = FakeWorkspaceRepository()
+        let updateService = FakeUpdateService()
+        var capturedTimeouts: [Int] = []
+        var capturedConcurrencyLimits: [Int] = []
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            updateService: updateService,
+            apiUpdateServiceFactory: { timeoutSeconds, maxConcurrentRequests in
+                capturedTimeouts.append(timeoutSeconds)
+                capturedConcurrencyLimits.append(maxConcurrentRequests)
+                return updateService
+            }
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.settings.apiRequestTimeoutSeconds = 25
+        workspace.settings.apiMaxConcurrentRequests = 4
+        await workspace.checkForUpdatesNow()
+
+        XCTAssertEqual(updateService.checkCallCount, 1)
+        XCTAssertEqual(capturedTimeouts, [25])
+        XCTAssertEqual(capturedConcurrencyLimits, [4])
+    }
+
     func testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled() async {
         let repository = FakeWorkspaceRepository()
         let hostPreferences = InMemoryHostPreferencesStore()
