@@ -63,6 +63,40 @@ package struct NativeAPIResponse: Sendable {
     }
 }
 
+package struct NativeAPIRequestObservation: Equatable, Sendable {
+    package let requestID: UUID
+    package let method: String
+    package let url: URL
+    package let statusCode: Int?
+    package let durationMilliseconds: Int?
+    package let attemptCount: Int
+    package let headers: [String: String]
+    package let cacheState: String?
+    package let outcome: String
+
+    package init(
+        requestID: UUID,
+        method: String,
+        url: URL,
+        statusCode: Int? = nil,
+        durationMilliseconds: Int? = nil,
+        attemptCount: Int = 1,
+        headers: [String: String] = [:],
+        cacheState: String? = nil,
+        outcome: String
+    ) {
+        self.requestID = requestID
+        self.method = method
+        self.url = url
+        self.statusCode = statusCode
+        self.durationMilliseconds = durationMilliseconds
+        self.attemptCount = attemptCount
+        self.headers = headers
+        self.cacheState = cacheState
+        self.outcome = outcome
+    }
+}
+
 package struct NativeAPIRetryPolicy: Sendable {
     package let maxRetries: Int
     package let baseDelayNanoseconds: UInt64

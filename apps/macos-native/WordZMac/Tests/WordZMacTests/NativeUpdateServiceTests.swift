@@ -207,6 +207,13 @@ final class NativeUpdateServiceTests: XCTestCase {
         XCTAssertEqual(result.statusCode, 200)
         XCTAssertEqual(result.attemptCount, 1)
         XCTAssertEqual(result.endpointHost, "example.com")
+        let observation = try XCTUnwrap(result.requestObservation)
+        XCTAssertEqual(observation.method, "GET")
+        XCTAssertEqual(observation.url.path, "/rate_limit")
+        XCTAssertEqual(observation.statusCode, 200)
+        XCTAssertEqual(observation.headers["Authorization"], "Bearer token-abc")
+        XCTAssertEqual(observation.headers["User-Agent"], "WordZMac Tests")
+        XCTAssertEqual(observation.outcome, "success")
     }
 
     func testNativeAPIClientCancelsInFlightRequestWithoutWrappingAsTransportError() async throws {

@@ -119,7 +119,8 @@ extension MainWorkspaceViewModel {
                 buildMetadata: buildMetadata,
                 context: context,
                 hostPreferences: redactedHostPreferences,
-                storageSnapshot: storageSnapshot
+                storageSnapshot: storageSnapshot,
+                apiRequestCount: apiRequestDiagnostics.count
             ),
             buildMetadata: buildMetadata,
             context: context,
@@ -127,6 +128,7 @@ extension MainWorkspaceViewModel {
             taskHistory: redactedTaskHistory,
             workspaceDraft: workspaceDraft,
             uiSettings: uiSettings,
+            apiRequests: apiRequestDiagnostics,
             generatedFiles: generatedFiles,
             extraFiles: extraFiles
         )
@@ -163,7 +165,8 @@ extension MainWorkspaceViewModel {
         buildMetadata: NativeBuildMetadata,
         context: NativeDiagnosticsBundleContext,
         hostPreferences: NativeHostPreferencesSnapshot,
-        storageSnapshot: NativeDiagnosticsStorageSnapshot?
+        storageSnapshot: NativeDiagnosticsStorageSnapshot?,
+        apiRequestCount: Int
     ) -> String {
         var lines = [
             "WordZMac Diagnostics",
@@ -180,6 +183,7 @@ extension MainWorkspaceViewModel {
             "Analysis Runtime: \(context.analysisRuntime)",
             "Background Task Summary: \(context.taskCenterSummary)",
             "Recent Documents: \(hostPreferences.recentDocuments.count)",
+            "API Request Records: \(apiRequestCount)",
             "Downloaded Update Path: \(hostPreferences.downloadedUpdatePath)"
         ]
         if let storageSnapshot {

@@ -5,17 +5,20 @@ package struct NativeAPIConnectionTestResult: Equatable, Sendable {
     package let durationMilliseconds: Int
     package let attemptCount: Int
     package let endpointHost: String
+    package let requestObservation: NativeAPIRequestObservation?
 
     package init(
         statusCode: Int,
         durationMilliseconds: Int,
         attemptCount: Int,
-        endpointHost: String
+        endpointHost: String,
+        requestObservation: NativeAPIRequestObservation? = nil
     ) {
         self.statusCode = statusCode
         self.durationMilliseconds = durationMilliseconds
         self.attemptCount = attemptCount
         self.endpointHost = endpointHost
+        self.requestObservation = requestObservation
     }
 }
 
@@ -64,17 +67,31 @@ package final class NativeAPIConnectionTestService: NativeAPIConnectionTesting, 
             maxConcurrentRequests: Self.clampedMaxConcurrentRequests(maxConcurrentRequests),
             defaultUserAgent: defaultUserAgent
         )
-        let response = try await client.send(NativeAPIRequest(
+        let request = NativeAPIRequest(
             url: endpointURL,
             headers: headers,
             timeoutInterval: TimeInterval(Self.clampedTimeoutSeconds(timeoutSeconds)),
             allowsRetries: false
-        ))
+        )
+        let response = try await client.send(request)
+        var observationHeaders = headers
+        observationHeaders["User-Agent"] = defaultUserAgent
         return NativeAPIConnectionTestResult(
             statusCode: response.statusCode,
             durationMilliseconds: response.durationMilliseconds,
             attemptCount: response.attemptCount,
-            endpointHost: endpointURL.host ?? endpointURL.absoluteString
+            endpointHost: endpointURL.host ?? endpointURL.absoluteString,
+            requestObservation: NativeAPIRequestObservation(
+                requestID: response.requestID,
+                method: request.method.rawValue,
+                url: request.url,
+                statusCode: response.statusCode,
+                durationMilliseconds: response.durationMilliseconds,
+                attemptCount: response.attemptCount,
+                headers: observationHeaders,
+                cacheState: response.etag == nil ? nil : "etag",
+                outcome: "success"
+            )
         )
     }
 

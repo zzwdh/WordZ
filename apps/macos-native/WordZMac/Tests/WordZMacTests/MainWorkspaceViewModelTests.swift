@@ -1165,6 +1165,67 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertNil(workspace.issueBanner)
     }
 
+    func testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics() async throws {
+        let repository = FakeWorkspaceRepository()
+        let credentialStore = InMemoryAPICredentialStore()
+        credentialStore.credential = "token-abc"
+        let connectionTester = FakeAPIConnectionTester()
+        connectionTester.result = NativeAPIConnectionTestResult(
+            statusCode: 200,
+            durationMilliseconds: 71,
+            attemptCount: 1,
+            endpointHost: "api.example.test",
+            requestObservation: NativeAPIRequestObservation(
+                requestID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+                method: "GET",
+                url: URL(string: "https://api.example.test/rate_limit?query=sensitive-corpus-fragment&token=query-token")!,
+                statusCode: 200,
+                durationMilliseconds: 71,
+                attemptCount: 1,
+                headers: [
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": "Bearer token-abc",
+                    "X-Api-Key": "secret-key",
+                    "User-Agent": "WordZMac Tests"
+                ],
+                outcome: "success"
+            )
+        )
+        let hostActions = FakeHostActionService()
+        let diagnosticsBundleService = FakeDiagnosticsBundleService()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostActionService: hostActions,
+            diagnosticsBundleService: diagnosticsBundleService,
+            apiCredentialStore: credentialStore,
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.testAPIConnection()
+        await workspace.exportDiagnostics(preferredWindowRoute: .settings)
+
+        let payload = try XCTUnwrap(diagnosticsBundleService.lastPayload)
+        let request = try XCTUnwrap(payload.apiRequests.first)
+        XCTAssertEqual(payload.apiRequests.count, 1)
+        XCTAssertEqual(request.host, "api.example.test")
+        XCTAssertEqual(request.path, "/rate_limit")
+        XCTAssertEqual(request.headers["Authorization"], "[redacted]")
+        XCTAssertEqual(request.headers["X-Api-Key"], "[redacted]")
+        XCTAssertEqual(request.headers["Accept"], "application/vnd.github+json")
+        XCTAssertEqual(request.headers["User-Agent"], "WordZMac Tests")
+        XCTAssertTrue(payload.reportText.contains("API Request Records: 1"))
+
+        let encodedRequests = try JSONEncoder().encode(payload.apiRequests)
+        let requestsText = String(decoding: encodedRequests, as: UTF8.self)
+        XCTAssertFalse(requestsText.contains("token-abc"))
+        XCTAssertFalse(requestsText.contains("secret-key"))
+        XCTAssertFalse(requestsText.contains("query-token"))
+        XCTAssertFalse(requestsText.contains("sensitive-corpus-fragment"))
+        XCTAssertFalse(payload.reportText.contains("token-abc"))
+        XCTAssertFalse(payload.reportText.contains("sensitive-corpus-fragment"))
+    }
+
     func testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled() async {
         let repository = FakeWorkspaceRepository()
         let hostPreferences = InMemoryHostPreferencesStore()

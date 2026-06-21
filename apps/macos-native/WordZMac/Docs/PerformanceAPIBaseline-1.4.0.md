@@ -2,13 +2,13 @@
 
 ## Current Status
 
-Updated: 2026-06-16
+Updated: 2026-06-21
 
 This file tracks the concrete 1.4.0 work that supports the roadmap theme: performance optimization and API call stabilization.
 
 ## API Foundation
 
-Status: first implementation landed and focused validation is green.
+Status: first implementation and the narrow manual API pilot have landed; focused validation is green.
 
 Implemented:
 
@@ -29,10 +29,13 @@ Implemented:
 - Keychain-backed API credential store with save/clear actions
 - Keychain credential read path for user-triggered API calls
 - user-triggered API connection check through the shared API client
+- user-triggered API connection check fixed as the 1.4.0 narrow manual API pilot
 - saved API request timeout and max concurrency settings with conservative bounds
 - API credential status in Settings without persisting the secret in host preferences
 - update check and update download gating when API access is disabled
 - live update-check service factory receives the current saved API timeout and max concurrency settings
+- pilot request observations carried from the Host layer into diagnostics export as redacted metadata only
+- pilot diagnostics strip query strings and sensitive headers, and do not include request bodies or corpus text
 
 Current API contract:
 
@@ -54,6 +57,7 @@ Validated tests:
 - `MainWorkspaceViewModelTests.testCheckForUpdatesUsesCurrentAPIRequestPolicyFactory`
 - `MainWorkspaceViewModelTests.testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences`
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene`
+- `MainWorkspaceViewModelTests.testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics`
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled`
 - `NativeDiagnosticsBundleServiceTests.testBuildBundleWritesArchiveWithRuntimeAndPersistedState`
 - `NativeHostPreferencesStoreTests.testStoreRoundTripsSnapshotAndRecordsRecentDocuments`
@@ -64,10 +68,18 @@ Validated tests:
 Latest focused validation:
 
 ```sh
-swift test --filter NativeUpdateServiceTests --filter SettingsTests --filter NativeHostPreferencesStoreTests --filter MainWorkspaceViewModelTests/testCheckForUpdatesUsesCurrentAPIRequestPolicyFactory --filter MainWorkspaceViewModelTests/testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled --filter MainWorkspaceViewModelTests/testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences --filter MainWorkspaceViewModelTests/testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene --filter MainWorkspaceViewModelTests/testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled
+swift test --filter NativeUpdateServiceTests --filter SettingsTests --filter NativeHostPreferencesStoreTests --filter MainWorkspaceViewModelTests/testCheckForUpdatesUsesCurrentAPIRequestPolicyFactory --filter MainWorkspaceViewModelTests/testCheckForUpdatesDoesNotCallServiceWhenAPIIsDisabled --filter MainWorkspaceViewModelTests/testAPICredentialActionsUseCredentialStoreWithoutPersistingSecretInPreferences --filter MainWorkspaceViewModelTests/testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene --filter MainWorkspaceViewModelTests/testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics --filter MainWorkspaceViewModelTests/testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled
 ```
 
-Result: 27 focused API/update/settings tests, 0 failures.
+Result: 28 focused API/update/settings tests, 0 failures. The latest run also included `MainWorkspaceViewModelTests.testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics`.
+
+Latest pilot privacy validation:
+
+```sh
+swift test --filter NativeUpdateServiceTests/testNativeAPIConnectionTestServiceUsesUnifiedClientAndCredentialHeader --filter MainWorkspaceViewModelTests/testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics
+```
+
+Result: 2 focused API pilot diagnostics tests, 0 failures. The workspace test encodes the diagnostics payload and verifies it does not contain the saved token, API key, URL query token, or a sample corpus text fragment.
 
 ## Performance Baseline
 
@@ -171,8 +183,8 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next API Work
 
-1. Decide the one narrow manual API pilot now that settings, credential controls, and connection testing exist.
-2. Add pilot-specific diagnostics that prove request metadata is redacted and corpus text is not logged.
+1. Run one release/build-package diagnostics export check before tagging to confirm the pilot metadata remains redacted outside the debug test harness.
+2. Keep the 1.4.0 API pilot limited to manual connection checking unless a future API feature can meet the same no-corpus-upload, no-analysis-truth-change, and redacted-diagnostics contract.
 
 ## Next Performance Work
 

@@ -62,6 +62,7 @@ extension MainWorkspaceViewModel {
                 timeoutSeconds: settings.apiRequestTimeoutSeconds,
                 maxConcurrentRequests: settings.apiMaxConcurrentRequests
             )
+            recordAPIRequestDiagnostics(result.requestObservation)
             let credentialLine = credential?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
                 ? apiSettingsText("已使用保存的凭据验证请求头。", "Saved credential was used to validate the request header.")
                 : apiSettingsText("未保存凭据，本次只验证基础连接。", "No credential is saved, so this checked basic connectivity only.")
@@ -117,6 +118,26 @@ extension MainWorkspaceViewModel {
 
     private func apiSettingsText(_ zh: String, _ en: String) -> String {
         t(zh, en)
+    }
+
+    private func recordAPIRequestDiagnostics(_ observation: NativeAPIRequestObservation?) {
+        guard let observation else { return }
+        apiRequestDiagnostics.append(
+            NativeDiagnosticsAPIRequestMetadata(
+                requestID: observation.requestID.uuidString,
+                method: observation.method,
+                url: observation.url,
+                statusCode: observation.statusCode,
+                durationMilliseconds: observation.durationMilliseconds,
+                attemptCount: observation.attemptCount,
+                headers: observation.headers,
+                cacheState: observation.cacheState,
+                outcome: observation.outcome
+            ).redactedForDiagnostics()
+        )
+        if apiRequestDiagnostics.count > 20 {
+            apiRequestDiagnostics.removeFirst(apiRequestDiagnostics.count - 20)
+        }
     }
 
     private func apiConnectionFailureMessage(for error: Error) -> String {

@@ -79,6 +79,7 @@ package final class MainWorkspaceViewModel: ObservableObject {
     var latestCheckedUpdate: NativeUpdateCheckResult?
     var launchUpdateCheckTask: Task<Void, Never>?
     var hasScheduledLaunchUpdateWorkflow = false
+    var apiRequestDiagnostics: [NativeDiagnosticsAPIRequestMetadata] = []
     var lastPersistedTaskHistory: [PersistedNativeBackgroundTaskItem] = []
     var suppressedNavigationSceneSyncDepth = 0
     var suppressedLibrarySelectionSceneSyncDepth = 0
