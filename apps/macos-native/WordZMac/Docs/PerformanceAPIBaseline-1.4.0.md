@@ -83,7 +83,7 @@ Result: 2 focused API pilot diagnostics tests, 0 failures. The workspace test en
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, and first Topics result-assembly optimization captured. The aggregate debug baseline now runs end-to-end outside the managed sandbox.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, and release-mode aggregate baseline captured.
 
 Existing foundation:
 
@@ -91,6 +91,7 @@ Existing foundation:
 - large result scene boundary tests exist
 - previous topic benchmark work established the expected before/after quality comparison pattern
 - `Scripts/run-1.4-performance-baseline.sh` now aggregates fixed topic, sentiment, fixed user fixture, bundled reference-corpus fixture, Library/import, and optional external user corpus reports
+- `Scripts/run-1.4-performance-baseline.sh --release` runs the fixed reports through release SwiftPM tests and records `buildConfiguration: "release"` in the manifest
 
 Latest aggregate fixed run:
 
@@ -136,6 +137,38 @@ Latest aggregate fixed run:
   3. Sentiment, p95 355.1 ms.
   4. Parse document, latest run 302.3 ms.
 
+Latest aggregate release run:
+
+- Date: 2026-06-21
+- Generated at: 2026-06-21T10:20:09Z
+- Command: `zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release`
+- Output directory: `.build/reports/1.4.0-release`
+- Manifest: all fixed reports record `buildConfiguration: "release"`; optional external user corpus was skipped.
+- Topic exact fixture: `three-theme-exact-300`, 499.4 ms, purity 1.000, theme recall 1.000, 3 clusters.
+- Topic approximate fixture: `three-theme-approx-450`, 492.0 ms, purity 1.000, theme recall 1.000, 3 clusters.
+- Fixed user fixture total duration: p50 30.0 ms, p95 55.2 ms.
+- Fixed user fixture stage durations:
+  - Topics: p95 22.1 ms.
+  - Sentiment: p95 7.0 ms.
+- Bundled reference corpus total duration: p50 1231.0 ms, p95 1263.7 ms.
+- Bundled reference corpus stage durations:
+  - Topics: p95 847.4 ms.
+  - Sentiment: p95 79.5 ms.
+  - KWIC smoke: p95 8.6 ms.
+- Bundled reference corpus Topics quality fields stayed stable: `approximateRefined`, 13 clusters, 238 clustered segments, 107 outliers, 345 total segments, warning count 1, `bundled-local-embedding`.
+- Library/import release baseline: `library-baseline.json`, 3/3 successful runs.
+- Library/import stage durations:
+  - Import/index: p50 399.1 ms, p95 426.1 ms.
+  - Library scene open: p50 109.9 ms, p95 118.3 ms.
+  - Library scene refresh after duplicate-snapshot guard: p50 0.002 ms, p95 0.028 ms.
+  - Library scene search: p50 26.1 ms, p95 27.7 ms.
+  - Library selection update: p95 10.0 ms.
+- Current release-mode priority after Topics optimization:
+  1. Library import/index, p95 426.1 ms.
+  2. Library scene open, p95 118.3 ms.
+  3. Sentiment on bundled reference corpus, p95 79.5 ms.
+  4. KWIC smoke, p95 8.6 ms.
+
 Optimization notes:
 
 - A low-level Sentiment phrase matching micro-optimization was tested on the reference corpus and rejected because it regressed Sentiment p95 from roughly 351 ms to roughly 762 ms. The code was reverted; do not pursue that direction without a narrower benchmark and proof that output quality and runtime both improve.
@@ -165,14 +198,14 @@ swift test --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBas
 swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishingUnchangedSceneSyncs --filter ViewModelsTests/testLibraryManagementViewModelAppliesInitialEmptyLibrarySnapshotOnce
 swift test --filter NativeTopicEngineTests --filter TopicBenchmarkTests
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
+zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release
 ```
 
-Note: the aggregate shell entrypoint was run outside the managed sandbox because nested `swift test` calls write SwiftPM/clang cache state outside the writable workspace. The generated reports are ignored under `.build/reports/1.4.0`.
+Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`.
 
 Next required work:
 
-- run the aggregate performance report with release/build-package conditions before tagging
-- compare Library import/index versus Sentiment before choosing the second optimization target
+- optimize Library import/index next, because release p95 is about 426 ms versus Sentiment p95 about 80 ms on the bundled reference corpus
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 
@@ -195,8 +228,8 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next Performance Work
 
-1. Run the aggregate performance report with release/build-package conditions before tagging.
-2. Choose the next target between Library import/index and Sentiment using release/build-package p95, because their debug p95 values remain close.
+1. Optimize Library import/index using the release baseline as the priority signal.
+2. Keep the release aggregate baseline command green and rerun it before tagging.
 3. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
 4. Keep Library scene open under watch; current debug p95 is about 153 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
 5. Keep every performance change tied to a measurable baseline entry.

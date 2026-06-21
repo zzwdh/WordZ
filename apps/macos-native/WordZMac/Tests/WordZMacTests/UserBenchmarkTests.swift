@@ -9,7 +9,7 @@ final class UserBenchmarkTests: XCTestCase {
         let report = try await runner.runRepeated(
             inputURL: fixedFixtureBenchmarkURL,
             options: UserBenchmarkOptions(
-                buildConfiguration: "debug",
+                buildConfiguration: roadmapBaselineBuildConfiguration,
                 minTopicSize: 2,
                 runTopics: true,
                 runSentiment: true,
@@ -36,7 +36,7 @@ final class UserBenchmarkTests: XCTestCase {
         let report = try await runner.runRepeated(
             inputURL: inputURL,
             options: UserBenchmarkOptions(
-                buildConfiguration: "debug",
+                buildConfiguration: roadmapBaselineBuildConfiguration,
                 minTopicSize: 2,
                 runTopics: true,
                 runSentiment: true,
@@ -133,6 +133,17 @@ final class UserBenchmarkTests: XCTestCase {
             .appendingPathComponent(".build", isDirectory: true)
             .appendingPathComponent("reports", isDirectory: true)
             .appendingPathComponent("1.4.0", isDirectory: true)
+    }
+
+    private var roadmapBaselineBuildConfiguration: String {
+        let environment = ProcessInfo.processInfo.environment
+        if let value = environment["WORDZ_1_4_BASELINE_BUILD_CONFIGURATION"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+           !value.isEmpty {
+            return value
+        }
+        return "debug"
     }
 
     private var fixedFixtureBenchmarkURL: URL {

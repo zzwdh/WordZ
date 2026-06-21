@@ -193,8 +193,8 @@ extension NativeTableView.Coordinator {
     @discardableResult
     func copySelectedRowsToPasteboard(_ pasteboard: any NativeTablePasteboardWriting = NSPasteboard.general) -> Bool {
         guard let payload = selectedCellsCopyPayload() ?? selectedRowsCopyPayload() else { return false }
-        pasteboard.clearContents()
-        pasteboard.declareTypes([.string], owner: nil)
+        _ = pasteboard.clearContents()
+        _ = pasteboard.declareTypes([.string], owner: nil)
         return pasteboard.setString(payload, forType: .string)
     }
 
