@@ -1,5 +1,17 @@
 import Foundation
 
+private struct TopicSliceTermStatistics {
+    let weightedTerms: [(String, Double)]
+    let uniqueTerms: Set<String>
+}
+
+private struct TopicAggregateTermStatistics {
+    let weights: [String: Double]
+    let presence: [String: Int]
+    let totalWeight: Double
+    let sliceCount: Int
+}
+
 extension NativeTopicEngine {
     func buildResult(
         slices: [TopicTextSlice],
@@ -12,21 +24,21 @@ extension NativeTopicEngine {
     ) -> TopicAnalysisResult {
         let clusteredSliceIndexSet = Set(clustered.validClusters.flatMap(\.memberIndices))
         let clusteredSlices = clusteredSliceIndexSet.sorted().map { slices[$0] }
-        let clusteredSliceDocumentFrequency = buildSliceDocumentFrequency(slices: clusteredSlices)
+        let termStatistics = slices.map(sliceTermStatistics)
+        let allTermStatistics = aggregateTermStatistics(from: termStatistics)
+        let clusteredSliceDocumentFrequency = buildSliceDocumentFrequency(
+            from: clusteredSliceIndexSet.sorted().map { termStatistics[$0] }
+        )
 
         var summaries: [TopicClusterSummary] = []
         var segments: [TopicSegmentRow] = []
 
         for (clusterIndex, cluster) in clustered.validClusters.enumerated() {
             let clusterID = "topic-\(clusterIndex + 1)"
-            let clusterIndexSet = Set(cluster.memberIndices)
-            let clusterSlices = cluster.memberIndices.map { slices[$0] }
-            let restSlices = slices.enumerated().compactMap { index, slice in
-                clusterIndexSet.contains(index) ? nil : slice
-            }
+            let clusterTermStatistics = cluster.memberIndices.map { termStatistics[$0] }
             let candidates = buildKeywordCandidates(
-                slices: clusterSlices,
-                restSlices: restSlices,
+                targetStatistics: aggregateTermStatistics(from: clusterTermStatistics),
+                allStatistics: allTermStatistics,
                 clusteredSliceDocumentFrequency: clusteredSliceDocumentFrequency,
                 clusteredSliceCount: clusteredSlices.count
             )
@@ -53,7 +65,7 @@ extension NativeTopicEngine {
                         topicID: clusterID,
                         paragraphIndex: slices[memberIndex].paragraphIndex,
                         text: slices[memberIndex].text,
-                        similarityScore: cosineSimilarity(embeddings[memberIndex], cluster.centroid),
+                        similarityScore: normalizedCosineSimilarity(embeddings[memberIndex], cluster.centroid),
                         isOutlier: false
                     )
                 )
@@ -61,14 +73,10 @@ extension NativeTopicEngine {
         }
 
         if !clustered.outlierIndices.isEmpty {
-            let outlierIndexSet = Set(clustered.outlierIndices)
-            let outlierSlices = clustered.outlierIndices.map { slices[$0] }
-            let restSlices = slices.enumerated().compactMap { index, slice in
-                outlierIndexSet.contains(index) ? nil : slice
-            }
+            let outlierTermStatistics = clustered.outlierIndices.map { termStatistics[$0] }
             let candidates = buildKeywordCandidates(
-                slices: outlierSlices,
-                restSlices: restSlices,
+                targetStatistics: aggregateTermStatistics(from: outlierTermStatistics),
+                allStatistics: allTermStatistics,
                 clusteredSliceDocumentFrequency: clusteredSliceDocumentFrequency,
                 clusteredSliceCount: clusteredSlices.count
             )
@@ -132,10 +140,13 @@ extension NativeTopicEngine {
     }
 
     func buildSliceDocumentFrequency(slices: [TopicTextSlice]) -> [String: Int] {
+        buildSliceDocumentFrequency(from: slices.map(sliceTermStatistics))
+    }
+
+    private func buildSliceDocumentFrequency(from statistics: [TopicSliceTermStatistics]) -> [String: Int] {
         var frequency: [String: Int] = [:]
-        for slice in slices {
-            let uniqueTerms = Set(candidateTerms(for: slice).map(canonicalKeyword))
-            for term in uniqueTerms {
+        for sliceStatistics in statistics {
+            for term in sliceStatistics.uniqueTerms {
                 frequency[term, default: 0] += 1
             }
         }
@@ -148,24 +159,50 @@ extension NativeTopicEngine {
         clusteredSliceDocumentFrequency: [String: Int],
         clusteredSliceCount: Int
     ) -> [TopicKeywordCandidate] {
-        let targetWeights = aggregateWeightedCandidateTerms(from: slices)
-        let restWeights = aggregateWeightedCandidateTerms(from: restSlices)
-        let targetPresence = buildSliceDocumentFrequency(slices: slices)
-        let restPresence = buildSliceDocumentFrequency(slices: restSlices)
-        let targetTotalWeight = targetWeights.values.reduce(0, +)
-        let restTotalWeight = restWeights.values.reduce(0, +)
+        let targetStatistics = aggregateTermStatistics(from: slices.map(sliceTermStatistics))
+        let restStatistics = aggregateTermStatistics(from: restSlices.map(sliceTermStatistics))
+        return buildKeywordCandidates(
+            targetStatistics: targetStatistics,
+            restStatistics: restStatistics,
+            clusteredSliceDocumentFrequency: clusteredSliceDocumentFrequency,
+            clusteredSliceCount: clusteredSliceCount
+        )
+    }
 
-        guard targetTotalWeight > 0 else { return [] }
+    private func buildKeywordCandidates(
+        targetStatistics: TopicAggregateTermStatistics,
+        allStatistics: TopicAggregateTermStatistics,
+        clusteredSliceDocumentFrequency: [String: Int],
+        clusteredSliceCount: Int
+    ) -> [TopicKeywordCandidate] {
+        buildKeywordCandidates(
+            targetStatistics: targetStatistics,
+            restStatistics: restStatistics(
+                allStatistics: allStatistics,
+                targetStatistics: targetStatistics
+            ),
+            clusteredSliceDocumentFrequency: clusteredSliceDocumentFrequency,
+            clusteredSliceCount: clusteredSliceCount
+        )
+    }
 
-        let scored = targetWeights.compactMap { term, count -> TopicKeywordCandidate? in
-            let tf = count / targetTotalWeight
-            let restTF = restTotalWeight > 0
-                ? (restWeights[term] ?? 0) / restTotalWeight
+    private func buildKeywordCandidates(
+        targetStatistics: TopicAggregateTermStatistics,
+        restStatistics: TopicAggregateTermStatistics,
+        clusteredSliceDocumentFrequency: [String: Int],
+        clusteredSliceCount: Int
+    ) -> [TopicKeywordCandidate] {
+        guard targetStatistics.totalWeight > 0 else { return [] }
+
+        let scored = targetStatistics.weights.compactMap { term, count -> TopicKeywordCandidate? in
+            let tf = count / targetStatistics.totalWeight
+            let restTF = restStatistics.totalWeight > 0
+                ? (restStatistics.weights[term] ?? 0) / restStatistics.totalWeight
                 : 0
-            let targetShare = Double(targetPresence[term] ?? 0) / Double(max(1, slices.count))
-            let restShare = restSlices.isEmpty
+            let targetShare = Double(targetStatistics.presence[term] ?? 0) / Double(max(1, targetStatistics.sliceCount))
+            let restShare = restStatistics.sliceCount == 0
                 ? 0
-                : Double(restPresence[term] ?? 0) / Double(max(1, restSlices.count))
+                : Double(restStatistics.presence[term] ?? 0) / Double(max(1, restStatistics.sliceCount))
             let contrast = max(0.01, (targetShare - restShare) + 0.08)
             let tfLift = max(0.01, tf - (restTF * 0.6) + 0.02)
             let globalShare = clusteredSliceCount == 0
@@ -199,13 +236,7 @@ extension NativeTopicEngine {
     }
 
     func aggregateWeightedCandidateTerms(from slices: [TopicTextSlice]) -> [String: Double] {
-        var counts: [String: Double] = [:]
-        for slice in slices {
-            for (term, weight) in weightedCandidateTerms(for: slice) {
-                counts[term, default: 0] += weight
-            }
-        }
-        return counts
+        aggregateTermStatistics(from: slices.map(sliceTermStatistics)).weights
     }
 
     func weightedCandidateTerms(for slice: TopicTextSlice) -> [(String, Double)] {
@@ -221,6 +252,66 @@ extension NativeTopicEngine {
             weightedTerms.append((term, log1p(Double(count))))
         }
         return weightedTerms
+    }
+
+    private func sliceTermStatistics(for slice: TopicTextSlice) -> TopicSliceTermStatistics {
+        TopicSliceTermStatistics(
+            weightedTerms: weightedCandidateTerms(for: slice),
+            uniqueTerms: Set(candidateTerms(for: slice).map(canonicalKeyword))
+        )
+    }
+
+    private func aggregateTermStatistics(from statistics: [TopicSliceTermStatistics]) -> TopicAggregateTermStatistics {
+        var weights: [String: Double] = [:]
+        var presence: [String: Int] = [:]
+        var totalWeight = 0.0
+        for sliceStatistics in statistics {
+            for (term, weight) in sliceStatistics.weightedTerms {
+                weights[term, default: 0] += weight
+                totalWeight += weight
+            }
+            for term in sliceStatistics.uniqueTerms {
+                presence[term, default: 0] += 1
+            }
+        }
+        return TopicAggregateTermStatistics(
+            weights: weights,
+            presence: presence,
+            totalWeight: totalWeight,
+            sliceCount: statistics.count
+        )
+    }
+
+    private func restStatistics(
+        allStatistics: TopicAggregateTermStatistics,
+        targetStatistics: TopicAggregateTermStatistics
+    ) -> TopicAggregateTermStatistics {
+        var restWeights = allStatistics.weights
+        for (term, weight) in targetStatistics.weights {
+            let remaining = (restWeights[term] ?? 0) - weight
+            if remaining > 0 {
+                restWeights[term] = remaining
+            } else {
+                restWeights.removeValue(forKey: term)
+            }
+        }
+
+        var restPresence = allStatistics.presence
+        for (term, count) in targetStatistics.presence {
+            let remaining = (restPresence[term] ?? 0) - count
+            if remaining > 0 {
+                restPresence[term] = remaining
+            } else {
+                restPresence.removeValue(forKey: term)
+            }
+        }
+
+        return TopicAggregateTermStatistics(
+            weights: restWeights,
+            presence: restPresence,
+            totalWeight: max(0, allStatistics.totalWeight - targetStatistics.totalWeight),
+            sliceCount: max(0, allStatistics.sliceCount - targetStatistics.sliceCount)
+        )
     }
 
     func deduplicatedKeywordCandidates(_ candidates: [TopicKeywordCandidate]) -> [TopicKeywordCandidate] {
@@ -366,7 +457,7 @@ extension NativeTopicEngine {
             return similarityMatrix[lhs][rhs]
         }
         guard lhs < embeddings.count, rhs < embeddings.count else { return 0 }
-        return cosineSimilarity(embeddings[lhs], embeddings[rhs])
+        return normalizedCosineSimilarity(embeddings[lhs], embeddings[rhs])
     }
 
     func deduplicatedWarnings(_ warnings: [String]) -> [String] {

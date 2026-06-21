@@ -83,7 +83,7 @@ Result: 2 focused API pilot diagnostics tests, 0 failures. The workspace test en
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, and first Library refresh optimization captured. The aggregate debug baseline now runs end-to-end outside the managed sandbox.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, and first Topics result-assembly optimization captured. The aggregate debug baseline now runs end-to-end outside the managed sandbox.
 
 Existing foundation:
 
@@ -145,6 +145,11 @@ Optimization notes:
   - Before: synthetic 1,200-corpus Library refresh p95 108.9 ms.
   - After: synthetic 1,200-corpus Library refresh p95 0.003 ms.
   - Quality impact: none expected; this path only skips rebuilding an identical scene model. Empty-library initial bootstrap remains covered by a focused test.
+- Topics result-assembly statistics optimization:
+  - Change: `NativeTopicEngine+ResultAssembly` now precomputes per-slice keyword statistics, derives non-target rest statistics without rescanning every rest slice per cluster, and uses normalized cosine similarity for already-normalized topic vectors.
+  - Before: bundled reference corpus Topics p50 3452.7 ms, p95 3463.0 ms; summarizing stage about 184 ms per run.
+  - After: bundled reference corpus Topics p50 3252.9 ms, p95 3287.1 ms; summarizing stage about 30-31 ms per run.
+  - Quality impact: key quality fields stayed stable across all three repeat runs: `approximateRefined`, 13 clusters, 238 clustered segments, 107 outliers, 345 total segments, warning count 1, bundled provider. `explainedVariance` changed only by floating-point tail precision around 0.9266709539964267.
 
 Validated baseline commands:
 
@@ -158,15 +163,17 @@ swift test --filter UserBenchmarkTests/testRunFixedFixtureBenchmarkForRoadmapBas
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 swift test --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
 swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishingUnchangedSceneSyncs --filter ViewModelsTests/testLibraryManagementViewModelAppliesInitialEmptyLibrarySnapshotOnce
+swift test --filter NativeTopicEngineTests --filter TopicBenchmarkTests
+swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 ```
 
 Note: the aggregate shell entrypoint was run outside the managed sandbox because nested `swift test` calls write SwiftPM/clang cache state outside the writable workspace. The generated reports are ignored under `.build/reports/1.4.0`.
 
 Next required work:
 
-- compare quality-sensitive outputs before and after performance changes
 - run the aggregate performance report with release/build-package conditions before tagging
-- optimize Topics first, then compare Library import/index versus Sentiment before choosing the second optimization target
+- compare Library import/index versus Sentiment before choosing the second optimization target
+- keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 
 Baseline command:
@@ -189,7 +196,7 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 ## Next Performance Work
 
 1. Run the aggregate performance report with release/build-package conditions before tagging.
-2. Optimize Topics with before/after quality comparison.
-3. Choose the next target between Library import/index and Sentiment using release/build-package p95, because their debug p95 values remain close.
+2. Choose the next target between Library import/index and Sentiment using release/build-package p95, because their debug p95 values remain close.
+3. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
 4. Keep Library scene open under watch; current debug p95 is about 153 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
 5. Keep every performance change tied to a measurable baseline entry.

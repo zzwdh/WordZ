@@ -49,7 +49,7 @@
 | --- | ---: | --- | --- |
 | 大结果页 UI 性能保护 | 70% | 大结果页快速翻页、排序、筛选、列显隐边界测试已复跑通过，参考语料 repeat 基线已记录 P50/P95 | 补 P95 交互预算和 release/build-package 回归报告 |
 | 分析任务取消与并发保护 | 55% | 已有运行时 task supervisor、“只应用最新结果”测试基础，API queued / in-flight 取消已覆盖 | 覆盖更多长任务，保证取消后不会继续写 UI 状态 |
-| Topics/Keyword 性能对比 | 75% | 已记录固定机器 topic/sentiment 基线、固定用户样本 repeat=3 p50/p95、内置参考语料 repeat=3 p50/p95 和最慢阶段排序 | 补 release/build-package 结果和优化后的质量对比 |
+| Topics/Keyword 性能对比 | 82% | 已记录固定机器 topic/sentiment 基线、固定用户样本 repeat=3 p50/p95、内置参考语料 repeat=3 p50/p95 和最慢阶段排序；Topics 结果组装已做第一轮优化，参考语料 Topics p95 约 3463ms -> 3287ms，关键质量字段保持一致 | 补 release/build-package 结果，继续评估 embedding 阶段是否还有低风险优化 |
 | Library 打开和刷新性能 | 76% | 已做过场景同步和重复刷新收敛，已新增 Library/import repeat=3 基线；重复应用同一 Library 快照已跳过 scene rebuild，1200 条 Library 重复刷新 p95 从约 109ms 降到约 0.003ms | 补 release/build-package 结果，再决定是否优先优化 import/index 或 scene open |
 | API 调用底座 | 86% | 已有 `NativeAPIClient` 第一版，更新检查和手动 API 连接检查已迁移；连接检查已固定为 1.4.0 窄 API 试点，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖，更新检查 service factory 已接入当前 API timeout/concurrency 设置 | 发布前补一次实际诊断包导出检查 |
 | API 设置与凭据保护 | 86% | 设置页已有 API 总开关、凭据状态、保存/清除凭据动作、真实连接测试、超时/并发上限设置，凭据走 Keychain 底座；连接检查明确不上传语料正文，诊断包只导出脱敏后的请求 host/path/status/duration/header 元数据 | 发布前复核诊断包不包含 API key、Authorization header、query 参数或完整语料原文 |
