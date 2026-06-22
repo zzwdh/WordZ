@@ -5,10 +5,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_OUTPUT_PATH="${ROOT_DIR}/.build/reports/sentiment-benchmark-report.json"
 GENERATED_REPORT_PATH="${ROOT_DIR}/.build/reports/sentiment-benchmark-report.generated.json"
 BUILD_CONFIGURATION="debug"
+DISABLE_SWIFTPM_SANDBOX="0"
 
 usage() {
   cat >&2 <<'EOF'
-Usage: Scripts/run-sentiment-benchmark.sh [--output <path>] [--release]
+Usage: Scripts/run-sentiment-benchmark.sh [--output <path>] [--release] [--disable-swiftpm-sandbox]
 EOF
 }
 
@@ -20,6 +21,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --release)
       BUILD_CONFIGURATION="release"
+      shift
+      ;;
+    --disable-swiftpm-sandbox)
+      DISABLE_SWIFTPM_SANDBOX="1"
       shift
       ;;
     --help|-h)
@@ -38,8 +43,11 @@ mkdir -p "$(dirname "$REPORT_OUTPUT_PATH")"
 cd "$ROOT_DIR"
 
 SWIFT_CONFIGURATION_ARGS=()
+if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+  SWIFT_CONFIGURATION_ARGS+=(--disable-sandbox)
+fi
 if [[ "$BUILD_CONFIGURATION" == "release" ]]; then
-  SWIFT_CONFIGURATION_ARGS=(-c release)
+  SWIFT_CONFIGURATION_ARGS+=(-c release)
 fi
 
 swift test "${SWIFT_CONFIGURATION_ARGS[@]}" --filter SentimentBenchmarkTests

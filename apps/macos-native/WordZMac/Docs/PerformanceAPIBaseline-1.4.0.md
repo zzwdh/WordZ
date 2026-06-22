@@ -92,6 +92,7 @@ Existing foundation:
 - previous topic benchmark work established the expected before/after quality comparison pattern
 - `Scripts/run-1.4-performance-baseline.sh` now aggregates fixed topic, sentiment, fixed user fixture, bundled reference-corpus fixture, Library/import, and optional external user corpus reports
 - `Scripts/run-1.4-performance-baseline.sh --release` runs the fixed reports through release SwiftPM tests and records `buildConfiguration: "release"` in the manifest
+- `Scripts/run-1.4-performance-baseline.sh --disable-swiftpm-sandbox` lets the same aggregate run complete inside already-sandboxed automation environments that block SwiftPM's nested `sandbox-exec`
 
 Latest aggregate fixed run:
 
@@ -137,7 +138,7 @@ Latest aggregate fixed run:
   3. Sentiment, p95 355.1 ms.
   4. Parse document, latest run 302.3 ms.
 
-Latest aggregate release run:
+Previous aggregate release run:
 
 - Date: 2026-06-21
 - Generated at: 2026-06-21T10:20:09Z
@@ -163,11 +164,44 @@ Latest aggregate release run:
   - Library scene refresh after duplicate-snapshot guard: p50 0.002 ms, p95 0.028 ms.
   - Library scene search: p50 26.1 ms, p95 27.7 ms.
   - Library selection update: p95 10.0 ms.
-- Current release-mode priority after Topics optimization:
-  1. Library import/index, aggregate p95 426.1 ms before the shard-write optimization.
-  2. Library scene open, p95 118.3 ms.
-  3. Sentiment on bundled reference corpus, p95 79.5 ms.
-  4. KWIC smoke, p95 8.6 ms.
+- This was the last full release aggregate before the Library shard-write optimization.
+
+Latest aggregate release run:
+
+- Date: 2026-06-22
+- Generated at: 2026-06-22T02:33:48Z
+- Command: `HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library`
+- Output directory: `.build/reports/1.4.0-release-post-library`
+- Manifest: all fixed reports record `buildConfiguration: "release"`; optional external user corpus was skipped.
+- Topic exact fixture: `three-theme-exact-300`, 453.5 ms, purity 1.000, theme recall 1.000, 3 clusters.
+- Topic approximate fixture: `three-theme-approx-450`, 514.1 ms, purity 1.000, theme recall 1.000, 3 clusters.
+- Sentiment mixed baseline: `sentiment-gold-v2`, 72 examples, accuracy 0.833, macro F1 0.834, neutral false positive rate 0.229.
+- Sentiment news-focused baseline: `sentiment-gold-v3`, 18 examples, accuracy 0.944, macro F1 0.944, neutral false positive rate 0.000.
+- Fixed user fixture total duration: p50 32.2 ms, p95 49.3 ms.
+- Fixed user fixture stage durations:
+  - Topics: p95 21.3 ms.
+  - Sentiment: p95 8.5 ms.
+  - KWIC smoke: p95 0.9 ms.
+- Bundled reference corpus total duration: p50 1228.5 ms, p95 1312.5 ms.
+- Bundled reference corpus stage durations:
+  - Topics: p95 854.4 ms.
+  - Parse document: p95 342.5 ms.
+  - Sentiment: p95 84.4 ms.
+  - KWIC smoke: p95 9.0 ms.
+- Bundled reference corpus Topics quality fields stayed stable: `approximateRefined`, 13 clusters, 238 clustered segments, 107 outliers, 345 total segments, warning count 1, `bundled-local-embedding`, explained variance 0.9266709539964267.
+- Library/import release baseline after shard-write optimization: `library-baseline.json`, 3/3 successful runs.
+- Library/import stage durations:
+  - Import/index: p50 223.1 ms, p95 224.6 ms.
+  - Library scene open: p50 109.9 ms, p95 114.7 ms.
+  - Library scene refresh after duplicate-snapshot guard: p50 0.001 ms, p95 0.004 ms.
+  - Library scene search: p50 26.3 ms, p95 27.6 ms.
+  - Library selection update: p95 10.7 ms.
+- Current release-mode priority after Library shard-write optimization:
+  1. Topics on bundled reference corpus, p95 854.4 ms.
+  2. Parse document on bundled reference corpus, p95 342.5 ms.
+  3. Library import/index, p95 224.6 ms.
+  4. Library scene open, p95 114.7 ms.
+  5. Sentiment on bundled reference corpus, p95 84.4 ms.
 
 Latest focused Library import/index optimization run:
 
@@ -214,6 +248,7 @@ swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishin
 swift test --filter NativeTopicEngineTests --filter TopicBenchmarkTests
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release
+HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library
 swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
 CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_HOME=/tmp/wordz-swiftpm-cache WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-library-baseline-after-3 WORDZ_1_4_LIBRARY_BASELINE_BUILD_CONFIGURATION=release swift test --disable-sandbox -c release --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
 ```
@@ -222,7 +257,7 @@ Note: earlier aggregate shell entrypoints needed a less restricted environment b
 
 Next required work:
 
-- rerun the full release aggregate baseline after the Library shard-write optimization before tagging, because the current proof is a focused release Library baseline
+- run packaged-app smoke and API diagnostics privacy export checks before tagging
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 
@@ -245,8 +280,8 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next Performance Work
 
-1. Rerun the full release aggregate baseline after the Library shard-write optimization and update the aggregate p95 table before tagging.
-2. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
-3. Keep Library scene open under watch; focused release p95 is about 106 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
-4. Use Library scene open or packaged-app smoke as the next performance gate instead of another Library import/index pass unless the aggregate rerun contradicts the focused result.
+1. Run packaged-app smoke so the release baseline is backed by a built app, not only SwiftPM tests.
+2. Run API diagnostics privacy export checks before tagging.
+3. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
+4. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
 5. Keep every performance change tied to a measurable baseline entry.

@@ -12,10 +12,11 @@ SENTIMENT_UNIT="sentence"
 SENTIMENT_BACKEND="lexicon"
 BUILD_CONFIGURATION="debug"
 REPEAT_COUNT="1"
+DISABLE_SWIFTPM_SANDBOX="0"
 
 usage() {
   cat >&2 <<'EOF'
-Usage: Scripts/run-user-benchmark.sh --file <path> [--output <path>] [--min-topic-size <n>] [--sentiment-unit document|sentence] [--sentiment-backend lexicon|coreML] [--release] [--repeat <n>] [--skip-topics] [--skip-sentiment] [--skip-kwic]
+Usage: Scripts/run-user-benchmark.sh --file <path> [--output <path>] [--min-topic-size <n>] [--sentiment-unit document|sentence] [--sentiment-backend lexicon|coreML] [--release] [--repeat <n>] [--disable-swiftpm-sandbox] [--skip-topics] [--skip-sentiment] [--skip-kwic]
 EOF
 }
 
@@ -48,6 +49,10 @@ while [[ $# -gt 0 ]]; do
     --repeat)
       REPEAT_COUNT="$2"
       shift 2
+      ;;
+    --disable-swiftpm-sandbox)
+      DISABLE_SWIFTPM_SANDBOX="1"
+      shift
       ;;
     --skip-topics)
       RUN_TOPICS="0"
@@ -92,8 +97,11 @@ mkdir -p "$(dirname "$REPORT_OUTPUT_PATH")"
 cd "$ROOT_DIR"
 
 SWIFT_CONFIGURATION_ARGS=()
+if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+  SWIFT_CONFIGURATION_ARGS+=(--disable-sandbox)
+fi
 if [[ "$BUILD_CONFIGURATION" == "release" ]]; then
-  SWIFT_CONFIGURATION_ARGS=(-c release)
+  SWIFT_CONFIGURATION_ARGS+=(-c release)
 fi
 
 WORDZ_USER_BENCHMARK_FILE="$FILE_PATH" \

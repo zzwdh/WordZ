@@ -13,10 +13,11 @@ RUN_REFERENCE_USER_FIXTURE="1"
 RUN_LIBRARY_BASELINE="1"
 BASELINE_BUILD_CONFIGURATION="debug"
 USER_BUILD_CONFIGURATION="debug"
+DISABLE_SWIFTPM_SANDBOX="0"
 
 usage() {
   cat >&2 <<'EOF'
-Usage: Scripts/run-1.4-performance-baseline.sh [--output-dir <path>] [--user-file <path>] [--user-repeat <n>] [--release] [--release-user] [--skip-topic] [--skip-sentiment] [--skip-fixed-user] [--skip-reference-user] [--skip-library]
+Usage: Scripts/run-1.4-performance-baseline.sh [--output-dir <path>] [--user-file <path>] [--user-repeat <n>] [--release] [--release-user] [--disable-swiftpm-sandbox] [--skip-topic] [--skip-sentiment] [--skip-fixed-user] [--skip-reference-user] [--skip-library]
 
 Runs the fixed 1.4.0 baseline reports:
   - topic benchmark report
@@ -28,7 +29,9 @@ Runs the fixed 1.4.0 baseline reports:
 
 Use --release to run fixed reports through release SwiftPM tests and mark the
 manifest as release. Use --release-user when only the optional external user
-corpus should use release mode.
+corpus should use release mode. Use --disable-swiftpm-sandbox when running
+inside an already sandboxed automation environment that blocks SwiftPM's nested
+sandbox-exec call.
 EOF
 }
 
@@ -54,6 +57,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --release-user)
       USER_BUILD_CONFIGURATION="release"
+      shift
+      ;;
+    --disable-swiftpm-sandbox)
+      DISABLE_SWIFTPM_SANDBOX="1"
       shift
       ;;
     --skip-topic)
@@ -107,6 +114,9 @@ if [[ "$RUN_TOPIC" == "1" ]]; then
   if [[ "$BASELINE_BUILD_CONFIGURATION" == "release" ]]; then
     TOPIC_ARGS+=(--release)
   fi
+  if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+    TOPIC_ARGS+=(--disable-swiftpm-sandbox)
+  fi
   zsh "${ROOT_DIR}/Scripts/run-topic-benchmark.sh" "${TOPIC_ARGS[@]}"
 else
   echo "Skipped topic benchmark."
@@ -117,14 +127,20 @@ if [[ "$RUN_SENTIMENT" == "1" ]]; then
   if [[ "$BASELINE_BUILD_CONFIGURATION" == "release" ]]; then
     SENTIMENT_ARGS+=(--release)
   fi
+  if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+    SENTIMENT_ARGS+=(--disable-swiftpm-sandbox)
+  fi
   zsh "${ROOT_DIR}/Scripts/run-sentiment-benchmark.sh" "${SENTIMENT_ARGS[@]}"
 else
   echo "Skipped sentiment benchmark."
 fi
 
 SWIFT_CONFIGURATION_ARGS=()
+if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+  SWIFT_CONFIGURATION_ARGS+=(--disable-sandbox)
+fi
 if [[ "$BASELINE_BUILD_CONFIGURATION" == "release" ]]; then
-  SWIFT_CONFIGURATION_ARGS=(-c release)
+  SWIFT_CONFIGURATION_ARGS+=(-c release)
 fi
 
 if [[ "$RUN_FIXED_USER_FIXTURE" == "1" ]]; then
@@ -158,6 +174,9 @@ if [[ "$RUN_USER" == "1" ]]; then
   USER_ARGS=(--file "$USER_FILE" --output "$USER_REPORT" --repeat "$USER_REPEAT_COUNT")
   if [[ "$USER_BUILD_CONFIGURATION" == "release" ]]; then
     USER_ARGS+=(--release)
+  fi
+  if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+    USER_ARGS+=(--disable-swiftpm-sandbox)
   fi
   zsh "${ROOT_DIR}/Scripts/run-user-benchmark.sh" "${USER_ARGS[@]}"
 else
