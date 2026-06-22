@@ -151,8 +151,50 @@ final class WorkspaceRuntimeConcurrencyTests: XCTestCase {
         XCTAssertEqual(repository.lastSentimentRequest?.texts.first?.text, "beta is good.")
         XCTAssertEqual(workspace.sentiment.rawResult?.request.texts.first?.text, "beta is good.")
         XCTAssertEqual(workspace.sentiment.scene?.rows.first?.text, "beta is good.")
-        XCTAssertEqual(repository.savedWorkspaceDrafts.count, 1)
-        XCTAssertTrue(repository.savedWorkspaceDrafts.allSatisfy { $0.currentTab == WorkspaceDetailTab.sentiment.snapshotValue })
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.sentiment.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.sentiment))
+    }
+
+    func testRapidTopicSegmentSentimentRunsOnlyApplyLatestResult() async {
+        let fixture = makeTopicsSourceReaderFixture()
+        let repository = FakeWorkspaceRepository(
+            openedCorpus: fixture.openedCorpus,
+            tokenizeResult: fixture.tokenizeResult,
+            topicsResult: fixture.topicsResult
+        )
+        repository.sentimentDelayNanoseconds = 120_000_000
+        repository.sentimentResultProvider = { request in
+            let marker = request.texts.first?.groupID == TopicAnalysisResult.outlierTopicID ? "outlier" : "topic"
+            return makeSentimentResult(request: request, marker: marker)
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        workspace.topics.query = ""
+        workspace.topics.apply(fixture.topicsResult)
+        workspace.selectedTab = .topics
+        workspace.syncSceneGraph()
+        workspace.sentiment.handle(.changeSource(.topicSegments))
+        workspace.sentiment.unit = .sourceSentence
+        workspace.sentiment.contextBasis = .fullSentenceWhenAvailable
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.sentiment.topicSegmentsFocusClusterID = "topic-1"
+        dispatcher.handleSentimentAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.sentiment.topicSegmentsFocusClusterID = TopicAnalysisResult.outlierTopicID
+        dispatcher.handleSentimentAction(.run)
+        try? await Task.sleep(nanoseconds: 360_000_000)
+
+        XCTAssertEqual(repository.runSentimentCallCount, 2)
+        XCTAssertEqual(repository.lastSentimentRequest?.source, .topicSegments)
+        XCTAssertEqual(repository.lastSentimentRequest?.texts.first?.groupID, TopicAnalysisResult.outlierTopicID)
+        XCTAssertEqual(workspace.sentiment.rawResult?.request.texts.first?.groupID, TopicAnalysisResult.outlierTopicID)
+        XCTAssertEqual(workspace.sentiment.scene?.rows.first?.text, "outlier is good.")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.sentiment.snapshotValue)
         XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.sentiment))
     }
 

@@ -60,6 +60,11 @@ protocol WorkspaceTopicsWorkflowServing {
         features: WorkspaceTopicsWorkflowContext,
         syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
     ) async
+
+    func topicSegmentsSentimentRunRequest(
+        features: WorkspaceTopicsWorkflowContext,
+        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
+    ) async throws -> SentimentRunRequest
 }
 
 struct WorkspaceFeatureWorkflowSet {

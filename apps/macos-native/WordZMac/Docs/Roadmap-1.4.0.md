@@ -48,7 +48,7 @@
 | 模块 | 当前完成度 | 现状 | 1.4.0 要补齐的部分 |
 | --- | ---: | --- | --- |
 | 大结果页 UI 性能保护 | 70% | 大结果页快速翻页、排序、筛选、列显隐边界测试已复跑通过，参考语料 repeat 基线已记录 P50/P95 | 补 P95 交互预算和 release/build-package 回归报告 |
-| 分析任务取消与并发保护 | 80% | 已有运行时 task supervisor，KWIC / Compare / Keyword / Topics 已走“只应用最新结果”保护，普通 Sentiment 主来源也已迁入 latest-result 保护，API queued / in-flight 取消已覆盖 | 继续覆盖 Topics 片段派生 Sentiment 等剩余分支，并把用户可见取消状态从 failed/cancelled 文案进一步区分 |
+| 分析任务取消与并发保护 | 88% | 已有运行时 task supervisor，KWIC / Compare / Keyword / Topics / Sentiment 主来源和 Topics 片段派生 Sentiment 都已走“只应用最新结果”保护，API queued / in-flight 取消已覆盖 | 抽查 Plot/Cluster/Collocate 等非 P0 分支是否需要相同策略，并把用户可见取消状态从 failed/cancelled 文案进一步区分 |
 | Topics/Keyword 性能对比 | 88% | 已记录固定机器 topic/sentiment 基线、固定用户样本 repeat=3 p50/p95、内置参考语料 repeat=3 p50/p95 和最慢阶段排序；Topics 结果组装已做第一轮优化，debug 参考语料 Topics p95 约 3463ms -> 3287ms；release 参考语料 Topics p95 约 847ms，关键质量字段保持一致 | 发布前保留 release 报告，继续评估 embedding 阶段是否还有低风险优化 |
 | Library 打开和刷新性能 | 92% | 已做过场景同步和重复刷新收敛，已新增 Library/import repeat=3 基线；重复应用同一 Library 快照已跳过 scene rebuild；Library import/index 分片写入已完成一轮优化，完整 release aggregate p95 约 426.1ms -> 224.6ms；Library scene open release p95 约 114.7ms；app bundle smoke 已复核实际应用包资源路径 | 发布前继续观察 Library scene open，并在最终 DMG 产物上保留同一 smoke 口径 |
 | API 调用底座 | 94% | 已有 `NativeAPIClient` 第一版，更新检查和手动 API 连接检查已迁移；连接检查已固定为 1.4.0 窄 API 试点，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖，更新检查 service factory 已接入当前 API timeout/concurrency 设置；release API 隐私导出和错误恢复门禁已通过 | 保持 `run-1.4-api-privacy-check.sh` 和 `run-1.4-api-recovery-check.sh` 作为 pre-tag 门禁 |

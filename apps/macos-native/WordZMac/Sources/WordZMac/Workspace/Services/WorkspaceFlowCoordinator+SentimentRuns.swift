@@ -18,6 +18,13 @@ extension WorkspaceFlowCoordinator {
         )
     }
 
+    func topicSegmentsSentimentRunRequest(features: WorkspaceFeatureSet) async throws -> SentimentRunRequest {
+        try await topicsWorkflow.topicSegmentsSentimentRunRequest(
+            features: features.topicsWorkflowContext,
+            syncFeatureContexts: syncFeatureContexts
+        )
+    }
+
     func importSentimentUserLexiconBundle(
         features: WorkspaceFeatureSet,
         preferredRoute: NativeWindowRoute? = nil

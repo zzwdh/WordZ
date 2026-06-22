@@ -50,17 +50,7 @@ extension MainWorkspaceViewModel {
         case .corpusCompare:
             return try await corpusCompareSentimentRunRequest()
         case .topicSegments:
-            throw NSError(
-                domain: "WordZMac.SentimentRun",
-                code: 1,
-                userInfo: [
-                    NSLocalizedDescriptionKey: wordZText(
-                        "Topics 片段情感分析需要通过 Topics 工作流运行。",
-                        "Topic-segment sentiment must be run through the Topics workflow.",
-                        mode: .system
-                    )
-                ]
-            )
+            return try await flowCoordinator.topicSegmentsSentimentRunRequest(features: features)
         }
     }
 

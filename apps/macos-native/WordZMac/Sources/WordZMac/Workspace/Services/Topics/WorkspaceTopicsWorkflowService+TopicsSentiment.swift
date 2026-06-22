@@ -93,15 +93,33 @@ extension WorkspaceTopicsWorkflowService {
         syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
     ) async {
         let featureSet = features.withFeatureSet { $0 }
-        guard let topicsResult = features.topics.result else {
-            features.sidebar.setError(
-                wordZText(
-                    "请先生成 Topics 结果。",
-                    "Run Topics first before analyzing topic segments in Sentiment.",
-                    mode: .system
-                )
+        await analysisWorkflow.performResultRunTask(
+            .sentiment,
+            selecting: .sentiment,
+            features: featureSet,
+            syncFeatureContexts: syncFeatureContexts
+        ) {
+            let request = try await self.topicSegmentsSentimentRunRequest(
+                features: features,
+                syncFeatureContexts: syncFeatureContexts
             )
-            return
+            let result = try await self.repository.runSentiment(request)
+            features.sentiment.apply(result)
+            if let presentationResult = features.sentiment.presentationResult {
+                features.topics.applySentimentPresentationResult(presentationResult, languageMode: .system)
+            }
+        }
+    }
+
+    func topicSegmentsSentimentRunRequest(
+        features: WorkspaceTopicsWorkflowContext,
+        syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
+    ) async throws -> SentimentRunRequest {
+        guard let topicsResult = features.topics.result else {
+            throw topicSentimentError(
+                zh: "请先生成 Topics 结果。",
+                en: "Run Topics first before analyzing topic segments in Sentiment."
+            )
         }
 
         let visibleSegments = features.topics.visibleTopicSegmentsForSentiment(
@@ -109,48 +127,28 @@ extension WorkspaceTopicsWorkflowService {
             focusedClusterID: features.sentiment.topicSegmentsFocusClusterID
         )
         guard !visibleSegments.isEmpty else {
-            features.sidebar.setError(topicSentimentUnavailableMessage(features: features))
-            return
+            throw topicSentimentError(message: topicSentimentUnavailableMessage(features: features))
         }
 
-        await analysisWorkflow.performResultRunTask(
-            .sentiment,
-            selecting: .sentiment,
-            features: featureSet,
+        let corpusContexts = try await topicSentimentCorpusContexts(
+            for: visibleSegments,
+            features: features,
             syncFeatureContexts: syncFeatureContexts
-        ) {
-            let corpusContexts = try await self.topicSentimentCorpusContexts(
-                for: visibleSegments,
-                features: features,
-                syncFeatureContexts: syncFeatureContexts
-            )
-            let texts = self.buildTopicSentimentInputs(
-                segments: visibleSegments,
-                corpusContexts: corpusContexts,
-                result: topicsResult
-            )
+        )
+        let texts = buildTopicSentimentInputs(
+            segments: visibleSegments,
+            corpusContexts: corpusContexts,
+            result: topicsResult
+        )
 
-            guard !texts.isEmpty else {
-                throw NSError(
-                    domain: "WordZMac.TopicsSentiment",
-                    code: 1,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: wordZText(
-                            "当前 Topics 片段无法映射回原始句子，暂时不能进入情感分析。",
-                            "The visible topic segments could not be mapped back to source sentences for sentiment analysis.",
-                            mode: .system
-                        )
-                    ]
-                )
-            }
-
-            let request = features.sentiment.currentRunRequest(texts: texts)
-            let result = try await self.repository.runSentiment(request)
-            features.sentiment.apply(result)
-            if let presentationResult = features.sentiment.presentationResult {
-                features.topics.applySentimentPresentationResult(presentationResult, languageMode: .system)
-            }
+        guard !texts.isEmpty else {
+            throw topicSentimentError(
+                zh: "当前 Topics 片段无法映射回原始句子，暂时不能进入情感分析。",
+                en: "The visible topic segments could not be mapped back to source sentences for sentiment analysis."
+            )
         }
+
+        return features.sentiment.currentRunRequest(texts: texts)
     }
 
     private func topicSentimentCorpusContexts(
@@ -357,6 +355,18 @@ extension WorkspaceTopicsWorkflowService {
             "当前 Topics 结果没有可用于情感分析的可见片段。",
             "There are no visible topic segments available for sentiment analysis.",
             mode: mode
+        )
+    }
+
+    private func topicSentimentError(zh: String, en: String) -> NSError {
+        topicSentimentError(message: wordZText(zh, en, mode: .system))
+    }
+
+    private func topicSentimentError(message: String) -> NSError {
+        NSError(
+            domain: "WordZMac.TopicsSentiment",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: message]
         )
     }
 }
