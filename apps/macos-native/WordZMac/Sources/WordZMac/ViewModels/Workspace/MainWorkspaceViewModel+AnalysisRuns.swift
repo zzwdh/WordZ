@@ -92,8 +92,8 @@ extension MainWorkspaceViewModel {
     }
 
     func runPlot() async {
-        await performResultRun(label: "plot", taskKey: .plot) {
-            await flowCoordinator.runPlot(features: features)
+        await performManagedTask(key: .plot, policy: .replaceLatest) { token in
+            await self.runPlot(token: token)
         }
     }
 
@@ -104,20 +104,20 @@ extension MainWorkspaceViewModel {
     }
 
     func runNgram() async {
-        await performResultRun(label: "ngram", taskKey: .ngram) {
-            await flowCoordinator.runNgram(features: features)
+        await performManagedTask(key: .ngram, policy: .replaceLatest) { token in
+            await self.runNgram(token: token)
         }
     }
 
     func runCluster() async {
-        await performResultRun(label: "cluster", taskKey: .cluster) {
-            await flowCoordinator.runCluster(features: features)
+        await performManagedTask(key: .cluster, policy: .replaceLatest) { token in
+            await self.runCluster(token: token)
         }
     }
 
     func runCollocate() async {
-        await performResultRun(label: "collocate", taskKey: .collocate) {
-            await flowCoordinator.runCollocate(features: features)
+        await performManagedTask(key: .collocate, policy: .replaceLatest) { token in
+            await self.runCollocate(token: token)
         }
     }
 

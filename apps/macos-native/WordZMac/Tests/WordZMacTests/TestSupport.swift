@@ -38,6 +38,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var lastKeywordSuiteRequest: KeywordSuiteRunRequest?
     var lastRunKWICKeyword = ""
     var lastRunKWICSearchOptions = SearchOptionsState.default
+    var lastRunNgramN: Int?
+    var lastRunClusterRequest: ClusterRunRequest?
+    var lastRunCollocateKeyword = ""
     var lastRunCollocateSearchOptions = SearchOptionsState.default
     var lastRunLocatorSentenceId: Int?
     var lastRunLocatorNodeIndex: Int?
@@ -163,12 +166,20 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var compareDelayNanoseconds: UInt64 = 0
     var keywordSuiteDelayNanoseconds: UInt64 = 0
     var kwicDelayNanoseconds: UInt64 = 0
+    var ngramDelayNanoseconds: UInt64 = 0
+    var plotDelayNanoseconds: UInt64 = 0
+    var clusterDelayNanoseconds: UInt64 = 0
+    var collocateDelayNanoseconds: UInt64 = 0
     var saveWorkspaceDelayNanoseconds: UInt64 = 0
     var topicsResultProvider: ((String, TopicAnalysisOptions) async throws -> TopicAnalysisResult)?
     var sentimentResultProvider: ((SentimentRunRequest) async throws -> SentimentRunResult)?
     var compareResultProvider: (([CompareRequestEntry]) async throws -> CompareResult)?
     var keywordSuiteResultProvider: ((KeywordSuiteRunRequest) async throws -> KeywordSuiteResult)?
     var kwicResultProvider: ((String) async throws -> KWICResult)?
+    var ngramResultProvider: ((String, Int) async throws -> NgramResult)?
+    var plotResultProvider: ((PlotRunRequest) async throws -> PlotResult)?
+    var clusterResultProvider: ((ClusterRunRequest) async throws -> ClusterResult)?
+    var collocateResultProvider: ((String) async throws -> CollocateResult)?
     var lastListLibrarySearchQuery = ""
 
     init(
@@ -668,7 +679,14 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
 
     func runNgram(text: String, n: Int) async throws -> NgramResult {
         runNgramCallCount += 1
+        lastRunNgramN = n
+        if ngramDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: ngramDelayNanoseconds)
+        }
         if let ngramError { throw ngramError }
+        if let ngramResultProvider {
+            return try await ngramResultProvider(text, n)
+        }
         return NgramResult(json: [
             "n": n,
             "rows": ngramResult.rows.map { [$0.phrase, $0.count] }
@@ -678,13 +696,26 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     func runPlot(_ request: PlotRunRequest) async throws -> PlotResult {
         runPlotCallCount += 1
         lastRunPlotRequest = request
+        if plotDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: plotDelayNanoseconds)
+        }
         if let plotError { throw plotError }
+        if let plotResultProvider {
+            return try await plotResultProvider(request)
+        }
         return plotResult
     }
 
     func runCluster(_ request: ClusterRunRequest) async throws -> ClusterResult {
         runClusterCallCount += 1
+        lastRunClusterRequest = request
+        if clusterDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: clusterDelayNanoseconds)
+        }
         if let clusterError { throw clusterError }
+        if let clusterResultProvider {
+            return try await clusterResultProvider(request)
+        }
         return clusterResult
     }
 
@@ -717,8 +748,15 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
         searchOptions: SearchOptionsState
     ) async throws -> CollocateResult {
         runCollocateCallCount += 1
+        lastRunCollocateKeyword = keyword
         lastRunCollocateSearchOptions = searchOptions
+        if collocateDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: collocateDelayNanoseconds)
+        }
         if let collocateError { throw collocateError }
+        if let collocateResultProvider {
+            return try await collocateResultProvider(keyword)
+        }
         return collocateResult
     }
 

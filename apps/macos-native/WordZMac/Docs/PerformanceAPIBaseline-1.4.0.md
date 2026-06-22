@@ -223,11 +223,11 @@ Latest aggregate release run:
 Latest analysis concurrency validation:
 
 - Date: 2026-06-22
-- Change: ordinary Topics, main Sentiment, and topic-segment-derived Sentiment runs now use the shared latest-result task supervisor path. Rapid repeated requests cancel/replace the previous run, discard stale results, and only persist the latest result tab state.
+- Change: ordinary Topics, main Sentiment, topic-segment-derived Sentiment, Plot, Ngram, Cluster, and Collocate runs now use the shared latest-result task supervisor path. Rapid repeated requests cancel/replace the previous run, discard stale results, and only persist the latest result tab state.
 - Focused command: `swift test --filter WorkspaceRuntimeConcurrencyTests`
-- Result: 6 runtime concurrency tests, 0 failures. Coverage now includes KWIC, Compare, Topics, main Sentiment, topic-segment-derived Sentiment latest-result protection, and stale persistence callback suppression.
-- Broader affected command: `swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|WorkspaceActionDispatcherTests|SentimentEngineFeatureTests|SentimentPresentationFeatureTests|CompositionTests'`
-- Result: 103 affected workflow/concurrency/failure/dispatcher/composition/Sentiment tests, 0 failures.
+- Result: 10 runtime concurrency tests, 0 failures. Coverage now includes KWIC, Compare, Topics, main Sentiment, topic-segment-derived Sentiment, Plot, Ngram, Cluster, Collocate latest-result protection, and stale persistence callback suppression.
+- Broader affected command: `swift test --filter 'WorkspaceRuntimeConcurrencyTests|PlotClusterFeatureTests|MainWorkspaceViewModelTests|WorkspaceActionDispatcherTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests|CompositionTests'`
+- Result: 175 affected ViewModel/dispatcher/coordinator/workflow/concurrency/Plot/Cluster/failure tests, 0 failures.
 
 Latest packaged app smoke:
 
@@ -273,6 +273,11 @@ Optimization notes:
   - Before: the Sentiment workflow applied results internally, so wrapping the outer call could not prevent stale results from writing page state.
   - After: rapid Sentiment reruns execute as replace-latest requests; stale results are discarded before applying `rawResult`, scene state, cross-analysis summaries, or selected-tab persistence.
   - Quality impact: no analysis-truth change expected; the same Sentiment request builders and repository run are used. Focused tests assert only the latest pasted-text and topic-segment requests reach the Sentiment page and scene.
+- Secondary analysis latest-result concurrency protection:
+  - Change: Plot, Ngram, Cluster, and Collocate user-triggered runs now route through the same `WorkspaceTaskSupervisor` replace-latest path as the P0 analysis pages.
+  - Before: these pages used the older busy-skip result-run wrapper, so a rapid second run could be ignored while the first result still wrote page state.
+  - After: rapid reruns replace the previous request; stale results are discarded before applying page state, result scenes, or selected-tab persistence.
+  - Quality impact: no analysis-truth change expected; the same repository calls and request builders are used. Focused tests assert only the latest Plot query, Ngram size, Cluster option, and Collocate keyword reach the page result.
 - Topics result-assembly statistics optimization:
   - Change: `NativeTopicEngine+ResultAssembly` now precomputes per-slice keyword statistics, derives non-target rest statistics without rescanning every rest slice per cluster, and uses normalized cosine similarity for already-normalized topic vectors.
   - Before: bundled reference corpus Topics p50 3452.7 ms, p95 3463.0 ms; summarizing stage about 184 ms per run.
@@ -297,6 +302,7 @@ swift test --filter WorkspaceRuntimeConcurrencyTests
 swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests'
 swift test --filter 'SentimentEngineFeatureTests|SentimentPresentationFeatureTests'
 swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|WorkspaceActionDispatcherTests|SentimentEngineFeatureTests|SentimentPresentationFeatureTests|CompositionTests'
+swift test --filter 'WorkspaceRuntimeConcurrencyTests|PlotClusterFeatureTests|MainWorkspaceViewModelTests|WorkspaceActionDispatcherTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests|CompositionTests'
 zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release
 HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library
 swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
@@ -313,7 +319,6 @@ Next required work:
 
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
-- audit remaining non-P0 analysis branches for latest-result or explicit single-flight semantics where rapid reruns can otherwise write stale UI state
 - separate user-visible cancellation state from failed-state presentation for managed result runs
 - run final DMG packaging on a machine that supports `hdiutil create` before tagging
 
@@ -338,6 +343,6 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 1. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
 2. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
-3. Audit remaining non-P0 analysis branches for explicit latest-result/single-flight semantics before considering the cancellation track complete.
+3. Separate user-visible cancellation state from failed-state presentation for managed result runs before considering the cancellation track complete.
 4. Run final DMG packaging on a release machine where `hdiutil create` is available.
 5. Keep every performance change tied to a measurable baseline entry.

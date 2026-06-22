@@ -198,6 +198,123 @@ final class WorkspaceRuntimeConcurrencyTests: XCTestCase {
         XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.sentiment))
     }
 
+    func testRapidPlotRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.plotDelayNanoseconds = 120_000_000
+        repository.plotResultProvider = { request in
+            makePlotResult(query: request.query, scope: request.scope, searchOptions: request.searchOptions, rows: [
+                makePlotRow(marker: request.query)
+            ])
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.plot.query = "alpha"
+        dispatcher.handlePlotAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.plot.query = "beta"
+        dispatcher.handlePlotAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runPlotCallCount, 2)
+        XCTAssertEqual(repository.lastRunPlotRequest?.query, "beta")
+        XCTAssertEqual(workspace.plot.result?.request.query, "beta")
+        XCTAssertEqual(workspace.plot.scene?.query, "beta")
+        XCTAssertEqual(workspace.plot.scene?.rows.first?.displayName, "beta corpus")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.plot.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.plot))
+    }
+
+    func testRapidNgramRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.ngramDelayNanoseconds = 120_000_000
+        repository.ngramResultProvider = { _, n in
+            NgramResult(n: n, rows: [NgramRow(phrase: "ngram-\(n)", count: n)])
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.ngram.ngramSize = "2"
+        dispatcher.handleNgramAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.ngram.ngramSize = "3"
+        dispatcher.handleNgramAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runNgramCallCount, 2)
+        XCTAssertEqual(repository.lastRunNgramN, 3)
+        XCTAssertEqual(workspace.ngram.result?.n, 3)
+        XCTAssertEqual(workspace.ngram.result?.rows.first?.phrase, "ngram-3")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.ngram.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.ngram))
+    }
+
+    func testRapidClusterRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.clusterDelayNanoseconds = 120_000_000
+        repository.clusterResultProvider = { request in
+            makeClusterResult(marker: request.caseSensitive ? "case-sensitive" : "case-insensitive")
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.cluster.caseSensitive = false
+        dispatcher.handleClusterAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.cluster.caseSensitive = true
+        dispatcher.handleClusterAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runClusterCallCount, 2)
+        XCTAssertEqual(repository.lastRunClusterRequest?.caseSensitive, true)
+        XCTAssertEqual(workspace.cluster.result?.rows.first?.phrase, "case-sensitive")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.cluster.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.cluster))
+    }
+
+    func testRapidCollocateRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.collocateDelayNanoseconds = 120_000_000
+        repository.collocateResultProvider = { keyword in
+            makeCollocateResult(marker: keyword)
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.collocate.keyword = "alpha"
+        dispatcher.handleCollocateAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.collocate.keyword = "beta"
+        dispatcher.handleCollocateAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runCollocateCallCount, 2)
+        XCTAssertEqual(repository.lastRunCollocateKeyword, "beta")
+        XCTAssertEqual(workspace.collocate.result?.rows.first?.word, "beta-neighbor")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.collocate.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.collocate))
+    }
+
     func testPersistenceActorDoesNotApplyStaleCompletionCallbacks() async {
         var savedTabs: [String] = []
         var persistedTabs: [String] = []
@@ -301,6 +418,63 @@ private func makeCompareResult(
                 ]
             }
         ]]
+    ])
+}
+
+private func makePlotRow(marker: String) -> PlotRow {
+    PlotRow(
+        id: marker,
+        corpusId: "corpus-1",
+        fileID: 0,
+        filePath: "/tmp/\(marker).txt",
+        displayName: "\(marker) corpus",
+        fileTokens: 120,
+        frequency: 3,
+        normalizedFrequency: 250,
+        hitMarkers: [
+            PlotHitMarker(id: "\(marker)-0", sentenceId: 0, tokenIndex: 0, normalizedPosition: 0)
+        ]
+    )
+}
+
+private func makeClusterResult(marker: String) -> ClusterResult {
+    ClusterResult(
+        mode: .targetOnly,
+        targetDocumentCount: 1,
+        referenceDocumentCount: 0,
+        targetTokenCount: 100,
+        referenceTokenCount: 0,
+        rows: [
+            ClusterRow(
+                phrase: marker,
+                n: 3,
+                frequency: 3,
+                normalizedFrequency: 300,
+                range: 1,
+                rangePercentage: 100,
+                referenceFrequency: nil,
+                referenceNormalizedFrequency: nil,
+                referenceRange: nil,
+                logRatio: nil
+            )
+        ]
+    )
+}
+
+private func makeCollocateResult(marker: String) -> CollocateResult {
+    CollocateResult(rows: [
+        CollocateRow(
+            word: "\(marker)-neighbor",
+            total: 3,
+            left: 1,
+            right: 2,
+            wordFreq: 10,
+            keywordFreq: 5,
+            rate: 0.3,
+            logDice: 8.0,
+            mutualInformation: 2.1,
+            tScore: 4.2
+        )
     ])
 }
 

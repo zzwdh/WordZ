@@ -67,6 +67,21 @@ extension WorkspaceFlowCoordinator {
         try await analysisWorkflow.buildComparisonEntries(from: selectedCorpora)
     }
 
+    func resolvedPlotScope(features: WorkspaceFeatureSet) -> PlotScopeResolution {
+        analysisWorkflow.resolvedPlotScope(features: features)
+    }
+
+    func buildPlotEntries(
+        scope: PlotScopeResolution,
+        features: WorkspaceFeatureSet
+    ) async throws -> [PlotCorpusEntry] {
+        try await analysisWorkflow.buildPlotEntries(
+            scope: scope,
+            features: features,
+            syncFeatureContexts: syncFeatureContexts
+        )
+    }
+
     func localizedTopicProgressDetail(_ progress: TopicAnalysisProgress) -> String {
         analysisWorkflow.localizedTopicProgressDetail(progress)
     }
