@@ -8,7 +8,7 @@ This file tracks the concrete 1.4.0 work that supports the roadmap theme: perfor
 
 ## API Foundation
 
-Status: first implementation and the narrow manual API pilot have landed; focused validation is green.
+Status: first implementation, the narrow manual API pilot, and the release API privacy/export gate have landed; focused validation is green.
 
 Implemented:
 
@@ -73,13 +73,13 @@ swift test --filter NativeUpdateServiceTests --filter SettingsTests --filter Nat
 
 Result: 28 focused API/update/settings tests, 0 failures. The latest run also included `MainWorkspaceViewModelTests.testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics`.
 
-Latest pilot privacy validation:
+Latest release API privacy/export validation:
 
 ```sh
-swift test --filter NativeUpdateServiceTests/testNativeAPIConnectionTestServiceUsesUnifiedClientAndCredentialHeader --filter MainWorkspaceViewModelTests/testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics
+zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
 ```
 
-Result: 2 focused API pilot diagnostics tests, 0 failures. The workspace test encodes the diagnostics payload and verifies it does not contain the saved token, API key, URL query token, or a sample corpus text fragment.
+Result: 3 release API privacy/export tests, 0 failures. The gate verifies saved credential headers through the unified connection client, redacted pilot request metadata in diagnostics payloads, and a real diagnostics zip export that strips API keys, authorization values, trace tokens, query tokens, and sample corpus text.
 
 ## Performance Baseline
 
@@ -203,6 +203,16 @@ Latest aggregate release run:
   4. Library scene open, p95 114.7 ms.
   5. Sentiment on bundled reference corpus, p95 84.4 ms.
 
+Latest packaged app smoke:
+
+- Date: 2026-06-22
+- Build/package command: `WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/Users/zouyuxuan/corpus-lite/apps/macos-native/WordZMac/dist-native-1.4-smoke zsh Scripts/package-app.sh`
+- Result: the app bundle, zip, and pkg were created; DMG creation stopped in the current managed environment with `hdiutil: create failed - 设备未配置`.
+- Smoke command: `zsh Scripts/release-smoke.sh dist-native-1.4-smoke/WordZ.app`
+- Result: app-bundle smoke passed. The check validated `Info.plist`, build info, executable presence/SHA metadata, Topic and Sentiment resources, English and Chinese localizations, and the sibling pkg installer payload.
+- Version validated: `1.3.9`, from the current `VERSION` file. The `1.4.0` version bump/tag remains a separate release step.
+- Script support added: `Scripts/release-smoke.sh` now accepts a `.app` bundle directly, so app/package structure can still be verified when manifest or DMG generation is unavailable.
+
 Latest focused Library import/index optimization run:
 
 - Date: 2026-06-22
@@ -251,15 +261,18 @@ zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/report
 HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library
 swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
 CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_HOME=/tmp/wordz-swiftpm-cache WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-library-baseline-after-3 WORDZ_1_4_LIBRARY_BASELINE_BUILD_CONFIGURATION=release swift test --disable-sandbox -c release --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
+WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-app-smoke zsh Scripts/build-app.sh
+zsh Scripts/release-smoke.sh /tmp/wordz-app-smoke/WordZ.app
+zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
 ```
 
-Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`.
+Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`. In this environment the app bundle and pkg can be validated, but final DMG generation still needs a local release machine where `hdiutil create` is available.
 
 Next required work:
 
-- run packaged-app smoke and API diagnostics privacy export checks before tagging
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
+- run final DMG packaging on a machine that supports `hdiutil create` before tagging
 
 Baseline command:
 
@@ -275,13 +288,12 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next API Work
 
-1. Run one release/build-package diagnostics export check before tagging to confirm the pilot metadata remains redacted outside the debug test harness.
+1. Keep `Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox` in the pre-tag checklist.
 2. Keep the 1.4.0 API pilot limited to manual connection checking unless a future API feature can meet the same no-corpus-upload, no-analysis-truth-change, and redacted-diagnostics contract.
 
 ## Next Performance Work
 
-1. Run packaged-app smoke so the release baseline is backed by a built app, not only SwiftPM tests.
-2. Run API diagnostics privacy export checks before tagging.
-3. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
-4. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
-5. Keep every performance change tied to a measurable baseline entry.
+1. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
+2. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
+3. Run final DMG packaging on a release machine where `hdiutil create` is available.
+4. Keep every performance change tied to a measurable baseline entry.

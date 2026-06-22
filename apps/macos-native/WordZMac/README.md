@@ -61,6 +61,14 @@ zsh apps/macos-native/WordZMac/Scripts/package-pkg.sh
 
 这样可以把 `zip / dmg / pkg` 的校验和和发布元信息一起留档，方便之后复核或上传 Release。
 
+如果当前机器不能创建 DMG，可以先检查已构建的应用包：
+
+```bash
+zsh Scripts/release-smoke.sh dist-native/WordZ.app
+```
+
+这个 smoke 会验证应用包结构、构建信息、内置 Topic/Sentiment 资源、本地化资源，并在同目录存在匹配 `.pkg` 时检查安装包 payload。
+
 ### 签名
 
 可选环境变量：

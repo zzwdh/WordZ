@@ -3,7 +3,7 @@ set -euo pipefail
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 usage() {
-  echo "usage: $0 [<manifest-or-dist-dir>]" >&2
+  echo "usage: $0 [<manifest-or-dist-dir-or-app-bundle>]" >&2
   exit 1
 }
 
@@ -55,46 +55,79 @@ validate_serialized_resource() {
   /usr/bin/plutil -convert xml1 -o /dev/null "$path"
 }
 
+is_app_bundle_path() {
+  local input_path="$1"
+  [[ -d "$input_path" && -f "$input_path/Contents/Info.plist" ]]
+}
+
 if [[ "${1:-}" == "--help" ]]; then
   usage
 fi
 
-MANIFEST_PATH="$(resolve_manifest_path "${1:-}")"
-if [[ ! -f "$MANIFEST_PATH" ]]; then
-  echo "manifest not found: $MANIFEST_PATH" >&2
-  exit 1
-fi
+SMOKE_MODE="manifest"
+MANIFEST_PATH=""
+INPUT_PATH="${1:-}"
 
-DIST_DIR="$(cd "$(dirname "$MANIFEST_PATH")" && pwd)"
-APP_NAME="$(read_json_value "$MANIFEST_PATH" appName)"
-VERSION="$(read_json_value "$MANIFEST_PATH" version)"
-ARCHITECTURE="$(read_json_value "$MANIFEST_PATH" architecture)"
-CHECKSUMS_NAME="$(read_json_value "$MANIFEST_PATH" checksumsFileName || true)"
-if [[ -z "$CHECKSUMS_NAME" ]]; then
-  LEGACY_CHECKSUMS_PATH="$(read_json_value "$MANIFEST_PATH" checksumsPath || true)"
-  CHECKSUMS_NAME="${LEGACY_CHECKSUMS_PATH:t}"
-fi
-[[ -n "$CHECKSUMS_NAME" ]] || CHECKSUMS_NAME="${MANIFEST_PATH:t:r:r}.checksums.txt"
-APP_BUNDLE_NAME="$(read_json_value "$MANIFEST_PATH" appBundle.name || true)"
-[[ -n "$APP_BUNDLE_NAME" ]] || APP_BUNDLE_NAME="$APP_NAME.app"
-CHECKSUMS_PATH="$DIST_DIR/$CHECKSUMS_NAME"
-APP_BUNDLE="$DIST_DIR/$APP_BUNDLE_NAME"
-INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
-PKG_NAME=""
-for asset_index in {0..9}; do
-  candidate_name="$(read_json_value "$MANIFEST_PATH" assets.$asset_index.name || true)"
-  if [[ "$candidate_name" == *.pkg ]]; then
-    PKG_NAME="$candidate_name"
-    break
+if [[ -n "$INPUT_PATH" ]] && is_app_bundle_path "$INPUT_PATH"; then
+  SMOKE_MODE="app-bundle"
+  APP_BUNDLE="$(cd "$INPUT_PATH" && pwd)"
+  DIST_DIR="$(cd "$(dirname "$APP_BUNDLE")" && pwd)"
+  APP_BUNDLE_NAME="${APP_BUNDLE:t}"
+  INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
+  APP_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$INFO_PLIST" 2>/dev/null || true)"
+  [[ -n "$APP_NAME" ]] || APP_NAME="${APP_BUNDLE_NAME%.app}"
+  VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST" 2>/dev/null || true)"
+  ARCHITECTURE=""
+  CHECKSUMS_PATH=""
+  PKG_PATH=""
+else
+  MANIFEST_PATH="$(resolve_manifest_path "$INPUT_PATH")"
+  if [[ ! -f "$MANIFEST_PATH" ]]; then
+    echo "manifest not found: $MANIFEST_PATH" >&2
+    exit 1
   fi
-done
-PKG_PATH=""
-if [[ -n "$PKG_NAME" && "$PKG_NAME" == *.pkg ]]; then
-  PKG_PATH="$DIST_DIR/$PKG_NAME"
+
+  DIST_DIR="$(cd "$(dirname "$MANIFEST_PATH")" && pwd)"
+  APP_NAME="$(read_json_value "$MANIFEST_PATH" appName)"
+  VERSION="$(read_json_value "$MANIFEST_PATH" version)"
+  ARCHITECTURE="$(read_json_value "$MANIFEST_PATH" architecture)"
+  CHECKSUMS_NAME="$(read_json_value "$MANIFEST_PATH" checksumsFileName || true)"
+  if [[ -z "$CHECKSUMS_NAME" ]]; then
+    LEGACY_CHECKSUMS_PATH="$(read_json_value "$MANIFEST_PATH" checksumsPath || true)"
+    CHECKSUMS_NAME="${LEGACY_CHECKSUMS_PATH:t}"
+  fi
+  [[ -n "$CHECKSUMS_NAME" ]] || CHECKSUMS_NAME="${MANIFEST_PATH:t:r:r}.checksums.txt"
+  APP_BUNDLE_NAME="$(read_json_value "$MANIFEST_PATH" appBundle.name || true)"
+  [[ -n "$APP_BUNDLE_NAME" ]] || APP_BUNDLE_NAME="$APP_NAME.app"
+  CHECKSUMS_PATH="$DIST_DIR/$CHECKSUMS_NAME"
+  APP_BUNDLE="$DIST_DIR/$APP_BUNDLE_NAME"
+  INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
+  PKG_NAME=""
+  for asset_index in {0..9}; do
+    candidate_name="$(read_json_value "$MANIFEST_PATH" assets.$asset_index.name || true)"
+    if [[ "$candidate_name" == *.pkg ]]; then
+      PKG_NAME="$candidate_name"
+      break
+    fi
+  done
+  PKG_PATH=""
+  if [[ -n "$PKG_NAME" && "$PKG_NAME" == *.pkg ]]; then
+    PKG_PATH="$DIST_DIR/$PKG_NAME"
+  fi
 fi
 APP_RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 FEATURE_RESOURCE_BUNDLE="$APP_RESOURCES_DIR/WordZMac_WordZMac.bundle"
 BUILD_INFO_PATH="$APP_RESOURCES_DIR/WordZMacBuildInfo.json"
+if [[ "$SMOKE_MODE" == "app-bundle" && -f "$BUILD_INFO_PATH" ]]; then
+  BUILD_INFO_ARCH_CANDIDATE="$(read_json_value "$BUILD_INFO_PATH" architecture || true)"
+  if [[ -n "$BUILD_INFO_ARCH_CANDIDATE" ]]; then
+    ARCHITECTURE="$BUILD_INFO_ARCH_CANDIDATE"
+    CANDIDATE_PKG_PATH="$DIST_DIR/$APP_NAME-$VERSION-mac-$ARCHITECTURE.pkg"
+    if [[ -f "$CANDIDATE_PKG_PATH" ]]; then
+      PKG_PATH="$CANDIDATE_PKG_PATH"
+    fi
+  fi
+fi
 EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO_PLIST")"
 EXECUTABLE_PATH="$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
 TOPIC_MANIFEST_PATH="$(first_existing_path \
@@ -144,7 +177,9 @@ ZH_LOCALIZATION_PATH="$(first_existing_path \
 [[ -f "$INFO_PLIST" ]] || { echo "missing Info.plist: $INFO_PLIST" >&2; exit 1; }
 [[ -f "$BUILD_INFO_PATH" ]] || { echo "missing build info file: $BUILD_INFO_PATH" >&2; exit 1; }
 [[ -x "$EXECUTABLE_PATH" ]] || { echo "missing executable: $EXECUTABLE_PATH" >&2; exit 1; }
-[[ -f "$CHECKSUMS_PATH" ]] || { echo "missing checksums file: $CHECKSUMS_PATH" >&2; exit 1; }
+if [[ "$SMOKE_MODE" == "manifest" ]]; then
+  [[ -f "$CHECKSUMS_PATH" ]] || { echo "missing checksums file: $CHECKSUMS_PATH" >&2; exit 1; }
+fi
 if [[ -n "$PKG_PATH" ]]; then
   [[ -f "$PKG_PATH" ]] || { echo "missing pkg installer: $PKG_PATH" >&2; exit 1; }
   if ! /usr/sbin/pkgutil --payload-files "$PKG_PATH" | /usr/bin/grep -Fq "Applications/$APP_BUNDLE_NAME/Contents/Info.plist" \
@@ -173,6 +208,11 @@ BUILD_INFO_ARCH="$(read_json_value "$BUILD_INFO_PATH" architecture)"
 BUILD_INFO_CHANNEL="$(read_json_value "$BUILD_INFO_PATH" distributionChannel || true)"
 BUILD_INFO_SHA="$(read_json_value "$BUILD_INFO_PATH" executableSHA256 || true)"
 
+[[ -n "$VERSION" ]] || { echo "missing release version" >&2; exit 1; }
+[[ -n "$BUILD_INFO_ARCH" ]] || { echo "missing build info architecture" >&2; exit 1; }
+if [[ -z "$ARCHITECTURE" ]]; then
+  ARCHITECTURE="$BUILD_INFO_ARCH"
+fi
 [[ "$INFO_VERSION" == "$VERSION" ]] || { echo "Info.plist version mismatch: $INFO_VERSION != $VERSION" >&2; exit 1; }
 [[ "$BUILD_INFO_VERSION" == "$VERSION" ]] || { echo "build info version mismatch: $BUILD_INFO_VERSION != $VERSION" >&2; exit 1; }
 [[ "$BUILD_INFO_ARCH" == "$ARCHITECTURE" ]] || { echo "build info architecture mismatch: $BUILD_INFO_ARCH != $ARCHITECTURE" >&2; exit 1; }
@@ -190,6 +230,7 @@ validate_serialized_resource "$SENTIMENT_NEGATORS_PATH"
 validate_serialized_resource "$SENTIMENT_CONTRASTIVES_PATH"
 validate_serialized_resource "$SENTIMENT_INTENSIFIERS_PATH"
 validate_serialized_resource "$SENTIMENT_REPORTING_VERBS_PATH"
+echo "[native-release-smoke] mode: $SMOKE_MODE"
 echo "[native-release-smoke] app bundle: $APP_BUNDLE"
 echo "[native-release-smoke] version: $VERSION"
 echo "[native-release-smoke] build: $INFO_BUILD"
