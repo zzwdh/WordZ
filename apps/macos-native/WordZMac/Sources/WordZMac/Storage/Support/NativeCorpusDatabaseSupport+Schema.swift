@@ -7,7 +7,11 @@ extension NativeCorpusDatabaseSupport {
         try execute("PRAGMA synchronous=NORMAL;", on: db)
     }
 
-    static func ensureDocumentSchema(on db: OpaquePointer?) throws {
+    static func ensureDocumentSchema(
+        on db: OpaquePointer?,
+        ensureColumns: Bool = true,
+        createIndexes: Bool = true
+    ) throws {
         try execute(
             """
             CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -127,22 +131,30 @@ extension NativeCorpusDatabaseSupport {
             """,
             on: db
         )
-        try ensureColumn("source_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("year_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("genre_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("tags_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("ttr", definition: "REAL NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
-        try ensureColumn("sttr", definition: "REAL NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
-        try ensureColumn("cleaned_at", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("cleaning_profile_version", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("cleaning_rule_hits_json", definition: "TEXT NOT NULL DEFAULT '[]'", onTable: "corpus_document", db: db)
-        try ensureColumn("original_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
-        try ensureColumn("cleaned_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
-        try ensureColumn("cleaned_text_digest", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("source_file_count", definition: "INTEGER NOT NULL DEFAULT 1", onTable: "corpus_document", db: db)
-        try ensureColumn("tokenized_sentences_json", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("raw_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
-        try ensureColumn("cleaned_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        if ensureColumns {
+            try ensureColumn("source_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("year_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("genre_label", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("tags_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("ttr", definition: "REAL NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+            try ensureColumn("sttr", definition: "REAL NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+            try ensureColumn("cleaned_at", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("cleaning_profile_version", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("cleaning_rule_hits_json", definition: "TEXT NOT NULL DEFAULT '[]'", onTable: "corpus_document", db: db)
+            try ensureColumn("original_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+            try ensureColumn("cleaned_character_count", definition: "INTEGER NOT NULL DEFAULT 0", onTable: "corpus_document", db: db)
+            try ensureColumn("cleaned_text_digest", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("source_file_count", definition: "INTEGER NOT NULL DEFAULT 1", onTable: "corpus_document", db: db)
+            try ensureColumn("tokenized_sentences_json", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("raw_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+            try ensureColumn("cleaned_text", definition: "TEXT NOT NULL DEFAULT ''", onTable: "corpus_document", db: db)
+        }
+        if createIndexes {
+            try ensureDocumentIndexes(on: db)
+        }
+    }
+
+    static func ensureDocumentIndexes(on db: OpaquePointer?) throws {
         try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_imported_at ON corpus_document(imported_at DESC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_represented_path ON corpus_document(represented_path ASC);", on: db)
         try execute("CREATE INDEX IF NOT EXISTS idx_corpus_document_source_label ON corpus_document(source_label ASC);", on: db)

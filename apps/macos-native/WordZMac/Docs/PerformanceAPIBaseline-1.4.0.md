@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Updated: 2026-06-21
+Updated: 2026-06-22
 
 This file tracks the concrete 1.4.0 work that supports the roadmap theme: performance optimization and API call stabilization.
 
@@ -83,7 +83,7 @@ Result: 2 focused API pilot diagnostics tests, 0 failures. The workspace test en
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, and release-mode aggregate baseline captured.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Library import/index shard-write optimization, and release-mode aggregate baseline captured.
 
 Existing foundation:
 
@@ -164,10 +164,20 @@ Latest aggregate release run:
   - Library scene search: p50 26.1 ms, p95 27.7 ms.
   - Library selection update: p95 10.0 ms.
 - Current release-mode priority after Topics optimization:
-  1. Library import/index, p95 426.1 ms.
+  1. Library import/index, aggregate p95 426.1 ms before the shard-write optimization.
   2. Library scene open, p95 118.3 ms.
   3. Sentiment on bundled reference corpus, p95 79.5 ms.
   4. KWIC smoke, p95 8.6 ms.
+
+Latest focused Library import/index optimization run:
+
+- Date: 2026-06-22
+- Command: `CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_HOME=/tmp/wordz-swiftpm-cache WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-library-baseline-after-3 WORDZ_1_4_LIBRARY_BASELINE_BUILD_CONFIGURATION=release swift test --disable-sandbox -c release --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap`
+- Input: 24 generated TXT files per run, 1,200 characters each, 3/3 successful runs.
+- Before focused release rerun: import/index p50 351.9 ms, p95 368.5 ms.
+- After focused release rerun: import/index p50 218.1 ms, p95 230.3 ms.
+- Delta: import/index p95 improved by 138.3 ms, about 37.5%.
+- Adjacent Library scene metrics stayed in the same range: scene open p95 106.2 ms, scene search p95 25.8 ms, scene refresh p95 0.032 ms, selection p95 9.2 ms.
 
 Optimization notes:
 
@@ -178,6 +188,11 @@ Optimization notes:
   - Before: synthetic 1,200-corpus Library refresh p95 108.9 ms.
   - After: synthetic 1,200-corpus Library refresh p95 0.003 ms.
   - Quality impact: none expected; this path only skips rebuilding an identical scene model. Empty-library initial bootstrap remains covered by a focused test.
+- Library import/index shard-write optimization:
+  - Change: new corpus shard writes now create the relational tables first, bulk-insert document, sentence, token, frequency, and token-position rows, then create secondary indexes. New staging shards also skip legacy column-migration checks that are still kept on read/update paths for older shard files.
+  - Before: focused release Library import/index p50 351.9 ms, p95 368.5 ms.
+  - After: focused release Library import/index p50 218.1 ms, p95 230.3 ms.
+  - Quality impact: no analysis-truth change expected; final shard schema and indexes are unchanged. Focused tests still verify frequency indexes, metadata indexes, sentence FTS prefix search, and stored token-position artifacts.
 - Topics result-assembly statistics optimization:
   - Change: `NativeTopicEngine+ResultAssembly` now precomputes per-slice keyword statistics, derives non-target rest statistics without rescanning every rest slice per cluster, and uses normalized cosine similarity for already-normalized topic vectors.
   - Before: bundled reference corpus Topics p50 3452.7 ms, p95 3463.0 ms; summarizing stage about 184 ms per run.
@@ -199,13 +214,15 @@ swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishin
 swift test --filter NativeTopicEngineTests --filter TopicBenchmarkTests
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release
+swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
+CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_HOME=/tmp/wordz-swiftpm-cache WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-library-baseline-after-3 WORDZ_1_4_LIBRARY_BASELINE_BUILD_CONFIGURATION=release swift test --disable-sandbox -c release --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
 ```
 
 Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`.
 
 Next required work:
 
-- optimize Library import/index next, because release p95 is about 426 ms versus Sentiment p95 about 80 ms on the bundled reference corpus
+- rerun the full release aggregate baseline after the Library shard-write optimization before tagging, because the current proof is a focused release Library baseline
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 
@@ -228,8 +245,8 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next Performance Work
 
-1. Optimize Library import/index using the release baseline as the priority signal.
-2. Keep the release aggregate baseline command green and rerun it before tagging.
-3. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
-4. Keep Library scene open under watch; current debug p95 is about 153 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
+1. Rerun the full release aggregate baseline after the Library shard-write optimization and update the aggregate p95 table before tagging.
+2. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
+3. Keep Library scene open under watch; focused release p95 is about 106 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
+4. Use Library scene open or packaged-app smoke as the next performance gate instead of another Library import/index pass unless the aggregate rerun contradicts the focused result.
 5. Keep every performance change tied to a measurable baseline entry.

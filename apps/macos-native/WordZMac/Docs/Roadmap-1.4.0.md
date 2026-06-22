@@ -50,11 +50,11 @@
 | 大结果页 UI 性能保护 | 70% | 大结果页快速翻页、排序、筛选、列显隐边界测试已复跑通过，参考语料 repeat 基线已记录 P50/P95 | 补 P95 交互预算和 release/build-package 回归报告 |
 | 分析任务取消与并发保护 | 55% | 已有运行时 task supervisor、“只应用最新结果”测试基础，API queued / in-flight 取消已覆盖 | 覆盖更多长任务，保证取消后不会继续写 UI 状态 |
 | Topics/Keyword 性能对比 | 88% | 已记录固定机器 topic/sentiment 基线、固定用户样本 repeat=3 p50/p95、内置参考语料 repeat=3 p50/p95 和最慢阶段排序；Topics 结果组装已做第一轮优化，debug 参考语料 Topics p95 约 3463ms -> 3287ms；release 参考语料 Topics p95 约 847ms，关键质量字段保持一致 | 发布前保留 release 报告，继续评估 embedding 阶段是否还有低风险优化 |
-| Library 打开和刷新性能 | 82% | 已做过场景同步和重复刷新收敛，已新增 Library/import repeat=3 基线；重复应用同一 Library 快照已跳过 scene rebuild，1200 条 Library 重复刷新 release p95 约 0.028ms；release import/index p95 约 426ms，已成为 Topics 之后的主要性能目标 | 下一轮优先优化 Library import/index，而不是 Sentiment |
+| Library 打开和刷新性能 | 88% | 已做过场景同步和重复刷新收敛，已新增 Library/import repeat=3 基线；重复应用同一 Library 快照已跳过 scene rebuild，1200 条 Library 重复刷新 release p95 约 0.028ms；Library import/index 分片写入已完成一轮优化，focused release p95 约 368.5ms -> 230.3ms | 发布前用完整 release aggregate 复跑确认，并继续观察 Library scene open |
 | API 调用底座 | 86% | 已有 `NativeAPIClient` 第一版，更新检查和手动 API 连接检查已迁移；连接检查已固定为 1.4.0 窄 API 试点，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖，更新检查 service factory 已接入当前 API timeout/concurrency 设置 | 发布前补一次实际诊断包导出检查 |
 | API 设置与凭据保护 | 86% | 设置页已有 API 总开关、凭据状态、保存/清除凭据动作、真实连接测试、超时/并发上限设置，凭据走 Keychain 底座；连接检查明确不上传语料正文，诊断包只导出脱敏后的请求 host/path/status/duration/header 元数据 | 发布前复核诊断包不包含 API key、Authorization header、query 参数或完整语料原文 |
 | API 错误恢复 | 68% | 更新检查和连接测试已走统一错误层，已覆盖 429 重试、HTTP 失败、API 关闭恢复文案、凭据错误提示和取消归一；手动连接检查不会改变本地统计分析结果 | 发布前补 release 口径下的离线/失败手工检查记录 |
-| 性能/API 文档与发布门禁 | 90% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95、release 聚合脚本和两条 before/after 优化记录已建立 | 发布前补 packaged app smoke 和 API 隐私导出手工检查 |
+| 性能/API 文档与发布门禁 | 92% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95、release 聚合脚本和三条 before/after 优化记录已建立 | 发布前补完整 release aggregate 复跑、packaged app smoke 和 API 隐私导出手工检查 |
 
 ## P0: 性能基线与回归门禁
 

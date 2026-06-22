@@ -113,7 +113,7 @@ enum NativeCorpusDatabaseSupport {
             defer { sqlite3_close(db) }
 
             try configureDatabase(on: db)
-            try ensureDocumentSchema(on: db)
+            try ensureDocumentSchema(on: db, ensureColumns: false, createIndexes: false)
 
             try execute("BEGIN IMMEDIATE TRANSACTION;", on: db)
             do {
@@ -141,6 +141,7 @@ enum NativeCorpusDatabaseSupport {
                     description: "Write corpus shard",
                     into: db
                 )
+                try ensureDocumentIndexes(on: db)
                 try validateStagedDocument(
                     on: db,
                     metadata: metadata,
