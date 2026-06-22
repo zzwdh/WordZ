@@ -55,8 +55,15 @@ extension MainWorkspaceViewModel {
     }
 
     func runTopics() async {
-        await performResultRun(label: "topics", taskKey: .topics) {
-            await flowCoordinator.runTopics(features: features)
+        if topics.compareDrilldownContext != nil {
+            await performResultRun(label: "topics", taskKey: .topics) {
+                await flowCoordinator.runTopics(features: features)
+            }
+            return
+        }
+
+        await performManagedTask(key: .topics, policy: .replaceLatest) { token in
+            await self.runTopics(token: token)
         }
     }
 
@@ -185,6 +192,56 @@ extension MainWorkspaceViewModel {
             )
         } apply: { result in
             self.compare.apply(result)
+        }
+    }
+
+    private func runTopics(token: WorkspaceRequestToken) async {
+        await performLatestResultRun(
+            token: token,
+            label: "topics",
+            descriptor: .topics,
+            selecting: .topics,
+            initialProgress: 0
+        ) { taskID in
+            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
+            }
+            let options = self.flowCoordinator.topicsWorkflow.topicAnalysisOptions(
+                for: self.topics,
+                text: corpus.content
+            )
+            let runFeatures = self.features
+            self.flowCoordinator.setBusy(true, features: runFeatures)
+            defer { self.flowCoordinator.setBusy(false, features: runFeatures) }
+
+            let analysisTask = Task { () throws -> TopicAnalysisResult in
+                if let progressRepository = self.flowCoordinator.analysisWorkflow.repository as? TopicProgressReportingRepository {
+                    return try await progressRepository.runTopics(text: corpus.content, options: options) { [weak taskCenter = self.taskCenter] progress in
+                        Task { @MainActor in
+                            taskCenter?.updateTask(
+                                id: taskID,
+                                detail: self.flowCoordinator.localizedTopicProgressDetail(progress),
+                                progress: progress.progress
+                            )
+                        }
+                    }
+                }
+                return try await self.flowCoordinator.analysisWorkflow.repository.runTopics(
+                    text: corpus.content,
+                    options: options
+                )
+            }
+            self.taskCenter.registerCancelHandler(id: taskID) {
+                analysisTask.cancel()
+            }
+
+            return try await withTaskCancellationHandler {
+                try await analysisTask.value
+            } onCancel: {
+                analysisTask.cancel()
+            }
+        } apply: { result in
+            self.topics.apply(result)
         }
     }
 

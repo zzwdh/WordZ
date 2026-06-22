@@ -95,6 +95,36 @@ final class WorkspaceRuntimeConcurrencyTests: XCTestCase {
         XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.compare))
     }
 
+    func testRapidTopicsRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.topicsDelayNanoseconds = 120_000_000
+        repository.topicsResultProvider = { _, options in
+            makeTopicAnalysisResult(marker: options.searchQuery.isEmpty ? "empty" : options.searchQuery)
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.topics.query = "alpha"
+        dispatcher.handleTopicsAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.topics.query = "beta"
+        dispatcher.handleTopicsAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runTopicsCallCount, 2)
+        XCTAssertEqual(repository.lastRunTopicsOptions?.searchQuery, "beta")
+        XCTAssertEqual(workspace.topics.result?.clusters.first?.keywordCandidates.first?.term, "beta")
+        XCTAssertEqual(workspace.topics.scene?.clusters.first?.keywordsText.contains("beta"), true)
+        XCTAssertEqual(repository.savedWorkspaceDrafts.count, 1)
+        XCTAssertTrue(repository.savedWorkspaceDrafts.allSatisfy { $0.currentTab == WorkspaceDetailTab.topics.snapshotValue })
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.topics))
+    }
+
     func testPersistenceActorDoesNotApplyStaleCompletionCallbacks() async {
         var savedTabs: [String] = []
         var persistedTabs: [String] = []

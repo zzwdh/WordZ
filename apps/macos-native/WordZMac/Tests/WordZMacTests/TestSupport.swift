@@ -163,6 +163,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var keywordSuiteDelayNanoseconds: UInt64 = 0
     var kwicDelayNanoseconds: UInt64 = 0
     var saveWorkspaceDelayNanoseconds: UInt64 = 0
+    var topicsResultProvider: ((String, TopicAnalysisOptions) async throws -> TopicAnalysisResult)?
     var compareResultProvider: (([CompareRequestEntry]) async throws -> CompareResult)?
     var keywordSuiteResultProvider: ((KeywordSuiteRunRequest) async throws -> KeywordSuiteResult)?
     var kwicResultProvider: ((String) async throws -> KWICResult)?
@@ -602,6 +603,9 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
             try? await Task.sleep(nanoseconds: topicsDelayNanoseconds)
         }
         if let topicsError { throw topicsError }
+        if let topicsResultProvider {
+            return try await topicsResultProvider(text, options)
+        }
         return topicsResult
     }
 
@@ -1612,8 +1616,9 @@ func makeTokenizeResult() -> TokenizeResult {
     )
 }
 
-func makeTopicAnalysisResult() -> TopicAnalysisResult {
-    TopicAnalysisResult(
+func makeTopicAnalysisResult(marker: String = "security") -> TopicAnalysisResult {
+    let secondaryKeyword = marker == "security" ? "hacker" : "context"
+    return TopicAnalysisResult(
         modelVersion: "wordz-topics-english-1",
         modelProvider: "system-sentence-embedding",
         usesFallbackProvider: false,
@@ -1624,8 +1629,8 @@ func makeTopicAnalysisResult() -> TopicAnalysisResult {
                 isOutlier: false,
                 size: 2,
                 keywordCandidates: [
-                    TopicKeywordCandidate(term: "security", score: 1.42),
-                    TopicKeywordCandidate(term: "hacker", score: 1.17)
+                    TopicKeywordCandidate(term: marker, score: 1.42),
+                    TopicKeywordCandidate(term: secondaryKeyword, score: 1.17)
                 ],
                 representativeSegmentIDs: ["paragraph-1"]
             ),
@@ -1645,7 +1650,7 @@ func makeTopicAnalysisResult() -> TopicAnalysisResult {
                 id: "paragraph-1",
                 topicID: "topic-1",
                 paragraphIndex: 1,
-                text: "Security researchers discussed hacker communities and disclosure norms.",
+                text: "\(marker) researchers discussed \(secondaryKeyword) communities and disclosure norms.",
                 similarityScore: 0.91,
                 isOutlier: false
             ),
@@ -1653,7 +1658,7 @@ func makeTopicAnalysisResult() -> TopicAnalysisResult {
                 id: "paragraph-2",
                 topicID: "topic-1",
                 paragraphIndex: 2,
-                text: "Hackers shared exploit mitigation strategies and coordinated fixes.",
+                text: "\(secondaryKeyword) shared exploit mitigation strategies and coordinated fixes.",
                 similarityScore: 0.88,
                 isOutlier: false
             ),

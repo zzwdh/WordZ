@@ -100,7 +100,7 @@ Result: 8 release API recovery tests, 0 failures. The gate verifies API-off upda
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Library import/index shard-write optimization, and release-mode aggregate baseline captured.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Library import/index shard-write optimization, Topics latest-result concurrency protection, and release-mode aggregate baseline captured.
 
 Existing foundation:
 
@@ -220,6 +220,15 @@ Latest aggregate release run:
   4. Library scene open, p95 114.7 ms.
   5. Sentiment on bundled reference corpus, p95 84.4 ms.
 
+Latest analysis concurrency validation:
+
+- Date: 2026-06-22
+- Change: ordinary Topics runs now use the shared latest-result task supervisor path. Rapid repeated Topics requests cancel/replace the previous run, propagate cancellation into the analysis task, discard stale results, and only persist the latest Topics tab state.
+- Focused command: `swift test --filter WorkspaceRuntimeConcurrencyTests`
+- Result: 4 runtime concurrency tests, 0 failures. Coverage now includes KWIC, Compare, Topics latest-result protection, and stale persistence callback suppression.
+- Broader affected command: `swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests'`
+- Result: 45 affected workflow/concurrency/failure/coordinator tests, 0 failures.
+
 Latest packaged app smoke:
 
 - Date: 2026-06-22
@@ -254,6 +263,11 @@ Optimization notes:
   - Before: focused release Library import/index p50 351.9 ms, p95 368.5 ms.
   - After: focused release Library import/index p50 218.1 ms, p95 230.3 ms.
   - Quality impact: no analysis-truth change expected; final shard schema and indexes are unchanged. Focused tests still verify frequency indexes, metadata indexes, sentence FTS prefix search, and stored token-position artifacts.
+- Topics latest-result concurrency protection:
+  - Change: ordinary Topics runs now route through `WorkspaceTaskSupervisor` with `replaceLatest`, reuse the shared managed result-run completion path, and cancel the underlying topic analysis task when the request is replaced or cancelled.
+  - Before: Topics service guarded duplicate concurrent requests, but a rapid second run could be skipped instead of guaranteed to become the latest UI state.
+  - After: rapid Topics reruns execute as replace-latest requests; stale results are discarded before applying page state or persisting the selected tab.
+  - Quality impact: no analysis-truth change expected; the same repository run and topic options builder are reused. Focused tests assert only the latest query result reaches the Topics page and scene.
 - Topics result-assembly statistics optimization:
   - Change: `NativeTopicEngine+ResultAssembly` now precomputes per-slice keyword statistics, derives non-target rest statistics without rescanning every rest slice per cluster, and uses normalized cosine similarity for already-normalized topic vectors.
   - Before: bundled reference corpus Topics p50 3452.7 ms, p95 3463.0 ms; summarizing stage about 184 ms per run.
@@ -274,6 +288,8 @@ swift test --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBas
 swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishingUnchangedSceneSyncs --filter ViewModelsTests/testLibraryManagementViewModelAppliesInitialEmptyLibrarySnapshotOnce
 swift test --filter NativeTopicEngineTests --filter TopicBenchmarkTests
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
+swift test --filter WorkspaceRuntimeConcurrencyTests
+swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests'
 zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release
 HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library
 swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
@@ -290,6 +306,7 @@ Next required work:
 
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
+- migrate the remaining long-running analysis entry points, especially Sentiment, to latest-result or explicit single-flight semantics where rapid reruns can otherwise write stale UI state
 - run final DMG packaging on a machine that supports `hdiutil create` before tagging
 
 Baseline command:
@@ -313,5 +330,6 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 1. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
 2. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
-3. Run final DMG packaging on a release machine where `hdiutil create` is available.
-4. Keep every performance change tied to a measurable baseline entry.
+3. Move Sentiment and any other remaining long analysis entry points onto explicit latest-result/single-flight semantics before considering the cancellation track complete.
+4. Run final DMG packaging on a release machine where `hdiutil create` is available.
+5. Keep every performance change tied to a measurable baseline entry.

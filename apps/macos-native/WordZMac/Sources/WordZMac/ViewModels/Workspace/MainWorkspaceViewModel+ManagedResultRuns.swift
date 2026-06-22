@@ -52,13 +52,34 @@ extension MainWorkspaceViewModel {
         operation: () async throws -> Result,
         apply: (Result) -> Void
     ) async {
+        await performLatestResultRun(
+            token: token,
+            label: label,
+            descriptor: descriptor,
+            selecting: tab,
+            initialProgress: nil,
+            operation: { _ in try await operation() },
+            apply: apply
+        )
+    }
+
+    func performLatestResultRun<Result: Sendable>(
+        token: WorkspaceRequestToken,
+        label: String,
+        descriptor: WorkspaceRunTaskDescriptor,
+        selecting tab: WorkspaceDetailTab,
+        initialProgress: Double?,
+        operation: (UUID) async throws -> Result,
+        apply: (Result) -> Void
+    ) async {
         let context = beginManagedResultRun(
             label: label,
-            descriptor: descriptor
+            descriptor: descriptor,
+            initialProgress: initialProgress
         )
 
         do {
-            let result = try await operation()
+            let result = try await operation(context.taskID)
             guard await sessionActor.isCurrent(token) else {
                 finishManagedResultRunAsDiscarded(context: context, label: label)
                 return
@@ -69,6 +90,12 @@ extension MainWorkspaceViewModel {
                 label: label,
                 descriptor: descriptor,
                 selecting: tab
+            )
+        } catch is CancellationError {
+            await cancelManagedResultRun(
+                token: token,
+                context: context,
+                label: label
             )
         } catch {
             await failManagedResultRun(
@@ -82,7 +109,8 @@ extension MainWorkspaceViewModel {
 
     private func beginManagedResultRun(
         label: String,
-        descriptor: WorkspaceRunTaskDescriptor
+        descriptor: WorkspaceRunTaskDescriptor,
+        initialProgress: Double?
     ) -> ManagedResultRunContext {
         let startedAt = Date()
         let previousTab = selectedTab
@@ -91,7 +119,8 @@ extension MainWorkspaceViewModel {
         )
         let taskID = taskCenter.beginTask(
             title: descriptor.title(in: .system),
-            detail: descriptor.detail(in: .system)
+            detail: descriptor.detail(in: .system),
+            progress: initialProgress
         )
         return ManagedResultRunContext(
             taskID: taskID,
@@ -127,6 +156,25 @@ extension MainWorkspaceViewModel {
         )
         resultRunLogger.debug(
             "performManagedResultRun.discarded task=\(label, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: context.startedAt), privacy: .public)"
+        )
+    }
+
+    private func cancelManagedResultRun(
+        token: WorkspaceRequestToken,
+        context: ManagedResultRunContext,
+        label: String
+    ) async {
+        guard await sessionActor.isCurrent(token) else {
+            finishManagedResultRunAsDiscarded(context: context, label: label)
+            return
+        }
+        sidebar.clearError()
+        taskCenter.failTask(
+            id: context.taskID,
+            detail: wordZText("任务已取消。", "Task cancelled.", mode: .system)
+        )
+        resultRunLogger.debug(
+            "performManagedResultRun.cancelled task=\(label, privacy: .public) durationMs=\(WordZTelemetry.elapsedMilliseconds(since: context.startedAt), privacy: .public)"
         )
     }
 

@@ -33,6 +33,11 @@ protocol WorkspaceTopicsWorkflowServing {
         syncFeatureContexts: @escaping @MainActor (WorkspaceFeatureSet) -> Void
     ) async
 
+    func topicAnalysisOptions(
+        for viewModel: any WorkspaceTopicsPageState,
+        text: String?
+    ) -> TopicAnalysisOptions
+
     func prepareCompareTopics(
         features: WorkspaceTopicsWorkflowContext,
         markWorkspaceEdited: @escaping @MainActor (WorkspaceFeatureSet) -> Void
