@@ -25,6 +25,109 @@ final class PerformanceBoundaryTests: XCTestCase {
         XCTAssertEqual(ClusterPageSize.all.resolvedInteractivePageSize(totalRows: oversizedRows), .oneHundred)
     }
 
+    func testLargeResultInteractionDispatchStaysWithinP95Budget() {
+        let rowCount = LargeResultSceneBuildSupport.asyncThreshold + 240
+        var samples: [LargeResultInteractionSample] = []
+
+        let statsViewModel = StatsPageViewModel()
+        statsViewModel.apply(makeStatsResult(rowCount: rowCount))
+        waitForMainRunLoop(description: "initial stats large scene built") {
+            statsViewModel.scene?.totalRows == rowCount
+        }
+        recordInteractionDispatch("stats.sort.range", samples: &samples) {
+            statsViewModel.handle(.changeSort(.rangeAscending))
+        }
+        recordInteractionDispatch("stats.page.all", samples: &samples) {
+            statsViewModel.handle(.changePageSize(.all))
+        }
+        recordInteractionDispatch("stats.column.count", samples: &samples) {
+            statsViewModel.handle(.toggleColumn(.count))
+        }
+        recordInteractionDispatch("stats.sort.alpha", samples: &samples) {
+            statsViewModel.handle(.changeSort(.alphabeticalAscending))
+        }
+
+        let kwicViewModel = KWICPageViewModel()
+        kwicViewModel.keyword = "node"
+        kwicViewModel.apply(makeKWICResult(rowCount: rowCount))
+        waitForMainRunLoop(description: "initial kwic large scene built") {
+            kwicViewModel.scene?.totalRows == rowCount
+        }
+        recordInteractionDispatch("kwic.sort.keyword", samples: &samples) {
+            kwicViewModel.handle(.changeSort(.keywordAscending))
+        }
+        recordInteractionDispatch("kwic.page.all", samples: &samples) {
+            kwicViewModel.handle(.changePageSize(.all))
+        }
+        recordInteractionDispatch("kwic.column.sentence", samples: &samples) {
+            kwicViewModel.handle(.toggleColumn(.sentenceIndex))
+        }
+        recordInteractionDispatch("kwic.sort.sentence", samples: &samples) {
+            kwicViewModel.handle(.sortByColumn(.sentenceIndex))
+        }
+
+        let sentimentViewModel = SentimentPageViewModel()
+        sentimentViewModel.apply(makeLargeSentimentResult(rowCount: rowCount))
+        waitForMainRunLoop(description: "initial sentiment large scene built") {
+            sentimentViewModel.scene?.totalRows == rowCount
+        }
+        recordInteractionDispatch("sentiment.sort.net", samples: &samples) {
+            sentimentViewModel.handle(.changeSort(.netScoreDescending))
+        }
+        recordInteractionDispatch("sentiment.page.all", samples: &samples) {
+            sentimentViewModel.handle(.changePageSize(.all))
+        }
+        recordInteractionDispatch("sentiment.filter.positive", samples: &samples) {
+            sentimentViewModel.handle(.changeLabelFilter(.positive))
+        }
+        recordInteractionDispatch("sentiment.column.evidence", samples: &samples) {
+            sentimentViewModel.handle(.toggleColumn(.evidence))
+        }
+
+        let topicsViewModel = TopicsPageViewModel()
+        topicsViewModel.apply(makeLargeTopicAnalysisResult(segmentCount: rowCount))
+        waitForMainRunLoop(description: "initial topics large scene built") {
+            topicsViewModel.scene?.visibleSegments == rowCount
+        }
+        recordInteractionDispatch("topics.cluster", samples: &samples) {
+            topicsViewModel.handle(.selectCluster("topic-large"))
+        }
+        recordInteractionDispatch("topics.page.all", samples: &samples) {
+            topicsViewModel.handle(.changePageSize(.all))
+        }
+        recordInteractionDispatch("topics.column.score", samples: &samples) {
+            topicsViewModel.handle(.toggleColumn(.score))
+        }
+        recordInteractionDispatch("topics.sort.paragraph", samples: &samples) {
+            topicsViewModel.handle(.changeSort(.paragraphAscending))
+        }
+
+        waitForMainRunLoop(description: "latest stats budget scene built") {
+            statsViewModel.scene?.sorting.selectedSort == .alphabeticalAscending &&
+                statsViewModel.scene?.sorting.selectedPageSize == .twoHundredFifty
+        }
+        waitForMainRunLoop(description: "latest kwic budget scene built") {
+            kwicViewModel.scene?.sorting.selectedSort == .sentenceAscending &&
+                kwicViewModel.scene?.sorting.selectedPageSize == .oneHundred
+        }
+        waitForMainRunLoop(description: "latest sentiment budget scene built") {
+            sentimentViewModel.scene?.labelFilter == .positive &&
+                sentimentViewModel.scene?.sorting.selectedPageSize == .oneHundred
+        }
+        waitForMainRunLoop(description: "latest topics budget scene built") {
+            topicsViewModel.scene?.selectedClusterID == "topic-large" &&
+                topicsViewModel.scene?.controls.selectedPageSize == .oneHundred
+        }
+
+        let measuredP95 = percentile(samples.map(\.durationMilliseconds), 0.95)
+        let slowest = samples.max { $0.durationMilliseconds < $1.durationMilliseconds }
+        XCTAssertLessThanOrEqual(
+            measuredP95,
+            ResultPerformanceGuardrails.largeResultInteractionDispatchP95BudgetMilliseconds,
+            "Large-result interaction dispatch p95 \(measuredP95) ms exceeded budget; slowest sample: \(slowest?.label ?? "n/a") \(slowest?.durationMilliseconds ?? 0) ms"
+        )
+    }
+
     func testStableTableSnapshotVersionTracksLargeRowSetChanges() {
         let rows = makeTableRows(count: ResultPerformanceGuardrails.maximumInteractiveAllRows + 250)
         var changedCellRows = rows
@@ -636,6 +739,45 @@ final class PerformanceBoundaryTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedRowID, selectedRowID)
         XCTAssertEqual(viewModel.scene?.selectedRowID, selectedRowID)
     }
+}
+
+private struct LargeResultInteractionSample {
+    let label: String
+    let durationMilliseconds: Double
+}
+
+private func recordInteractionDispatch(
+    _ label: String,
+    samples: inout [LargeResultInteractionSample],
+    operation: () -> Void
+) {
+    let clock = ContinuousClock()
+    let elapsed = clock.measure {
+        operation()
+    }
+    samples.append(LargeResultInteractionSample(
+        label: label,
+        durationMilliseconds: milliseconds(elapsed)
+    ))
+}
+
+private func percentile(_ values: [Double], _ percentile: Double) -> Double {
+    guard !values.isEmpty else { return 0 }
+    let sortedValues = values.sorted()
+    guard sortedValues.count > 1 else { return sortedValues[0] }
+    let clamped = min(max(percentile, 0), 1)
+    let position = clamped * Double(sortedValues.count - 1)
+    let lowerIndex = Int(position.rounded(.down))
+    let upperIndex = Int(position.rounded(.up))
+    guard lowerIndex != upperIndex else { return sortedValues[lowerIndex] }
+    let weight = position - Double(lowerIndex)
+    return sortedValues[lowerIndex] * (1 - weight) + sortedValues[upperIndex] * weight
+}
+
+private func milliseconds(_ duration: Duration) -> Double {
+    let components = duration.components
+    return Double(components.seconds) * 1000
+        + Double(components.attoseconds) / 1_000_000_000_000_000
 }
 
 private func makeTableRows(count: Int) -> [NativeTableRowDescriptor] {

@@ -10,6 +10,7 @@ SCRIPT_NAME="${0:t}"
 
 RUN_METADATA=1
 RUN_TESTS=1
+RUN_UI_PERFORMANCE=1
 RUN_API_GATES=1
 RUN_ARCHITECTURE=1
 RUN_PACKAGE=1
@@ -23,18 +24,19 @@ UPLOAD_ARGS=()
 
 usage() {
   cat <<EOF
-usage: $SCRIPT_NAME [--skip-metadata] [--skip-tests] [--skip-api-gates] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--notarize] [--upload] [--manifest <path>] [--notes-file <path>] [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--draft] [--prerelease] [--clobber]
+usage: $SCRIPT_NAME [--skip-metadata] [--skip-tests] [--skip-ui-performance] [--skip-api-gates] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--notarize] [--upload] [--manifest <path>] [--notes-file <path>] [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--draft] [--prerelease] [--clobber]
 
 This script runs the native macOS release checklist:
   1. release-metadata-check.sh
   2. swift tests
-  3. 1.4 API privacy/recovery gates
-  4. architecture-guard.sh
-  5. package-app.sh
-  6. verify-release.sh
-  7. release-smoke.sh
-  8. optional notarize-app.sh
-  9. optional release-upload.sh
+  3. 1.4 UI performance gate
+  4. 1.4 API privacy/recovery gates
+  5. architecture-guard.sh
+  6. package-app.sh
+  7. verify-release.sh
+  8. release-smoke.sh
+  9. optional notarize-app.sh
+  10. optional release-upload.sh
 EOF
   exit "${1:-1}"
 }
@@ -46,6 +48,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-tests)
       RUN_TESTS=0
+      ;;
+    --skip-ui-performance)
+      RUN_UI_PERFORMANCE=0
       ;;
     --skip-api-gates)
       RUN_API_GATES=0
@@ -119,6 +124,11 @@ fi
 if [[ "$RUN_TESTS" -eq 1 ]]; then
   step "swift tests"
   swift test --package-path "$APP_ROOT"
+fi
+
+if [[ "$RUN_UI_PERFORMANCE" -eq 1 ]]; then
+  step "1.4 UI performance gate"
+  zsh "$SCRIPT_DIR/run-1.4-ui-performance-check.sh" --release
 fi
 
 if [[ "$RUN_API_GATES" -eq 1 ]]; then

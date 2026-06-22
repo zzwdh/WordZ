@@ -37,7 +37,7 @@ Implemented:
 - pilot request observations carried from the Host layer into diagnostics export as redacted metadata only
 - pilot diagnostics strip query strings and sensitive headers, and do not include request bodies or corpus text
 - API connection failure recovery messages now use redacted, user-facing status text in both Settings and issue banners
-- release checklist runs the 1.4 API privacy and recovery gates before packaging
+- release checklist runs the 1.4 UI performance, API privacy, and API recovery gates before packaging
 
 Current API contract:
 
@@ -110,6 +110,16 @@ Existing foundation:
 - `Scripts/run-1.4-performance-baseline.sh` now aggregates fixed topic, sentiment, fixed user fixture, bundled reference-corpus fixture, Library/import, and optional external user corpus reports
 - `Scripts/run-1.4-performance-baseline.sh --release` runs the fixed reports through release SwiftPM tests and records `buildConfiguration: "release"` in the manifest
 - `Scripts/run-1.4-performance-baseline.sh --disable-swiftpm-sandbox` lets the same aggregate run complete inside already-sandboxed automation environments that block SwiftPM's nested `sandbox-exec`
+- `Scripts/run-1.4-ui-performance-check.sh --release` runs the large-result UI performance gate before packaging
+
+Latest large-result UI performance gate:
+
+- Date: 2026-06-22
+- Change: added an explicit large-result interaction dispatch P95 budget of 50 ms, covering representative Stats, KWIC, Sentiment, and Topics interactions without counting asynchronous scene-build completion as input-blocking time.
+- Debug command: `zsh Scripts/run-1.4-ui-performance-check.sh --debug --disable-swiftpm-sandbox`
+- Release command: `zsh Scripts/run-1.4-ui-performance-check.sh --release --disable-swiftpm-sandbox`
+- Result: 20 PerformanceBoundary tests, 0 failures. Coverage includes page-size fallback, interaction dispatch P95 budget, partial visible-row table reloads, selection-only table updates, keyboard/copy activation, and latest-scene preservation after rapid paging, sorting, filtering, selection, and column changes.
+- Release checklist: `Scripts/release-checklist.sh` now runs this UI performance gate before API gates and packaging.
 
 Latest aggregate fixed run:
 
@@ -121,7 +131,7 @@ Latest aggregate fixed run:
 - Topic approximate fixture: `three-theme-approx-450`, 2802.0 ms, purity 1.000, theme recall 1.000, 3 clusters.
 - Sentiment mixed baseline: `sentiment-gold-v2`, 72 examples, accuracy 0.833, macro F1 0.834, neutral false positive rate 0.229.
 - Sentiment news-focused baseline: `sentiment-gold-v3`, 18 examples, accuracy 0.944, macro F1 0.944, neutral false positive rate 0.000.
-- Large-result UI boundary suite: 19 tests passed, covering rapid paging, sorting, filtering, column visibility, visible-row reloads, and latest-scene application across major analysis pages.
+- Large-result UI boundary suite: 19 tests passed at the time of this aggregate run, covering rapid paging, sorting, filtering, column visibility, visible-row reloads, and latest-scene application across major analysis pages. The latest standalone UI gate now covers 20 tests with an added P95 interaction-dispatch budget.
 - Fixed user fixture repeat baseline: `user-benchmark-sample.txt`, 3/3 successful runs, 827 characters, 4 lines.
 - Fixed user fixture total duration: p50 44.8 ms, p95 78.9 ms, min 42.8 ms, max 82.7 ms.
 - Fixed user fixture stage durations:
@@ -304,6 +314,7 @@ swift test --filter TopicBenchmarkTests
 swift test --filter SentimentBenchmarkTests
 swift test --filter SentimentBenchmarkReportTests
 swift test --filter PerformanceBoundaryTests
+zsh Scripts/run-1.4-ui-performance-check.sh --release --disable-swiftpm-sandbox
 swift test --filter UserBenchmarkTests/testRunFixedFixtureBenchmarkForRoadmapBaseline
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 swift test --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
@@ -332,6 +343,7 @@ Next required work:
 
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
+- keep `Scripts/run-1.4-ui-performance-check.sh --release --disable-swiftpm-sandbox` in the pre-tag checklist
 - run final DMG packaging on a machine that supports `hdiutil create` before tagging
 
 Baseline command:
@@ -355,5 +367,6 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 1. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
 2. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
-3. Run final DMG packaging on a release machine where `hdiutil create` is available.
-4. Keep every performance change tied to a measurable baseline entry.
+3. Keep the 1.4 UI performance gate in release checklist runs before packaging.
+4. Run final DMG packaging on a release machine where `hdiutil create` is available.
+5. Keep every performance change tied to a measurable baseline entry.

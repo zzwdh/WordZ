@@ -2,6 +2,7 @@ import Foundation
 
 enum ResultPerformanceGuardrails {
     static let maximumInteractiveAllRows = 1_000
+    static let largeResultInteractionDispatchP95BudgetMilliseconds = 50.0
 }
 
 protocol InteractiveAllPageSizing: Equatable {
