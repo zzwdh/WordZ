@@ -229,6 +229,13 @@ Latest analysis concurrency validation:
 - Broader affected command: `swift test --filter 'WorkspaceRuntimeConcurrencyTests|PlotClusterFeatureTests|MainWorkspaceViewModelTests|WorkspaceActionDispatcherTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests|CompositionTests'`
 - Result: 175 affected ViewModel/dispatcher/coordinator/workflow/concurrency/Plot/Cluster/failure tests, 0 failures.
 
+Latest cancellation-state validation:
+
+- Date: 2026-06-22
+- Change: task-center cancellation now uses a distinct `cancelled` task state and `cancelledCount` instead of reporting user cancellation through the failed bucket. Managed result runs, update checks/downloads, diagnostics export, and report-bundle export mark user cancellation as cancelled, late success/failure events cannot overwrite cancelled tasks, and cancelled terminal events do not emit failure notifications.
+- Command: `swift test --filter 'NativeTaskCenterTests|WorkspaceFailurePathTests|MainWorkspaceViewModelTests|NativeHostPreferencesStoreTests|NativeDiagnosticsBundleServiceTests|CompositionTests'`
+- Result: 101 affected task-center/ViewModel/failure-path/diagnostics/preferences/composition tests, 0 failures.
+
 Latest packaged app smoke:
 
 - Date: 2026-06-22
@@ -278,6 +285,11 @@ Optimization notes:
   - Before: these pages used the older busy-skip result-run wrapper, so a rapid second run could be ignored while the first result still wrote page state.
   - After: rapid reruns replace the previous request; stale results are discarded before applying page state, result scenes, or selected-tab persistence.
   - Quality impact: no analysis-truth change expected; the same repository calls and request builders are used. Focused tests assert only the latest Plot query, Ngram size, Cluster option, and Collocate keyword reach the page result.
+- Task-center cancelled-state separation:
+  - Change: `NativeBackgroundTaskState` now has a dedicated `cancelled` state and task-center snapshots expose `cancelledCount`.
+  - Before: user-initiated cancellations were usually presented through failed-state counters or filtered failure notifications, which made task history harder to read.
+  - After: managed result cancellation, update cancellation, diagnostics export cancellation, report-bundle export cancellation, and task-center cancel actions leave failed counts unchanged and show a distinct cancelled state. Late complete/fail events are ignored once the task is already cancelled.
+  - Quality impact: no analysis-truth change expected; this only changes task state presentation and terminal-event routing.
 - Topics result-assembly statistics optimization:
   - Change: `NativeTopicEngine+ResultAssembly` now precomputes per-slice keyword statistics, derives non-target rest statistics without rescanning every rest slice per cluster, and uses normalized cosine similarity for already-normalized topic vectors.
   - Before: bundled reference corpus Topics p50 3452.7 ms, p95 3463.0 ms; summarizing stage about 184 ms per run.
@@ -303,6 +315,7 @@ swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTest
 swift test --filter 'SentimentEngineFeatureTests|SentimentPresentationFeatureTests'
 swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|WorkspaceActionDispatcherTests|SentimentEngineFeatureTests|SentimentPresentationFeatureTests|CompositionTests'
 swift test --filter 'WorkspaceRuntimeConcurrencyTests|PlotClusterFeatureTests|MainWorkspaceViewModelTests|WorkspaceActionDispatcherTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests|CompositionTests'
+swift test --filter 'NativeTaskCenterTests|WorkspaceFailurePathTests|MainWorkspaceViewModelTests|NativeHostPreferencesStoreTests|NativeDiagnosticsBundleServiceTests|CompositionTests'
 zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/reports/1.4.0-release
 HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library
 swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
@@ -319,7 +332,6 @@ Next required work:
 
 - keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
-- separate user-visible cancellation state from failed-state presentation for managed result runs
 - run final DMG packaging on a machine that supports `hdiutil create` before tagging
 
 Baseline command:
@@ -343,6 +355,5 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 1. Keep Topics embedding under watch; do not add another Topics optimization unless it preserves the quality fields already tracked above.
 2. Keep Library scene open under watch; aggregate release p95 is about 115 ms for 1,200 synthetic corpora, while duplicate refresh is now effectively skipped.
-3. Separate user-visible cancellation state from failed-state presentation for managed result runs before considering the cancellation track complete.
-4. Run final DMG packaging on a release machine where `hdiutil create` is available.
-5. Keep every performance change tied to a measurable baseline entry.
+3. Run final DMG packaging on a release machine where `hdiutil create` is available.
+4. Keep every performance change tied to a measurable baseline entry.

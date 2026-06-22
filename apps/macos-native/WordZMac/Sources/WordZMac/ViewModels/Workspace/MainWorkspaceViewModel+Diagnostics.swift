@@ -33,7 +33,7 @@ extension MainWorkspaceViewModel {
             } else {
                 let cancelled = t("已取消导出诊断信息。", "Diagnostics export was cancelled.")
                 settings.setSupportStatus(cancelled)
-                taskCenter.failTask(id: taskID, detail: cancelled)
+                taskCenter.markTaskCancelled(id: taskID, detail: cancelled)
             }
         } catch {
             presentIssue(

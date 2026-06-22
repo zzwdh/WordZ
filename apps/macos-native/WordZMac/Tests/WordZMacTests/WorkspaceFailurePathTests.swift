@@ -50,6 +50,8 @@ final class WorkspaceFailurePathTests: XCTestCase {
         XCTAssertNil(workspace.issueBanner)
         XCTAssertEqual(workspace.settings.scene.supportStatus, "已取消检查更新。")
         XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
+        XCTAssertEqual(workspace.taskCenter.scene.failedCount, 0)
+        XCTAssertEqual(workspace.taskCenter.scene.cancelledCount, 1)
     }
 
     func testAPIConnectionCredentialFailureShowsRecoveryWithoutLeakingToken() async {
@@ -91,6 +93,7 @@ final class WorkspaceFailurePathTests: XCTestCase {
         )
         let workspace = makeMainWorkspaceViewModel(
             repository: FakeWorkspaceRepository(),
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
             apiConnectionTester: connectionTester
         )
 
@@ -144,16 +147,19 @@ final class WorkspaceFailurePathTests: XCTestCase {
         connectionTester.error = CancellationError()
         let workspace = makeMainWorkspaceViewModel(
             repository: FakeWorkspaceRepository(),
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
             apiConnectionTester: connectionTester
         )
 
         await workspace.initializeIfNeeded()
+        let failedCountBefore = workspace.taskCenter.scene.failedCount
         await workspace.testAPIConnection()
 
         XCTAssertNil(workspace.issueBanner)
         XCTAssertEqual(workspace.settings.scene.apiCredentialStatus, "API 连接检查已取消。")
         XCTAssertEqual(workspace.settings.scene.supportStatus, "API 连接检查已取消。")
         XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
+        XCTAssertEqual(workspace.taskCenter.scene.failedCount, failedCountBefore)
     }
 
     func testRunTopicsFailureClearsRunningTaskAndPreservesCurrentTab() async {

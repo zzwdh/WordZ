@@ -5,6 +5,7 @@ package struct NativeTaskActivitySnapshot: Equatable {
     package let runningCount: Int
     package let completedCount: Int
     package let failedCount: Int
+    package let cancelledCount: Int
     package let aggregateProgress: Double?
     package let highlightedItems: [NativeBackgroundTaskItem]
 
@@ -13,6 +14,7 @@ package struct NativeTaskActivitySnapshot: Equatable {
         runningCount: 0,
         completedCount: 0,
         failedCount: 0,
+        cancelledCount: 0,
         aggregateProgress: nil,
         highlightedItems: []
     )
@@ -22,6 +24,7 @@ package struct NativeTaskActivitySnapshot: Equatable {
         runningCount: Int,
         completedCount: Int,
         failedCount: Int,
+        cancelledCount: Int,
         aggregateProgress: Double?,
         highlightedItems: [NativeBackgroundTaskItem]
     ) {
@@ -29,6 +32,7 @@ package struct NativeTaskActivitySnapshot: Equatable {
         self.runningCount = runningCount
         self.completedCount = completedCount
         self.failedCount = failedCount
+        self.cancelledCount = cancelledCount
         self.aggregateProgress = aggregateProgress
         self.highlightedItems = highlightedItems
     }
@@ -82,6 +86,7 @@ package final class NativeTaskActivityStore {
 
     package func completeTask(id: UUID, detail: String, action: NativeBackgroundTaskAction? = nil) {
         cancelHandlers[id] = nil
+        guard items.first(where: { $0.id == id })?.state == .running else { return }
         if let item = mutateTask(
             id: id,
             state: .completed,
@@ -96,6 +101,7 @@ package final class NativeTaskActivityStore {
 
     package func failTask(id: UUID, detail: String) {
         cancelHandlers[id] = nil
+        guard items.first(where: { $0.id == id })?.state == .running else { return }
         if let item = mutateTask(
             id: id,
             state: .failed,
@@ -142,10 +148,25 @@ package final class NativeTaskActivityStore {
     }
 
     package func cancelTask(id: UUID, cancelledDetail: String) {
-        guard let handler = cancelHandlers[id] else { return }
+        let handler = cancelHandlers[id]
         cancelHandlers[id] = nil
-        handler()
-        failTask(id: id, detail: cancelledDetail)
+        handler?()
+        markTaskCancelled(id: id, detail: cancelledDetail)
+    }
+
+    package func markTaskCancelled(id: UUID, detail: String) {
+        cancelHandlers[id] = nil
+        guard items.first(where: { $0.id == id })?.state == .running else { return }
+        if let item = mutateTask(
+            id: id,
+            state: .cancelled,
+            detail: detail,
+            progress: nil,
+            action: nil,
+            emitHistory: true
+        ) {
+            onTerminalEvent?(item)
+        }
     }
 
     private func mutateTask(
@@ -185,6 +206,7 @@ package final class NativeTaskActivityStore {
             runningCount: runningItems.count,
             completedCount: sortedItems.filter { $0.state == .completed }.count,
             failedCount: sortedItems.filter { $0.state == .failed }.count,
+            cancelledCount: sortedItems.filter { $0.state == .cancelled }.count,
             aggregateProgress: aggregateProgress,
             highlightedItems: Array(runningItems.prefix(2))
         )

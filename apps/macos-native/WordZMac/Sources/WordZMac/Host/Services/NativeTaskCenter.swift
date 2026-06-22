@@ -39,6 +39,10 @@ final class NativeTaskCenter: ObservableObject {
         activityStore.failTask(id: id, detail: detail)
     }
 
+    func markTaskCancelled(id: UUID, detail: String) {
+        activityStore.markTaskCancelled(id: id, detail: detail)
+    }
+
     func clearFinished() {
         activityStore.clearFinished()
     }
@@ -94,14 +98,15 @@ final class NativeTaskCenter: ObservableObject {
         } else {
             summary = String(
                 format: wordZText(
-                    "共 %d 个任务，进行中 %d 个，已完成 %d 个，失败 %d 个。",
-                    "%d tasks total, %d running, %d completed, %d failed.",
+                    "共 %d 个任务，进行中 %d 个，已完成 %d 个，失败 %d 个，已取消 %d 个。",
+                    "%d tasks total, %d running, %d completed, %d failed, %d cancelled.",
                     mode: .system
                 ),
                 snapshot.items.count,
                 snapshot.runningCount,
                 snapshot.completedCount,
-                snapshot.failedCount
+                snapshot.failedCount,
+                snapshot.cancelledCount
             )
         }
         return NativeTaskCenterSceneModel(
@@ -109,6 +114,7 @@ final class NativeTaskCenter: ObservableObject {
             runningCount: snapshot.runningCount,
             completedCount: snapshot.completedCount,
             failedCount: snapshot.failedCount,
+            cancelledCount: snapshot.cancelledCount,
             summary: summary,
             aggregateProgress: snapshot.aggregateProgress,
             highlightedItems: snapshot.highlightedItems

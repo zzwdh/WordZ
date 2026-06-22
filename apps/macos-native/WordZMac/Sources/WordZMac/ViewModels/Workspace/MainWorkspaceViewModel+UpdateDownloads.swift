@@ -157,6 +157,12 @@ extension MainWorkspaceViewModel {
                     action: .installDownloadedUpdate(path: downloaded.localPath)
                 )
             }
+        } catch is CancellationError {
+            let cancelledMessage = t("已取消下载更新。", "Update download was cancelled.")
+            applyUpdateStateSnapshot(makeUpdateStateSnapshot(from: checkedResult))
+            settings.setSupportStatus(cancelledMessage)
+            clearActiveIssue()
+            taskCenter.markTaskCancelled(id: taskID, detail: cancelledMessage)
         } catch {
             applyUpdateStateSnapshot(makeUpdateStateSnapshot(from: checkedResult))
             presentIssue(error, titleZh: "下载更新失败", titleEn: "Update Download Failed")

@@ -169,7 +169,7 @@ extension MainWorkspaceViewModel {
             return
         }
         sidebar.clearError()
-        taskCenter.failTask(
+        taskCenter.markTaskCancelled(
             id: context.taskID,
             detail: wordZText("任务已取消。", "Task cancelled.", mode: .system)
         )

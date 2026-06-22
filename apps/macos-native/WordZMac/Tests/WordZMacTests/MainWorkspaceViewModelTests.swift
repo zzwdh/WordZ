@@ -1491,6 +1491,24 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出诊断信息到 /tmp/WordZMac-diagnostics.zip")
     }
 
+    func testExportDiagnosticsCancellationMarksTaskCancelled() async {
+        let hostActions = FakeHostActionService()
+        hostActions.exportedPathToReturn = nil
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            hostPreferencesStore: InMemoryHostPreferencesStore(),
+            hostActionService: hostActions,
+            diagnosticsBundleService: FakeDiagnosticsBundleService()
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.exportDiagnostics(preferredWindowRoute: .settings)
+
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已取消导出诊断信息。")
+        XCTAssertEqual(workspace.taskCenter.scene.failedCount, 0)
+        XCTAssertEqual(workspace.taskCenter.scene.cancelledCount, 1)
+    }
+
     func testExportDiagnosticsEmitsCompletionNotification() async {
         let repository = FakeWorkspaceRepository()
         let notificationService = FakeNotificationService()
@@ -1563,6 +1581,29 @@ final class MainWorkspaceViewModelTests: XCTestCase {
         XCTAssertEqual(hostActions.exportedArchiveTitle, "导出分析材料包")
         XCTAssertEqual(hostActions.exportedArchivePreferredRoute, .mainWorkspace)
         XCTAssertEqual(workspace.settings.scene.supportStatus, "已导出分析材料包到 /tmp/WordZMac-report.zip")
+    }
+
+    func testExportCurrentReportBundleCancellationMarksTaskCancelled() async {
+        let repository = FakeWorkspaceRepository()
+        let hostActions = FakeHostActionService()
+        hostActions.exportedArchivePathToReturn = nil
+        let workspace = makeMainWorkspaceViewModel(
+            repository: repository,
+            hostActionService: hostActions,
+            reportBundleService: FakeAnalysisReportBundleService()
+        )
+
+        await workspace.initializeIfNeeded()
+        workspace.kwic.keyword = "alpha"
+        await workspace.runKWIC()
+        _ = await workspace.openCurrentSourceReader()
+        let failedCountBefore = workspace.taskCenter.scene.failedCount
+        let cancelledCountBefore = workspace.taskCenter.scene.cancelledCount
+        await workspace.exportCurrentReportBundle(preferredWindowRoute: .mainWorkspace)
+
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "已取消导出分析材料包。")
+        XCTAssertEqual(workspace.taskCenter.scene.failedCount, failedCountBefore)
+        XCTAssertEqual(workspace.taskCenter.scene.cancelledCount, cancelledCountBefore + 1)
     }
 
     func testQuickLookCurrentContentUsesSelectedCorpusPathWhenNoResultSceneIsActive() async {

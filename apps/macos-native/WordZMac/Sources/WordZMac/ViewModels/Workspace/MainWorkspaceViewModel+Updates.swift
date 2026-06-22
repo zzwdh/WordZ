@@ -81,7 +81,7 @@ extension MainWorkspaceViewModel {
             applyUpdateStateSnapshot(makeUpdateStateSnapshot(statusMessage: cancelledMessage))
             settings.setSupportStatus(cancelledMessage)
             clearActiveIssue()
-            taskCenter.failTask(id: taskID, detail: cancelledMessage)
+            taskCenter.markTaskCancelled(id: taskID, detail: cancelledMessage)
         } catch {
             let message = error.localizedDescription
             applyUpdateStateSnapshot(makeUpdateStateSnapshot(statusMessage: message))

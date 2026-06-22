@@ -137,7 +137,7 @@ extension MainWorkspaceViewModel {
             } else {
                 let cancelled = t("已取消导出分析材料包。", "Analysis materials bundle export was cancelled.")
                 settings.setSupportStatus(cancelled)
-                taskCenter.failTask(id: taskID, detail: cancelled)
+                taskCenter.markTaskCancelled(id: taskID, detail: cancelled)
             }
         } catch {
             presentIssue(

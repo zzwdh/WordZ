@@ -4,6 +4,7 @@ package enum NativeBackgroundTaskState: String, Codable, Equatable {
     case running
     case completed
     case failed
+    case cancelled
 }
 
 package enum NativeBackgroundTaskAction: Equatable {

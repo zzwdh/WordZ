@@ -69,4 +69,54 @@ final class NativeTaskCenterTests: XCTestCase {
         center.completeTask(id: taskID, detail: "Done")
         XCTAssertEqual(emittedHistories.count, 2)
     }
+
+    func testCancelTaskTracksCancelledSeparatelyFromFailed() {
+        let center = NativeTaskCenter()
+        var didCancel = false
+        let taskID = center.beginTask(title: "Topics", detail: "Embedding", progress: 0.25)
+        center.registerCancelHandler(id: taskID) {
+            didCancel = true
+        }
+
+        center.cancelTask(id: taskID)
+
+        XCTAssertTrue(didCancel)
+        XCTAssertEqual(center.scene.runningCount, 0)
+        XCTAssertEqual(center.scene.failedCount, 0)
+        XCTAssertEqual(center.scene.cancelledCount, 1)
+        XCTAssertEqual(center.scene.items.first?.state, .cancelled)
+        XCTAssertEqual(center.scene.items.first?.detail, "任务已取消。")
+    }
+
+    func testMarkTaskCancelledDoesNotRequireCancelHandler() {
+        let center = NativeTaskCenter()
+        let taskID = center.beginTask(title: "Plot", detail: "Running", progress: nil)
+
+        center.markTaskCancelled(id: taskID, detail: "Task cancelled.")
+
+        XCTAssertEqual(center.scene.runningCount, 0)
+        XCTAssertEqual(center.scene.failedCount, 0)
+        XCTAssertEqual(center.scene.cancelledCount, 1)
+        XCTAssertEqual(center.scene.items.first?.state, .cancelled)
+        XCTAssertEqual(center.scene.items.first?.detail, "Task cancelled.")
+    }
+
+    func testTerminalUpdatesDoNotOverwriteCancelledTasks() {
+        let center = NativeTaskCenter()
+        let completedLateID = center.beginTask(title: "Topics", detail: "Running", progress: nil)
+        let failedLateID = center.beginTask(title: "Sentiment", detail: "Running", progress: nil)
+
+        center.markTaskCancelled(id: completedLateID, detail: "Task cancelled.")
+        center.markTaskCancelled(id: failedLateID, detail: "Task cancelled.")
+        center.completeTask(id: completedLateID, detail: "Done")
+        center.failTask(id: failedLateID, detail: "Failed")
+
+        XCTAssertEqual(center.scene.completedCount, 0)
+        XCTAssertEqual(center.scene.failedCount, 0)
+        XCTAssertEqual(center.scene.cancelledCount, 2)
+        XCTAssertEqual(
+            Set(center.scene.items.map(\.state)),
+            [.cancelled]
+        )
+    }
 }

@@ -28,6 +28,8 @@ extension MainWorkspaceViewModel {
                 return
             }
             await emitHostNotification(.taskFailed(title: item.title, detail: item.detail))
+        case .cancelled:
+            return
         }
     }
 }

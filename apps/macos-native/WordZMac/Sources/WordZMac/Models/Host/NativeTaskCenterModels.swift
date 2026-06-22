@@ -11,6 +11,8 @@ extension NativeBackgroundTaskState {
             return wordZText("已完成", "Completed", mode: mode)
         case .failed:
             return wordZText("失败", "Failed", mode: mode)
+        case .cancelled:
+            return wordZText("已取消", "Cancelled", mode: mode)
         }
     }
 
@@ -22,6 +24,8 @@ extension NativeBackgroundTaskState {
             return "checkmark.circle.fill"
         case .failed:
             return "exclamationmark.triangle.fill"
+        case .cancelled:
+            return "xmark.circle.fill"
         }
     }
 }
@@ -55,6 +59,7 @@ struct NativeTaskCenterSceneModel: Equatable {
     let runningCount: Int
     let completedCount: Int
     let failedCount: Int
+    let cancelledCount: Int
     let summary: String
     let aggregateProgress: Double?
     let highlightedItems: [NativeBackgroundTaskItem]
@@ -64,6 +69,7 @@ struct NativeTaskCenterSceneModel: Equatable {
         runningCount: 0,
         completedCount: 0,
         failedCount: 0,
+        cancelledCount: 0,
         summary: "当前没有后台任务。",
         aggregateProgress: nil,
         highlightedItems: []
