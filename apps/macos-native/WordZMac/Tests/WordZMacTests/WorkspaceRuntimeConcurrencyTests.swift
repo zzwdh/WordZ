@@ -125,6 +125,37 @@ final class WorkspaceRuntimeConcurrencyTests: XCTestCase {
         XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.topics))
     }
 
+    func testRapidSentimentRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.sentimentDelayNanoseconds = 120_000_000
+        repository.sentimentResultProvider = { request in
+            let marker = request.texts.first?.text.contains("beta") == true ? "beta" : "alpha"
+            return makeSentimentResult(request: request, marker: marker)
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.sentiment.handle(.changeSource(.pastedText))
+        workspace.sentiment.handle(.changeManualText("alpha is good."))
+        dispatcher.handleSentimentAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.sentiment.handle(.changeManualText("beta is good."))
+        dispatcher.handleSentimentAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runSentimentCallCount, 2)
+        XCTAssertEqual(repository.lastSentimentRequest?.texts.first?.text, "beta is good.")
+        XCTAssertEqual(workspace.sentiment.rawResult?.request.texts.first?.text, "beta is good.")
+        XCTAssertEqual(workspace.sentiment.scene?.rows.first?.text, "beta is good.")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.count, 1)
+        XCTAssertTrue(repository.savedWorkspaceDrafts.allSatisfy { $0.currentTab == WorkspaceDetailTab.sentiment.snapshotValue })
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.sentiment))
+    }
+
     func testPersistenceActorDoesNotApplyStaleCompletionCallbacks() async {
         var savedTabs: [String] = []
         var persistedTabs: [String] = []

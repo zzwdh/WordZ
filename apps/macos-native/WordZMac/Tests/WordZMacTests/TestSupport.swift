@@ -159,11 +159,13 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var saveWorkspaceError: Error?
     var saveUISettingsError: Error?
     var topicsDelayNanoseconds: UInt64 = 0
+    var sentimentDelayNanoseconds: UInt64 = 0
     var compareDelayNanoseconds: UInt64 = 0
     var keywordSuiteDelayNanoseconds: UInt64 = 0
     var kwicDelayNanoseconds: UInt64 = 0
     var saveWorkspaceDelayNanoseconds: UInt64 = 0
     var topicsResultProvider: ((String, TopicAnalysisOptions) async throws -> TopicAnalysisResult)?
+    var sentimentResultProvider: ((SentimentRunRequest) async throws -> SentimentRunResult)?
     var compareResultProvider: (([CompareRequestEntry]) async throws -> CompareResult)?
     var keywordSuiteResultProvider: ((KeywordSuiteRunRequest) async throws -> KeywordSuiteResult)?
     var kwicResultProvider: ((String) async throws -> KWICResult)?
@@ -625,7 +627,13 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     func runSentiment(_ request: SentimentRunRequest) async throws -> SentimentRunResult {
         runSentimentCallCount += 1
         lastSentimentRequest = request
+        if sentimentDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: sentimentDelayNanoseconds)
+        }
         if let sentimentError { throw sentimentError }
+        if let sentimentResultProvider {
+            return try await sentimentResultProvider(request)
+        }
         return sentimentResult
     }
 
@@ -1916,8 +1924,11 @@ func makeCompareResult() -> CompareResult {
     ])
 }
 
-func makeSentimentResult() -> SentimentRunResult {
-    let request = SentimentRunRequest(
+func makeSentimentResult(
+    request: SentimentRunRequest? = nil,
+    marker: String = "This"
+) -> SentimentRunResult {
+    let defaultRequest = SentimentRunRequest(
         source: .openedCorpus,
         unit: .sentence,
         contextBasis: .visibleContext,
@@ -1932,14 +1943,20 @@ func makeSentimentResult() -> SentimentRunResult {
         ],
         backend: .lexicon
     )
+    let request = request ?? defaultRequest
+    let firstText = request.texts.first
+    let sourceID = firstText?.sourceID ?? "corpus-1"
+    let sourceTitle = firstText?.sourceTitle ?? "Demo Corpus"
+    let groupID = firstText?.groupID ?? "target"
+    let groupTitle = firstText?.groupTitle ?? "Target"
     let rows = [
         SentimentRowResult(
             id: "sentiment-positive",
-            sourceID: "corpus-1",
-            sourceTitle: "Demo Corpus",
-            groupID: "target",
-            groupTitle: "Target",
-            text: "This is good.",
+            sourceID: sourceID,
+            sourceTitle: sourceTitle,
+            groupID: groupID,
+            groupTitle: groupTitle,
+            text: "\(marker) is good.",
             positivityScore: 0.63,
             negativityScore: 0.07,
             neutralityScore: 0.30,
@@ -1965,11 +1982,11 @@ func makeSentimentResult() -> SentimentRunResult {
         ),
         SentimentRowResult(
             id: "sentiment-negative",
-            sourceID: "corpus-1",
-            sourceTitle: "Demo Corpus",
-            groupID: "target",
-            groupTitle: "Target",
-            text: "This is bad.",
+            sourceID: sourceID,
+            sourceTitle: sourceTitle,
+            groupID: groupID,
+            groupTitle: groupTitle,
+            text: "\(marker) is bad.",
             positivityScore: 0.08,
             negativityScore: 0.61,
             neutralityScore: 0.31,

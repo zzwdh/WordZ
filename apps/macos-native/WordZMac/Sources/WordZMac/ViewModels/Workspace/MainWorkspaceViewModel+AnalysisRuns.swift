@@ -74,8 +74,15 @@ extension MainWorkspaceViewModel {
     }
 
     func runSentiment() async {
-        await performResultRun(label: "sentiment", taskKey: .sentiment) {
-            await flowCoordinator.runSentiment(features: features)
+        if sentiment.source == .topicSegments {
+            await performResultRun(label: "sentiment", taskKey: .sentiment) {
+                await flowCoordinator.runSentiment(features: features)
+            }
+            return
+        }
+
+        await performManagedTask(key: .sentiment, policy: .replaceLatest) { token in
+            await self.runSentiment(token: token)
         }
     }
 
