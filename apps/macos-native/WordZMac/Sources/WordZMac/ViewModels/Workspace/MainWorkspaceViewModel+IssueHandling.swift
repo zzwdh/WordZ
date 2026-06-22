@@ -6,9 +6,10 @@ extension MainWorkspaceViewModel {
         _ error: Error,
         titleZh: String,
         titleEn: String,
+        messageOverride: String? = nil,
         recoveryAction: WorkspaceIssueRecoveryAction? = nil
     ) {
-        let message = error.localizedDescription
+        let message = messageOverride ?? error.localizedDescription
         settings.setSupportStatus(message)
         activeIssue = WorkspaceIssueBanner(
             tone: .warning,

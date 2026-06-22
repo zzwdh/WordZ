@@ -111,7 +111,7 @@ zsh apps/macos-native/WordZMac/Scripts/verify-release.sh \
 
 ### 一键发布检查
 
-如果你想把“单测 + 打包 + 校验和校验 + 原生 smoke”串成一条流程，可以直接运行：
+如果你想把“单测 + 1.4 API 隐私/恢复门禁 + 打包 + 校验和校验 + 原生 smoke”串成一条流程，可以直接运行：
 
 ```bash
 zsh apps/macos-native/WordZMac/Scripts/release-checklist.sh
@@ -122,6 +122,7 @@ zsh apps/macos-native/WordZMac/Scripts/release-checklist.sh
 ```bash
 zsh apps/macos-native/WordZMac/Scripts/release-checklist.sh \
   --skip-tests \
+  --skip-api-gates \
   --skip-package \
   --manifest /absolute/path/to/apps/macos-native/WordZMac/dist-native/WordZ-1.2.9-mac-arm64.manifest.json
 ```

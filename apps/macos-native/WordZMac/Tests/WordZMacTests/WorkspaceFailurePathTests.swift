@@ -1,6 +1,7 @@
 import XCTest
 @testable import WordZWorkspaceCore
 
+import WordZHost
 @MainActor
 final class WorkspaceFailurePathTests: XCTestCase {
     func testIssueBannerAppearsWhenBootstrapFails() async {
@@ -48,6 +49,110 @@ final class WorkspaceFailurePathTests: XCTestCase {
 
         XCTAssertNil(workspace.issueBanner)
         XCTAssertEqual(workspace.settings.scene.supportStatus, "已取消检查更新。")
+        XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
+    }
+
+    func testAPIConnectionCredentialFailureShowsRecoveryWithoutLeakingToken() async {
+        let credentialStore = InMemoryAPICredentialStore()
+        credentialStore.credential = "token-abc"
+        let connectionTester = FakeAPIConnectionTester()
+        connectionTester.error = NativeAPIClientError.httpStatus(
+            code: 401,
+            data: Data("Bearer token-abc".utf8),
+            requestID: UUID(),
+            retryAfterSeconds: nil
+        )
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            apiCredentialStore: credentialStore,
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.testAPIConnection()
+
+        XCTAssertEqual(connectionTester.testCallCount, 1)
+        XCTAssertEqual(workspace.issueBanner?.title, "API 连接检查失败")
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("凭据不可用"))
+        XCTAssertTrue(workspace.settings.scene.supportStatus.contains("凭据不可用"))
+        XCTAssertFalse(workspace.settings.scene.apiCredentialStatus.contains("token-abc"))
+        XCTAssertFalse(workspace.settings.scene.supportStatus.contains("token-abc"))
+        XCTAssertFalse(workspace.issueBanner?.message.contains("token-abc") == true)
+        XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
+    }
+
+    func testAPIConnectionRateLimitFailureKeepsLocalAnalysisRecovery() async {
+        let connectionTester = FakeAPIConnectionTester()
+        connectionTester.error = NativeAPIClientError.httpStatus(
+            code: 429,
+            data: Data(),
+            requestID: UUID(),
+            retryAfterSeconds: 12
+        )
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.testAPIConnection()
+
+        XCTAssertEqual(workspace.issueBanner?.title, "API 连接检查失败")
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("限流"))
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("本地分析仍可使用"))
+        XCTAssertEqual(workspace.settings.scene.supportStatus, workspace.settings.scene.apiCredentialStatus)
+        XCTAssertEqual(workspace.issueBanner?.message, workspace.settings.scene.apiCredentialStatus)
+        XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
+    }
+
+    func testAPIConnectionOfflineFailureRedactsCredentialAndQueryTokens() async {
+        let credentialStore = InMemoryAPICredentialStore()
+        credentialStore.credential = "token-abc"
+        let connectionTester = FakeAPIConnectionTester()
+        connectionTester.error = NativeAPIClientError.transport(
+            underlying: NSError(
+                domain: NSURLErrorDomain,
+                code: URLError.notConnectedToInternet.rawValue,
+                userInfo: [
+                    NSLocalizedDescriptionKey: "offline Bearer token-abc https://api.example.test/rate_limit?api_key=query-token"
+                ]
+            ),
+            requestID: UUID()
+        )
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            apiCredentialStore: credentialStore,
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.testAPIConnection()
+
+        XCTAssertEqual(workspace.issueBanner?.title, "API 连接检查失败")
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("offline"))
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("本地分析仍可使用"))
+        XCTAssertFalse(workspace.settings.scene.apiCredentialStatus.contains("token-abc"))
+        XCTAssertFalse(workspace.settings.scene.apiCredentialStatus.contains("query-token"))
+        XCTAssertTrue(workspace.settings.scene.apiCredentialStatus.contains("api_key=[redacted]"))
+        XCTAssertFalse(workspace.settings.scene.supportStatus.contains("token-abc"))
+        XCTAssertFalse(workspace.issueBanner?.message.contains("query-token") == true)
+        XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
+    }
+
+    func testCancelledAPIConnectionDoesNotProduceIssueBanner() async {
+        let connectionTester = FakeAPIConnectionTester()
+        connectionTester.error = CancellationError()
+        let workspace = makeMainWorkspaceViewModel(
+            repository: FakeWorkspaceRepository(),
+            apiConnectionTester: connectionTester
+        )
+
+        await workspace.initializeIfNeeded()
+        await workspace.testAPIConnection()
+
+        XCTAssertNil(workspace.issueBanner)
+        XCTAssertEqual(workspace.settings.scene.apiCredentialStatus, "API 连接检查已取消。")
+        XCTAssertEqual(workspace.settings.scene.supportStatus, "API 连接检查已取消。")
         XCTAssertEqual(workspace.taskCenter.scene.runningCount, 0)
     }
 

@@ -156,7 +156,7 @@ View intent
 | 分析行为 | 相关 focused tests；算法影响面较大时加跑 `swift test --package-path .` |
 | Storage schema、workspace snapshot、migration | 相关 storage/persistence tests，并加跑 `swift test --package-path .` |
 | UI-only SwiftUI/AppKit | 有 focused tests 就跑；交互行为变动时 build 或运行 App 抽检 |
-| 发布准备 | `zsh Scripts/release-checklist.sh` |
+| 发布准备 | `zsh Scripts/release-checklist.sh`，其中默认包含 1.4 API privacy/recovery gates |
 | 大范围重构 | `zsh Scripts/engineering-guard.sh` 和 `swift test --package-path .` |
 
 在当前目录可直接执行：

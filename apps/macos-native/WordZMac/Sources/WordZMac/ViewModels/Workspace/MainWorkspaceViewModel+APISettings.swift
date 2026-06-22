@@ -55,8 +55,10 @@ extension MainWorkspaceViewModel {
         settings.setAPICredentialStatus(runningStatus)
         settings.setSupportStatus(runningStatus)
 
+        var loadedCredential: String?
         do {
             let credential = try apiCredentialStore.loadCredential()
+            loadedCredential = credential
             let result = try await apiConnectionTester.testConnection(
                 credential: credential,
                 timeoutSeconds: settings.apiRequestTimeoutSeconds,
@@ -82,10 +84,15 @@ extension MainWorkspaceViewModel {
             settings.setSupportStatus(status)
             clearActiveIssue()
         } catch {
-            let status = apiConnectionFailureMessage(for: error)
+            let status = apiConnectionFailureMessage(for: error, credential: loadedCredential)
             settings.setAPICredentialStatus(status)
             settings.setSupportStatus(status)
-            presentIssue(error, titleZh: "API 连接检查失败", titleEn: "API Connection Check Failed")
+            presentIssue(
+                error,
+                titleZh: "API 连接检查失败",
+                titleEn: "API Connection Check Failed",
+                messageOverride: status
+            )
         }
     }
 
@@ -140,7 +147,7 @@ extension MainWorkspaceViewModel {
         }
     }
 
-    private func apiConnectionFailureMessage(for error: Error) -> String {
+    private func apiConnectionFailureMessage(for error: Error, credential: String?) -> String {
         if let apiError = error as? NativeAPIClientError {
             switch apiError {
             case .httpStatus(let code, _, _, let retryAfterSeconds):
@@ -163,8 +170,8 @@ extension MainWorkspaceViewModel {
                 )
             case .transport(let underlying, _):
                 return apiSettingsText(
-                    "API 连接失败：\(underlying.localizedDescription)。本地分析仍可使用。",
-                    "API connection failed: \(underlying.localizedDescription). Local analysis still works."
+                    "API 连接失败：\(redactedAPIErrorDetail(underlying.localizedDescription, credential: credential))。本地分析仍可使用。",
+                    "API connection failed: \(redactedAPIErrorDetail(underlying.localizedDescription, credential: credential)). Local analysis still works."
                 )
             case .invalidResponse:
                 return apiSettingsText(
@@ -174,8 +181,27 @@ extension MainWorkspaceViewModel {
             }
         }
         return apiSettingsText(
-            "API 连接失败：\(error.localizedDescription)。本地分析仍可使用。",
-            "API connection failed: \(error.localizedDescription). Local analysis still works."
+            "API 连接失败：\(redactedAPIErrorDetail(error.localizedDescription, credential: credential))。本地分析仍可使用。",
+            "API connection failed: \(redactedAPIErrorDetail(error.localizedDescription, credential: credential)). Local analysis still works."
         )
+    }
+
+    private func redactedAPIErrorDetail(_ value: String, credential: String?) -> String {
+        var redacted = value
+        if let credential = credential?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !credential.isEmpty {
+            redacted = redacted.replacingOccurrences(of: credential, with: "[redacted]")
+        }
+        redacted = redacted.replacingOccurrences(
+            of: #"(?i)Bearer\s+[^\s,;]+"#,
+            with: "Bearer [redacted]",
+            options: .regularExpression
+        )
+        redacted = redacted.replacingOccurrences(
+            of: #"(?i)(api[_-]?key|token)=[^&\s]+"#,
+            with: "$1=[redacted]",
+            options: .regularExpression
+        )
+        return redacted
     }
 }

@@ -43,7 +43,7 @@
 
 ## 当前完成度估算
 
-以下完成度是基于当前代码状态的工程判断。当前已有 debug 和 release 聚合基线，Library import/index 优化后已完成一次 release aggregate 复跑，packaged app smoke 和 API 隐私导出 release 门禁也已通过；最终正式发版前还需要在支持 `hdiutil create` 的发布机上完成 DMG 产物。
+以下完成度是基于当前代码状态的工程判断。当前已有 debug 和 release 聚合基线，Library import/index 优化后已完成一次 release aggregate 复跑，packaged app smoke、API 隐私导出和 API 错误恢复 release 门禁也已通过；最终正式发版前还需要在支持 `hdiutil create` 的发布机上完成 DMG 产物。
 
 | 模块 | 当前完成度 | 现状 | 1.4.0 要补齐的部分 |
 | --- | ---: | --- | --- |
@@ -51,10 +51,10 @@
 | 分析任务取消与并发保护 | 55% | 已有运行时 task supervisor、“只应用最新结果”测试基础，API queued / in-flight 取消已覆盖 | 覆盖更多长任务，保证取消后不会继续写 UI 状态 |
 | Topics/Keyword 性能对比 | 88% | 已记录固定机器 topic/sentiment 基线、固定用户样本 repeat=3 p50/p95、内置参考语料 repeat=3 p50/p95 和最慢阶段排序；Topics 结果组装已做第一轮优化，debug 参考语料 Topics p95 约 3463ms -> 3287ms；release 参考语料 Topics p95 约 847ms，关键质量字段保持一致 | 发布前保留 release 报告，继续评估 embedding 阶段是否还有低风险优化 |
 | Library 打开和刷新性能 | 92% | 已做过场景同步和重复刷新收敛，已新增 Library/import repeat=3 基线；重复应用同一 Library 快照已跳过 scene rebuild；Library import/index 分片写入已完成一轮优化，完整 release aggregate p95 约 426.1ms -> 224.6ms；Library scene open release p95 约 114.7ms；app bundle smoke 已复核实际应用包资源路径 | 发布前继续观察 Library scene open，并在最终 DMG 产物上保留同一 smoke 口径 |
-| API 调用底座 | 92% | 已有 `NativeAPIClient` 第一版，更新检查和手动 API 连接检查已迁移；连接检查已固定为 1.4.0 窄 API 试点，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖，更新检查 service factory 已接入当前 API timeout/concurrency 设置；release API 隐私导出门禁已通过 | 保持 `run-1.4-api-privacy-check.sh` 作为 pre-tag 门禁 |
+| API 调用底座 | 94% | 已有 `NativeAPIClient` 第一版，更新检查和手动 API 连接检查已迁移；连接检查已固定为 1.4.0 窄 API 试点，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖，更新检查 service factory 已接入当前 API timeout/concurrency 设置；release API 隐私导出和错误恢复门禁已通过 | 保持 `run-1.4-api-privacy-check.sh` 和 `run-1.4-api-recovery-check.sh` 作为 pre-tag 门禁 |
 | API 设置与凭据保护 | 93% | 设置页已有 API 总开关、凭据状态、保存/清除凭据动作、真实连接测试、超时/并发上限设置，凭据走 Keychain 底座；连接检查明确不上传语料正文，诊断包只导出脱敏后的请求 host/path/status/duration/header 元数据；release 诊断 zip 导出已验证不包含 API key、Authorization header、query token 或示例语料原文 | 继续限制 1.4.0 API 试点范围，避免引入会上传语料的新 API 功能 |
-| API 错误恢复 | 68% | 更新检查和连接测试已走统一错误层，已覆盖 429 重试、HTTP 失败、API 关闭恢复文案、凭据错误提示和取消归一；手动连接检查不会改变本地统计分析结果 | 发布前补 release 口径下的离线/失败手工检查记录 |
-| 性能/API 文档与发布门禁 | 98% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95、release 聚合脚本、受限环境 SwiftPM 复跑开关、三条 before/after 优化记录、app bundle/pkg smoke、API 隐私导出 release 门禁已建立 | 最终发布机补完整 DMG 产物，并按同一 smoke/checklist 复核 |
+| API 错误恢复 | 86% | 更新检查和连接测试已走统一错误层，已覆盖 401/403 凭据失败、429 限流、离线 transport 错误、API 关闭恢复文案、取消归一和失败 UI 脱敏；手动连接检查不会改变本地统计分析结果 | 后续只保留真实联网环境抽检，不再阻塞 1.4.0 P0 |
+| 性能/API 文档与发布门禁 | 99% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95、release 聚合脚本、受限环境 SwiftPM 复跑开关、三条 before/after 优化记录、app bundle/pkg smoke、API 隐私导出和 API 错误恢复 release 门禁已建立，并已接入 release checklist | 最终发布机补完整 DMG 产物，并按同一 smoke/checklist 复核 |
 
 ## P0: 性能基线与回归门禁
 

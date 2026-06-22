@@ -8,7 +8,7 @@ This file tracks the concrete 1.4.0 work that supports the roadmap theme: perfor
 
 ## API Foundation
 
-Status: first implementation, the narrow manual API pilot, and the release API privacy/export gate have landed; focused validation is green.
+Status: first implementation, the narrow manual API pilot, release API privacy/export gate, and release API recovery gate have landed; focused validation is green.
 
 Implemented:
 
@@ -36,6 +36,8 @@ Implemented:
 - live update-check service factory receives the current saved API timeout and max concurrency settings
 - pilot request observations carried from the Host layer into diagnostics export as redacted metadata only
 - pilot diagnostics strip query strings and sensitive headers, and do not include request bodies or corpus text
+- API connection failure recovery messages now use redacted, user-facing status text in both Settings and issue banners
+- release checklist runs the 1.4 API privacy and recovery gates before packaging
 
 Current API contract:
 
@@ -44,6 +46,7 @@ Current API contract:
 - API errors must preserve enough detail for recovery while avoiding raw credentials or sensitive payloads in logs.
 - API work must be cancellable through Swift task cancellation.
 - When API access is disabled, local analysis remains available and network-backed update checks/downloads do not run.
+- API failure recovery UI must preserve local-analysis availability messaging and must not echo saved credentials, bearer tokens, or query API tokens.
 
 Validated tests:
 
@@ -59,6 +62,12 @@ Validated tests:
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckUsesSavedCredentialAndUpdatesSettingsScene`
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckAddsRedactedPilotMetadataToDiagnostics`
 - `MainWorkspaceViewModelTests.testAPIConnectionCheckDoesNotRunWhenAPIIsDisabled`
+- `WorkspaceFailurePathTests.testAPIConnectionCredentialFailureShowsRecoveryWithoutLeakingToken`
+- `WorkspaceFailurePathTests.testAPIConnectionRateLimitFailureKeepsLocalAnalysisRecovery`
+- `WorkspaceFailurePathTests.testAPIConnectionOfflineFailureRedactsCredentialAndQueryTokens`
+- `WorkspaceFailurePathTests.testCancelledAPIConnectionDoesNotProduceIssueBanner`
+- `WorkspaceFailurePathTests.testUpdateFailureProducesRetryableIssueBanner`
+- `WorkspaceFailurePathTests.testCancelledUpdateCheckDoesNotProduceIssueBanner`
 - `NativeDiagnosticsBundleServiceTests.testBuildBundleWritesArchiveWithRuntimeAndPersistedState`
 - `NativeHostPreferencesStoreTests.testStoreRoundTripsSnapshotAndRecordsRecentDocuments`
 - `SettingsTests.testSettingsViewModelAppliesSnapshotAndExportsValues`
@@ -80,6 +89,14 @@ zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
 ```
 
 Result: 3 release API privacy/export tests, 0 failures. The gate verifies saved credential headers through the unified connection client, redacted pilot request metadata in diagnostics payloads, and a real diagnostics zip export that strips API keys, authorization values, trace tokens, query tokens, and sample corpus text.
+
+Latest release API recovery validation:
+
+```sh
+zsh Scripts/run-1.4-api-recovery-check.sh --release --disable-swiftpm-sandbox
+```
+
+Result: 8 release API recovery tests, 0 failures. The gate verifies API-off update/connection behavior, 401 credential recovery, 429 rate-limit recovery, offline transport recovery, API cancellation handling, update failure retry banners, and token redaction in failure UI.
 
 ## Performance Baseline
 
@@ -264,6 +281,7 @@ CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_HOME=/tmp/wordz-sw
 WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-app-smoke zsh Scripts/build-app.sh
 zsh Scripts/release-smoke.sh /tmp/wordz-app-smoke/WordZ.app
 zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
+zsh Scripts/run-1.4-api-recovery-check.sh --release --disable-swiftpm-sandbox
 ```
 
 Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`. In this environment the app bundle and pkg can be validated, but final DMG generation still needs a local release machine where `hdiutil create` is available.
@@ -288,8 +306,8 @@ zsh Scripts/run-1.4-performance-baseline.sh --user-file /path/to/corpus.txt --us
 
 ## Next API Work
 
-1. Keep `Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox` in the pre-tag checklist.
-2. Keep the 1.4.0 API pilot limited to manual connection checking unless a future API feature can meet the same no-corpus-upload, no-analysis-truth-change, and redacted-diagnostics contract.
+1. Keep `Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox` and `Scripts/run-1.4-api-recovery-check.sh --release --disable-swiftpm-sandbox` in the pre-tag checklist.
+2. Keep the 1.4.0 API pilot limited to manual connection checking unless a future API feature can meet the same no-corpus-upload, no-analysis-truth-change, redacted-diagnostics, and redacted-failure-UI contract.
 
 ## Next Performance Work
 
