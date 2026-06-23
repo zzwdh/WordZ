@@ -258,8 +258,17 @@ Latest packaged app smoke:
 - Result: the app bundle, zip, and pkg were created; DMG creation stopped in the current managed environment with `hdiutil: create failed - 设备未配置`.
 - Smoke command: `zsh Scripts/release-smoke.sh dist-native-1.4-smoke/WordZ.app`
 - Result: app-bundle smoke passed. The check validated `Info.plist`, build info, executable presence/SHA metadata, Topic and Sentiment resources, English and Chinese localizations, and the sibling pkg installer payload.
-- Version validated: `1.3.9`, from the current `VERSION` file. The `1.4.0` version bump/tag remains a separate release step.
+- Version validated in that smoke: `1.3.9`. The `1.4.0` release metadata is now prepared in `VERSION`, `Docs/ReleaseNotes-1.4.0.md`, and `RELEASE_HIGHLIGHTS.md`; final packaging still needs a DMG-capable release machine.
 - Script support added: `Scripts/release-smoke.sh` now accepts a `.app` bundle directly, so app/package structure can still be verified when manifest or DMG generation is unavailable.
+
+Latest 1.4.0 app-bundle metadata smoke:
+
+- Date: 2026-06-23
+- Metadata command: `zsh Scripts/release-metadata-check.sh`
+- Build command: `WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-metadata-smoke zsh Scripts/build-app.sh`
+- Smoke command: `zsh Scripts/release-smoke.sh /tmp/wordz-1.4-metadata-smoke/WordZ.app`
+- Result: metadata check passed for `VERSION` 1.4.0, `Docs/ReleaseNotes-1.4.0.md`, 4 in-app highlights, repository `zzwdh/WordZ`, and release page `https://github.com/zzwdh/WordZ/releases/tag/v1.4.0`. App-bundle smoke passed with Info.plist/build-info version `1.4.0`, release distribution channel, executable SHA metadata, Topics/Sentiment resources, and English/Chinese localizations.
+- Remaining packaging gap: this validates the app bundle only. Full manifest/checksum/ZIP/DMG/PKG verification still requires running the final release package step on a machine where `hdiutil create` succeeds.
 
 Latest focused Library import/index optimization run:
 
@@ -361,6 +370,9 @@ WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-app-smoke zsh 
 zsh Scripts/release-smoke.sh /tmp/wordz-app-smoke/WordZ.app
 zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
 zsh Scripts/run-1.4-api-recovery-check.sh --release --disable-swiftpm-sandbox
+zsh Scripts/release-metadata-check.sh
+WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-metadata-smoke zsh Scripts/build-app.sh
+zsh Scripts/release-smoke.sh /tmp/wordz-1.4-metadata-smoke/WordZ.app
 ```
 
 Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`. In this environment the app bundle and pkg can be validated, but final DMG generation still needs a local release machine where `hdiutil create` is available.

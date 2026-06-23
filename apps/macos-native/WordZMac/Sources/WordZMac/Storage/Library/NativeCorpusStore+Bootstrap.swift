@@ -34,10 +34,10 @@ extension NativeCorpusStore {
                 "导入文本语料后，可直接运行 Stats / Word / KWIC / Collocate / N-Gram / Compare / Locator。"
             ],
             "releaseNotes": [
-                "语料库工作流升级：支持命名语料集、元数据筛选、完整性提示，以及多语料批量元数据编辑。",
-                "分析素材升级：新增分析预设保存/应用/删除，并支持导出附带结果、方法摘要、构建信息和 workspace 草稿的分析材料包。",
-                "更新体验原生化：支持检查 GitHub Releases、展示版本亮点、下载更新并在安装前通过统一更新窗口管理流程。",
-                "架构与回归继续硬化：源码按领域重组，窗口/菜单/场景同步链路更稳，相关测试覆盖进一步补齐。"
+                "性能基线收口：新增 1.4.0 release 基线、UI 性能门禁和 before/after 记录，覆盖 Topics、Library/import、大结果页交互和参考语料分析。",
+                "高频路径优化：Library import/index、重复 Library 刷新、Topics 结果组装和 slice/embedding 分配完成实测优化，并保留质量字段对比。",
+                "API 调用稳定化：更新检查和手动 API 连接检查统一走可取消、可超时、可重试、限并发和脱敏记录的 API 底座。",
+                "本地优先与隐私保护：API 总开关、Keychain 凭据、连接测试、错误恢复和诊断包脱敏已落地，未配置 API 时本地语料分析仍完整可用。"
             ],
             "userDataDir": rootURL.path
         ])

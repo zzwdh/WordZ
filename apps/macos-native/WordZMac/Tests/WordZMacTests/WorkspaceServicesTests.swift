@@ -727,6 +727,22 @@ final class WorkspaceServicesTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("ui-settings.json").path))
     }
 
+    func testNativeCorpusStoreAppInfoUsesCurrentReleaseNotes() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("wordz-native-app-info-\(UUID().uuidString)", isDirectory: true)
+
+        let store = NativeCorpusStore(rootURL: rootURL)
+        try store.ensureInitialized()
+
+        let appInfo = store.appInfo()
+        let notes = appInfo.releaseNotes.joined(separator: "\n")
+        XCTAssertEqual(appInfo.releaseNotes.count, 4)
+        XCTAssertTrue(notes.contains("1.4.0 release"))
+        XCTAssertTrue(notes.contains("API 调用稳定化"))
+        XCTAssertTrue(notes.contains("本地优先与隐私保护"))
+        XCTAssertFalse(notes.contains("语料库工作流升级"))
+    }
+
     func testNativeCorpusStorePersistsCorpusSetRoundTrip() throws {
         let rootURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("wordz-native-corpus-set-\(UUID().uuidString)", isDirectory: true)
