@@ -37,20 +37,21 @@ extension MainWorkspaceViewModel {
     }
 
     func runStats() async {
-        await performResultRun(label: "stats", taskKey: .stats) {
-            await flowCoordinator.runStats(features: features)
+        await performManagedTask(key: .stats, policy: .replaceLatest) { token in
+            await self.runStats(token: token)
         }
     }
 
     func runWord() async {
-        await performResultRun(label: "word", taskKey: .word) {
-            await flowCoordinator.runWord(features: features)
+        await performManagedTask(key: .word, policy: .replaceLatest) { _ in
+            let token = await self.sessionActor.beginRequest(for: .stats)
+            await self.runWord(token: token)
         }
     }
 
     func runTokenize() async {
-        await performResultRun(label: "tokenize", taskKey: .tokenize) {
-            await flowCoordinator.runTokenize(features: features)
+        await performManagedTask(key: .tokenize, policy: .replaceLatest) { token in
+            await self.runTokenize(token: token)
         }
     }
 
@@ -86,8 +87,8 @@ extension MainWorkspaceViewModel {
     }
 
     func runChiSquare() async {
-        await performResultRun(label: "chi-square", taskKey: .chiSquare) {
-            await flowCoordinator.runChiSquare(features: features)
+        await performManagedTask(key: .chiSquare, policy: .replaceLatest) { token in
+            await self.runChiSquare(token: token)
         }
     }
 
@@ -122,8 +123,113 @@ extension MainWorkspaceViewModel {
     }
 
     func runLocator() async {
-        await performResultRun(label: "locator", taskKey: .locator) {
-            await flowCoordinator.runLocator(features: features)
+        await performManagedTask(key: .locator, policy: .replaceLatest) { token in
+            await self.runLocator(token: token)
+        }
+    }
+
+    private func runStats(token: WorkspaceRequestToken) async {
+        await performLatestResultRun(
+            token: token,
+            label: "stats",
+            descriptor: .stats,
+            selecting: .stats
+        ) {
+            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
+            }
+            return try await self.flowCoordinator.analysisWorkflow.repository.runStats(text: corpus.content)
+        } apply: { result in
+            self.stats.apply(result)
+            self.word.apply(result, rebuildSceneAfterApply: false)
+        }
+    }
+
+    private func runWord(token: WorkspaceRequestToken) async {
+        await performLatestResultRun(
+            token: token,
+            label: "word",
+            descriptor: .word,
+            selecting: .word
+        ) {
+            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
+            }
+            return try await self.flowCoordinator.analysisWorkflow.repository.runStats(text: corpus.content)
+        } apply: { result in
+            self.stats.apply(result, rebuildSceneAfterApply: false)
+            self.word.apply(result)
+        }
+    }
+
+    private func runTokenize(token: WorkspaceRequestToken) async {
+        await performLatestResultRun(
+            token: token,
+            label: "tokenize",
+            descriptor: .tokenize,
+            selecting: .tokenize
+        ) {
+            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
+            }
+            return try await self.flowCoordinator.analysisWorkflow.repository.runTokenize(text: corpus.content)
+        } apply: { result in
+            self.tokenize.apply(result)
+        }
+    }
+
+    private func runChiSquare(token: WorkspaceRequestToken) async {
+        let inputs: (Int, Int, Int, Int)
+        do {
+            inputs = try chiSquare.validatedInputs()
+        } catch {
+            sidebar.setError(error.localizedDescription)
+            return
+        }
+        let useYates = chiSquare.useYates
+
+        await performLatestResultRun(
+            token: token,
+            label: "chi-square",
+            descriptor: .chiSquare,
+            selecting: .chiSquare
+        ) {
+            return try await self.flowCoordinator.analysisWorkflow.repository.runChiSquare(
+                a: inputs.0,
+                b: inputs.1,
+                c: inputs.2,
+                d: inputs.3,
+                yates: useYates
+            )
+        } apply: { result in
+            self.chiSquare.apply(result)
+        }
+    }
+
+    private func runLocator(token: WorkspaceRequestToken) async {
+        guard let source = locator.currentSource ?? kwic.primaryLocatorSource else {
+            sidebar.setError(wordZText("请先运行 KWIC，Locator 会默认定位第一条结果。", "Run KWIC first so Locator can target the first result by default.", mode: .system))
+            return
+        }
+
+        await performLatestResultRun(
+            token: token,
+            label: "locator",
+            descriptor: .locator,
+            selecting: .locator
+        ) {
+            let corpus = try await self.performWithoutSceneSyncCallbacks(.navigation) {
+                try await self.flowCoordinator.ensureOpenedCorpus(features: self.features)
+            }
+            return try await self.flowCoordinator.analysisWorkflow.repository.runLocator(
+                text: corpus.content,
+                sentenceId: source.sentenceId,
+                nodeIndex: source.nodeIndex,
+                leftWindow: self.locator.leftWindowValue,
+                rightWindow: self.locator.rightWindowValue
+            )
+        } apply: { result in
+            self.locator.apply(result, source: source)
         }
     }
 

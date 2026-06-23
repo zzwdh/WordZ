@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Updated: 2026-06-22
+Updated: 2026-06-23
 
 This file tracks the concrete 1.4.0 work that supports the roadmap theme: performance optimization and API call stabilization.
 
@@ -84,6 +84,8 @@ Result: 28 focused API/update/settings tests, 0 failures. The latest run also in
 
 Latest release API privacy/export validation:
 
+- Date: 2026-06-23
+
 ```sh
 zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
 ```
@@ -91,6 +93,8 @@ zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
 Result: 3 release API privacy/export tests, 0 failures. The gate verifies saved credential headers through the unified connection client, redacted pilot request metadata in diagnostics payloads, and a real diagnostics zip export that strips API keys, authorization values, trace tokens, query tokens, and sample corpus text.
 
 Latest release API recovery validation:
+
+- Date: 2026-06-23
 
 ```sh
 zsh Scripts/run-1.4-api-recovery-check.sh --release --disable-swiftpm-sandbox
@@ -100,11 +104,12 @@ Result: 8 release API recovery tests, 0 failures. The gate verifies API-off upda
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Library import/index shard-write optimization, Topics/Sentiment latest-result concurrency protection, and release-mode aggregate baseline captured.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Library import/index shard-write optimization, full user-triggered analysis latest-result concurrency protection, and release-mode aggregate baseline captured.
 
 Existing foundation:
 
 - runtime budget policy exists for analysis tasks
+- user-triggered analysis runs now share the managed latest-result path across KWIC, Compare, Topics, Sentiment, Plot, Ngram, Cluster, Collocate, Stats, Word, Tokenize, ChiSquare, and Locator
 - large result scene boundary tests exist
 - previous topic benchmark work established the expected before/after quality comparison pattern
 - `Scripts/run-1.4-performance-baseline.sh` now aggregates fixed topic, sentiment, fixed user fixture, bundled reference-corpus fixture, Library/import, and optional external user corpus reports
@@ -114,7 +119,7 @@ Existing foundation:
 
 Latest large-result UI performance gate:
 
-- Date: 2026-06-22
+- Date: 2026-06-23
 - Change: added an explicit large-result interaction dispatch P95 budget of 50 ms, covering representative Stats, KWIC, Sentiment, and Topics interactions without counting asynchronous scene-build completion as input-blocking time.
 - Debug command: `zsh Scripts/run-1.4-ui-performance-check.sh --debug --disable-swiftpm-sandbox`
 - Release command: `zsh Scripts/run-1.4-ui-performance-check.sh --release --disable-swiftpm-sandbox`
@@ -232,12 +237,12 @@ Latest aggregate release run:
 
 Latest analysis concurrency validation:
 
-- Date: 2026-06-22
-- Change: ordinary Topics, main Sentiment, topic-segment-derived Sentiment, Plot, Ngram, Cluster, and Collocate runs now use the shared latest-result task supervisor path. Rapid repeated requests cancel/replace the previous run, discard stale results, and only persist the latest result tab state.
+- Date: 2026-06-23
+- Change: ordinary Topics, main Sentiment, topic-segment-derived Sentiment, Plot, Ngram, Cluster, Collocate, Stats, Word, Tokenize, ChiSquare, and Locator runs now use the shared latest-result task supervisor path. Rapid repeated requests cancel/replace the previous run, discard stale results, and only persist the latest result tab state. Stats and Word share the frequency-result freshness token so an older frequency run cannot overwrite a newer run from the adjacent page.
 - Focused command: `swift test --filter WorkspaceRuntimeConcurrencyTests`
-- Result: 10 runtime concurrency tests, 0 failures. Coverage now includes KWIC, Compare, Topics, main Sentiment, topic-segment-derived Sentiment, Plot, Ngram, Cluster, Collocate latest-result protection, and stale persistence callback suppression.
+- Result: 14 runtime concurrency tests, 0 failures. Coverage now includes KWIC, Compare, Topics, main Sentiment, topic-segment-derived Sentiment, Plot, Ngram, Cluster, Collocate, shared Stats/Word frequency results, Tokenize, ChiSquare, Locator latest-result protection, and stale persistence callback suppression.
 - Broader affected command: `swift test --filter 'WorkspaceRuntimeConcurrencyTests|PlotClusterFeatureTests|MainWorkspaceViewModelTests|WorkspaceActionDispatcherTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests|CompositionTests'`
-- Result: 175 affected ViewModel/dispatcher/coordinator/workflow/concurrency/Plot/Cluster/failure tests, 0 failures.
+- Result: 181 affected ViewModel/dispatcher/coordinator/workflow/concurrency/Plot/Cluster/failure tests, 0 failures.
 
 Latest cancellation-state validation:
 
@@ -295,6 +300,11 @@ Optimization notes:
   - Before: these pages used the older busy-skip result-run wrapper, so a rapid second run could be ignored while the first result still wrote page state.
   - After: rapid reruns replace the previous request; stale results are discarded before applying page state, result scenes, or selected-tab persistence.
   - Quality impact: no analysis-truth change expected; the same repository calls and request builders are used. Focused tests assert only the latest Plot query, Ngram size, Cluster option, and Collocate keyword reach the page result.
+- Short-task latest-result concurrency protection:
+  - Change: Stats, Word, Tokenize, ChiSquare, and Locator user-triggered runs now route through the managed replace-latest path instead of the older busy-skip wrapper.
+  - Before: rapid repeated short-task runs could skip the newer user action while an older result still completed. Stats and Word also share the same frequency result surface but had separate run entry points.
+  - After: rapid reruns replace the previous request; stale results are discarded before applying page state or selected-tab persistence. Stats and Word share the frequency freshness token so the latest adjacent-page frequency run wins.
+  - Quality impact: no analysis-truth change expected; the same repository calls, validated inputs, locator source selection, and result application paths are used. Focused tests assert only the latest corpus text, ChiSquare input, and Locator source reach page state.
 - Task-center cancelled-state separation:
   - Change: `NativeBackgroundTaskState` now has a dedicated `cancelled` state and task-center snapshots expose `cancelledCount`.
   - Before: user-initiated cancellations were usually presented through failed-state counters or filtered failure notifications, which made task history harder to read.

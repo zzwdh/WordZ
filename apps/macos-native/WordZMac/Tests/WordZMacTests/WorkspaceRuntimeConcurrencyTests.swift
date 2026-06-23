@@ -95,6 +95,144 @@ final class WorkspaceRuntimeConcurrencyTests: XCTestCase {
         XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.compare))
     }
 
+    func testStatsAndWordRunsShareLatestFrequencyResult() async {
+        let repository = makeTwoCorpusRepository()
+        repository.statsDelayNanoseconds = 120_000_000
+        repository.statsResultProvider = { text in
+            makeStatsResult(rowCount: text.contains("beta") ? 6 : 2)
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleStatsAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.sidebar.selectedCorpusID = "corpus-2"
+        dispatcher.handleWordAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runStatsCallCount, 2)
+        XCTAssertEqual(repository.lastRunStatsText, "beta focus")
+        XCTAssertEqual(workspace.stats.result?.tokenCount, 60)
+        XCTAssertEqual(workspace.word.result?.tokenCount, 60)
+        XCTAssertEqual(workspace.word.scene?.totalRows, 6)
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.word.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.stats))
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.word))
+    }
+
+    func testRapidTokenizeRunsOnlyApplyLatestResult() async {
+        let repository = makeTwoCorpusRepository()
+        repository.tokenizeDelayNanoseconds = 120_000_000
+        repository.tokenizeResultProvider = { text in
+            makeTokenizeResult(marker: text.contains("beta") ? "beta" : "alpha")
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        dispatcher.handleTokenizeAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.sidebar.selectedCorpusID = "corpus-2"
+        dispatcher.handleTokenizeAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runTokenizeCallCount, 2)
+        XCTAssertEqual(repository.lastRunTokenizeText, "beta focus")
+        XCTAssertEqual(workspace.tokenize.result?.tokens.first?.normalized, "beta")
+        XCTAssertEqual(workspace.tokenize.scene?.rows.first?.normalized, "beta")
+        XCTAssertEqual(
+            workspace.sceneGraph.tokenize.tableSnapshot.rows.first?.value(for: TokenizeColumnKey.normalized.rawValue),
+            "beta"
+        )
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.tokenize.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.tokenize))
+    }
+
+    func testRapidChiSquareRunsOnlyApplyLatestResult() async {
+        let repository = FakeWorkspaceRepository()
+        repository.chiSquareDelayNanoseconds = 120_000_000
+        repository.chiSquareResultProvider = { a, b, c, d, yates in
+            makeChiSquareResult(chiSquare: Double(a), total: a + b + c + d, yates: yates)
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.chiSquare.a = "1"
+        workspace.chiSquare.b = "2"
+        workspace.chiSquare.c = "3"
+        workspace.chiSquare.d = "4"
+        workspace.chiSquare.useYates = false
+        dispatcher.handleChiSquareAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.chiSquare.a = "9"
+        workspace.chiSquare.b = "8"
+        workspace.chiSquare.c = "7"
+        workspace.chiSquare.d = "6"
+        workspace.chiSquare.useYates = true
+        dispatcher.handleChiSquareAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runChiSquareCallCount, 2)
+        XCTAssertEqual(repository.lastRunChiSquareInputs?.a, 9)
+        XCTAssertEqual(repository.lastRunChiSquareInputs?.yates, true)
+        XCTAssertEqual(workspace.chiSquare.scene?.metrics.first(where: { $0.id == "chi" })?.value, "9")
+        XCTAssertEqual(workspace.chiSquare.scene?.metrics.first(where: { $0.id == "n" })?.value, "30")
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.chiSquare.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.chiSquare))
+    }
+
+    func testRapidLocatorRunsOnlyApplyLatestResult() async {
+        let repository = makeTwoCorpusRepository()
+        repository.locatorDelayNanoseconds = 120_000_000
+        repository.locatorResultProvider = { _, sentenceId, nodeIndex, _, _ in
+            makeLocatorResult(sentenceId: sentenceId, nodeIndex: nodeIndex, marker: "locator-\(sentenceId)")
+        }
+
+        let workspace = makeMainWorkspaceViewModel(repository: repository)
+        await workspace.initializeIfNeeded()
+        repository.savedWorkspaceDrafts = []
+        workspace.sidebar.selectedCorpusID = "corpus-1"
+        workspace.locator.leftWindow = "3"
+        workspace.locator.rightWindow = "4"
+        let dispatcher = WorkspaceActionDispatcher(workspace: workspace)
+
+        workspace.locator.updateSource(LocatorSource(keyword: "node", sentenceId: 1, nodeIndex: 1))
+        dispatcher.handleLocatorAction(.run)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
+        workspace.locator.updateSource(LocatorSource(keyword: "node", sentenceId: 2, nodeIndex: 2))
+        dispatcher.handleLocatorAction(.run)
+        try? await Task.sleep(nanoseconds: 340_000_000)
+
+        XCTAssertEqual(repository.runLocatorCallCount, 2)
+        XCTAssertEqual(repository.lastRunLocatorSentenceId, 2)
+        XCTAssertEqual(repository.lastRunLocatorNodeIndex, 2)
+        XCTAssertEqual(repository.lastRunLocatorLeftWindow, 3)
+        XCTAssertEqual(repository.lastRunLocatorRightWindow, 4)
+        XCTAssertEqual(workspace.locator.currentSource?.sentenceId, 2)
+        XCTAssertEqual(workspace.locator.result?.rows.first?.text, "locator-2")
+        XCTAssertEqual(workspace.locator.scene?.rows.first?.text, "locator-2")
+        XCTAssertEqual(
+            workspace.sceneGraph.locator.tableSnapshot.rows.first?.value(for: LocatorColumnKey.text.rawValue),
+            "locator-2"
+        )
+        XCTAssertEqual(repository.savedWorkspaceDrafts.last?.currentTab, WorkspaceDetailTab.locator.snapshotValue)
+        XCTAssertFalse(workspace.runningTaskKeys.contains(WorkspaceRuntimeTaskKey.locator))
+    }
+
     func testRapidTopicsRunsOnlyApplyLatestResult() async {
         let repository = FakeWorkspaceRepository()
         repository.topicsDelayNanoseconds = 120_000_000
@@ -365,6 +503,25 @@ private func makeCompareCorpus(id: String, name: String) -> LibraryCorpusItem {
     ])
 }
 
+@MainActor
+private func makeTwoCorpusRepository() -> FakeWorkspaceRepository {
+    let corpora = [
+        makeCompareCorpus(id: "corpus-1", name: "Corpus A"),
+        makeCompareCorpus(id: "corpus-2", name: "Corpus B")
+    ]
+    let bootstrapState = makeBootstrapState(
+        workspaceSnapshot: makeWorkspaceSnapshot(searchQuery: ""),
+        corpora: corpora
+    )
+    return FakeWorkspaceRepository(
+        bootstrapState: bootstrapState,
+        openedCorporaByID: [
+            "corpus-1": makeOpenedCorpus(path: "/tmp/corpus-a.txt", displayName: "Corpus A", content: "alpha focus"),
+            "corpus-2": makeOpenedCorpus(path: "/tmp/corpus-b.txt", displayName: "Corpus B", content: "beta focus")
+        ]
+    )
+}
+
 private func makeOpenedCorpus(
     path: String,
     displayName: String,
@@ -377,6 +534,61 @@ private func makeOpenedCorpus(
         "content": content,
         "sourceType": "txt"
     ])
+}
+
+private func makeTokenizeResult(marker: String) -> TokenizeResult {
+    TokenizeResult(
+        sentences: [
+            TokenizedSentence(
+                sentenceId: 0,
+                text: "\(marker) focus.",
+                tokens: [
+                    TokenizedToken(
+                        original: marker,
+                        normalized: marker,
+                        sentenceId: 0,
+                        tokenIndex: 0,
+                        annotations: TokenLinguisticAnnotations(script: .latin, lemma: marker, lexicalClass: .noun)
+                    )
+                ]
+            )
+        ]
+    )
+}
+
+private func makeChiSquareResult(chiSquare: Double, total: Int, yates: Bool) -> ChiSquareResult {
+    ChiSquareResult(json: [
+        "observed": [[12, 30], [6, 40]],
+        "expected": [[8.6, 33.4], [9.4, 36.6]],
+        "rowTotals": [42, 46],
+        "colTotals": [18, 70],
+        "total": total,
+        "chiSquare": chiSquare,
+        "degreesOfFreedom": 1,
+        "pValue": 0.0978,
+        "significantAt05": false,
+        "significantAt01": false,
+        "phi": 0.1765,
+        "oddsRatio": 2.6667,
+        "yatesCorrection": yates,
+        "warnings": []
+    ])
+}
+
+private func makeLocatorResult(sentenceId: Int, nodeIndex: Int, marker: String) -> LocatorResult {
+    LocatorResult(
+        sentenceCount: 1,
+        rows: [
+            LocatorRow(
+                sentenceId: sentenceId,
+                text: marker,
+                leftWords: "left",
+                nodeWord: "node-\(nodeIndex)",
+                rightWords: "right",
+                status: "当前定位"
+            )
+        ]
+    )
 }
 
 private func makeCompareResult(

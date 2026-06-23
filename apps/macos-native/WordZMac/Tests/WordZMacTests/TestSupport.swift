@@ -31,6 +31,7 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var runLocatorCallCount = 0
     var lastRunPlotRequest: PlotRunRequest?
     var lastRunStatsText: String?
+    var lastRunTokenizeText: String?
     var lastRunTopicsText: String?
     var lastRunTopicsOptions: TopicAnalysisOptions?
     var lastSentimentRequest: SentimentRunRequest?
@@ -40,10 +41,13 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var lastRunKWICSearchOptions = SearchOptionsState.default
     var lastRunNgramN: Int?
     var lastRunClusterRequest: ClusterRunRequest?
+    var lastRunChiSquareInputs: (a: Int, b: Int, c: Int, d: Int, yates: Bool)?
     var lastRunCollocateKeyword = ""
     var lastRunCollocateSearchOptions = SearchOptionsState.default
     var lastRunLocatorSentenceId: Int?
     var lastRunLocatorNodeIndex: Int?
+    var lastRunLocatorLeftWindow: Int?
+    var lastRunLocatorRightWindow: Int?
     var importCorpusPathsCallCount = 0
     var importMergedCorpusPathsCallCount = 0
     var lastMergedImportPaths: [String] = []
@@ -171,7 +175,15 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     var clusterDelayNanoseconds: UInt64 = 0
     var collocateDelayNanoseconds: UInt64 = 0
     var saveWorkspaceDelayNanoseconds: UInt64 = 0
+    var statsDelayNanoseconds: UInt64 = 0
+    var tokenizeDelayNanoseconds: UInt64 = 0
+    var chiSquareDelayNanoseconds: UInt64 = 0
+    var locatorDelayNanoseconds: UInt64 = 0
     var topicsResultProvider: ((String, TopicAnalysisOptions) async throws -> TopicAnalysisResult)?
+    var statsResultProvider: ((String) async throws -> StatsResult)?
+    var tokenizeResultProvider: ((String) async throws -> TokenizeResult)?
+    var chiSquareResultProvider: ((Int, Int, Int, Int, Bool) async throws -> ChiSquareResult)?
+    var locatorResultProvider: ((String, Int, Int, Int, Int) async throws -> LocatorResult)?
     var sentimentResultProvider: ((SentimentRunRequest) async throws -> SentimentRunResult)?
     var compareResultProvider: (([CompareRequestEntry]) async throws -> CompareResult)?
     var keywordSuiteResultProvider: ((KeywordSuiteRunRequest) async throws -> KeywordSuiteResult)?
@@ -598,13 +610,26 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
     func runStats(text: String) async throws -> StatsResult {
         runStatsCallCount += 1
         lastRunStatsText = text
+        if statsDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: statsDelayNanoseconds)
+        }
         if let statsError { throw statsError }
+        if let statsResultProvider {
+            return try await statsResultProvider(text)
+        }
         return statsResult
     }
 
     func runTokenize(text: String) async throws -> TokenizeResult {
         runTokenizeCallCount += 1
+        lastRunTokenizeText = text
+        if tokenizeDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: tokenizeDelayNanoseconds)
+        }
         if let tokenizeError { throw tokenizeError }
+        if let tokenizeResultProvider {
+            return try await tokenizeResultProvider(text)
+        }
         return tokenizeResult
     }
 
@@ -673,7 +698,14 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
 
     func runChiSquare(a: Int, b: Int, c: Int, d: Int, yates: Bool) async throws -> ChiSquareResult {
         runChiSquareCallCount += 1
+        lastRunChiSquareInputs = (a: a, b: b, c: c, d: d, yates: yates)
+        if chiSquareDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: chiSquareDelayNanoseconds)
+        }
         if let chiSquareError { throw chiSquareError }
+        if let chiSquareResultProvider {
+            return try await chiSquareResultProvider(a, b, c, d, yates)
+        }
         return chiSquareResult
     }
 
@@ -764,7 +796,15 @@ final class FakeWorkspaceRepository: WorkspaceRepository, MergedCorpusImportingR
         runLocatorCallCount += 1
         lastRunLocatorSentenceId = sentenceId
         lastRunLocatorNodeIndex = nodeIndex
+        lastRunLocatorLeftWindow = leftWindow
+        lastRunLocatorRightWindow = rightWindow
+        if locatorDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: locatorDelayNanoseconds)
+        }
         if let locatorError { throw locatorError }
+        if let locatorResultProvider {
+            return try await locatorResultProvider(text, sentenceId, nodeIndex, leftWindow, rightWindow)
+        }
         return locatorResult
     }
 
