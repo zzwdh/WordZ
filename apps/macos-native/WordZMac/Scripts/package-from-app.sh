@@ -5,7 +5,7 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PAT
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 if [[ $# -lt 4 ]]; then
-  echo "usage: $0 <app-bundle> <app-name> <version> <dist-dir> [arch]" >&2
+  echo "usage: $0 <app-bundle> <app-name> <version> <dist-dir> [arch] [--skip-dmg]" >&2
   exit 1
 fi
 
@@ -14,6 +14,14 @@ APP_NAME="$2"
 VERSION="$3"
 DIST_DIR="$4"
 ARCH_NAME="${5:-$(uname -m)}"
+SKIP_DMG="${WORDZ_MAC_SKIP_DMG:-0}"
+if [[ "$ARCH_NAME" == "--skip-dmg" ]]; then
+  ARCH_NAME="$(uname -m)"
+  SKIP_DMG=1
+fi
+if [[ "${6:-}" == "--skip-dmg" ]]; then
+  SKIP_DMG=1
+fi
 ZIP_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.zip"
 DMG_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.dmg"
 ZIP_TEMP_PATH="$DIST_DIR/.${APP_NAME}-${VERSION}-mac-${ARCH_NAME}.zip"
@@ -38,16 +46,23 @@ PKG_PATH="$(zsh "$SCRIPT_DIR/package-pkg-from-app.sh" "$APP_BUNDLE" "$APP_NAME" 
 
 cp -R "$APP_BUNDLE" "$STAGING_DIR/"
 ln -s /Applications "$STAGING_DIR/Applications"
-hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG_TEMP_PATH" >/dev/null
-mv -f "$DMG_TEMP_PATH" "$DMG_PATH"
+if [[ "$SKIP_DMG" == "1" ]]; then
+  rm -f "$DMG_PATH" "$DMG_TEMP_PATH"
+  echo "[native-package] DMG creation skipped; generated manifest is for local preflight only." >&2
+else
+  hdiutil create -volname "$APP_NAME" -srcfolder "$STAGING_DIR" -ov -format UDZO "$DMG_TEMP_PATH" >/dev/null
+  mv -f "$DMG_TEMP_PATH" "$DMG_PATH"
+fi
 
-CHECKSUMS_AND_MANIFEST=("${(@f)$(zsh "$SCRIPT_DIR/release-manifest.sh" "$APP_NAME" "$VERSION" "$DIST_DIR" "$ARCH_NAME")}")
+CHECKSUMS_AND_MANIFEST=("${(@f)$(WORDZ_MAC_SKIP_DMG="$SKIP_DMG" zsh "$SCRIPT_DIR/release-manifest.sh" "$APP_NAME" "$VERSION" "$DIST_DIR" "$ARCH_NAME")}")
 CHECKSUMS_PATH="${CHECKSUMS_AND_MANIFEST[1]}"
 MANIFEST_PATH="${CHECKSUMS_AND_MANIFEST[2]}"
 
 echo "$APP_BUNDLE"
 echo "$ZIP_PATH"
-echo "$DMG_PATH"
+if [[ "$SKIP_DMG" != "1" ]]; then
+  echo "$DMG_PATH"
+fi
 echo "$PKG_PATH"
 echo "$CHECKSUMS_PATH"
 echo "$MANIFEST_PATH"

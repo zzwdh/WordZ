@@ -278,6 +278,14 @@ Latest release checklist pre-package gate validation:
 - Release script behavior validated: `--disable-swiftpm-sandbox` now propagates to release SwiftPM tests and the 1.4 UI/API gate scripts. When package, verify, smoke, notarize, and upload are not selected, the checklist no longer requires a manifest and reports it as not required.
 - Remaining packaging gap: final package, verify, smoke, optional notarization, and upload still need the release-machine run with real ZIP/DMG/PKG artifacts.
 
+Latest no-DMG package preflight validation:
+
+- Date: 2026-06-23
+- Command: `WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-no-dmg-preflight zsh Scripts/release-checklist.sh --disable-swiftpm-sandbox --skip-tests --skip-ui-performance --skip-api-gates --skip-architecture --skip-dmg`
+- Result: metadata check passed for `1.4.0`; release package preflight created `WordZ.app`, `WordZ-1.4.0-mac-arm64.zip`, `WordZ-1.4.0-mac-arm64.pkg`, `WordZ-1.4.0-mac-arm64.checksums.txt`, and `WordZ-1.4.0-mac-arm64.manifest.json`; checksum verification passed for zip/pkg; manifest-mode release smoke passed with Info.plist/build-info version `1.4.0`, release channel, executable SHA metadata, Topics/Sentiment resources, English/Chinese localizations, and pkg payload.
+- Partial-manifest protection: the no-DMG manifest records `release.dmgIncluded=false`; `Scripts/release-upload.sh` refused to upload it by default and instructed that final packaging must be rerun without `--skip-dmg` on the release machine.
+- Remaining packaging gap: this validates app/zip/pkg/checksums/manifest without DMG only. Final release still requires the full package step without `--skip-dmg` on a machine where `hdiutil create` succeeds.
+
 Latest focused Library import/index optimization run:
 
 - Date: 2026-06-22
@@ -382,6 +390,7 @@ zsh Scripts/release-metadata-check.sh
 WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-metadata-smoke zsh Scripts/build-app.sh
 zsh Scripts/release-smoke.sh /tmp/wordz-1.4-metadata-smoke/WordZ.app
 zsh Scripts/release-checklist.sh --disable-swiftpm-sandbox --skip-tests --skip-package --skip-verify --skip-smoke
+WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-no-dmg-preflight zsh Scripts/release-checklist.sh --disable-swiftpm-sandbox --skip-tests --skip-ui-performance --skip-api-gates --skip-architecture --skip-dmg
 ```
 
 Note: earlier aggregate shell entrypoints needed a less restricted environment because nested `swift test` calls can write SwiftPM/clang cache state outside the writable workspace. The latest release aggregate run completed in the current managed workspace. The generated reports are ignored under `.build/reports/`. In this environment the app bundle and pkg can be validated, but final DMG generation still needs a local release machine where `hdiutil create` is available.
@@ -391,6 +400,7 @@ Next required work:
 - keep Topics embedding under watch; further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 - keep `Scripts/release-checklist.sh --disable-swiftpm-sandbox --skip-tests --skip-package --skip-verify --skip-smoke` available for pre-package gate refreshes in restricted environments
+- keep `--skip-dmg` package preflight limited to local validation; do not upload partial manifests
 - run final DMG packaging on a machine that supports `hdiutil create` before tagging
 
 Baseline command:

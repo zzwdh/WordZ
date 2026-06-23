@@ -73,6 +73,12 @@ TAG_NAME="${TAG_OVERRIDE:-$(release_support_read_manifest_value "$MANIFEST_PATH"
 TAG_NAME="${TAG_NAME:-$(release_support_release_tag "$VERSION")}"
 REPOSITORY_SLUG="${REPOSITORY_OVERRIDE:-$(release_support_repository_slug)}"
 [[ -n "$REPOSITORY_SLUG" ]] || { echo "unable to resolve GitHub repository slug." >&2; exit 1; }
+DMG_INCLUDED="$(release_support_read_manifest_value "$MANIFEST_PATH" release.dmgIncluded 2>/dev/null || true)"
+if [[ "$DMG_INCLUDED" == "false" && "${WORDZ_MAC_ALLOW_PARTIAL_RELEASE_UPLOAD:-0}" != "1" ]]; then
+  echo "manifest was generated with DMG omitted; refusing to upload partial release assets." >&2
+  echo "Re-run packaging without WORDZ_MAC_SKIP_DMG/--skip-dmg on the release machine." >&2
+  exit 1
+fi
 
 NOTES_PATH="${NOTES_PATH_OVERRIDE:-$(release_support_release_notes_path "$VERSION")}"
 [[ -f "$NOTES_PATH" ]] || { echo "release notes not found: $NOTES_PATH" >&2; exit 1; }

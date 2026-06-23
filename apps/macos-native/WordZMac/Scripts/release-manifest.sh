@@ -39,8 +39,17 @@ RELEASE_HIGHLIGHTS_JSON="$(release_support_release_highlights_json "$RELEASE_HIG
 NOTARIZED_APP="${WORDZ_MAC_NOTARIZED_APP:-0}"
 NOTARIZED_DMG="${WORDZ_MAC_NOTARIZED_DMG:-0}"
 NOTARIZED_PKG="${WORDZ_MAC_NOTARIZED_PKG:-0}"
+SKIP_DMG="${WORDZ_MAC_SKIP_DMG:-0}"
+DMG_INCLUDED=1
 
-for artifact_path in "$APP_BUNDLE" "$ZIP_PATH" "$DMG_PATH" "$PKG_PATH"; do
+required_artifact_paths=("$APP_BUNDLE" "$ZIP_PATH" "$PKG_PATH")
+if [[ "$SKIP_DMG" == "1" ]]; then
+  DMG_INCLUDED=0
+else
+  required_artifact_paths+=("$DMG_PATH")
+fi
+
+for artifact_path in "${required_artifact_paths[@]}"; do
   if [[ ! -e "$artifact_path" ]]; then
     echo "missing release artifact: $artifact_path" >&2
     exit 1
@@ -48,17 +57,21 @@ for artifact_path in "$APP_BUNDLE" "$ZIP_PATH" "$DMG_PATH" "$PKG_PATH"; do
 done
 
 zip_sha="$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')"
-dmg_sha="$(/usr/bin/shasum -a 256 "$DMG_PATH" | /usr/bin/awk '{print $1}')"
 pkg_sha="$(/usr/bin/shasum -a 256 "$PKG_PATH" | /usr/bin/awk '{print $1}')"
 zip_size="$(/usr/bin/stat -f %z "$ZIP_PATH")"
-dmg_size="$(/usr/bin/stat -f %z "$DMG_PATH")"
 pkg_size="$(/usr/bin/stat -f %z "$PKG_PATH")"
+if [[ "$DMG_INCLUDED" -eq 1 ]]; then
+  dmg_sha="$(/usr/bin/shasum -a 256 "$DMG_PATH" | /usr/bin/awk '{print $1}')"
+  dmg_size="$(/usr/bin/stat -f %z "$DMG_PATH")"
+fi
 
-/bin/cat > "$CHECKSUMS_PATH" <<EOF
-$zip_sha  $ZIP_NAME
-$dmg_sha  $DMG_NAME
-$pkg_sha  $PKG_NAME
-EOF
+{
+  print -r -- "$zip_sha  $ZIP_NAME"
+  if [[ "$DMG_INCLUDED" -eq 1 ]]; then
+    print -r -- "$dmg_sha  $DMG_NAME"
+  fi
+  print -r -- "$pkg_sha  $PKG_NAME"
+} > "$CHECKSUMS_PATH"
 
 /bin/cat > "$MANIFEST_PATH" <<JSON
 {
@@ -71,6 +84,7 @@ EOF
     "tag": "$(release_support_json_escape "$RELEASE_TAG")",
     "repository": "$(release_support_json_escape "$REPOSITORY_SLUG")",
     "releasePageURL": "$(release_support_json_escape "$RELEASE_PAGE_URL")",
+    "dmgIncluded": $([[ "$DMG_INCLUDED" -eq 1 ]] && echo true || echo false),
     "notesAvailable": $([[ "$RELEASE_NOTES_EXISTS" -eq 1 ]] && echo true || echo false),
     "notesPath": "$([[ "$RELEASE_NOTES_EXISTS" -eq 1 ]] && release_support_json_escape "$RELEASE_NOTES_RELATIVE_PATH")",
     "highlights": $RELEASE_HIGHLIGHTS_JSON
@@ -86,14 +100,22 @@ EOF
       "size": $zip_size,
       "sha256": "$(release_support_json_escape "$zip_sha")",
       "containsStapledApp": $([[ "$NOTARIZED_APP" == "1" ]] && echo true || echo false)
-    },
+    }
+JSON
+if [[ "$DMG_INCLUDED" -eq 1 ]]; then
+  /bin/cat >> "$MANIFEST_PATH" <<JSON
+    ,
     {
       "name": "$(release_support_json_escape "$DMG_NAME")",
       "kind": "dmg",
       "size": $dmg_size,
       "sha256": "$(release_support_json_escape "$dmg_sha")",
       "notarized": $([[ "$NOTARIZED_DMG" == "1" ]] && echo true || echo false)
-    },
+    }
+JSON
+fi
+/bin/cat >> "$MANIFEST_PATH" <<JSON
+    ,
     {
       "name": "$(release_support_json_escape "$PKG_NAME")",
       "kind": "pkg",

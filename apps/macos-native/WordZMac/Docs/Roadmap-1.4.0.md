@@ -43,7 +43,7 @@
 
 ## 当前完成度估算
 
-以下完成度是基于当前代码状态的工程判断。当前已有 debug 和 release 聚合基线，Library import/index 优化后已完成一次 release aggregate 复跑，packaged app smoke、1.4.0 release metadata、API 隐私导出、API 错误恢复 release 门禁和 release checklist 前置门禁复跑也已通过；最终正式发版前还需要在支持 `hdiutil create` 的发布机上完成 DMG 产物。
+以下完成度是基于当前代码状态的工程判断。当前已有 debug 和 release 聚合基线，Library import/index 优化后已完成一次 release aggregate 复跑，packaged app smoke、1.4.0 release metadata、API 隐私导出、API 错误恢复 release 门禁、release checklist 前置门禁复跑和无 DMG 的 zip/pkg/manifest 预检也已通过；最终正式发版前还需要在支持 `hdiutil create` 的发布机上完成 DMG 产物。
 
 | 模块 | 当前完成度 | 现状 | 1.4.0 要补齐的部分 |
 | --- | ---: | --- | --- |
@@ -54,7 +54,7 @@
 | API 调用底座 | 94% | 已有 `NativeAPIClient` 第一版，更新检查和手动 API 连接检查已迁移；连接检查已固定为 1.4.0 窄 API 试点，API 关闭时会阻止联网更新动作，queued / in-flight 取消测试已覆盖，更新检查 service factory 已接入当前 API timeout/concurrency 设置；release API 隐私导出和错误恢复门禁已通过 | 保持 `run-1.4-api-privacy-check.sh` 和 `run-1.4-api-recovery-check.sh` 作为 pre-tag 门禁 |
 | API 设置与凭据保护 | 93% | 设置页已有 API 总开关、凭据状态、保存/清除凭据动作、真实连接测试、超时/并发上限设置，凭据走 Keychain 底座；连接检查明确不上传语料正文，诊断包只导出脱敏后的请求 host/path/status/duration/header 元数据；release 诊断 zip 导出已验证不包含 API key、Authorization header、query token 或示例语料原文 | 继续限制 1.4.0 API 试点范围，避免引入会上传语料的新 API 功能 |
 | API 错误恢复 | 86% | 更新检查和连接测试已走统一错误层，已覆盖 401/403 凭据失败、429 限流、离线 transport 错误、API 关闭恢复文案、取消归一和失败 UI 脱敏；手动连接检查不会改变本地统计分析结果 | 后续只保留真实联网环境抽检，不再阻塞 1.4.0 P0 |
-| 性能/API 文档与发布门禁 | 99% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95、release 聚合脚本、受限环境 SwiftPM 复跑开关、三条 before/after 优化记录、1.4.0 release notes/highlights/version、app bundle/pkg smoke、大结果 UI 性能门禁、API 隐私导出和 API 错误恢复 release 门禁已建立，并已接入 release checklist；1.4.0 app bundle metadata smoke 已验证 Info.plist/build info/resource 结构；release checklist 支持 `--disable-swiftpm-sandbox` 和跳过打包时不强制 manifest 的前置门禁复跑 | 最终发布机补完整 DMG 产物，并按同一 smoke/checklist 复核 |
+| 性能/API 文档与发布门禁 | 99% | 路线图、baseline 文档、API 测试记录、固定机器算法基线、用户样本、参考语料、Library/import p50/p95、release 聚合脚本、受限环境 SwiftPM 复跑开关、三条 before/after 优化记录、1.4.0 release notes/highlights/version、app bundle/pkg smoke、大结果 UI 性能门禁、API 隐私导出和 API 错误恢复 release 门禁已建立，并已接入 release checklist；1.4.0 app bundle metadata smoke 已验证 Info.plist/build info/resource 结构；release checklist 支持 `--disable-swiftpm-sandbox`、跳过打包时不强制 manifest，以及 `--skip-dmg` 本地 zip/pkg/checksums/manifest 预检；partial manifest 默认不能上传 | 最终发布机补完整 DMG 产物，并按同一 smoke/checklist 复核 |
 
 ## P0: 性能基线与回归门禁
 

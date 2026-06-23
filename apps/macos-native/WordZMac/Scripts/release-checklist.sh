@@ -8,6 +8,7 @@ APP_ROOT="$(release_support_app_root)"
 DIST_DIR="$(release_support_dist_dir)"
 SCRIPT_NAME="${0:t}"
 DISABLE_SWIFTPM_SANDBOX="${WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX:-0}"
+SKIP_DMG="${WORDZ_MAC_SKIP_DMG:-0}"
 LOCAL_HOME="${WORDZ_MAC_LOCAL_HOME:-$APP_ROOT/.release-home}"
 LOCAL_CLANG_CACHE="${WORDZ_MAC_LOCAL_CLANG_CACHE:-$APP_ROOT/.release-clang-cache}"
 LOCAL_SWIFTPM_CACHE="${WORDZ_MAC_LOCAL_SWIFTPM_CACHE:-$APP_ROOT/.release-swiftpm-cache}"
@@ -28,7 +29,7 @@ UPLOAD_ARGS=()
 
 usage() {
   cat <<EOF
-usage: $SCRIPT_NAME [--skip-metadata] [--skip-tests] [--skip-ui-performance] [--skip-api-gates] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--disable-swiftpm-sandbox] [--notarize] [--upload] [--manifest <path>] [--notes-file <path>] [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--draft] [--prerelease] [--clobber]
+usage: $SCRIPT_NAME [--skip-metadata] [--skip-tests] [--skip-ui-performance] [--skip-api-gates] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--disable-swiftpm-sandbox] [--skip-dmg] [--notarize] [--upload] [--manifest <path>] [--notes-file <path>] [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--draft] [--prerelease] [--clobber]
 
 This script runs the native macOS release checklist:
   1. release-metadata-check.sh
@@ -74,6 +75,9 @@ while [[ $# -gt 0 ]]; do
     --disable-swiftpm-sandbox)
       DISABLE_SWIFTPM_SANDBOX=1
       ;;
+    --skip-dmg)
+      SKIP_DMG=1
+      ;;
     --notarize)
       RUN_NOTARIZE=1
       ;;
@@ -109,6 +113,11 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+if [[ "$SKIP_DMG" == "1" && ( "$RUN_NOTARIZE" -eq 1 || "$RUN_UPLOAD" -eq 1 ) ]]; then
+  echo "--skip-dmg is only for local preflight packaging; do not combine it with --notarize or --upload." >&2
+  exit 1
+fi
 
 step() {
   echo
@@ -167,7 +176,7 @@ fi
 
 if [[ "$RUN_PACKAGE" -eq 1 ]]; then
   step "package artifacts"
-  WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX="$DISABLE_SWIFTPM_SANDBOX" zsh "$SCRIPT_DIR/package-app.sh"
+  WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX="$DISABLE_SWIFTPM_SANDBOX" WORDZ_MAC_SKIP_DMG="$SKIP_DMG" zsh "$SCRIPT_DIR/package-app.sh"
   MANIFEST_PATH="$(resolve_latest_manifest)"
 fi
 
@@ -229,6 +238,8 @@ fi
 echo "[native-release-checklist] Remaining manual steps:"
 if [[ "$RUN_PACKAGE" -eq 0 ]]; then
   echo "  [ ] Run package artifacts with Scripts/package-app.sh on the release machine."
+elif [[ "$SKIP_DMG" == "1" ]]; then
+  echo "  [ ] Re-run package artifacts without --skip-dmg on a machine where hdiutil create succeeds."
 fi
 if [[ "$RUN_NOTARIZE" -eq 0 ]]; then
   echo "  [ ] Notarize with Scripts/notarize-app.sh if this build will be distributed externally."
