@@ -7,6 +7,10 @@ source "$SCRIPT_DIR/release-support.sh"
 APP_ROOT="$(release_support_app_root)"
 DIST_DIR="$(release_support_dist_dir)"
 SCRIPT_NAME="${0:t}"
+DISABLE_SWIFTPM_SANDBOX="${WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX:-0}"
+LOCAL_HOME="${WORDZ_MAC_LOCAL_HOME:-$APP_ROOT/.release-home}"
+LOCAL_CLANG_CACHE="${WORDZ_MAC_LOCAL_CLANG_CACHE:-$APP_ROOT/.release-clang-cache}"
+LOCAL_SWIFTPM_CACHE="${WORDZ_MAC_LOCAL_SWIFTPM_CACHE:-$APP_ROOT/.release-swiftpm-cache}"
 
 RUN_METADATA=1
 RUN_TESTS=1
@@ -24,7 +28,7 @@ UPLOAD_ARGS=()
 
 usage() {
   cat <<EOF
-usage: $SCRIPT_NAME [--skip-metadata] [--skip-tests] [--skip-ui-performance] [--skip-api-gates] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--notarize] [--upload] [--manifest <path>] [--notes-file <path>] [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--draft] [--prerelease] [--clobber]
+usage: $SCRIPT_NAME [--skip-metadata] [--skip-tests] [--skip-ui-performance] [--skip-api-gates] [--skip-architecture] [--skip-package] [--skip-verify] [--skip-smoke] [--disable-swiftpm-sandbox] [--notarize] [--upload] [--manifest <path>] [--notes-file <path>] [--repo <owner/repo>] [--tag <tag>] [--title <title>] [--draft] [--prerelease] [--clobber]
 
 This script runs the native macOS release checklist:
   1. release-metadata-check.sh
@@ -66,6 +70,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-smoke)
       RUN_SMOKE=0
+      ;;
+    --disable-swiftpm-sandbox)
+      DISABLE_SWIFTPM_SANDBOX=1
       ;;
     --notarize)
       RUN_NOTARIZE=1
@@ -123,20 +130,34 @@ fi
 
 if [[ "$RUN_TESTS" -eq 1 ]]; then
   step "swift tests"
-  swift test --package-path "$APP_ROOT"
+  mkdir -p "$LOCAL_HOME" "$LOCAL_CLANG_CACHE" "$LOCAL_SWIFTPM_CACHE"
+  swift_test_args=(--package-path "$APP_ROOT")
+  if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+    swift_test_args+=(--disable-sandbox)
+  fi
+  HOME="$LOCAL_HOME" CLANG_MODULE_CACHE_PATH="$LOCAL_CLANG_CACHE" SWIFTPM_MODULECACHE_OVERRIDE="$LOCAL_SWIFTPM_CACHE" \
+  swift test "${swift_test_args[@]}"
 fi
 
 if [[ "$RUN_UI_PERFORMANCE" -eq 1 ]]; then
   step "1.4 UI performance gate"
-  zsh "$SCRIPT_DIR/run-1.4-ui-performance-check.sh" --release
+  release_gate_args=(--release)
+  if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+    release_gate_args+=(--disable-swiftpm-sandbox)
+  fi
+  zsh "$SCRIPT_DIR/run-1.4-ui-performance-check.sh" "${release_gate_args[@]}"
 fi
 
 if [[ "$RUN_API_GATES" -eq 1 ]]; then
   step "1.4 API privacy gate"
-  zsh "$SCRIPT_DIR/run-1.4-api-privacy-check.sh" --release
+  release_gate_args=(--release)
+  if [[ "$DISABLE_SWIFTPM_SANDBOX" == "1" ]]; then
+    release_gate_args+=(--disable-swiftpm-sandbox)
+  fi
+  zsh "$SCRIPT_DIR/run-1.4-api-privacy-check.sh" "${release_gate_args[@]}"
 
   step "1.4 API recovery gate"
-  zsh "$SCRIPT_DIR/run-1.4-api-recovery-check.sh" --release
+  zsh "$SCRIPT_DIR/run-1.4-api-recovery-check.sh" "${release_gate_args[@]}"
 fi
 
 if [[ "$RUN_ARCHITECTURE" -eq 1 ]]; then
@@ -146,15 +167,22 @@ fi
 
 if [[ "$RUN_PACKAGE" -eq 1 ]]; then
   step "package artifacts"
-  zsh "$SCRIPT_DIR/package-app.sh"
+  WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX="$DISABLE_SWIFTPM_SANDBOX" zsh "$SCRIPT_DIR/package-app.sh"
   MANIFEST_PATH="$(resolve_latest_manifest)"
 fi
 
-if [[ -z "$MANIFEST_PATH" ]]; then
-  MANIFEST_PATH="$(resolve_latest_manifest)"
+NEEDS_MANIFEST=0
+if [[ "$RUN_VERIFY" -eq 1 || "$RUN_SMOKE" -eq 1 || "$RUN_NOTARIZE" -eq 1 || "$RUN_UPLOAD" -eq 1 ]]; then
+  NEEDS_MANIFEST=1
 fi
 
-[[ -n "$MANIFEST_PATH" ]] || { echo "unable to resolve manifest path" >&2; exit 1; }
+if [[ "$NEEDS_MANIFEST" -eq 1 ]]; then
+  if [[ -z "$MANIFEST_PATH" ]]; then
+    MANIFEST_PATH="$(resolve_latest_manifest)"
+  fi
+
+  [[ -n "$MANIFEST_PATH" ]] || { echo "unable to resolve manifest path" >&2; exit 1; }
+fi
 
 if [[ "$RUN_VERIFY" -eq 1 ]]; then
   step "verify release checksums"
@@ -193,8 +221,15 @@ fi
 
 echo
 echo "[native-release-checklist] Completed."
-echo "[native-release-checklist] Manifest: $MANIFEST_PATH"
+if [[ -n "$MANIFEST_PATH" ]]; then
+  echo "[native-release-checklist] Manifest: $MANIFEST_PATH"
+else
+  echo "[native-release-checklist] Manifest: not required for the selected steps."
+fi
 echo "[native-release-checklist] Remaining manual steps:"
+if [[ "$RUN_PACKAGE" -eq 0 ]]; then
+  echo "  [ ] Run package artifacts with Scripts/package-app.sh on the release machine."
+fi
 if [[ "$RUN_NOTARIZE" -eq 0 ]]; then
   echo "  [ ] Notarize with Scripts/notarize-app.sh if this build will be distributed externally."
 fi
