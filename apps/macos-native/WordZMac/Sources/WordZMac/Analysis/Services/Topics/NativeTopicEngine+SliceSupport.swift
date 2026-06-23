@@ -14,6 +14,11 @@ private struct TopicSliceChunk {
     }
 }
 
+private struct TopicSentenceUnit {
+    let text: String
+    let tokenCount: Int
+}
+
 extension NativeTopicEngine {
     private static let defaultStopwords = Set(StopwordFilterState.default.parsedWords)
 
@@ -76,7 +81,7 @@ extension NativeTopicEngine {
 
     fileprivate func sliceChunks(in paragraph: String, paragraphIndex: Int) -> [TopicSliceChunk] {
         let sentences = sentenceTexts(in: paragraph)
-            .flatMap { refinedSentenceUnits(from: $0) }
+            .flatMap { refinedSentenceUnitsWithTokenCounts(from: $0) }
         guard !sentences.isEmpty else {
             return buildChunk(text: paragraph, paragraphIndex: paragraphIndex).map { [$0] } ?? []
         }
@@ -86,7 +91,7 @@ extension NativeTopicEngine {
         var currentTokenBudget = 0
 
         for sentence in sentences {
-            let sentenceTokenCount = TopicFilterSupport.tokenize(sentence).count
+            let sentenceTokenCount = sentence.tokenCount
             let shouldSplit = !currentSentences.isEmpty && (
                 currentSentences.count >= 2
                 || (currentTokenBudget >= 32 && currentTokenBudget + sentenceTokenCount > 56)
@@ -95,10 +100,10 @@ extension NativeTopicEngine {
 
             if shouldSplit {
                 rawChunks.append(currentSentences.joined(separator: " "))
-                currentSentences = [sentence]
+                currentSentences = [sentence.text]
                 currentTokenBudget = sentenceTokenCount
             } else {
-                currentSentences.append(sentence)
+                currentSentences.append(sentence.text)
                 currentTokenBudget += sentenceTokenCount
             }
         }
@@ -115,28 +120,41 @@ extension NativeTopicEngine {
     }
 
     func refinedSentenceUnits(from sentence: String) -> [String] {
+        refinedSentenceUnitsWithTokenCounts(from: sentence).map(\.text)
+    }
+
+    private func refinedSentenceUnitsWithTokenCounts(from sentence: String) -> [TopicSentenceUnit] {
         let normalized = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return [] }
-        guard TopicFilterSupport.tokenize(normalized).count > 56 else {
-            return [normalized]
+        let normalizedTokenCount = TopicFilterSupport.tokenize(normalized).count
+        guard normalizedTokenCount > 56 else {
+            return [TopicSentenceUnit(text: normalized, tokenCount: normalizedTokenCount)]
         }
 
         let clauseSegments = splitTopicClauseText(normalized, separators: [";", ":"])
         let primarySegments = clauseSegments.count > 1 ? clauseSegments : [normalized]
 
-        var refined: [String] = []
+        var refined: [TopicSentenceUnit] = []
         refined.reserveCapacity(primarySegments.count)
         for segment in primarySegments {
-            if TopicFilterSupport.tokenize(segment).count > 56 {
+            let segmentTokenCount = segment == normalized
+                ? normalizedTokenCount
+                : TopicFilterSupport.tokenize(segment).count
+            if segmentTokenCount > 56 {
                 let commaSegments = splitTopicClauseText(segment, separators: [","])
                 if commaSegments.count > 1 {
-                    refined.append(contentsOf: commaSegments)
+                    refined.append(contentsOf: commaSegments.map {
+                        TopicSentenceUnit(
+                            text: $0,
+                            tokenCount: TopicFilterSupport.tokenize($0).count
+                        )
+                    })
                     continue
                 }
             }
-            refined.append(segment)
+            refined.append(TopicSentenceUnit(text: segment, tokenCount: segmentTokenCount))
         }
-        return refined.filter { !$0.isEmpty }
+        return refined.filter { !$0.text.isEmpty }
     }
 
     func splitTopicClauseText(

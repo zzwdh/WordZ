@@ -174,7 +174,9 @@ extension TopicModelManager {
         weight: Double
     ) {
         guard weight != 0 else { return }
-        for index in vector.indices where denseVector.indices.contains(index) {
+        let count = min(vector.count, denseVector.count)
+        guard count > 0 else { return }
+        for index in 0..<count {
             vector[index] += denseVector[index] * weight
         }
     }
@@ -204,7 +206,7 @@ extension TopicModelManager {
         maxLength: Int
     ) {
         guard weight != 0 else { return }
-        for subword in characterNGrams(for: term, minLength: minLength, maxLength: maxLength) {
+        forEachCharacterNGram(for: term, minLength: minLength, maxLength: maxLength) { subword in
             addProjectedFeature(
                 "g:\(subword)",
                 into: &vector,
@@ -220,24 +222,36 @@ extension TopicModelManager {
         minLength: Int,
         maxLength: Int
     ) -> [String] {
+        var grams: [String] = []
+        forEachCharacterNGram(for: term, minLength: minLength, maxLength: maxLength) { gram in
+            grams.append(gram)
+        }
+        return grams
+    }
+
+    static func forEachCharacterNGram(
+        for term: String,
+        minLength: Int,
+        maxLength: Int,
+        _ body: (String) -> Void
+    ) {
         let padded = "_\(term)_"
         let characters = Array(padded)
-        guard !characters.isEmpty else { return [] }
+        guard !characters.isEmpty else { return }
 
         let lowerBound = max(2, minLength)
         let upperBound = min(maxLength, characters.count)
         guard lowerBound <= upperBound else {
-            return [padded]
+            body(padded)
+            return
         }
 
-        var grams: [String] = []
         for length in lowerBound...upperBound {
             guard characters.count >= length else { continue }
             for start in 0...(characters.count - length) {
-                grams.append(String(characters[start..<(start + length)]))
+                body(String(characters[start..<(start + length)]))
             }
         }
-        return grams
     }
 
     static func projectFeatures(
@@ -283,14 +297,15 @@ extension TopicModelManager {
 
     static func stableTermHash(for term: String) -> (bucket: UInt64, isPositive: Bool) {
         let digest = SHA256.hash(data: Data(term.utf8))
-        let bytes = Array(digest)
 
         var bucket: UInt64 = 0
-        for byte in bytes.prefix(4) {
+        var iterator = digest.makeIterator()
+        for _ in 0..<4 {
+            guard let byte = iterator.next() else { break }
             bucket = (bucket << 8) | UInt64(byte)
         }
 
-        let isPositive = bytes.dropFirst(4).first.map { $0.isMultiple(of: 2) } ?? true
+        let isPositive = iterator.next().map { $0.isMultiple(of: 2) } ?? true
         return (bucket, isPositive)
     }
 }

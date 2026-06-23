@@ -104,7 +104,7 @@ Result: 8 release API recovery tests, 0 failures. The gate verifies API-off upda
 
 ## Performance Baseline
 
-Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Library import/index shard-write optimization, full user-triggered analysis latest-result concurrency protection, and release-mode aggregate baseline captured.
+Status: fixed-machine algorithm, small fixture, bundled reference-corpus, Library/import baseline, first Library refresh optimization, first Topics result-assembly optimization, first Topics slice/embedding allocation optimization, first Library import/index shard-write optimization, full user-triggered analysis latest-result concurrency protection, and release-mode aggregate baseline captured.
 
 Existing foundation:
 
@@ -271,6 +271,15 @@ Latest focused Library import/index optimization run:
 - Delta: import/index p95 improved by 138.3 ms, about 37.5%.
 - Adjacent Library scene metrics stayed in the same range: scene open p95 106.2 ms, scene search p95 25.8 ms, scene refresh p95 0.032 ms, selection p95 9.2 ms.
 
+Latest focused Topics slice/embedding allocation optimization run:
+
+- Date: 2026-06-23
+- Command: `WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-1.4-topic-slice-1782192044 WORDZ_1_4_BASELINE_BUILD_CONFIGURATION=release CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache swift test --disable-sandbox -c release --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline`
+- Input: bundled reference corpus fixture, 38,952 characters, 181 lines, 3/3 successful runs.
+- Before latest aggregate release run: bundled reference corpus Topics p95 854.4 ms; parse document p95 342.5 ms; total p95 1312.5 ms.
+- After focused release rerun: bundled reference corpus Topics p50 753.9 ms, p95 754.3 ms; parse document latest max 282.8 ms; total p95 1155.4 ms.
+- Quality fields stayed stable across all three repeat runs: `approximateRefined`, 13 clusters, 238 clustered segments, 107 outliers, 345 total segments, warning count 1, `bundled-local-embedding`, explained variance around 0.926670953996427.
+
 Optimization notes:
 
 - A low-level Sentiment phrase matching micro-optimization was tested on the reference corpus and rejected because it regressed Sentiment p95 from roughly 351 ms to roughly 762 ms. The code was reverted; do not pursue that direction without a narrower benchmark and proof that output quality and runtime both improve.
@@ -285,6 +294,11 @@ Optimization notes:
   - Before: focused release Library import/index p50 351.9 ms, p95 368.5 ms.
   - After: focused release Library import/index p50 218.1 ms, p95 230.3 ms.
   - Quality impact: no analysis-truth change expected; final shard schema and indexes are unchanged. Focused tests still verify frequency indexes, metadata indexes, sentence FTS prefix search, and stored token-position artifacts.
+- Topics slice/embedding allocation optimization:
+  - Change: `NativeTopicEngine+SliceSupport` now carries token counts through refined sentence units instead of tokenizing the same sentence again during chunk assembly. `TopicModelManager+EmbeddingSupport` now streams character n-gram subword projection directly, avoids a temporary digest byte array for stable hashes, and uses a direct min-count loop for dense vector addition.
+  - Before: latest aggregate release bundled reference corpus Topics p95 854.4 ms; total p95 1312.5 ms.
+  - After: focused release bundled reference corpus Topics p50 753.9 ms, p95 754.3 ms; total p95 1155.4 ms.
+  - Quality impact: no analysis-truth change expected; tokenization, projection weights, hashing, clustering strategy, and result assembly semantics are unchanged. Native Topics tests, TopicModelManager tests, and TopicBenchmark tests pass, and the focused reference-corpus release rerun preserved the same strategy, cluster counts, segment counts, provider, warning count, and explained variance.
 - Topics latest-result concurrency protection:
   - Change: ordinary Topics runs now route through `WorkspaceTaskSupervisor` with `replaceLatest`, reuse the shared managed result-run completion path, and cancel the underlying topic analysis task when the request is replaced or cancelled.
   - Before: Topics service guarded duplicate concurrent requests, but a rapid second run could be skipped instead of guaranteed to become the latest UI state.
@@ -330,6 +344,7 @@ swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkFor
 swift test --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
 swift test --filter ViewModelsTests/testLibraryManagementViewModelSkipsPublishingUnchangedSceneSyncs --filter ViewModelsTests/testLibraryManagementViewModelAppliesInitialEmptyLibrarySnapshotOnce
 swift test --filter NativeTopicEngineTests --filter TopicBenchmarkTests
+swift test --filter 'NativeTopicEngineTests|TopicModelManagerTests|TopicBenchmarkTests'
 swift test --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 swift test --filter WorkspaceRuntimeConcurrencyTests
 swift test --filter 'WorkspaceRuntimeConcurrencyTests|WorkspaceWorkflowChainTests|WorkspaceFailurePathTests|CoordinatorsTests'
@@ -341,6 +356,7 @@ zsh Scripts/run-1.4-performance-baseline.sh --release --output-dir .build/report
 HOME=/tmp/wordz-swiftpm-home CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache zsh Scripts/run-1.4-performance-baseline.sh --release --disable-swiftpm-sandbox --output-dir .build/reports/1.4.0-release-post-library
 swift test --disable-sandbox --skip-build --filter NativeCorpusDatabaseSupportTests
 CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_HOME=/tmp/wordz-swiftpm-cache WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-library-baseline-after-3 WORDZ_1_4_LIBRARY_BASELINE_BUILD_CONFIGURATION=release swift test --disable-sandbox -c release --filter LibraryPerformanceBaselineTests/testRunLibraryPerformanceBaselineForRoadmap
+WORDZ_1_4_BASELINE_OUTPUT_DIR=/tmp/wordz-1.4-topic-slice-1782192044 WORDZ_1_4_BASELINE_BUILD_CONFIGURATION=release CLANG_MODULE_CACHE_PATH=/tmp/wordz-clang-module-cache SWIFTPM_MODULECACHE_OVERRIDE=/tmp/wordz-swiftpm-module-cache swift test --disable-sandbox -c release --filter UserBenchmarkTests/testRunReferenceCorpusFixtureBenchmarkForRoadmapBaseline
 WORDZ_MAC_DISABLE_SWIFTPM_SANDBOX=1 WORDZ_MAC_DIST_DIR=/tmp/wordz-app-smoke zsh Scripts/build-app.sh
 zsh Scripts/release-smoke.sh /tmp/wordz-app-smoke/WordZ.app
 zsh Scripts/run-1.4-api-privacy-check.sh --release --disable-swiftpm-sandbox
@@ -351,7 +367,7 @@ Note: earlier aggregate shell entrypoints needed a less restricted environment b
 
 Next required work:
 
-- keep Topics embedding under watch; the remaining hotspot is embedding, and further work should only land with before/after quality evidence
+- keep Topics embedding under watch; further work should only land with before/after quality evidence
 - keep the duplicate-snapshot Library refresh guard covered by the Library baseline so regressions show up as p95 movement
 - keep `Scripts/run-1.4-ui-performance-check.sh --release --disable-swiftpm-sandbox` in the pre-tag checklist
 - run final DMG packaging on a machine that supports `hdiutil create` before tagging
