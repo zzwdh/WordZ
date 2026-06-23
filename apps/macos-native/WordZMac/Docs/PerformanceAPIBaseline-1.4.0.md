@@ -283,7 +283,8 @@ Latest no-DMG package preflight validation:
 - Date: 2026-06-23
 - Command: `WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-no-dmg-preflight zsh Scripts/release-checklist.sh --disable-swiftpm-sandbox --skip-tests --skip-ui-performance --skip-api-gates --skip-architecture --skip-dmg`
 - Result: metadata check passed for `1.4.0`; release package preflight created `WordZ.app`, `WordZ-1.4.0-mac-arm64.zip`, `WordZ-1.4.0-mac-arm64.pkg`, `WordZ-1.4.0-mac-arm64.checksums.txt`, and `WordZ-1.4.0-mac-arm64.manifest.json`; checksum verification passed for zip/pkg; manifest-mode release smoke passed with Info.plist/build-info version `1.4.0`, release channel, executable SHA metadata, Topics/Sentiment resources, English/Chinese localizations, and pkg payload.
-- Partial-manifest protection: the no-DMG manifest records `release.dmgIncluded=false`; `Scripts/release-upload.sh` refused to upload it by default and instructed that final packaging must be rerun without `--skip-dmg` on the release machine.
+- Partial-manifest protection: the no-DMG manifest records `release.dmgIncluded=false`; `Scripts/notarize-app.sh` and `Scripts/release-upload.sh` refused to process it by default and instructed that final packaging must be rerun without `--skip-dmg` on the release machine.
+- Notarization guard validation: `WORDZ_MAC_SKIP_DMG=1 zsh Scripts/notarize-app.sh <complete-manifest>` fails before packaging with a local-preflight-only message; `zsh Scripts/notarize-app.sh <no-dmg-manifest>` refuses the partial manifest; `zsh Scripts/notarize-app.sh <complete-manifest>` proceeds to the expected `WORDZ_MAC_NOTARY_PROFILE is required` check.
 - Remaining packaging gap: this validates app/zip/pkg/checksums/manifest without DMG only. Final release still requires the full package step without `--skip-dmg` on a machine where `hdiutil create` succeeds.
 
 Latest focused Library import/index optimization run:

@@ -48,7 +48,7 @@
 WORDZ_MAC_DIST_DIR=/tmp/wordz-1.4-no-dmg-preflight zsh Scripts/release-checklist.sh --disable-swiftpm-sandbox --skip-tests --skip-ui-performance --skip-api-gates --skip-architecture --skip-dmg
 ```
 
-这个模式会生成 `.app / .zip / .pkg / checksums.txt / manifest.json`，并继续执行 `verify-release.sh` 和 `release-smoke.sh`。生成的 manifest 会标记 `release.dmgIncluded=false`，只用于本地预检。`release-upload.sh` 默认会拒绝上传这种缺少 DMG 的 partial manifest。正式发布仍必须在支持 `hdiutil create` 的发布机上不带 `--skip-dmg` 重新打包。
+这个模式会生成 `.app / .zip / .pkg / checksums.txt / manifest.json`，并继续执行 `verify-release.sh` 和 `release-smoke.sh`。生成的 manifest 会标记 `release.dmgIncluded=false`，只用于本地预检。`notarize-app.sh` 和 `release-upload.sh` 都会拒绝这种缺少 DMG 的 partial manifest。正式发布仍必须在支持 `hdiutil create` 的发布机上不带 `--skip-dmg` 重新打包。
 
 ## 默认产物目录
 

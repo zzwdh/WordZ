@@ -16,11 +16,7 @@ fi
 
 INPUT_PATH="$1"
 NOTARY_PROFILE="${WORDZ_MAC_NOTARY_PROFILE:-}"
-
-if [[ -z "$NOTARY_PROFILE" ]]; then
-  echo "WORDZ_MAC_NOTARY_PROFILE is required." >&2
-  exit 1
-fi
+SKIP_DMG="${WORDZ_MAC_SKIP_DMG:-0}"
 
 submit_and_staple() {
   local artifact_path="$1"
@@ -37,13 +33,33 @@ submit_and_staple() {
 }
 
 if [[ -e "$INPUT_PATH" && ( "$INPUT_PATH" == *.app || "$INPUT_PATH" == *.dmg || "$INPUT_PATH" == *.zip || "$INPUT_PATH" == *.pkg ) ]]; then
+  if [[ -z "$NOTARY_PROFILE" ]]; then
+    echo "WORDZ_MAC_NOTARY_PROFILE is required." >&2
+    exit 1
+  fi
   submit_and_staple "$INPUT_PATH"
   echo "$INPUT_PATH"
   exit 0
 fi
 
+if [[ "$SKIP_DMG" == "1" ]]; then
+  echo "WORDZ_MAC_SKIP_DMG is only for local package preflight; notarization requires a complete DMG manifest." >&2
+  exit 1
+fi
+
 MANIFEST_PATH="$(release_support_resolve_manifest_path "$INPUT_PATH")"
 [[ -f "$MANIFEST_PATH" ]] || { echo "manifest not found: $MANIFEST_PATH" >&2; exit 1; }
+DMG_INCLUDED="$(release_support_read_manifest_value "$MANIFEST_PATH" release.dmgIncluded 2>/dev/null || true)"
+if [[ "$DMG_INCLUDED" == "false" ]]; then
+  echo "manifest was generated with DMG omitted; refusing to notarize partial release assets." >&2
+  echo "Re-run packaging without WORDZ_MAC_SKIP_DMG/--skip-dmg on the release machine." >&2
+  exit 1
+fi
+
+if [[ -z "$NOTARY_PROFILE" ]]; then
+  echo "WORDZ_MAC_NOTARY_PROFILE is required." >&2
+  exit 1
+fi
 
 DIST_DIR="$(cd "$(dirname "$MANIFEST_PATH")" && pwd)"
 APP_NAME="$(release_support_read_manifest_value "$MANIFEST_PATH" appName)"
