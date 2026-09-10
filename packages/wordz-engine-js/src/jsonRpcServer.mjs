@@ -22,6 +22,16 @@ export function createJsonRpcServer({ host, input = process.stdin, output = proc
       params: notification.params ?? null
     })
   })
+  let cleanupPromise = null
+
+  function cleanup() {
+    if (cleanupPromise) return cleanupPromise
+    cleanupPromise = (async () => {
+      unsubscribe?.()
+      await host.dispose?.()
+    })()
+    return cleanupPromise
+  }
 
   rl.on('line', async line => {
     const trimmedLine = String(line || '').trim()
@@ -59,9 +69,8 @@ export function createJsonRpcServer({ host, input = process.stdin, output = proc
     }
   })
 
-  rl.once('close', async () => {
-    unsubscribe?.()
-    await host.dispose?.()
+  rl.once('close', () => {
+    void cleanup()
   })
 
   process.on('uncaughtException', uncaughtError => {
@@ -75,8 +84,7 @@ export function createJsonRpcServer({ host, input = process.stdin, output = proc
   return {
     close: async () => {
       rl.close()
-      unsubscribe?.()
-      await host.dispose?.()
+      await cleanup()
     }
   }
 }
