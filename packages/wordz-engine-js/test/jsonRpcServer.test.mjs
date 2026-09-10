@@ -94,3 +94,39 @@ test('json rpc server returns parse errors for invalid json', async () => {
   const message = JSON.parse(lines[0])
   assert.equal(message.error.code, -32700)
 })
+
+test('json rpc server disposes once and removes process listeners on close', async () => {
+  const input = createUtf8Stream()
+  const output = createUtf8Stream()
+  const error = createUtf8Stream()
+  const uncaughtBefore = process.listenerCount('uncaughtException')
+  const rejectionBefore = process.listenerCount('unhandledRejection')
+  let disposeCount = 0
+  let unsubscribeCount = 0
+
+  const host = {
+    onNotification() {
+      return () => {
+        unsubscribeCount += 1
+      }
+    },
+    async handleRequest() {
+      return null
+    },
+    async dispose() {
+      disposeCount += 1
+    }
+  }
+
+  const server = createJsonRpcServer({ host, input, output, error })
+  assert.equal(process.listenerCount('uncaughtException'), uncaughtBefore + 1)
+  assert.equal(process.listenerCount('unhandledRejection'), rejectionBefore + 1)
+
+  await server.close()
+  await server.close()
+
+  assert.equal(disposeCount, 1)
+  assert.equal(unsubscribeCount, 1)
+  assert.equal(process.listenerCount('uncaughtException'), uncaughtBefore)
+  assert.equal(process.listenerCount('unhandledRejection'), rejectionBefore)
+})
