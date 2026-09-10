@@ -8,6 +8,7 @@ import { ENGINE_EVENTS, ENGINE_TASK_TYPES, isEngineTaskType } from '../../wordz-
 const currentFilePath = fileURLToPath(import.meta.url)
 const currentDir = path.dirname(currentFilePath)
 const workerPath = path.join(currentDir, 'analysisTaskWorker.mjs')
+const MAX_RETAINED_TASKS = 128
 
 export function createAnalysisTaskRunner() {
   const emitter = new EventEmitter()
@@ -37,11 +38,57 @@ export function createAnalysisTaskRunner() {
     return () => emitter.off('notification', listener)
   }
 
+  function pruneFinishedTasks() {
+    if (tasks.size < MAX_RETAINED_TASKS) return
+    for (const [taskId, task] of tasks) {
+      if (tasks.size < MAX_RETAINED_TASKS) break
+      if (task.status === 'running') continue
+      tasks.delete(taskId)
+    }
+  }
+
+  function completeTask(taskState, result) {
+    if (taskState.status !== 'running') return false
+    taskState.status = 'completed'
+    taskState.result = result ?? null
+    taskState.finishedAt = new Date().toISOString()
+    taskState.worker = null
+    emit(ENGINE_EVENTS.taskCompleted, {
+      taskId: taskState.taskId,
+      taskType: taskState.taskType,
+      status: taskState.status,
+      startedAt: taskState.startedAt,
+      finishedAt: taskState.finishedAt,
+      result: taskState.result
+    })
+    return true
+  }
+
+  function failTask(taskState, error) {
+    if (taskState.status !== 'running') return false
+    taskState.status = 'failed'
+    taskState.finishedAt = new Date().toISOString()
+    taskState.error = error instanceof Error
+      ? error.message
+      : String(error || 'Task failed')
+    taskState.worker = null
+    emit(ENGINE_EVENTS.taskFailed, {
+      taskId: taskState.taskId,
+      taskType: taskState.taskType,
+      status: taskState.status,
+      startedAt: taskState.startedAt,
+      finishedAt: taskState.finishedAt,
+      error: taskState.error
+    })
+    return true
+  }
+
   function startTask(taskType, payload = {}) {
     if (!isEngineTaskType(taskType)) {
       throw new Error(`Unsupported task type: ${taskType}`)
     }
 
+    pruneFinishedTasks()
     const taskId = `task-${nextTaskId++}`
     const worker = new Worker(workerPath, {
       workerData: {
@@ -69,60 +116,22 @@ export function createAnalysisTaskRunner() {
 
     worker.once('message', message => {
       if (message?.success) {
-        taskState.status = 'completed'
-        taskState.result = message.result ?? null
-        taskState.finishedAt = new Date().toISOString()
-        emit(ENGINE_EVENTS.taskCompleted, {
-          taskId,
-          taskType,
-          status: taskState.status,
-          startedAt: taskState.startedAt,
-          finishedAt: taskState.finishedAt,
-          result: taskState.result
-        })
+        completeTask(taskState, message.result)
         return
       }
-
-      taskState.status = 'failed'
-      taskState.finishedAt = new Date().toISOString()
-      taskState.error = String(message?.message || 'Task failed')
-      emit(ENGINE_EVENTS.taskFailed, {
-        taskId,
-        taskType,
-        status: taskState.status,
-        startedAt: taskState.startedAt,
-        finishedAt: taskState.finishedAt,
-        error: taskState.error
-      })
+      failTask(taskState, message?.message || 'Task failed')
     })
 
     worker.once('error', error => {
-      taskState.status = 'failed'
-      taskState.finishedAt = new Date().toISOString()
-      taskState.error = error instanceof Error ? error.message : String(error || 'Task failed')
-      emit(ENGINE_EVENTS.taskFailed, {
-        taskId,
-        taskType,
-        status: taskState.status,
-        startedAt: taskState.startedAt,
-        finishedAt: taskState.finishedAt,
-        error: taskState.error
-      })
+      failTask(taskState, error)
     })
 
     worker.once('exit', code => {
+      if (taskState.worker === worker) {
+        taskState.worker = null
+      }
       if (taskState.status === 'running' && code !== 0) {
-        taskState.status = 'failed'
-        taskState.finishedAt = new Date().toISOString()
-        taskState.error = `Worker exited with code ${code}`
-        emit(ENGINE_EVENTS.taskFailed, {
-          taskId,
-          taskType,
-          status: taskState.status,
-          startedAt: taskState.startedAt,
-          finishedAt: taskState.finishedAt,
-          error: taskState.error
-        })
+        failTask(taskState, `Worker exited with code ${code}`)
       }
     })
 
@@ -140,9 +149,11 @@ export function createAnalysisTaskRunner() {
       return getTaskState(taskId)
     }
 
-    await task.worker.terminate()
+    const worker = task.worker
     task.status = 'cancelled'
     task.finishedAt = new Date().toISOString()
+    task.worker = null
+    await worker.terminate()
     emit(ENGINE_EVENTS.taskCancelled, {
       taskId: task.taskId,
       taskType: task.taskType,
@@ -154,11 +165,15 @@ export function createAnalysisTaskRunner() {
   }
 
   async function dispose() {
-    await Promise.all(
-      [...tasks.values()]
-        .filter(task => task.worker && task.status === 'running')
-        .map(task => task.worker.terminate().catch(() => {}))
-    )
+    const runningTasks = [...tasks.values()].filter(task => task.worker && task.status === 'running')
+    const workers = runningTasks.map(task => task.worker)
+    const finishedAt = new Date().toISOString()
+    for (const task of runningTasks) {
+      task.status = 'cancelled'
+      task.finishedAt = finishedAt
+      task.worker = null
+    }
+    await Promise.all(workers.map(worker => worker.terminate().catch(() => {})))
   }
 
   return {
