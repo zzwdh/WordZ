@@ -22,11 +22,22 @@ export function createJsonRpcServer({ host, input = process.stdin, output = proc
       params: notification.params ?? null
     })
   })
+  const handleUncaughtException = uncaughtError => {
+    error.write(`[wordz-engine-js] uncaughtException: ${uncaughtError instanceof Error ? uncaughtError.stack || uncaughtError.message : String(uncaughtError)}\n`)
+  }
+  const handleUnhandledRejection = unhandledReason => {
+    error.write(`[wordz-engine-js] unhandledRejection: ${unhandledReason instanceof Error ? unhandledReason.stack || unhandledReason.message : String(unhandledReason)}\n`)
+  }
   let cleanupPromise = null
+
+  process.on('uncaughtException', handleUncaughtException)
+  process.on('unhandledRejection', handleUnhandledRejection)
 
   function cleanup() {
     if (cleanupPromise) return cleanupPromise
     cleanupPromise = (async () => {
+      process.removeListener('uncaughtException', handleUncaughtException)
+      process.removeListener('unhandledRejection', handleUnhandledRejection)
       unsubscribe?.()
       await host.dispose?.()
     })()
@@ -71,14 +82,6 @@ export function createJsonRpcServer({ host, input = process.stdin, output = proc
 
   rl.once('close', () => {
     void cleanup()
-  })
-
-  process.on('uncaughtException', uncaughtError => {
-    error.write(`[wordz-engine-js] uncaughtException: ${uncaughtError instanceof Error ? uncaughtError.stack || uncaughtError.message : String(uncaughtError)}\n`)
-  })
-
-  process.on('unhandledRejection', unhandledReason => {
-    error.write(`[wordz-engine-js] unhandledRejection: ${unhandledReason instanceof Error ? unhandledReason.stack || unhandledReason.message : String(unhandledReason)}\n`)
   })
 
   return {
