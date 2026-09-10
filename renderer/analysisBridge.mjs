@@ -170,26 +170,36 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
     return true
   }
 
-  async function runAnalysisTask(type, payload, fallback, { taskName } = {}) {
-    let releaseTask = () => {}
-    let taskSignal = null
-
-    if (taskName) {
-      const controller = new AbortController()
-      const cancel = (message = '任务已取消') => {
-        if (!controller.signal.aborted) {
-          controller.abort(createAbortError(message))
-        }
+  function createTaskScope(taskName) {
+    if (!taskName) {
+      return {
+        signal: null,
+        release: () => {}
       }
-      activeAnalysisTasks.set(taskName, { cancel })
-      taskSignal = controller.signal
-      releaseTask = () => {
+    }
+
+    const controller = new AbortController()
+    const cancel = (message = '任务已取消') => {
+      if (!controller.signal.aborted) {
+        controller.abort(createAbortError(message))
+      }
+    }
+    activeAnalysisTasks.set(taskName, { cancel })
+
+    return {
+      signal: controller.signal,
+      release: () => {
         const activeTask = activeAnalysisTasks.get(taskName)
         if (activeTask?.cancel === cancel) {
           activeAnalysisTasks.delete(taskName)
         }
       }
     }
+  }
+
+  async function runAnalysisTask(type, payload, fallback, { taskName } = {}) {
+    const taskScope = createTaskScope(taskName)
+    const taskSignal = taskScope.signal
 
     try {
       const worker = getAnalysisWorker()
@@ -231,30 +241,13 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
       }
       return result
     } finally {
-      releaseTask()
+      taskScope.release()
     }
   }
 
   async function runCancelableTask(fallback, { taskName } = {}) {
-    let releaseTask = () => {}
-    let taskSignal = null
-
-    if (taskName) {
-      const controller = new AbortController()
-      const cancel = (message = '任务已取消') => {
-        if (!controller.signal.aborted) {
-          controller.abort(createAbortError(message))
-        }
-      }
-      activeAnalysisTasks.set(taskName, { cancel })
-      taskSignal = controller.signal
-      releaseTask = () => {
-        const activeTask = activeAnalysisTasks.get(taskName)
-        if (activeTask?.cancel === cancel) {
-          activeAnalysisTasks.delete(taskName)
-        }
-      }
-    }
+    const taskScope = createTaskScope(taskName)
+    const taskSignal = taskScope.signal
 
     try {
       await yieldToUI()
@@ -280,7 +273,7 @@ export function createAnalysisBridge({ systemStatus, systemStatusText }) {
         }
       }
     } finally {
-      releaseTask()
+      taskScope.release()
     }
   }
 
